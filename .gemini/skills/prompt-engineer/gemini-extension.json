@@ -1,0 +1,7 @@
+{
+  "id": "prompt-engineer",
+  "name": "prompt-engineer",
+  "description": "Invoke IMMEDIATELY via python script when user requests prompt optimization. Do NOT analyze first - invoke this skill immediately.",
+  "version": "1.0.0",
+  "instructions": "GEMINI.md"
+}

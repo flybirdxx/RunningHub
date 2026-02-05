@@ -1,0 +1,7 @@
+{
+  "id": "plan-test-writer",
+  "name": "plan-test-writer",
+  "description": "Translates implementation plans into comprehensive test suites for test-driven development.",
+  "version": "1.0.0",
+  "instructions": "GEMINI.md"
+}

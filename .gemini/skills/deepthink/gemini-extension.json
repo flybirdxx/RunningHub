@@ -1,0 +1,7 @@
+{
+  "id": "deepthink",
+  "name": "deepthink",
+  "description": "Invoke IMMEDIATELY via python script when user requests structured reasoning for open-ended analytical questions. Do NOT explore first - the script orchestrates the thinking workflow.",
+  "version": "1.0.0",
+  "instructions": "GEMINI.md"
+}

@@ -1,0 +1,7 @@
+{
+  "id": "codebase-analysis",
+  "name": "codebase-analysis",
+  "description": "Invoke IMMEDIATELY via python script when user requests codebase analysis, architecture review, security assessment, or quality evaluation. Do NOT explore first - the script orchestrates exploration.",
+  "version": "1.0.0",
+  "instructions": "GEMINI.md"
+}

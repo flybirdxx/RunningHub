@@ -1,0 +1,7 @@
+{
+  "id": "planner",
+  "name": "planner",
+  "description": "Interactive planning and execution for complex tasks. Use when user asks to use or invoke planner skill.",
+  "version": "1.0.0",
+  "instructions": "GEMINI.md"
+}

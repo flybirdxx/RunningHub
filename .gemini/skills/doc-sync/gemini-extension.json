@@ -1,0 +1,7 @@
+{
+  "id": "doc-sync",
+  "name": "doc-sync",
+  "description": "Synchronizes docs across a repository. Use when user asks to sync docs.",
+  "version": "1.0.0",
+  "instructions": "GEMINI.md"
+}

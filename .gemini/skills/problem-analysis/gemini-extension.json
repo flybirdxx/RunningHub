@@ -1,0 +1,7 @@
+{
+  "id": "problem-analysis",
+  "name": "problem-analysis",
+  "description": "Invoke IMMEDIATELY for structured problem analysis and solution discovery.",
+  "version": "1.0.0",
+  "instructions": "GEMINI.md"
+}
