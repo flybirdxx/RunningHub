@@ -9,3 +9,10 @@ local.properties
 .externalNativeBuild
 .cxx
 /google-services.json
+
+# Scratch & log files
+*.py
+*.pyc
+__pycache__/
+*.json
+*.log
