@@ -1,6 +1,7 @@
 package com.runninghub.app.di
 
 import com.runninghub.app.data.remote.api.WebAppApi
+import com.runninghub.app.data.remote.api.AudioApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -48,23 +49,42 @@ object NetworkModule {
             .addInterceptor { chain ->
                 val prefs = context.getSharedPreferences("user_prefs", android.content.Context.MODE_PRIVATE)
                 val apiKey = prefs.getString("api_key", "") ?: ""
+                val enterpriseApiKey = prefs.getString("enterprise_api_key", "") ?: ""
                 val cookie = prefs.getString("user_cookie", "") ?: ""
 
-                val requestBuilder = chain.request().newBuilder()
+                val originalRequest = chain.request()
+                val url = originalRequest.url.toString()
+                val isAudioApi = url.contains("rhart-audio") || url.contains("/openapi/v2/query")
+
+                val requestBuilder = originalRequest.newBuilder()
                     .addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36")
                     .addHeader("Accept", "application/json, text/plain, */*")
+                    .addHeader("Origin", "https://www.runninghub.cn")
 
-                if (cookie.isNotEmpty()) {
+                // Robust Referer Check
+                val hasSpecificReferer = originalRequest.headers("Referer").isNotEmpty()
+                val isFollowApi = url.contains("/uc/follow/")
+                
+                if (!hasSpecificReferer && !isFollowApi) {
+                    requestBuilder.addHeader("Referer", "https://www.runninghub.cn/")
+                }
+
+                // Authorization Strategy: 
+                // 1. If Audio API AND Enterprise Key exists -> Use Enterprise Key
+                // 2. Else If Cookie exists -> Use Token from Cookie
+                // 3. Else If App Key exists -> Use App Key
+                
+                if (isAudioApi && enterpriseApiKey.isNotEmpty()) {
+                    requestBuilder.addHeader("Authorization", "Bearer $enterpriseApiKey")
+                } else if (cookie.isNotEmpty()) {
                     requestBuilder.addHeader("Cookie", cookie)
-                    // Extract AccessToken from Cookie for Authorization header if not using API Key
-                    // Cookie format: ...; Rh-AccessToken=eyJ...; ...
-                    // Update: Case insensitive match for Rh-AccessToken / Rh-Accesstoken
                     val tokenMatch = Regex("Rh-AccessToken=([^;]+)", RegexOption.IGNORE_CASE).find(cookie)
                     if (tokenMatch != null) {
-                        val token = tokenMatch.groupValues[1]
-                        requestBuilder.addHeader("Authorization", "Bearer $token")
+                        val token = tokenMatch.groupValues[1].trim()
+                        if (token.isNotEmpty()) {
+                            requestBuilder.addHeader("Authorization", "Bearer $token")
+                        }
                     } else if (apiKey.isNotEmpty()) {
-                        // Fallback to API Key if no token in cookie
                          requestBuilder.addHeader("Authorization", "Bearer $apiKey")
                     }
                 } else if (apiKey.isNotEmpty()) {
@@ -91,5 +111,11 @@ object NetworkModule {
     @Singleton
     fun provideWebAppApi(retrofit: Retrofit): WebAppApi {
         return retrofit.create(WebAppApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideAudioApi(retrofit: Retrofit): AudioApi {
+        return retrofit.create(AudioApi::class.java)
     }
 }

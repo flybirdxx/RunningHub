@@ -10,6 +10,7 @@ import com.runninghub.app.data.remote.model.TaskRunRequest
 import com.runninghub.app.data.remote.model.TaskStatusRequest
 import com.runninghub.app.data.remote.model.UploadResponse
 import com.runninghub.app.data.local.UserPreferencesRepository
+import com.runninghub.app.data.repository.DiscoveryRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -29,6 +30,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AppDetailViewModel @Inject constructor(
     private val webAppApi: WebAppApi,
+    private val repository: DiscoveryRepository,
     private val application: Application,
     private val taskHistoryManager: com.runninghub.app.data.local.TaskHistoryManager,
     private val userPrefs: UserPreferencesRepository
@@ -47,22 +49,65 @@ class AppDetailViewModel @Inject constructor(
         currentAppId = appId
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            
+            // 1. Try Cache First (Immediate UI update)
+            val cachedDetail = repository.getAppDetail(appId)
+            if (cachedDetail != null) {
+                _uiState.update { 
+                    it.copy(
+                        isLoading = false,
+                        appDetail = cachedDetail,
+                        inputValues = cachedDetail.inputNodes ?: emptyList()
+                    )
+                }
+            }
+            
             try {
-                val apiKey = currentApiKey
-                val response = webAppApi.getApiCallDemo(apiKey = apiKey, webappId = appId)
-                if (response.code == 0) {
+                // 2. Network Fetch (Background update)
+                // First try webapp/detail to get full metadata (author, covers, etc.)
+                val idLong = appId.toLongOrNull()
+                val requestMap: Map<String, Any> = if (idLong != null) mapOf("webappId" to idLong) else mapOf("webappId" to appId)
+                
+                android.util.Log.d("AppDetail", "Requesting detail for $appId with map: $requestMap")
+                val detailResponse = webAppApi.getWebAppDetail(requestMap)
+                android.util.Log.d("AppDetail", "Detail response: code=${detailResponse.code}, msg=${detailResponse.msg}, dataOwner=${detailResponse.data?.owner}")
+                
+                if (detailResponse.code == 0) {
+                    val freshDetail = detailResponse.data
                     _uiState.update { 
                         it.copy(
                             isLoading = false, 
-                            appDetail = response.data,
-                            inputValues = response.data.inputNodes ?: emptyList()
+                            appDetail = freshDetail,
+                            inputValues = freshDetail.inputNodes ?: emptyList()
                         ) 
                     }
+                    // Save to cache
+                    repository.saveAppDetail(freshDetail)
                 } else {
-                    _uiState.update { it.copy(isLoading = false, error = response.msg) }
+                    android.util.Log.w("AppDetail", "Detail failed, falling back to demo: ${detailResponse.msg}")
+                    // 3. Fallback to apiCallDemo if detail fails or for specific demo data
+                    val apiKey = currentApiKey
+                    val demoResponse = webAppApi.getApiCallDemo(apiKey = apiKey, webappId = appId)
+                    if (demoResponse.code == 0) {
+                         val demoDetail = demoResponse.data
+                        _uiState.update { 
+                            it.copy(
+                                isLoading = false, 
+                                appDetail = demoDetail,
+                                inputValues = demoDetail.inputNodes ?: emptyList()
+                            ) 
+                        }
+                        // We also save this to cache if detail was failing
+                        repository.saveAppDetail(demoDetail)
+                    } else if (cachedDetail == null) {
+                        _uiState.update { it.copy(isLoading = false, error = detailResponse.msg) }
+                    }
                 }
             } catch (e: Exception) {
-                _uiState.update { it.copy(isLoading = false, error = e.localizedMessage) }
+                android.util.Log.e("AppDetail", "Exception fetching detail", e)
+                if (cachedDetail == null) {
+                    _uiState.update { it.copy(isLoading = false, error = e.localizedMessage) }
+                }
             }
         }
     }
@@ -196,7 +241,7 @@ class AppDetailViewModel @Inject constructor(
                                     taskHistoryManager.saveTask(
                                         com.runninghub.app.data.local.HistoryTask(
                                             taskId = taskId,
-                                            appName = it.name,
+                                            appName = it.name ?: "未命名应用",
                                             resultUrl = output.fileUrl
                                         )
                                     )

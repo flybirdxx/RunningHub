@@ -12,7 +12,13 @@ sealed class Screen(val route: String) {
     data object AppDetail : Screen("app_detail/{appId}") {
         fun createRoute(appId: String) = "app_detail/$appId"
     }
+    data object CreatorProfile : Screen("creator_profile/{userId}") {
+        fun createRoute(userId: String) = "creator_profile/$userId"
+    }
     data object Community : Screen("community")
     data object Profile : Screen("profile")
     data object TaskHistory : Screen("task_history")
+    data object UiInspector : Screen("tool_ui_inspector")
+    data object SecretDecode : Screen("tool_secret_decode")
+    data object AudioGeneration : Screen("tool_audio_generation")
 }

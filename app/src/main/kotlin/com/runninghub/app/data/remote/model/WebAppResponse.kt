@@ -1,6 +1,8 @@
 package com.runninghub.app.data.remote.model
 
 import com.google.gson.annotations.SerializedName
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * [INPUT]: WebApp 列表原始数据
@@ -8,28 +10,39 @@ import com.google.gson.annotations.SerializedName
  * [POS]: 业务模型的远程映射
  */
 data class WebAppDto(
-    val id: String,
-    @SerializedName("name") val title: String,
-    @SerializedName("intro") val desc: String?,
+    @SerializedName("id", alternate = ["webappId"]) val id: String? = null,
+    @SerializedName("name", alternate = ["webappName", "title"]) val title: String? = null,
+    @SerializedName("intro", alternate = ["desc", "description"]) val desc: String? = null,
+    val thumbnailUrl: String? = null,
     val preview: PreviewDto? = null,
-    val covers: List<CoverDto>?,
-    val owner: AuthorDto? = null,
-    @SerializedName("author") val author: AuthorDto?,
+    val covers: List<CoverDto>? = null,
+    @SerializedName("owner", alternate = ["author"]) val author: AuthorDto? = null,
     val tags: List<TagSimpleDto>? = null,
-    val statisticsInfo: StatisticsInfo?
+    val statisticsInfo: StatisticsInfo? = null,
+    // Fields that sometimes return flatly from the API instead of nested
+    val likeCount: String? = null,
+    val collectCount: String? = null,
+    val useCount: String? = null,
+    val pv: String? = null
 )
 
 data class WebAppDetailDto(
     @SerializedName("id", alternate = ["webappId"]) val id: String?,
-    @SerializedName("webappName", alternate = ["name"]) val name: String,
+    @SerializedName("webappName", alternate = ["name"]) val name: String?,
     val tags: List<TagSimpleDto>?,
-    val owner: AuthorDto?,
-    val publishTime: String?,
+    @SerializedName("owner", alternate = ["author", "user"]) val owner: AuthorDto?,
+    @SerializedName("publishTime", alternate = ["createTime", "create_time", "updateTime", "time"]) val publishTime: String?,
     @SerializedName("nodeInfoList", alternate = ["inputNodes"]) val inputNodes: List<InputNodeDto>?,
     val description: String?,
     val covers: List<CoverDto>?,
-    val statisticsInfo: StatisticsInfo?
-)
+    val statisticsInfo: StatisticsInfo?,
+    // Flat mapping fallback
+    @SerializedName("userName", alternate = ["authorName", "nickname", "nickName", "user_name"]) val authorName: String? = null,
+    @SerializedName("userAvatar", alternate = ["authorAvatar", "avatar", "user_avatar"]) val authorAvatar: String? = null
+) {
+    fun getDisplayName(): String = owner?.name ?: authorName ?: "Anonymous"
+    fun getDisplayAvatar(): String? = owner?.avatar ?: authorAvatar
+}
 
 data class InputNodeDto(
     val nodeId: String,
@@ -47,14 +60,54 @@ data class InputNodeDto(
      */
     fun getOptions(): List<String> {
         if (fieldData.isNullOrEmpty()) return emptyList()
-        return try {
-            // Simple extraction for the "[["..."]]" format
-            val firstArray = fieldData.substringAfter("[[").substringBefore("]]")
-            firstArray.split(",").map { 
-                it.trim().removeSurrounding("\"").removeSurrounding("'") 
-            }.filter { it.isNotEmpty() }
+        val options = mutableListOf<String>()
+        try {
+            // 1. Try modern JSON parsing
+            val root = JSONArray(fieldData)
+            for (i in 0 until root.length()) {
+                val item = root.opt(i) ?: continue
+                when (item) {
+                    is JSONArray -> {
+                        for (j in 0 until item.length()) {
+                            val sub = item.opt(j) ?: continue
+                            options.add(parseSingleOption(sub))
+                        }
+                    }
+                    else -> options.add(parseSingleOption(item))
+                }
+            }
         } catch (e: Exception) {
-            emptyList()
+            // 2. Fallback to refined regex/split for broken fragments
+            return fieldData.split(Regex("[\\[\\]{},]"))
+                .map { it.trim().removeSurrounding("\"").removeSurrounding("'") }
+                .filter { it.isNotEmpty() && !it.contains(":") && !it.contains("\"") }
+        }
+        return options.filter { it.isNotBlank() && !it.startsWith("{") }
+    }
+
+    private fun parseSingleOption(item: Any): String {
+        return when (item) {
+            is JSONObject -> {
+                // For objects, try to find a human-readable name or ID
+                // We check name first as it's likely the functional value,
+                // then description for display, then fallback to anything available.
+                val name = item.optString("name", "")
+                if (name.isNotEmpty()) return name
+                
+                val desc = item.optString("description", "")
+                if (desc.isNotEmpty()) return desc
+                
+                val def = item.optString("default", "")
+                if (def.isNotEmpty()) return def
+                
+                ""
+            }
+            else -> item.toString()
+                .trim()
+                .removeSurrounding("[")
+                .removeSurrounding("]")
+                .removeSurrounding("\"")
+                .removeSurrounding("'")
         }
     }
 }
@@ -69,9 +122,15 @@ data class PreviewDto(
 )
 
 data class AuthorDto(
-    val name: String? = null,
-    val nickname: String? = "Anonymous",
-    val avatar: String? = null
+    @SerializedName("name", alternate = ["nickname", "userName", "nickName", "authorName", "user_name"]) val name: String? = null,
+    @SerializedName("avatar", alternate = ["userAvatar", "authorAvatar", "user_avatar"]) val avatar: String? = null,
+    @SerializedName("id", alternate = ["userId", "uid"]) val id: String? = null,
+    @SerializedName("intro", alternate = ["description", "desc", "bio", "signature"]) val intro: String? = null,
+    @SerializedName("followCount", alternate = ["attentionCount", "follows"]) val followCount: String? = "0",
+    @SerializedName("fansCount", alternate = ["fanCount", "fans", "followers"]) val fansCount: String? = "0",
+    @SerializedName("likeCount", alternate = ["likes", "praisedCount"]) val likeCount: String? = "0",
+    @SerializedName("collectCount", alternate = ["collections", "collectedCount"]) val collectCount: String? = "0",
+    @SerializedName("bgImage", alternate = ["backgroundImage", "banner", "cover"]) val bgImage: String? = null
 )
 
 data class StatisticsInfo(

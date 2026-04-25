@@ -9,8 +9,12 @@ package com.runninghub.app.ui.feature.discovery
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
 import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
@@ -22,12 +26,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
+import com.runninghub.app.ui.component.SmartAsyncImage
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -35,16 +42,49 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import com.runninghub.app.ui.component.FabMenuOverlay
 import androidx.navigation.*
 import androidx.navigation.compose.*
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import com.valentinilk.shimmer.shimmer
 import com.runninghub.app.ui.theme.RunningHubTeal
 import com.runninghub.app.ui.navigation.Screen
+import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import coil.decode.Decoder
 import coil.decode.VideoFrameDecoder
 import coil.request.Options
 import coil.fetch.SourceResult
 import coil.ImageLoader
+
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.runninghub.app.ui.feature.profile.ProfileViewModel
+import com.runninghub.app.ui.feature.profile.ProfileSettingsDialog
+
+@Composable
+fun DiscoveryShimmerLoading() {
+    Column(Modifier.padding(horizontal = 16.dp)) {
+        repeat(3) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 12.dp)) {
+                repeat(2) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .aspectRatio(0.8f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .shimmer()
+                            .background(Color.White.copy(alpha = 0.05f))
+                    )
+                }
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,110 +93,209 @@ fun DiscoveryScreen(
     navController: NavHostController,
     onCategorySelected: (Category) -> Unit,
     onRefresh: () -> Unit,
-    onLoadMore: () -> Unit
+    onLoadMore: () -> Unit,
+    profileViewModel: ProfileViewModel = hiltViewModel()
 ) {
-    val scrollState = rememberScrollState()
+    var isMenuExpanded by remember { mutableStateOf(false) }
+    val listState = rememberLazyListState()
     
-    // 分页加载触发逻辑：当滑动快到底部时触发
-    val shouldLoadMore by remember {
-        derivedStateOf {
-            val totalHeight = scrollState.maxValue
-            val currentScroll = scrollState.value
-            if (totalHeight > 0) {
-                totalHeight - currentScroll < 500 // 距离底部不足 500 像素时触发
-            } else {
-                false
+    val profileUiState by profileViewModel.uiState.collectAsStateWithLifecycle()
+    var showProfileDialog by remember { mutableStateOf(false) }
+
+    if (showProfileDialog) {
+        ProfileSettingsDialog(
+            uiState = profileUiState,
+            onDismiss = { showProfileDialog = false },
+            onNavigateToHistory = {
+                showProfileDialog = false
+                navController.navigate(Screen.TaskHistory.route)
+            },
+            onBindApiKey = profileViewModel::bindApiKey,
+            onBindEnterpriseApiKey = profileViewModel::bindEnterpriseApiKey,
+            onUnbindApiKey = profileViewModel::unbindApiKey
+        )
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            topBar = { 
+                DiscoveryHeader(
+                    onRefresh = onRefresh,
+                    user = profileUiState.user,
+                    onAvatarClick = { showProfileDialog = true }
+                ) 
+            },
+            bottomBar = { 
+                DiscoveryBottomNav(
+                    navController = navController,
+                    isMenuExpanded = isMenuExpanded,
+                    onMenuToggle = { isMenuExpanded = !isMenuExpanded }
+                ) 
             }
-        }
-    }
-
-    LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore) {
-            onLoadMore()
-        }
-    }
-
-    Scaffold(
-        topBar = { DiscoveryHeader(onRefresh = onRefresh) },
-        bottomBar = { DiscoveryBottomNav(navController) }
-    ) { padding ->
-        Box(
+        ) { padding ->
+        val pullRefreshState = rememberPullToRefreshState()
+        PullToRefreshBox(
+            isRefreshing = uiState.isRefreshing,
+            onRefresh = onRefresh,
+            state = pullRefreshState,
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            Column(
+            LazyColumn(
+                state = listState,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(scrollState)
+                    .fillMaxSize()
                     .background(MaterialTheme.colorScheme.background)
             ) {
                 // 1. Banner
                 if (uiState.banners.isNotEmpty()) {
-                    BannerSection(uiState.banners)
-                }
-
-                // 2. Categories
-                CategoryPills(uiState.categories, uiState.selectedCategory, onCategorySelected)
-
-
-                // 5. Discovery Feed (Discovery 作品使用瀑布流)
-                if (uiState.isLoading && uiState.discoveryApps.isEmpty()) {
-                    Box(Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = RunningHubTeal)
-                    }
-                } else if (uiState.discoveryApps.isEmpty() && !uiState.isLoading) {
-                    Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.Inbox, null, modifier = Modifier.size(48.dp), tint = Color.Gray)
-                            Spacer(Modifier.height(8.dp))
-                            Text("暂无作品", color = Color.Gray)
-                        }
-                    }
-                } else {
-                    DiscoveryFeedSection(
-                        apps = uiState.discoveryApps,
-                        onAppClick = { appId ->
-                            navController.navigate(Screen.AppDetail.createRoute(appId))
-                        }
-                    )
-                    
-                    // 加载更多提示
-                    if (uiState.isLoadingMore) {
-                        Box(
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            CircularProgressIndicator(modifier = Modifier.size(24.dp), color = RunningHubTeal, strokeWidth = 2.dp)
-                        }
-                    } else if (!uiState.hasMore && uiState.discoveryApps.isNotEmpty()) {
-                        Text(
-                            "没有更多作品了",
-                            modifier = Modifier.fillMaxWidth().padding(16.dp),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    item(key = "banners") {
+                        BannerSection(
+                            banners = uiState.banners,
+                            onBannerClick = { appId ->
+                                navController.navigate(Screen.AppDetail.createRoute(appId))
+                            }
                         )
                     }
                 }
-                
-                Spacer(modifier = Modifier.height(24.dp))
-            }
 
-            if (uiState.isRefreshing) {
-                LinearProgressIndicator(
-                    modifier = Modifier.fillMaxWidth().align(Alignment.TopCenter),
-                    color = RunningHubTeal,
-                    trackColor = Color.Transparent
-                )
+                // 2. Categories
+                item(key = "categories") {
+                    CategoryPills(uiState.categories, uiState.selectedCategory, onCategorySelected)
+                }
+
+                // 5. Discovery Feed (Discovery 作品使用瀑布流)
+                if (uiState.isLoading && uiState.discoveryApps.isEmpty()) {
+                    // Full area loading animation
+                    item(key = "loading") {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 100.dp, bottom = 100.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(
+                                    color = RunningHubTeal,
+                                    modifier = Modifier.size(48.dp)
+                                )
+                                Spacer(Modifier.height(16.dp))
+                                Text(
+                                    "正在寻找优质作品...",
+                                    color = Color.White.copy(alpha = 0.6f),
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                } else if (uiState.discoveryApps.isEmpty() && !uiState.isLoading) {
+                    item(key = "empty") {
+                        Box(Modifier.fillMaxWidth().height(400.dp), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Inbox, null, modifier = Modifier.size(64.dp), tint = Color.Gray)
+                                Spacer(Modifier.height(16.dp))
+                                Text("暂无作品", color = Color.Gray, fontSize = 16.sp)
+                            }
+                        }
+                    }
+                } else {
+                    val chunkedApps = uiState.discoveryApps.chunked(2)
+                    items(
+                        items = chunkedApps,
+                        key = { it.first().id } // Use first item id as stable key
+                    ) { rowApps ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 12.dp, start = 16.dp, end = 16.dp)) {
+                            for (app in rowApps) {
+                                AiAppMasonryItem(
+                                    app = app, 
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { navController.navigate(Screen.AppDetail.createRoute(app.id)) }
+                                )
+                            }
+                            if (rowApps.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                    
+                    // 加载更多提示
+                    if (uiState.discoveryApps.isNotEmpty()) {
+                        item(key = "load_more") {
+                            // 监听列表滚动到底部，用 snapshotFlow 更加精确地防抖和过滤
+                            LaunchedEffect(listState) {
+                                androidx.compose.runtime.snapshotFlow {
+                                    val totalItems = listState.layoutInfo.totalItemsCount
+                                    val lastVisibleItemIndex = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                                    // 预加载阈值设为最后3个元素之前
+                                    totalItems > 0 && lastVisibleItemIndex >= totalItems - 3
+                                }
+                                .distinctUntilChanged()
+                                .filter { it } // 只过滤状态从 false 变为 true 这一触发瞬间
+                                .collect {
+                                    if (uiState.hasMore && !uiState.isLoadingMore && !uiState.isRefreshing) {
+                                        onLoadMore()
+                                    }
+                                }
+                            }
+
+                            if (uiState.isLoadingMore) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(modifier = Modifier.size(24.dp), color = RunningHubTeal, strokeWidth = 2.dp)
+                                }
+                            } else if (uiState.hasMore) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().clickable { onLoadMore() }.padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text("下拉或点击加载更多", color = Color.Gray, style = MaterialTheme.typography.bodySmall)
+                                }
+                            } else {
+                                Text(
+                                    "没有更多作品了",
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = Color.Gray,
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+                    } else if (!uiState.isRefreshing) {
+                        item(key = "empty_state") {
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(64.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("暂无数据", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                }
             }
         }
+    }
+
+        FabMenuOverlay(
+            isVisible = isMenuExpanded,
+            onDismiss = { isMenuExpanded = false },
+            onMenuItemClick = { title ->
+                if (title == "音频处理 API") {
+                    navController.navigate(Screen.AudioGeneration.route)
+                }
+            }
+        )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DiscoveryHeader(onRefresh: () -> Unit = {}) {
+fun DiscoveryHeader(
+    onRefresh: () -> Unit = {},
+    user: com.runninghub.app.data.remote.model.UserDto? = null,
+    onAvatarClick: () -> Unit = {}
+) {
     TopAppBar(
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -168,13 +307,30 @@ fun DiscoveryHeader(onRefresh: () -> Unit = {}) {
         actions = {
             IconButton(onClick = onRefresh) { Icon(Icons.Default.Refresh, "Refresh") }
             IconButton(onClick = {}) { Icon(Icons.Default.Search, "Search") }
-            Box(
-                modifier = Modifier
-                    .padding(end = 8.dp)
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(RunningHubTeal, Color.Blue)))
-            )
+            if (user?.headIcon != null) {
+                AsyncImage(
+                    model = user.headIcon,
+                    contentDescription = "Profile",
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onAvatarClick),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .padding(end = 8.dp)
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(Brush.linearGradient(listOf(RunningHubTeal, Color.Blue)))
+                        .clickable(onClick = onAvatarClick),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Person, contentDescription = "Profile", modifier = Modifier.size(20.dp), tint = Color.White)
+                }
+            }
         },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
@@ -184,7 +340,7 @@ fun DiscoveryHeader(onRefresh: () -> Unit = {}) {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun BannerSection(banners: List<Banner>) {
+fun BannerSection(banners: List<Banner>, onBannerClick: (String) -> Unit) {
     val pagerState = rememberPagerState(pageCount = { banners.size })
     
     // Auto-play logic
@@ -208,7 +364,11 @@ fun BannerSection(banners: List<Banner>) {
             modifier = Modifier.fillMaxSize()
         ) { page ->
             val banner = banners[page]
-            Box(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable { onBannerClick(banner.id) }
+            ) {
                 SmartAsyncImage(
                     imageUrl = banner.imageUrl,
                     contentDescription = null,
@@ -297,25 +457,6 @@ fun CategoryPills(categories: List<Category>, selected: Category, onSelected: (C
     }
 }
 
-@Composable
-fun DiscoveryFeedSection(apps: List<AiApp>, onAppClick: (String) -> Unit) {
-    Column(Modifier.padding(horizontal = 16.dp)) {
-        // Removed '发现作品' header as requested
-        // 此处仅做示范性布局
-        for (rowApps in apps.chunked(2)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(bottom = 12.dp)) {
-                for (app in rowApps) {
-                    AiAppMasonryItem(
-                        app = app, 
-                        modifier = Modifier.weight(1f),
-                        onClick = { onAppClick(app.id) }
-                    )
-                }
-                if (rowApps.size == 1) Spacer(Modifier.weight(1f))
-            }
-        }
-    }
-}
 
 @Composable
 fun AiAppMasonryItem(app: AiApp, modifier: Modifier, onClick: () -> Unit) {
@@ -420,64 +561,14 @@ fun AiAppMasonryItem(app: AiApp, modifier: Modifier, onClick: () -> Unit) {
     }
 }
 
-/**
- * 智能异步图片加载组件
- * 自动识别 .mp4 并强制使用 VideoFrameDecoder
- * 自动识别 .gif 并使用 GifDecoder
- */
+
+
 @Composable
-fun SmartAsyncImage(
-    imageUrl: String,
-    modifier: Modifier = Modifier,
-    contentDescription: String? = null,
-    contentScale: ContentScale = ContentScale.Fit
+fun DiscoveryBottomNav(
+    navController: NavHostController,
+    isMenuExpanded: Boolean,
+    onMenuToggle: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val cleanUrl = remember(imageUrl) { imageUrl.trim() }
-    val isVideo = remember(cleanUrl) { cleanUrl.contains("mp4", ignoreCase = true) }
-    
-    val imageRequest = remember(cleanUrl) {
-        coil.request.ImageRequest.Builder(context)
-            .data(cleanUrl)
-            .apply {
-                if (isVideo) {
-                    // Force VideoFrameDecoder regardless of mime type for .mp4 extensions
-                    decoderFactory(ForceVideoDecoderFactory())
-                    crossfade(true)
-                    // Set a placeholder to verify loading start
-                    placeholder(android.R.drawable.ic_menu_gallery) // 使用系统内置图标作为占位
-                    error(android.R.drawable.stat_notify_error) // Fallback if decoding fails
-                } else if (cleanUrl.endsWith(".gif", ignoreCase = true)) {
-                     decoderFactory(coil.decode.GifDecoder.Factory())
-                }
-            }
-            .build()
-    }
-
-    Box(modifier = modifier) {
-        AsyncImage(
-            model = imageRequest,
-            contentDescription = contentDescription,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = contentScale
-        )
-        
-        // 如果是视频，额外显示一个小的标识 (可选)
-        if (isVideo) {
-            Icon(
-                imageVector = Icons.Default.PlayCircleOutline,
-                contentDescription = "Video",
-                tint = Color.White.copy(alpha = 0.7f),
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(24.dp)
-            )
-        }
-    }
-}
-
-@Composable
-fun DiscoveryBottomNav(navController: NavHostController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -488,27 +579,29 @@ fun DiscoveryBottomNav(navController: NavHostController) {
         contentAlignment = Alignment.BottomCenter
     ) {
         NavigationBar(
-            containerColor = Color.Black.copy(alpha = 0.95f), // Matching dark theme more closely
-            modifier = Modifier.height(80.dp), // Slightly taller for better spacing
-            tonalElevation = 0.dp // Use background instead
+            containerColor = Color.Black.copy(alpha = 0.95f),
+            modifier = Modifier.height(80.dp),
+            tonalElevation = 0.dp
         ) {
             val items = listOf(
                 Triple(Screen.Discovery.route, Icons.Default.Explore, "探索"),
                 Triple(Screen.Search.route, Icons.Default.Search, "搜索"),
-                Triple("", Icons.Default.Add, ""), // Placeholder for FAB
-                Triple(Screen.Community.route, Icons.Default.AutoGraph, "动态"),
+                Triple("", Icons.Default.Add, ""),
+                Triple(Screen.Community.route, Icons.Default.Build, "创意工坊"),
                 Triple(Screen.Profile.route, Icons.Default.Person, "我的")
             )
 
             items.forEachIndexed { index, item ->
                 if (index == 2) {
-                    // Spacer for FAB
                     NavigationBarItem(
                         selected = false,
                         onClick = {},
                         icon = { Spacer(Modifier.size(24.dp)) },
                         label = { Text("", fontSize = 10.sp) },
-                        enabled = false
+                        enabled = false,
+                        colors = NavigationBarItemDefaults.colors(
+                            indicatorColor = Color.Transparent
+                        )
                     )
                 } else {
                     val isSelected = currentRoute == item.first
@@ -552,10 +645,16 @@ fun DiscoveryBottomNav(navController: NavHostController) {
         }
 
         // Floating Action Button (+)
+        val rotation by animateFloatAsState(
+            targetValue = if (isMenuExpanded) 45f else 0f,
+            label = "fab_rotation"
+        )
+
         Box(
             modifier = Modifier
                 .offset(y = (-36).dp)
                 .size(56.dp)
+                .graphicsLayer { rotationZ = rotation }
                 .background(
                     brush = Brush.linearGradient(
                         colors = listOf(RunningHubTeal, Color(0xFF00D1FF))
@@ -564,7 +663,7 @@ fun DiscoveryBottomNav(navController: NavHostController) {
                 )
                 .shadow(elevation = 12.dp, shape = CircleShape)
                 .clip(CircleShape)
-                .clickable { /* Handle Create Action */ },
+                .clickable { onMenuToggle() },
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -577,16 +676,4 @@ fun DiscoveryBottomNav(navController: NavHostController) {
     }
 }
 
-/**
- * A custom factory that bypasses the contentType/applicability check
- * inside VideoFrameDecoder.Factory.
- */
-class ForceVideoDecoderFactory : Decoder.Factory {
 
-    override fun create(result: SourceResult, options: Options, imageLoader: ImageLoader): Decoder? {
-        return VideoFrameDecoder(result.source, options)
-    }
-    
-    override fun equals(other: Any?) = other is ForceVideoDecoderFactory
-    override fun hashCode() = javaClass.hashCode()
-}

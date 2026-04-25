@@ -15,10 +15,18 @@ import com.runninghub.app.ui.navigation.AppNavigation
 import com.runninghub.app.ui.theme.RunningHubTheme
 import dagger.hilt.android.AndroidEntryPoint
 
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    
+    @javax.inject.Inject
+    lateinit var userRepository: com.runninghub.app.data.repository.UserRepository
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         enableEdgeToEdge()
         setContent {
             RunningHubTheme {

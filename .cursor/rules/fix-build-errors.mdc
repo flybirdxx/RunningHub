@@ -1,0 +1,69 @@
+---
+description: 当用户粘贴构建报错、编译错误、Gradle sync 失败等信息时自动触发
+globs:
+alwaysApply: false
+---
+
+# 构建错误自动修复规则
+
+## 触发条件
+
+当用户消息中包含以下任意关键词时，本规则激活：
+- `Build file` + `line:`
+- `Execution failed for task`
+- `Unresolved reference`
+- `Plugin was not found`
+- `Could not resolve`
+- `Compilation error`
+- `e:` + `.kt:` (Kotlin 编译错误格式)
+- `FAILURE: Build failed`
+- `What went wrong`
+- `gradle` + `error` / `failed`
+- Gradle sync 失败的堆栈信息
+
+## 执行协议
+
+收到构建错误后，**必须**立即使用 Task 工具创建一个 subAgent 来修复，按以下模板：
+
+```
+Task(
+  description="Fix build error: <简短描述错误>",
+  subagent_type="generalPurpose",
+  run_in_background=true,
+  prompt="""
+你是 RunningHub 项目的构建错误修复专家。
+
+## 项目信息
+- 路径: F:\Program Files\RunningHub
+- 架构: KMP + Compose Multiplatform (Kotlin {version})
+- 模块: shared (KMP 业务层), composeApp (CMP UI 层), app (旧版 Android/Hilt)
+- 构建系统: Gradle {version} + libs.versions.toml 版本目录
+- DI: Koin (shared/composeApp), Hilt (app 旧版)
+
+## 报错信息
+{粘贴用户提供的完整报错}
+
+## 修复要求
+1. 分析错误根因
+2. 定位到具体文件和行号
+3. 读取相关文件确认上下文
+4. 直接修改文件修复错误
+5. 如果修复可能引入新问题，检查关联文件
+6. 修复后简要说明改了什么、为什么
+
+## 常见错误速查
+- Plugin not found → 检查 build.gradle.kts 插件声明是否有版本号，或根 build.gradle.kts 是否声明了 apply false
+- Unresolved reference → 检查 import 路径、依赖是否在 build.gradle.kts 中声明
+- expect/actual mismatch → 检查 commonMain 的 expect 是否在 androidMain 和 iosMain 都有 actual
+- Version conflict → 检查 libs.versions.toml 版本兼容性
+- Koin injection error → 检查 SharedModule.kt 和 AppModule.kt 中是否注册了对应的类
+- Namespace conflict → composeApp 用 com.runninghub.app, app 旧版用 com.runninghub.app.legacy
+"""
+)
+```
+
+## 注意事项
+- 不要尝试自己分析和修复，直接派 subAgent
+- subAgent prompt 中必须包含完整的报错信息
+- 如果报错涉及多个不相关的错误，可以派多个 subAgent 并行处理
+- 修复完成后告知用户尝试重新构建

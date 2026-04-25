@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.runninghub.app.data.local.UserPreferencesRepository
 import com.runninghub.app.data.remote.api.WebAppApi
+import com.runninghub.app.data.repository.UserRepository
 import com.runninghub.app.data.remote.model.AccountStatusRequest
 import com.runninghub.app.data.remote.model.UserDto
 import com.runninghub.app.data.remote.model.WalletInfoDto
@@ -22,7 +23,7 @@ import javax.inject.Inject
  */
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
-    private val webAppApi: WebAppApi,
+    private val userRepository: UserRepository,
     private val userPreferencesRepository: UserPreferencesRepository
 ) : ViewModel() {
 
@@ -30,20 +31,50 @@ class ProfileViewModel @Inject constructor(
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
 
     init {
-        checkLoginStatus()
-    }
+        // Observe Repository State (Preloaded or Updated)
+        viewModelScope.launch {
+            userRepository.user.collect { user ->
+                val apiKey = userPreferencesRepository.getApiKey()
+                val enterpriseKey = userPreferencesRepository.getEnterpriseApiKey()
+                val hasAppKey = !apiKey.isNullOrEmpty()
+                val hasEnterpriseKey = !enterpriseKey.isNullOrEmpty()
+                _uiState.update { 
+                    it.copy(
+                        user = user, 
+                        hasApiKey = user != null, 
+                        hasAppApiKey = hasAppKey,
+                        hasEnterpriseApiKey = hasEnterpriseKey
+                    ) 
+                }
+            }
+        }
 
-    private fun checkLoginStatus() {
-        val apiKey = userPreferencesRepository.getApiKey()
-        val cookie = userPreferencesRepository.getCookie()
-        
-        val hasLogin = !apiKey.isNullOrEmpty() || !cookie.isNullOrEmpty()
-        val hasAppKey = !apiKey.isNullOrEmpty()
-        
-        _uiState.update { it.copy(hasApiKey = hasLogin, hasAppApiKey = hasAppKey) }
+        viewModelScope.launch {
+            userRepository.accountStatus.collect { status ->
+                 _uiState.update { it.copy(accountStatus = status) }
+            }
+        }
 
-        if (hasLogin) {
-            refresh()
+        viewModelScope.launch {
+            userRepository.isLoading.collect { loading ->
+                if (!loading) {
+                    // Only update loading to false, as we might want to control localized loading
+                    _uiState.update { it.copy(isLoading = false) }
+                } else {
+                     // Can optionally show loading if state is empty
+                     if (_uiState.value.user == null) {
+                         _uiState.update { it.copy(isLoading = true) }
+                     }
+                }
+            }
+        }
+        
+        viewModelScope.launch {
+             userRepository.error.collect { error ->
+                 if (error != null) {
+                      _uiState.update { it.copy(error = error) }
+                 }
+             }
         }
     }
 
@@ -53,7 +84,6 @@ class ProfileViewModel @Inject constructor(
             return
         }
 
-        // Determine if input is a Cookie or API Key
         if (apiKey.contains("Rh-AccessToken", ignoreCase = true) || apiKey.contains("userid=", ignoreCase = true)) {
             bindCookie(apiKey)
         } else {
@@ -61,13 +91,20 @@ class ProfileViewModel @Inject constructor(
         }
     }
 
-    // New function specifically for setting App API Key (Hybrid Mode)
     fun bindAppApiKey(apiKey: String) {
         viewModelScope.launch {
             if (apiKey.isBlank()) return@launch
             userPreferencesRepository.saveApiKey(apiKey)
             _uiState.update { it.copy(hasAppApiKey = true) }
-            refresh()
+            userRepository.refreshUserData()
+        }
+    }
+
+    fun bindEnterpriseApiKey(apiKey: String) {
+        viewModelScope.launch {
+            if (apiKey.isBlank()) return@launch
+            userPreferencesRepository.saveEnterpriseApiKey(apiKey)
+            _uiState.update { it.copy(hasEnterpriseApiKey = true) }
         }
     }
 
@@ -75,186 +112,42 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isBinding = true, bindError = null) }
             userPreferencesRepository.saveCookie(cookie)
-            // User: Support Hybrid Auth - DO NOT clear API Key
-            // userPreferencesRepository.clearApiKey()
-
-            try {
-                // Verify by fetching UserInfo directly
-                val userId = Regex("userId=([^;]+)", RegexOption.IGNORE_CASE).find(cookie)?.groupValues?.get(1) ?: ""
-                val userResponse = webAppApi.getUserInfo(if (userId.isNotEmpty()) mapOf("userId" to userId) else emptyMap())
-                
-                if (userResponse.code == 0) {
-                    val user = userResponse.data
-                    _uiState.update { it.copy(
-                        isBinding = false,
-                        hasApiKey = true,
-                        user = user,
-                        accountStatus = null,
-                        hasAppApiKey = !userPreferencesRepository.getApiKey().isNullOrEmpty()
-                    ) }
-                    // Also try to sync account status for completeness
-                    val accountResponse = webAppApi.getAccountStatus(AccountStatusRequest(apikey = "")) 
-                    if (accountResponse.code == 0) {
-                         _uiState.update { it.copy(accountStatus = accountResponse.data) }
-                    }
-                } else {
-                     userPreferencesRepository.clearCookie()
-                    _uiState.update { it.copy(
-                        isBinding = false,
-                        bindError = "Cookie 无效: ${userResponse.msg}"
-                    ) }
-                }
-            } catch (e: Exception) {
-                userPreferencesRepository.clearCookie()
-                _uiState.update { it.copy(isBinding = false, bindError = "网络错误: ${e.localizedMessage}") }
-            }
+            // Do NOT clear API Key
+            
+            // Delegate verification to Repository
+            userRepository.refreshUserData()
+            
+            // Check result via repository state delay or assume success provided flow updates
+            // For better UX, we might want to manually check error state
+            _uiState.update { it.copy(isBinding = false) }
         }
     }
 
     private fun bindRealApiKey(apiKey: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isBinding = true, bindError = null) }
-            
-            // Save temporarily to test connectivity
-            userPreferencesRepository.saveApiKey(apiKey)
-            // Valid valid hybrid state: DO NOT clear cookie if it exists
-            // userPreferencesRepository.clearCookie()
-            
-            try {
-                // Verify by fetching account status
-                val statusResponse = webAppApi.getAccountStatus(AccountStatusRequest(apikey = apiKey))
-                
-                if (statusResponse.code == 0) {
-                    // Success! Key is valid.
-                    val status = statusResponse.data
-                    val cookie = userPreferencesRepository.getCookie()
-                    val isCookieLogin = !cookie.isNullOrEmpty()
-                    
-                    val user = if (isCookieLogin) _uiState.value.user else UserDto(
-                         id = "--",
-                         nickName = "RunningHub用户", // Default name
-                         headIcon = null,
-                         mobile = null,
-                         totalCoin = status?.remainCoins,
-                         memberInfo = null,
-                         walletInfo = WalletInfoDto(
-                             balance = status?.remainMoney?.toDoubleOrNull() ?: 0.0,
-                             currency = status?.currency,
-                             currencySymbol = "¥"
-                         ),
-                         apiKey = apiKey,
-                         apiType = status?.apiType
-                     )
-                    _uiState.update { it.copy(
-                        isBinding = false, 
-                        hasApiKey = true, 
-                        hasAppApiKey = true,
-                        accountStatus = status,
-                        user = user
-                    ) }
-                    
-                    // If cookie exists, refresh to ensure full profile
-                    if (isCookieLogin) refresh()
-                } else {
-                    // Failed
-                    if (userPreferencesRepository.getCookie().isNullOrEmpty()) {
-                         userPreferencesRepository.clearApiKey()
-                         _uiState.update { it.copy(
-                            isBinding = false, 
-                            hasAppApiKey = false,
-                            hasApiKey = false, 
-                            bindError = "绑定失败: ${statusResponse.msg} (Code: ${statusResponse.code})"
-                        ) }
-                    } else {
-                        // Cookie exists, just clear key and report error
-                         userPreferencesRepository.clearApiKey()
-                         _uiState.update { it.copy(
-                            isBinding = false, 
-                            hasAppApiKey = false,
-                            bindError = "API Key 无效: ${statusResponse.msg}"
-                        ) }
-                    }
-                }
-            } catch (e: Exception) {
-                 if (userPreferencesRepository.getCookie().isNullOrEmpty()) {
-                    userPreferencesRepository.clearApiKey()
-                    _uiState.update { it.copy(
-                        isBinding = false, 
-                        hasApiKey = false, 
-                        bindError = "网络错误: ${e.localizedMessage}"
-                    ) }
-                } else {
-                     userPreferencesRepository.clearApiKey()
-                     _uiState.update { it.copy(isBinding = false, bindError = "验证 API Key 网络错误") }
-                }
-            }
+             _uiState.update { it.copy(isBinding = true, bindError = null) }
+             userPreferencesRepository.saveApiKey(apiKey)
+             // DO NOT clear Cookie
+             
+             // Delegate to Repository
+             userRepository.refreshUserData()
+             
+             _uiState.update { it.copy(isBinding = false) }
         }
     }
 
     fun unbindApiKey() {
         userPreferencesRepository.clearApiKey()
+        userPreferencesRepository.clearEnterpriseApiKey()
         userPreferencesRepository.clearCookie()
-        _uiState.update { ProfileUiState() } // Reset all state
+        userRepository.clearUserData()
+        // State update will happen via Flow collection
     }
 
     fun refresh() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
-            val currentKey = userPreferencesRepository.getApiKey() ?: ""
-            val cookie = userPreferencesRepository.getCookie()
-            
-            try {
-
-                if (!cookie.isNullOrEmpty()) {
-                    // Optimized path: Cookie exists, call UserInfo
-                    // Extract userId from cookie if present
-                    val userId = Regex("userId=([^;]+)", RegexOption.IGNORE_CASE).find(cookie)?.groupValues?.get(1) ?: ""
-                    
-                    val userResponse = webAppApi.getUserInfo(if (userId.isNotEmpty()) mapOf("userId" to userId) else emptyMap())
-                    
-                    if (userResponse.code == 0) {
-                        _uiState.update { it.copy(isLoading = false, user = userResponse.data) }
-                        // Refresh Account Status silently
-                        launch {
-                            try {
-                                val statusResponse = webAppApi.getAccountStatus(AccountStatusRequest(apikey = ""))
-                                if (statusResponse.code == 0) {
-                                    _uiState.update { it.copy(accountStatus = statusResponse.data) }
-                                }
-                            } catch (_: Exception) {}
-                        }
-                    } else {
-                       // Cookie might have expired or params invalid
-                       _uiState.update { it.copy(isLoading = false, error = "Login failed: ${userResponse.msg}") }
-                    }
-                } else {
-                    // Legacy path: API Key Only
-                    val statusResponse = webAppApi.getAccountStatus(AccountStatusRequest(apikey = currentKey))
-                    if (statusResponse.code == 0) {
-                        val status = statusResponse.data
-                        val fallbackUser = UserDto(
-                             id = "--",
-                             nickName = "RunningHub用户",
-                             headIcon = null,
-                             mobile = null,
-                             totalCoin = status?.remainCoins,
-                             memberInfo = null,
-                             walletInfo = WalletInfoDto(
-                                 balance = status?.remainMoney?.toDoubleOrNull() ?: 0.0,
-                                 currency = status?.currency,
-                                 currencySymbol = "¥"
-                             ),
-                             apiKey = null,
-                             apiType = status?.apiType
-                         )
-                        _uiState.update { it.copy(isLoading = false, accountStatus = status, user = fallbackUser) }
-                    } else {
-                         _uiState.update { it.copy(isLoading = false, error = statusResponse.msg) }
-                    }
-                }
-            } catch (e: Exception) {
-                 _uiState.update { it.copy(isLoading = false, error = e.localizedMessage) }
-            }
+            userRepository.refreshUserData()
         }
     }
 }

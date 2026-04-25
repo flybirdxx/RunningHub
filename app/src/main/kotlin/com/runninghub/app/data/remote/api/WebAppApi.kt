@@ -33,6 +33,11 @@ interface WebAppApi {
         @Body request: Map<String, String> = emptyMap()
     ): BaseResponse<List<WebAppDto>>
 
+    @POST("webapp/user/list")
+    suspend fun getWebAppUserList(
+        @Body request: Map<String, @JvmSuppressWildcards Any>
+    ): BaseResponse<PageData<WebAppDto>>
+
     @POST("portal/tag/tree")
     suspend fun getTagTree(
         @Body request: TagTreeRequest = TagTreeRequest()
@@ -46,7 +51,7 @@ interface WebAppApi {
 
     @POST("webapp/detail")
     suspend fun getWebAppDetail(
-        @Body request: Map<String, String>
+        @Body request: Map<String, @JvmSuppressWildcards Any>
     ): BaseResponse<WebAppDetailDto>
 
     @POST("/task/openapi/ai-app/run")
@@ -76,4 +81,26 @@ interface WebAppApi {
     suspend fun getUserInfo(
         @Body request: Map<String, String> = emptyMap()
     ): BaseResponse<UserDto>
+    @POST("https://www.runninghub.cn/uc/getUserInfo")
+    suspend fun getUserDetail(
+        @retrofit2.http.Header("Referer") referer: String,
+        @Body request: Map<String, String>
+    ): BaseResponse<UserDto>
+    @POST("https://www.runninghub.cn/uc/follow/isFollow")
+    suspend fun isFollow(
+        @retrofit2.http.Header("Referer") referer: String,
+        @Body request: Map<String, String>
+    ): BaseResponse<Boolean>
+
+    @POST("https://www.runninghub.cn/uc/follow/followUser")
+    suspend fun followUser(
+        @retrofit2.http.Header("Referer") referer: String,
+        @Body request: Map<String, String>
+    ): BaseResponse<Boolean>
+
+    @POST("https://www.runninghub.cn/uc/follow/unFollowUser")
+    suspend fun unFollowUser(
+        @retrofit2.http.Header("Referer") referer: String,
+        @Body request: Map<String, String>
+    ): BaseResponse<Boolean>
 }

@@ -40,5 +40,10 @@ data class UserDto(
     @SerializedName("memberInfo") val memberInfo: MemberInfoDto?,
     @SerializedName("walletInfo") val walletInfo: WalletInfoDto?,
     @SerializedName("apiKey") val apiKey: String?,
-    @SerializedName("apiType") val apiType: String? = null
+    @SerializedName("apiType") val apiType: String? = null,
+    @SerializedName("introduce") val introduce: String? = null,
+    @SerializedName("fanCount") val fanCount: String? = "0",
+    @SerializedName("followCount") val followCount: String? = "0",
+    @SerializedName("likeCount") val likeCount: String? = "0",
+    @SerializedName("collectCount") val collectCount: String? = "0"
 )

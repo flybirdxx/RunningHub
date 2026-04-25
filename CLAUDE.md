@@ -1,18 +1,34 @@
 # RunningHub - AI Application Hub Mobile Client
-Kotlin + Jetpack Compose + Hilt + Coroutines
+KMP + Compose Multiplatform | Android + iOS 双端
+
+Tech Stack: Kotlin 2.1.20, Compose Multiplatform 1.7.3, Koin 4.0.4, Ktor 3.1.2, SQLDelight 2.0.2, Coil 3.1.0
 
 <directory>
-app/ - Android 核心模块 (3子目录: ui, di, data)
-gradle/ - Gradle Wrapper 环境控制
+shared/ - KMP 共享业务模块 (commonMain/androidMain/iosMain)
+  data/ - 远程 API (Ktor)、本地缓存 (SQLDelight)、DTO 模型
+  domain/ - 纯 Kotlin Domain 层 (model/repository/usecase)
+  di/ - Koin DI 模块
+  platform/ - expect/actual 平台抽象
+
+composeApp/ - 跨平台 UI 模块 (commonMain/androidMain/iosMain)
+  ui/theme/ - Design Token (AppColors/AppTypography/AppDimens)
+  ui/component/ - 共享组件库 (AppCard/SearchBar/CategoryChip/StatusBadge)
+  ui/feature/ - 业务屏幕 (discovery/detail/profile/search/creator/community)
+  ui/navigation/ - 路由与导航
+  di/ - ViewModel Koin 模块
+
+app/ - 旧版 Android 模块 (Hilt/Retrofit/Room，逐步废弃)
+gradle/ - Gradle Wrapper + libs.versions.toml 版本目录
 </directory>
 
 <config>
-build.gradle.kts - 顶级插件与构建生命周期定义
-settings.gradle.kts - 项目模块成员关系定义
-gradle.properties - JVM 与 Android 全局环境变量
+gradle/libs.versions.toml - 统一依赖版本管理
+build.gradle.kts - 顶级 KMP 插件声明
+settings.gradle.kts - 模块成员: shared, composeApp, app
+gradle.properties - JVM/KMP 环境变量
 CLAUDE.md - L1 项目宪法·全局地图·技术栈
 </config>
 
-法则: 极简·稳定·导航·版本精确
+法则: 极简·稳定·导航·版本精确·共享优先·平台隔离
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

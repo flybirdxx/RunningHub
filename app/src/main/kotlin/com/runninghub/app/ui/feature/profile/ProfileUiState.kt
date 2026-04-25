@@ -13,6 +13,7 @@ data class ProfileUiState(
     val isBinding: Boolean = false, // Loading state for binding process
     val hasApiKey: Boolean = false, // Whether user is logged in (Cookie OR Key)
     val hasAppApiKey: Boolean = false, // Whether a specific API Key is set for Apps
+    val hasEnterpriseApiKey: Boolean = false, // Whether Enterprise API Key for Audio is set
     val error: String? = null,
     val bindError: String? = null, // Specific error for binding
     val accountStatus: AccountStatusDto? = null,
