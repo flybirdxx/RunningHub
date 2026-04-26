@@ -1,6 +1,9 @@
 .gradle
 /build
 /app/build
+/compileApp/build
+/composeApp/build
+/shared/build
 *.iml
 .idea
 local.properties
@@ -16,3 +19,8 @@ local.properties
 __pycache__/
 *.json
 *.log
+
+# Agent skills & configs
+.agents/
+.gemini/
+.cursor/
