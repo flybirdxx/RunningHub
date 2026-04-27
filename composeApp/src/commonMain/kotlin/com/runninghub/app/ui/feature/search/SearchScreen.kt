@@ -1,27 +1,108 @@
 package com.runninghub.app.ui.feature.search
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SuggestionChip
+import androidx.compose.material3.SuggestionChipDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import cafe.adriel.voyager.core.screen.Screen
+import cafe.adriel.voyager.koin.koinScreenModel
+import cafe.adriel.voyager.navigator.LocalNavigator
+import cafe.adriel.voyager.navigator.currentOrThrow
+import com.runninghub.app.ui.component.AppCard
 import com.runninghub.app.ui.component.AppSearchBar
-import org.koin.compose.viewmodel.koinViewModel
+import com.runninghub.app.ui.component.ErrorState
+import com.runninghub.app.ui.component.LoadingIndicator
+import com.runninghub.app.ui.feature.detail.AppDetailScreen
+import com.runninghub.app.ui.theme.Dimens
+import com.runninghub.app.ui.theme.RunningHubThemeExt
+import com.runninghub.shared.domain.model.Tag
+
+class SearchVoyagerScreen : Screen {
+
+    @Composable
+    override fun Content() {
+        val navigator = LocalNavigator.currentOrThrow
+        val screenModel = koinScreenModel<SearchScreenModel>()
+        val uiState by screenModel.uiState.collectAsState()
+
+        SearchContent(
+            uiState = uiState,
+            onQueryChange = screenModel::onQueryChange,
+            onSearch = screenModel::search,
+            onClearSearch = screenModel::clearSearch,
+            onTagClick = screenModel::searchByTag,
+            onAppClick = { appId -> navigator.push(AppDetailScreen(appId)) },
+            onBack = { navigator.pop() },
+            onLoadMore = screenModel::loadMore,
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SearchScreen(
+private fun SearchContent(
+    uiState: SearchUiState,
+    modifier: Modifier = Modifier,
+    onQueryChange: (String) -> Unit = {},
+    onSearch: (String) -> Unit = {},
+    onClearSearch: () -> Unit = {},
+    onTagClick: (Tag) -> Unit = {},
     onAppClick: (String) -> Unit = {},
     onBack: () -> Unit = {},
-    viewModel: SearchViewModel = koinViewModel()
+    onLoadMore: () -> Unit = {},
 ) {
-    val query by viewModel.query.collectAsState()
-    val results by viewModel.searchResults.collectAsState()
+    val listState = rememberLazyListState()
+
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val total = info.totalItemsCount
+            val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - 3
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore && uiState.results.isNotEmpty()) onLoadMore()
+    }
 
     Scaffold(
         topBar = {
@@ -29,29 +110,194 @@ fun SearchScreen(
                 title = { Text("搜索") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "返回")
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "返回",
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        modifier = modifier,
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize(),
+        ) {
+            // Search bar
+            AppSearchBar(
+                query = uiState.query,
+                onQueryChange = onQueryChange,
+                onSearch = onSearch,
+                placeholder = "搜索应用、工作流...",
+                modifier = Modifier.padding(
+                    horizontal = Dimens.SpaceLG,
+                    vertical = Dimens.SpaceSM,
+                ),
+            )
+
+            when {
+                // Searching state
+                uiState.isSearching && uiState.results.isEmpty() -> {
+                    LoadingIndicator()
+                }
+
+                // Error
+                uiState.error != null && uiState.results.isEmpty() -> {
+                    ErrorState(
+                        message = uiState.error,
+                        onRetry = { onSearch(uiState.query) },
+                    )
+                }
+
+                // No query — show hot tags
+                uiState.query.isBlank() -> {
+                    HotTagsSection(
+                        tags = uiState.hotTags,
+                        onTagClick = onTagClick,
+                    )
+                }
+
+                // Empty results
+                uiState.results.isEmpty() -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "未找到 \"${uiState.query}\" 相关结果",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                        )
                     }
                 }
-            )
-        }
-    ) { padding ->
-        Column(modifier = Modifier.padding(padding).fillMaxSize().padding(16.dp)) {
-            AppSearchBar(
-                query = query,
-                onQueryChange = { viewModel.search(it) }
-            )
-            Spacer(Modifier.height(16.dp))
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(results) { app ->
-                    Card(
-                        modifier = Modifier.fillMaxWidth().clickable { onAppClick(app.id) }
+
+                // Results list
+                else -> {
+                    LazyColumn(
+                        state = listState,
+                        contentPadding = PaddingValues(
+                            horizontal = Dimens.SpaceLG,
+                            vertical = Dimens.SpaceSM,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                        modifier = Modifier.fillMaxSize(),
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(app.title, style = MaterialTheme.typography.titleMedium)
-                            Text(app.description, style = MaterialTheme.typography.bodySmall, maxLines = 1)
+                        items(
+                            items = uiState.results,
+                            key = { it.id },
+                        ) { app ->
+                            AppCard(
+                                title = app.title,
+                                imageUrl = app.coverUrl ?: app.thumbnailUrl,
+                                authorName = app.author?.name,
+                                authorAvatar = app.author?.avatar,
+                                likeCount = app.likeCount,
+                                useCount = app.useCount,
+                                onClick = { onAppClick(app.id) },
+                            )
+                        }
+
+                        // Load more indicator
+                        if (uiState.isSearching && uiState.results.isNotEmpty()) {
+                            item(key = "search_loading_more") {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(Dimens.SpaceLG),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(Dimens.IconSizeMD),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        strokeWidth = 2.dp,
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!uiState.hasMore && uiState.results.isNotEmpty()) {
+                            item(key = "search_end") {
+                                Text(
+                                    text = "没有更多了",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(Dimens.SpaceLG),
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun HotTagsSection(
+    tags: List<Tag>,
+    modifier: Modifier = Modifier,
+    onTagClick: (Tag) -> Unit = {},
+) {
+    if (tags.isEmpty()) return
+
+    val extColors = RunningHubThemeExt.colors
+
+    Column(
+        modifier = modifier.padding(
+            horizontal = Dimens.SpaceLG,
+            vertical = Dimens.SpaceMD,
+        ),
+    ) {
+        // Section header
+        androidx.compose.foundation.layout.Row(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = Icons.Default.LocalFireDepartment,
+                contentDescription = null,
+                tint = extColors.hotBadge,
+                modifier = Modifier.size(Dimens.IconSizeMD),
+            )
+            Spacer(Modifier.padding(start = Dimens.SpaceXS))
+            Text(
+                text = "热门标签",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+
+        Spacer(Modifier.height(Dimens.SpaceMD))
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+        ) {
+            tags.forEach { tag ->
+                SuggestionChip(
+                    onClick = { onTagClick(tag) },
+                    label = {
+                        Text(
+                            text = tag.name,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    },
+                    shape = RoundedCornerShape(Dimens.RadiusFull),
+                    colors = SuggestionChipDefaults.suggestionChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    ),
+                )
             }
         }
     }

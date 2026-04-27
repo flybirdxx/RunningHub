@@ -1,9 +1,6 @@
 package com.runninghub.shared.platform
 
-interface Platform {
+expect class Platform() {
     val name: String
-    val isAndroid: Boolean get() = false
-    val isIos: Boolean get() = false
+    val version: String
 }
-
-expect fun getPlatform(): Platform

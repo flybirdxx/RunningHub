@@ -1,13 +1,13 @@
 package com.runninghub.shared.domain.repository
 
-import com.runninghub.shared.domain.model.*
-import kotlinx.coroutines.flow.Flow
+import com.runninghub.shared.domain.model.AccountStatus
+import com.runninghub.shared.domain.model.User
 
 interface UserRepository {
-    fun getCurrentUser(): Flow<AppResult<User>>
-    fun getUserDetail(userId: String): Flow<AppResult<User>>
-    fun getAccountStatus(apiKey: String): Flow<AppResult<AccountStatus>>
-    suspend fun isFollowing(userId: String): AppResult<Boolean>
-    suspend fun followUser(userId: String): AppResult<Boolean>
-    suspend fun unfollowUser(userId: String): AppResult<Boolean>
+    suspend fun getAccountStatus(apiKey: String): Result<AccountStatus>
+    suspend fun getUserInfo(userId: String? = null): Result<User>
+    suspend fun getUserDetail(userId: String): Result<User>
+    suspend fun isFollow(targetUserId: String): Result<Boolean>
+    suspend fun followUser(targetUserId: String): Result<Boolean>
+    suspend fun unFollowUser(targetUserId: String): Result<Boolean>
 }

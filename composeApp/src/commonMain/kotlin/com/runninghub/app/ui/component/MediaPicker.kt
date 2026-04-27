@@ -1,10 +1,13 @@
 package com.runninghub.app.ui.component
 
-import androidx.compose.runtime.Composable
-
-@Composable
-expect fun MediaPickerLauncher(onImagePicked: (String) -> Unit): MediaPickerLauncher
+enum class MediaType {
+    IMAGE,
+    VIDEO,
+    AUDIO
+}
 
 interface MediaPickerLauncher {
-    fun launch()
+    fun launchImage()
+    fun launchVideo()
+    fun launchAudio()
 }

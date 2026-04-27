@@ -1,84 +1,83 @@
 package com.runninghub.shared.data.repository
 
-import com.runninghub.shared.data.model.MiniMaxAudioRequest
-import com.runninghub.shared.data.model.TaskQueryRequest
-import com.runninghub.shared.data.remote.AudioApiService
-import com.runninghub.shared.domain.model.AppResult
+import com.runninghub.shared.data.remote.api.AudioApi
+import com.runninghub.shared.data.remote.dto.MiniMaxAudioRequestDto
+import com.runninghub.shared.data.remote.dto.TaskQueryRequestDto
+import com.runninghub.shared.domain.model.*
 import com.runninghub.shared.domain.repository.AudioRepository
-import com.runninghub.shared.domain.repository.AudioTask
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
 class AudioRepositoryImpl(
-    private val api: AudioApiService
+    private val audioApi: AudioApi
 ) : AudioRepository {
 
-    override suspend fun generateAudio(
-        text: String,
-        voiceId: String,
-        speed: Float,
-        volume: Float,
-        pitch: Int,
-        emotion: String?
-    ): AppResult<AudioTask> = try {
-        val response = api.textToAudio(
-            MiniMaxAudioRequest(
-                text = text,
-                voiceId = voiceId,
-                speed = speed,
-                volume = volume,
-                pitch = pitch,
-                emotion = emotion
-            )
-        )
-        if (response.status == "FAILED") {
-            AppResult.Error(response.errorMessage ?: "Submission failed")
-        } else {
-            AppResult.Success(
-                AudioTask(
-                    taskId = response.taskId ?: "",
-                    status = response.status ?: "QUEUED"
-                )
-            )
-        }
-    } catch (e: Exception) {
-        AppResult.Error(e.message ?: "Unknown error")
-    }
+    override fun convertTextToAudio(request: AudioRequest): Flow<AudioTaskStatus> = flow {
+        emit(AudioTaskStatus.Submitting)
 
-    override fun pollAudioTask(taskId: String): Flow<AppResult<AudioTask>> = flow {
-        emit(AppResult.Loading)
-        var attempts = 0
-        val maxAttempts = 60
+        try {
+            val dto = MiniMaxAudioRequestDto(
+                text = request.text,
+                voiceId = request.voiceId,
+                speed = request.speed,
+                volume = request.volume,
+                pitch = request.pitch,
+                emotion = request.emotion
+            )
+            val submitResponse = audioApi.textToAudio(dto)
 
-        while (attempts < maxAttempts) {
-            try {
-                val result = api.queryTask(TaskQueryRequest(taskId))
-                when (result.status) {
+            if (submitResponse.status == "FAILED") {
+                emit(AudioTaskStatus.Error(submitResponse.errorMessage ?: "Submission failed"))
+                return@flow
+            }
+
+            val taskId = submitResponse.taskId
+            emit(AudioTaskStatus.Running(taskId))
+
+            var attempts = 0
+            val maxAttempts = 60
+
+            while (attempts < maxAttempts) {
+                val queryResponse = audioApi.queryTask(TaskQueryRequestDto(taskId))
+
+                when (queryResponse.status) {
                     "SUCCESS" -> {
-                        val url = result.results?.firstOrNull()?.url
-                        if (url != null) {
-                            emit(AppResult.Success(AudioTask(taskId, "SUCCESS", audioUrl = url)))
+                        val resultUrl = queryResponse.results?.firstOrNull()?.url
+                        if (resultUrl != null) {
+                            emit(AudioTaskStatus.Success(resultUrl))
                         } else {
-                            emit(AppResult.Error("No result URL"))
+                            emit(AudioTaskStatus.Error("No result URL found"))
                         }
                         return@flow
                     }
                     "FAILED" -> {
-                        emit(AppResult.Error(result.errorMessage ?: "Task failed"))
+                        emit(AudioTaskStatus.Error(queryResponse.errorMessage ?: "Task failed"))
                         return@flow
                     }
                     else -> {
-                        emit(AppResult.Success(AudioTask(taskId, result.status ?: "RUNNING")))
                         delay(1000)
                         attempts++
                     }
                 }
-            } catch (e: Exception) {
-                emit(AppResult.Error(e.message ?: "Polling error"))
-                return@flow
             }
+
+            emit(AudioTaskStatus.Error("Task timed out"))
+        } catch (e: Exception) {
+            emit(AudioTaskStatus.Error(e.message ?: "Unknown error occurred"))
         }
-        emit(AppResult.Error("Task timed out"))
+    }
+
+    override suspend fun queryTask(taskId: String): Result<AudioTaskResult> = runCatching {
+        val response = audioApi.queryTask(TaskQueryRequestDto(taskId))
+        AudioTaskResult(
+            taskId = response.taskId,
+            status = response.status,
+            errorCode = response.errorCode,
+            errorMessage = response.errorMessage,
+            results = response.results?.map {
+                AudioResult(url = it.url, outputType = it.outputType, text = it.text)
+            }
+        )
     }
 }

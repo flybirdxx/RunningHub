@@ -1,17 +1,27 @@
 package com.runninghub.app.di
 
-import com.runninghub.app.ui.feature.creator.CreatorProfileViewModel
-import com.runninghub.app.ui.feature.detail.AppDetailViewModel
-import com.runninghub.app.ui.feature.discovery.DiscoveryViewModel
-import com.runninghub.app.ui.feature.profile.ProfileViewModel
-import com.runninghub.app.ui.feature.search.SearchViewModel
-import org.koin.core.module.dsl.viewModel
+import android.content.Context
+import com.runninghub.app.ui.feature.community.CommunityScreenModel
+import com.runninghub.app.ui.feature.creator.CreatorProfileScreenModel
+import com.runninghub.app.ui.feature.detail.AppDetailScreenModel
+import com.runninghub.app.ui.feature.discovery.DiscoveryScreenModel
+import com.runninghub.app.ui.feature.login.LoginScreenModel
+import com.runninghub.app.ui.feature.profile.ProfileScreenModel
+import com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModel
+import com.runninghub.app.ui.feature.search.SearchScreenModel
+import com.runninghub.shared.data.local.PermissionDataStore
+import com.runninghub.shared.data.local.createPermissionDataStore
+import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.module
 
 val appModule = module {
-    viewModel { DiscoveryViewModel(get()) }
-    viewModel { AppDetailViewModel(get(), get(), get()) }
-    viewModel { ProfileViewModel(get(), get()) }
-    viewModel { SearchViewModel(get()) }
-    viewModel { CreatorProfileViewModel(get(), get()) }
+    factoryOf(::DiscoveryScreenModel)
+    factoryOf(::CommunityScreenModel)
+    factoryOf(::ProfileScreenModel)
+    factoryOf(::SearchScreenModel)
+    factoryOf(::AppDetailScreenModel)
+    factoryOf(::CreatorProfileScreenModel)
+    factoryOf(::LoginScreenModel)
+    factory { QuickCreateScreenModel(get(), get<Context>()) }
+    single<PermissionDataStore> { createPermissionDataStore() }
 }

@@ -1,0 +1,140 @@
+package com.runninghub.app.platform
+
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.ComponentActivity
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.lifecycle.lifecycleScope
+import com.runninghub.app.ui.component.MediaType
+import com.runninghub.shared.data.local.PermissionDataStore
+import com.runninghub.shared.domain.model.Permission
+import com.runninghub.shared.domain.model.PermissionStatus
+import kotlinx.coroutines.launch
+
+private class PermissionControllerImpl(
+    private val dataStore: PermissionDataStore,
+    private val activity: ComponentActivity,
+) : PermissionController {
+
+    private val scope = activity.lifecycleScope
+
+    private var pendingPermissionCallback: ((Boolean) -> Unit)? = null
+    private var pendingMediaCallback: ((String) -> Unit)? = null
+    private var pendingMediaDeniedCallback: (() -> Unit)? = null
+    private var pendingMediaType: MediaType? = null
+
+    private val permissionLauncher = activity.activityResultRegistry.register(
+        "rh_permission_request",
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions: Map<String, Boolean> ->
+        val manifest = permissions.keys.firstOrNull() ?: return@register
+        val granted = permissions[manifest] == true
+        scope.launch {
+            if (granted) {
+                dataStore.markGranted(manifest)
+                pendingMediaType?.let { type ->
+                    launchMediaPicker(type)
+                }
+            } else {
+                val shouldShowRationale = activity.shouldShowRequestPermissionRationale(manifest)
+                if (!shouldShowRationale) {
+                    dataStore.markPermanentlyDenied(manifest)
+                    pendingMediaDeniedCallback?.invoke()
+                } else {
+                    dataStore.markDenied(manifest)
+                    pendingMediaDeniedCallback?.invoke()
+                }
+            }
+            pendingPermissionCallback?.invoke(granted)
+            pendingPermissionCallback = null
+            pendingMediaCallback = null
+            pendingMediaDeniedCallback = null
+            pendingMediaType = null
+        }
+    }
+
+    private val mediaPickerLauncher = activity.activityResultRegistry.register(
+        "rh_media_picker",
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        uri?.let { pendingMediaCallback?.invoke(it.toString()) }
+        pendingMediaCallback = null
+        pendingMediaType = null
+    }
+
+    private fun launchMediaPicker(type: MediaType) {
+        val request = when (type) {
+            MediaType.IMAGE -> PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            MediaType.VIDEO -> PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+            MediaType.AUDIO -> return
+        }
+        mediaPickerLauncher.launch(request)
+    }
+
+    override fun pickMedia(
+        mediaPermission: Permission,
+        mediaType: MediaType,
+        onSuccess: (String) -> Unit,
+        onPermissionDenied: () -> Unit,
+    ) {
+        scope.launch {
+            when (dataStore.getCurrentStatus(mediaPermission)) {
+                PermissionStatus.GRANTED -> {
+                    launchMediaPicker(mediaType)
+                    pendingMediaCallback = onSuccess
+                }
+                PermissionStatus.PERMANENTLY_DENIED -> {
+                    onPermissionDenied()
+                }
+                else -> {
+                    pendingMediaCallback = onSuccess
+                    pendingMediaDeniedCallback = onPermissionDenied
+                    pendingMediaType = mediaType
+                    permissionLauncher.launch(arrayOf(mediaPermission.androidManifest))
+                }
+            }
+        }
+    }
+
+    override fun checkAndRequest(
+        permission: Permission,
+        onGranted: () -> Unit,
+        onDenied: () -> Unit,
+        onPermanentlyDenied: () -> Unit,
+    ) {
+        scope.launch {
+            when (dataStore.getCurrentStatus(permission)) {
+                PermissionStatus.GRANTED -> onGranted()
+                PermissionStatus.PERMANENTLY_DENIED -> onPermanentlyDenied()
+                else -> {
+                    pendingPermissionCallback = { granted ->
+                        if (granted) onGranted() else onDenied()
+                    }
+                    permissionLauncher.launch(arrayOf(permission.androidManifest))
+                }
+            }
+        }
+    }
+
+    override fun openAppSettings() {
+        val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS).apply {
+            data = Uri.fromParts("package", activity.packageName, null)
+        }
+        activity.startActivity(intent)
+    }
+}
+
+@Composable
+actual fun rememberPermissionController(
+    dataStore: PermissionDataStore,
+    context: Any,
+): PermissionController {
+    return remember(dataStore, context) {
+        PermissionControllerImpl(dataStore, context as ComponentActivity)
+    }
+}

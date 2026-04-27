@@ -53,12 +53,14 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -71,11 +73,16 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
+import com.runninghub.app.ui.component.MediaType
+import com.runninghub.app.platform.PermissionController
+import com.runninghub.app.platform.rememberPermissionController
+import com.runninghub.app.ui.component.PermissionBottomSheet
+import com.runninghub.shared.data.local.PermissionDataStore
+import org.koin.compose.koinInject
 import com.runninghub.app.ui.component.CollapsibleSection
 import com.runninghub.app.ui.component.ErrorState
 import com.runninghub.app.ui.component.ImageUploadButton
 import com.runninghub.app.ui.component.LoadingIndicator
-import com.runninghub.app.ui.component.MediaPickerLauncher
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.TaskProgressIndicator
 import com.runninghub.app.ui.component.TaskStep
@@ -91,6 +98,7 @@ import com.runninghub.app.ui.theme.Primary500
 import com.runninghub.app.ui.theme.SuccessDark
 import com.runninghub.shared.domain.model.Author
 import com.runninghub.shared.domain.model.InputNode
+import com.runninghub.shared.domain.model.Permission
 import com.runninghub.shared.domain.model.StatisticsInfo
 import com.runninghub.shared.domain.model.TaskOutput
 
@@ -105,19 +113,46 @@ data class AppDetailScreen(val appId: String) : Screen {
     @Composable
     override fun Content() {
         val screenModel = koinScreenModel<AppDetailScreenModel>()
+        val currentScreenModel by rememberUpdatedState(screenModel)
         val uiState by screenModel.uiState.collectAsState()
         val navigator = LocalNavigator.currentOrThrow
 
-        LaunchedEffect(appId) { screenModel.loadDetail(appId) }
+        val activityContext = LocalContext.current
+        val dataStore: PermissionDataStore = koinInject()
+        val controller: PermissionController = rememberPermissionController(dataStore, activityContext)
 
-        val picker = MediaPickerLauncher { uri ->
-            screenModel.onImageUriReceived(uri)
-        }
+        var pendingPermission by remember { mutableStateOf<Permission?>(null) }
+
+        LaunchedEffect(appId) { currentScreenModel.loadDetail(appId) }
 
         LaunchedEffect(uiState.pendingImagePick) {
-            if (uiState.pendingImagePick != null) {
-                picker.launch()
+            uiState.pendingImagePick?.let { _ ->
+                controller.pickMedia(
+                    mediaPermission = Permission.MediaImages,
+                    mediaType = MediaType.IMAGE,
+                    onSuccess = { uri -> currentScreenModel.onImageUriReceived(uri) },
+                    onPermissionDenied = {
+                        pendingPermission = Permission.MediaImages
+                    },
+                )
             }
+        }
+
+        if (pendingPermission != null) {
+            PermissionBottomSheet(
+                permission = pendingPermission!!,
+                onDismiss = { pendingPermission = null },
+                onAuthorize = {
+                    val perm = pendingPermission!!
+                    pendingPermission = null
+                    controller.checkAndRequest(
+                        permission = perm,
+                        onGranted = {},
+                        onDenied = {},
+                        onPermanentlyDenied = { controller.openAppSettings() },
+                    )
+                },
+            )
         }
 
         Box(
@@ -129,19 +164,19 @@ data class AppDetailScreen(val appId: String) : Screen {
                 uiState.isLoading -> LoadingIndicator()
                 uiState.error != null -> ErrorState(
                     message = uiState.error!!,
-                    onRetry = { screenModel.loadDetail(appId) }
+                    onRetry = { currentScreenModel.loadDetail(appId) }
                 )
                 uiState.detail != null -> DetailContent(
                     uiState = uiState,
                     onBack = { navigator.pop() },
                     onAuthorClick = { userId -> navigator.push(CreatorProfileScreen(userId)) },
-                    onInputChanged = screenModel::updateInputValue,
-                    onRunTask = screenModel::runTask,
-                    onResetTask = screenModel::resetTask,
+                    onInputChanged = currentScreenModel::updateInputValue,
+                    onRunTask = currentScreenModel::runTask,
+                    onResetTask = currentScreenModel::resetTask,
                     onPickImage = { nodeId, fieldName ->
-                        screenModel.setPendingImagePick(nodeId, fieldName)
+                        currentScreenModel.setPendingImagePick(nodeId, fieldName)
                     },
-                    onRemoveFile = screenModel::removeLocalFile
+                    onRemoveFile = currentScreenModel::removeLocalFile
                 )
             }
         }

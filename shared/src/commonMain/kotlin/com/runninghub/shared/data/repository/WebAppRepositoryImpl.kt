@@ -1,121 +1,130 @@
 package com.runninghub.shared.data.repository
 
-import com.runninghub.shared.data.mapper.toDomain
-import com.runninghub.shared.data.model.TagTreeRequest
-import com.runninghub.shared.data.model.WebAppListRequest
-import com.runninghub.shared.data.remote.WebAppApiService
-import com.runninghub.shared.domain.model.AppResult
-import com.runninghub.shared.domain.model.Tag
-import com.runninghub.shared.domain.model.WebApp
-import com.runninghub.shared.domain.model.WebAppDetail
+import com.runninghub.shared.data.remote.api.RunningHubApi
+import com.runninghub.shared.data.remote.dto.*
+import com.runninghub.shared.domain.model.*
 import com.runninghub.shared.domain.repository.WebAppRepository
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flow
 
 class WebAppRepositoryImpl(
-    private val api: WebAppApiService
+    private val api: RunningHubApi
 ) : WebAppRepository {
 
-    override fun getWebApps(
-        page: Int,
+    override suspend fun getAppList(
+        pageNum: Int,
         pageSize: Int,
         tags: List<String>,
-        sort: String
-    ): Flow<AppResult<List<WebApp>>> = flow {
-        emit(AppResult.Loading)
-        try {
-            val response = api.getWebAppList(
-                WebAppListRequest(size = pageSize, current = page, tags = tags, sort = sort)
+        keyword: String?,
+        sort: String?,
+        days: Int?
+    ): Result<PageData<WebApp>> = runCatching {
+        val response = api.getWebAppList(
+            WebAppListRequest(
+                pageNum = pageNum,
+                pageSize = pageSize,
+                tags = tags,
+                keyword = keyword,
+                sort = sort,
+                days = days
             )
-            if (response.code == 0 && response.data != null) {
-                emit(AppResult.Success(response.data.records.map { it.toDomain() }))
-            } else {
-                emit(AppResult.Error(response.msg))
-            }
-        } catch (e: Exception) {
-            emit(AppResult.Error(e.message ?: "Network error"))
-        }
+        )
+        check(response.code == 0) { response.msg }
+        response.data.toDomain()
     }
 
-    override fun getFeaturedApps(): Flow<AppResult<List<WebApp>>> = flow {
-        emit(AppResult.Loading)
-        try {
-            val response = api.getCarefullyChosenList()
-            if (response.code == 0 && response.data != null) {
-                emit(AppResult.Success(response.data.map { it.toDomain() }))
-            } else {
-                emit(AppResult.Error(response.msg))
-            }
-        } catch (e: Exception) {
-            emit(AppResult.Error(e.message ?: "Network error"))
-        }
+    override suspend fun getCarefullyChosenList(): Result<List<WebApp>> = runCatching {
+        val response = api.getCarefullyChosenList()
+        check(response.code == 0) { response.msg }
+        response.data.map { it.toDomain() }
     }
 
-    override fun getWebAppDetail(appId: String, apiKey: String): Flow<AppResult<WebAppDetail>> = flow {
-        emit(AppResult.Loading)
-        try {
-            val response = api.getApiCallDemo(apiKey = apiKey, webappId = appId)
-            if (response.code == 0 && response.data != null) {
-                emit(AppResult.Success(response.data.toDomain()))
-            } else {
-                val fallback = api.getWebAppDetail(mapOf("webappId" to appId))
-                if (fallback.code == 0 && fallback.data != null) {
-                    emit(AppResult.Success(fallback.data.toDomain()))
-                } else {
-                    emit(AppResult.Error(fallback.msg))
-                }
-            }
-        } catch (e: Exception) {
-            emit(AppResult.Error(e.message ?: "Network error"))
-        }
+    override suspend fun getCustomMadeWebappList(tags: List<String>): Result<List<WebApp>> = runCatching {
+        val response = api.getCustomMadeWebappList(CustomMadeWebappRequest(tags))
+        check(response.code == 0) { response.msg }
+        response.data.map { it.toDomain() }
     }
 
-    override fun getCategories(): Flow<AppResult<List<Tag>>> = flow {
-        emit(AppResult.Loading)
-        try {
-            val response = api.getTagTree(TagTreeRequest())
-            if (response.code == 0 && response.data != null) {
-                emit(AppResult.Success(response.data.map { it.toDomain() }))
-            } else {
-                emit(AppResult.Error(response.msg))
-            }
-        } catch (e: Exception) {
-            emit(AppResult.Error(e.message ?: "Network error"))
-        }
+    override suspend fun getUserAppList(
+        userId: String,
+        pageNum: Int,
+        pageSize: Int
+    ): Result<PageData<WebApp>> = runCatching {
+        val params = mapOf(
+            "userId" to userId,
+            "pageNum" to pageNum.toString(),
+            "pageSize" to pageSize.toString()
+        )
+        val response = api.getWebAppUserList(params)
+        check(response.code == 0) { response.msg }
+        response.data.toDomain()
     }
 
-    override fun searchApps(query: String, page: Int, pageSize: Int): Flow<AppResult<List<WebApp>>> = flow {
-        emit(AppResult.Loading)
-        try {
-            val response = api.getWebAppList(
-                WebAppListRequest(size = pageSize, current = page, tags = emptyList(), sort = "RECOMMEND")
+    override suspend fun getTagTree(rang: String): Result<List<Tag>> = runCatching {
+        val response = api.getTagTree(TagTreeRequest(rang))
+        check(response.code == 0) { response.msg }
+        response.data.map { it.toDomain() }
+    }
+
+    override suspend fun getAppDetail(appId: String): Result<AppDetail> = runCatching {
+        val response = api.getWebAppDetail(mapOf("webappId" to appId))
+        check(response.code == 0) { response.msg }
+        response.data.toDomain()
+    }
+
+    override suspend fun getApiCallDemo(apiKey: String, webappId: String): Result<AppDetail> = runCatching {
+        val response = api.getApiCallDemo(apiKey, webappId)
+        check(response.code == 0) { response.msg }
+        response.data.toDomain()
+    }
+
+    override suspend fun searchApps(
+        keyword: String,
+        pageNum: Int,
+        pageSize: Int
+    ): Result<PageData<WebApp>> = runCatching {
+        val response = api.getWebAppList(
+            WebAppListRequest(
+                pageNum = pageNum,
+                pageSize = pageSize,
+                keyword = keyword
             )
-            if (response.code == 0 && response.data != null) {
-                val filtered = response.data.records
-                    .filter { (it.title ?: "").contains(query, ignoreCase = true) || (it.desc ?: "").contains(query, ignoreCase = true) }
-                    .map { it.toDomain() }
-                emit(AppResult.Success(filtered))
-            } else {
-                emit(AppResult.Error(response.msg))
-            }
-        } catch (e: Exception) {
-            emit(AppResult.Error(e.message ?: "Network error"))
-        }
+        )
+        check(response.code == 0) { response.msg }
+        response.data.toDomain()
     }
 
-    override fun getUserApps(userId: String, page: Int, pageSize: Int): Flow<AppResult<List<WebApp>>> = flow {
-        emit(AppResult.Loading)
-        try {
-            val response = api.getWebAppUserList(
-                mapOf("userId" to userId, "current" to page.toString(), "size" to pageSize.toString())
-            )
-            if (response.code == 0 && response.data != null) {
-                emit(AppResult.Success(response.data.records.map { it.toDomain() }))
-            } else {
-                emit(AppResult.Error(response.msg))
-            }
-        } catch (e: Exception) {
-            emit(AppResult.Error(e.message ?: "Network error"))
-        }
+    override suspend fun runTask(
+        webappId: Long,
+        apiKey: String,
+        nodeInfoList: List<InputNode>,
+        webhookUrl: String?,
+        instanceType: String?
+    ): Result<TaskResult> = runCatching {
+        val request = TaskRunRequest(
+            webappId = webappId,
+            apiKey = apiKey,
+            nodeInfoList = nodeInfoList.map { it.toDto() },
+            webhookUrl = webhookUrl,
+            instanceType = instanceType
+        )
+        val response = api.runTask(request)
+        check(response.code == 0) { response.msg }
+        response.data.toDomain()
+    }
+
+    override suspend fun getTaskOutputs(taskId: Long, apiKey: String): Result<List<TaskOutput>> = runCatching {
+        val response = api.getTaskOutputs(TaskStatusRequest(taskId, apiKey))
+        check(response.code == 0) { response.msg }
+        response.data.map { it.toDomain() }
+    }
+
+    override suspend fun uploadFile(
+        apiKey: String,
+        fileType: String,
+        fileBytes: ByteArray,
+        fileName: String
+    ): Result<UploadResult> = runCatching {
+        val response = api.uploadFile(apiKey, fileType, fileBytes, fileName)
+        check(response.code == 0) { response.msg }
+        response.data.toDomain()
     }
 }
