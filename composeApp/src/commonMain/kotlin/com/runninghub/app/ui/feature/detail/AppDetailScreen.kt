@@ -60,7 +60,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -117,9 +116,8 @@ data class AppDetailScreen(val appId: String) : Screen {
         val uiState by screenModel.uiState.collectAsState()
         val navigator = LocalNavigator.currentOrThrow
 
-        val activityContext = LocalContext.current
         val dataStore: PermissionDataStore = koinInject()
-        val controller: PermissionController = rememberPermissionController(dataStore, activityContext)
+        val controller: PermissionController = rememberPermissionController(dataStore)
 
         var pendingPermission by remember { mutableStateOf<Permission?>(null) }
 

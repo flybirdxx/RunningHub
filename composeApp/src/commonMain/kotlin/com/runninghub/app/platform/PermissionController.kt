@@ -26,5 +26,4 @@ interface PermissionController {
 @Composable
 expect fun rememberPermissionController(
     dataStore: PermissionDataStore,
-    context: Any,
 ): PermissionController

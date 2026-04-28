@@ -1,9 +1,11 @@
+-- Banners
 CREATE TABLE IF NOT EXISTS BannerEntity (
     id TEXT NOT NULL PRIMARY KEY,
     title TEXT NOT NULL DEFAULT '',
     description TEXT NOT NULL DEFAULT '',
     thumbnailUrl TEXT,
     previewUrl TEXT,
+    tag TEXT,
     authorName TEXT,
     authorAvatar TEXT,
     authorId TEXT,
@@ -15,29 +17,82 @@ CREATE TABLE IF NOT EXISTS BannerEntity (
     updatedAt INTEGER NOT NULL DEFAULT 0
 );
 
+-- Categories
 CREATE TABLE IF NOT EXISTS CategoryEntity (
     id TEXT NOT NULL PRIMARY KEY,
     name TEXT NOT NULL,
     parentId TEXT,
+    tagIds TEXT,
     sortOrder INTEGER NOT NULL DEFAULT 0
 );
 
-insertBanner:
-INSERT OR REPLACE INTO BannerEntity(id, title, description, thumbnailUrl, previewUrl, authorName, authorAvatar, authorId, likeCount, collectCount, useCount, viewCount, sortOrder, updatedAt)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+-- Apps
+CREATE TABLE IF NOT EXISTS AppEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    author TEXT NOT NULL,
+    authorAvatar TEXT,
+    imageUrl TEXT NOT NULL,
+    likes INTEGER NOT NULL DEFAULT 0,
+    stars INTEGER NOT NULL DEFAULT 0,
+    useCount TEXT NOT NULL DEFAULT '0',
+    views TEXT NOT NULL DEFAULT '0',
+    categoryName TEXT NOT NULL,
+    timestamp INTEGER NOT NULL
+);
 
+-- App Details
+CREATE TABLE IF NOT EXISTS AppDetailEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    jsonContent TEXT NOT NULL
+);
+
+-- ===== Banner queries =====
 getAllBanners:
 SELECT * FROM BannerEntity ORDER BY sortOrder ASC;
+
+insertBanner:
+INSERT OR REPLACE INTO BannerEntity(
+    id, title, description, thumbnailUrl, previewUrl, tag,
+    authorName, authorAvatar, authorId,
+    likeCount, collectCount, useCount, viewCount,
+    sortOrder, updatedAt
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 deleteAllBanners:
 DELETE FROM BannerEntity;
 
-insertCategory:
-INSERT OR REPLACE INTO CategoryEntity(id, name, parentId, sortOrder)
-VALUES (?, ?, ?, ?);
-
+-- ===== Category queries =====
 getAllCategories:
 SELECT * FROM CategoryEntity ORDER BY sortOrder ASC;
 
+insertCategory:
+INSERT OR REPLACE INTO CategoryEntity(id, name, parentId, tagIds, sortOrder)
+VALUES (?, ?, ?, ?, ?);
+
 deleteAllCategories:
 DELETE FROM CategoryEntity;
+
+-- ===== App queries =====
+getAppsByCategory:
+SELECT * FROM AppEntity WHERE categoryName = ? ORDER BY timestamp DESC;
+
+insertApp:
+INSERT OR REPLACE INTO AppEntity(
+    id, title, author, authorAvatar, imageUrl,
+    likes, stars, useCount, views, categoryName, timestamp
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+deleteAppsByCategory:
+DELETE FROM AppEntity WHERE categoryName = ?;
+
+getMinTimestampByCategory:
+SELECT MIN(timestamp) FROM AppEntity WHERE categoryName = ?;
+
+-- ===== AppDetail queries =====
+getAppDetail:
+SELECT * FROM AppDetailEntity WHERE id = ?;
+
+insertAppDetail:
+INSERT OR REPLACE INTO AppDetailEntity(id, jsonContent)
+VALUES (?, ?);

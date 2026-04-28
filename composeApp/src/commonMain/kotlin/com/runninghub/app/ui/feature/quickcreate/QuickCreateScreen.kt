@@ -26,7 +26,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,9 +60,8 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
     val uiState by screenModel.uiState.collectAsState()
     val currentScreenModel by rememberUpdatedState(screenModel)
 
-    val activityContext = LocalContext.current
     val dataStore: PermissionDataStore = koinInject()
-        val controller: PermissionController = rememberPermissionController(dataStore, activityContext)
+    val controller: PermissionController = rememberPermissionController(dataStore)
 
     var pendingPermission by remember { mutableStateOf<Permission?>(null) }
 
@@ -104,13 +102,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     controller.pickMedia(
                         mediaPermission = Permission.MediaImages,
                         mediaType = MediaType.IMAGE,
-                        onSuccess = { uriString ->
-                            val uri = android.net.Uri.parse(uriString)
-                            try {
-                                activityContext.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            } catch (_: SecurityException) { }
-                            currentScreenModel.pickImageReference(uriString)
-                        },
+                        onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
                         onPermissionDenied = { pendingPermission = Permission.MediaImages },
                     )
                 },
@@ -118,13 +110,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     controller.pickMedia(
                         mediaPermission = Permission.MediaVideo,
                         mediaType = MediaType.VIDEO,
-                        onSuccess = { uriString ->
-                            val uri = android.net.Uri.parse(uriString)
-                            try {
-                                activityContext.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            } catch (_: SecurityException) { }
-                            currentScreenModel.pickVideoReference(uriString)
-                        },
+                        onSuccess = { uriString -> currentScreenModel.pickVideoReference(uriString) },
                         onPermissionDenied = { pendingPermission = Permission.MediaVideo },
                     )
                 },
@@ -132,13 +118,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     controller.pickMedia(
                         mediaPermission = Permission.MediaAudio,
                         mediaType = MediaType.AUDIO,
-                        onSuccess = { uriString ->
-                            val uri = android.net.Uri.parse(uriString)
-                            try {
-                                activityContext.contentResolver.takePersistableUriPermission(uri, android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            } catch (_: SecurityException) { }
-                            currentScreenModel.pickAudioReference(uriString)
-                        },
+                        onSuccess = { uriString -> currentScreenModel.pickAudioReference(uriString) },
                         onPermissionDenied = { pendingPermission = Permission.MediaAudio },
                     )
                 },

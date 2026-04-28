@@ -1,6 +1,7 @@
 package com.runninghub.app.di
 
-import android.content.Context
+import com.runninghub.app.platform.MediaResolver
+import com.runninghub.app.platform.createMediaResolver
 import com.runninghub.app.ui.feature.community.CommunityScreenModel
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreenModel
 import com.runninghub.app.ui.feature.detail.AppDetailScreenModel
@@ -15,6 +16,9 @@ import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.module
 
 val appModule = module {
+    single<MediaResolver> { createMediaResolver() }
+    single<PermissionDataStore> { createPermissionDataStore() }
+
     factoryOf(::DiscoveryScreenModel)
     factoryOf(::CommunityScreenModel)
     factoryOf(::ProfileScreenModel)
@@ -22,6 +26,5 @@ val appModule = module {
     factoryOf(::AppDetailScreenModel)
     factoryOf(::CreatorProfileScreenModel)
     factoryOf(::LoginScreenModel)
-    factory { QuickCreateScreenModel(get(), get<Context>()) }
-    single<PermissionDataStore> { createPermissionDataStore() }
+    factoryOf(::QuickCreateScreenModel)
 }

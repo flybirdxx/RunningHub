@@ -2,7 +2,7 @@ package com.runninghub.app.ui.feature.quickcreate
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import coil3.Uri
+import com.runninghub.app.platform.MediaResolver
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import kotlinx.coroutines.Dispatchers
@@ -14,13 +14,12 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.Clock
 
 class QuickCreateScreenModel(
     private val quickCreateRepository: QuickCreateRepository,
-    private val androidContext: android.content.Context,
+    private val mediaResolver: MediaResolver,
 ) : ScreenModel {
-
-    val context: android.content.Context get() = androidContext
 
     private val _uiState = MutableStateFlow(QuickCreateUiState())
     val uiState: StateFlow<QuickCreateUiState> = _uiState.asStateFlow()
@@ -153,9 +152,10 @@ class QuickCreateScreenModel(
     }
 
     private fun addMediaReference(uriString: String, type: QuickCreateMediaType) {
-        val id = "${type.name}_${System.currentTimeMillis()}"
-        val fileName = extractFileName(uriString) ?: "${type.name.lowercase()}_${System.currentTimeMillis()}"
-        val fileSize = extractFileSize(uriString)
+        val now = Clock.System.now().toEpochMilliseconds()
+        val id = "${type.name}_$now"
+        val fileName = mediaResolver.getDisplayName(uriString) ?: "${type.name.lowercase()}_$now"
+        val fileSize = mediaResolver.getFileSizeBytes(uriString)
 
         val newRef = MediaReference(
             id = id,
@@ -198,13 +198,13 @@ class QuickCreateScreenModel(
                 QuickCreateMediaType.VIDEO -> "mp4"
                 QuickCreateMediaType.AUDIO -> "mp3"
             }
-            val actualFileName = "${type.name.lowercase()}_${System.currentTimeMillis()}.$ext"
+            val actualFileName = "${type.name.lowercase()}_${Clock.System.now().toEpochMilliseconds()}.$ext"
 
             try {
                 updateReferenceStatus(id, UploadStatus.UPLOADING, 0.1f)
 
                 val bytes = withContext(Dispatchers.IO) {
-                    extractMediaBytes(androidContext, uriString)
+                    mediaResolver.readBytes(uriString)
                 }
 
                 updateReferenceStatus(id, UploadStatus.UPLOADING, 0.7f)
@@ -283,30 +283,6 @@ class QuickCreateScreenModel(
                     )
                 )
             }
-        }
-    }
-
-    private fun extractFileName(uriString: String): String? {
-        val uri = android.net.Uri.parse(uriString)
-        return try {
-            androidContext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val nameIndex = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
-                if (cursor.moveToFirst() && nameIndex >= 0) cursor.getString(nameIndex) else null
-            }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun extractFileSize(uriString: String): Long {
-        val uri = android.net.Uri.parse(uriString)
-        return try {
-            androidContext.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-                val sizeIndex = cursor.getColumnIndex(android.provider.OpenableColumns.SIZE)
-                if (cursor.moveToFirst() && sizeIndex >= 0) cursor.getLong(sizeIndex) else 0L
-            } ?: 0L
-        } catch (_: Exception) {
-            0L
         }
     }
 

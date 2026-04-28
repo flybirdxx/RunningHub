@@ -9,7 +9,6 @@ import com.runninghub.shared.domain.model.Permission
 @Composable
 actual fun rememberPermissionController(
     dataStore: PermissionDataStore,
-    context: Any,
 ): PermissionController = remember(dataStore) {
     object : PermissionController {
         override fun pickMedia(

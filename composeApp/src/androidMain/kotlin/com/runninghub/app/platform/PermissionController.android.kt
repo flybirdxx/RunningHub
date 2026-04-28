@@ -9,6 +9,7 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
 import com.runninghub.app.ui.component.MediaType
 import com.runninghub.shared.data.local.PermissionDataStore
@@ -62,7 +63,16 @@ private class PermissionControllerImpl(
         "rh_media_picker",
         ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
-        uri?.let { pendingMediaCallback?.invoke(it.toString()) }
+        uri?.let {
+            try {
+                activity.contentResolver.takePersistableUriPermission(
+                    it,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (_: SecurityException) {
+            }
+            pendingMediaCallback?.invoke(it.toString())
+        }
         pendingMediaCallback = null
         pendingMediaType = null
     }
@@ -132,9 +142,9 @@ private class PermissionControllerImpl(
 @Composable
 actual fun rememberPermissionController(
     dataStore: PermissionDataStore,
-    context: Any,
 ): PermissionController {
-    return remember(dataStore, context) {
-        PermissionControllerImpl(dataStore, context as ComponentActivity)
+    val activity = LocalContext.current as ComponentActivity
+    return remember(dataStore, activity) {
+        PermissionControllerImpl(dataStore, activity)
     }
 }

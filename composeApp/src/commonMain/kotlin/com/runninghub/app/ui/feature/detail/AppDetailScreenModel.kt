@@ -10,6 +10,7 @@ import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.WebAppRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.datetime.Clock
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -239,10 +240,10 @@ class AppDetailScreenModel(
         screenModelScope.launch {
             var attempts = 0
             val maxAttempts = 120
-            val startTime = System.currentTimeMillis()
+            val startTime = Clock.System.now().toEpochMilliseconds()
 
             while (attempts < maxAttempts) {
-                val elapsed = ((System.currentTimeMillis() - startTime) / 1000).toInt()
+                val elapsed = ((Clock.System.now().toEpochMilliseconds() - startTime) / 1000).toInt()
                 _uiState.update {
                     it.copy(
                         taskStep = when {
@@ -278,7 +279,7 @@ class AppDetailScreenModel(
                                 it.copy(
                                     isRunningTask = false,
                                     taskStep = com.runninghub.app.ui.component.TaskStep.SUCCESS,
-                                    taskElapsedSeconds = ((System.currentTimeMillis() - startTime) / 1000).toInt(),
+                                    taskElapsedSeconds = ((Clock.System.now().toEpochMilliseconds() - startTime) / 1000).toInt(),
                                     taskOutputs = outputs
                                 )
                             }
