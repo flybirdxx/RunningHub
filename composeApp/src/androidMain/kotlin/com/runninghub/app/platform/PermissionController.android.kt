@@ -92,20 +92,31 @@ private class PermissionControllerImpl(
         onSuccess: (String) -> Unit,
         onPermissionDenied: () -> Unit,
     ) {
-        scope.launch {
-            when (dataStore.getCurrentStatus(mediaPermission)) {
-                PermissionStatus.GRANTED -> {
-                    launchMediaPicker(mediaType)
-                    pendingMediaCallback = onSuccess
-                }
-                PermissionStatus.PERMANENTLY_DENIED -> {
-                    onPermissionDenied()
-                }
-                else -> {
-                    pendingMediaCallback = onSuccess
-                    pendingMediaDeniedCallback = onPermissionDenied
-                    pendingMediaType = mediaType
-                    permissionLauncher.launch(arrayOf(mediaPermission.androidManifest))
+        // Photo Picker (PickVisualMedia) 在独立进程中提供安全访问, 无需运行时权限
+        // 见 https://developer.android.com/training/data-storage/shared/photopicker
+        when (mediaType) {
+            MediaType.IMAGE, MediaType.VIDEO -> {
+                pendingMediaCallback = onSuccess
+                pendingMediaDeniedCallback = onPermissionDenied
+                pendingMediaType = mediaType
+                launchMediaPicker(mediaType)
+            }
+            MediaType.AUDIO -> {
+                scope.launch {
+                    when (dataStore.getCurrentStatus(mediaPermission)) {
+                        PermissionStatus.GRANTED -> {
+                            pendingMediaCallback = onSuccess
+                            pendingMediaType = mediaType
+                            launchMediaPicker(mediaType)
+                        }
+                        PermissionStatus.PERMANENTLY_DENIED -> onPermissionDenied()
+                        else -> {
+                            pendingMediaCallback = onSuccess
+                            pendingMediaDeniedCallback = onPermissionDenied
+                            pendingMediaType = mediaType
+                            permissionLauncher.launch(arrayOf(mediaPermission.androidManifest))
+                        }
+                    }
                 }
             }
         }
