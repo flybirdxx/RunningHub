@@ -6,7 +6,9 @@
  */
 package com.runninghub.app
 
+import android.content.Intent
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -33,6 +35,23 @@ class MainActivity : ComponentActivity() {
                 val navController = rememberNavController()
                 AppNavigation(navController = navController)
             }
+        }
+    }
+
+    /**
+     * 防御 MIUI ContentCatcher 系统注入 null Bundle 导致的
+     * ActivityThread.deliverResultsIfNeeded NPE。
+     *
+     * MIUI 在 Activity 切换时通过 ContentCatcher 注入 ActivityResult，
+     * 但 Intent data 或其 extras Bundle 可能为 null，
+     * 导致框架内部 Bundle.getString() 调用触发 NPE。
+     */
+    @Suppress("DEPRECATION")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        try {
+            super.onActivityResult(requestCode, resultCode, data)
+        } catch (e: NullPointerException) {
+            Log.w("MainActivity", "Caught MIUI system NPE in onActivityResult (requestCode=$requestCode)", e)
         }
     }
 }

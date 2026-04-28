@@ -187,22 +187,6 @@ fun AppDetailContent(
     // val localUris = nodeLocalUris // Unused alias
 
     
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions()
-    ) { permissions ->
-        val allGranted = permissions.values.all { it }
-        if (allGranted) {
-            // Re-trigger the picker if permissions are granted
-            pendingMediaNode?.let { (nodeId, fieldName, fieldType) ->
-                when (fieldType) {
-                    "AUDIO" -> {} // Handled separately if needed
-                    "VIDEO" -> {} // Handled separately if needed
-                    else -> {}
-                }
-            }
-        }
-    }
-
     val visualMediaPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri: Uri? ->
@@ -223,6 +207,29 @@ fun AppDetailContent(
             }
         }
         pendingMediaNode = null
+    }
+
+    // 权限请求：在回调中再启动对应的媒体选择器，避免同时 launch 两个 ActivityResult
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        val allGranted = permissions.values.all { it }
+        if (allGranted) {
+            pendingMediaNode?.let { (_, _, fieldType) ->
+                when (fieldType) {
+                    "AUDIO" -> audioPickerLauncher.launch("audio/*")
+                    "VIDEO" -> visualMediaPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                    )
+                    else -> visualMediaPickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
+            }
+        } else {
+            // 权限被拒绝，清除待处理节点
+            pendingMediaNode = null
+        }
     }
 
     val lazyListState = rememberLazyListState()
@@ -434,16 +441,21 @@ fun AppDetailContent(
                         },
                         onPickMediaRequest = {
                             pendingMediaNode = Triple(node.nodeId, node.fieldName, node.fieldType)
-                            permissionLauncher.launch(PermissionManager.getMediaPermissions())
-    
-                            when (node.fieldType) {
-                                "AUDIO" -> audioPickerLauncher.launch("audio/*")
-                                "VIDEO" -> visualMediaPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
-                                )
-                                else -> visualMediaPickerLauncher.launch(
-                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                                )
+                            val permissions = PermissionManager.getMediaPermissions()
+                            if (permissions.isEmpty()) {
+                                // 无需权限，直接启动选择器
+                                when (node.fieldType) {
+                                    "AUDIO" -> audioPickerLauncher.launch("audio/*")
+                                    "VIDEO" -> visualMediaPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                                    )
+                                    else -> visualMediaPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                }
+                            } else {
+                                // 先请求权限，授予后在回调中启动选择器
+                                permissionLauncher.launch(permissions)
                             }
                         },
                         onEditListRequest = {

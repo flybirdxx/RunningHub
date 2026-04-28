@@ -16,8 +16,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.runninghub.app.ui.navigation.Screen
 import com.runninghub.app.ui.feature.discovery.DiscoveryScreen
 import com.runninghub.app.ui.feature.discovery.DiscoveryViewModel
@@ -60,6 +62,7 @@ fun AppNavigation(navController: NavHostController) {
         
         composable(
             route = Screen.AppDetail.route,
+            arguments = listOf(navArgument("appId") { type = NavType.StringType }),
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() },
             popEnterTransition = { fadeIn() },
@@ -77,6 +80,7 @@ fun AppNavigation(navController: NavHostController) {
 
         composable(
             route = Screen.CreatorProfile.route,
+            arguments = listOf(navArgument("userId") { type = NavType.StringType }),
             enterTransition = { fadeIn() },
             exitTransition = { fadeOut() },
             popEnterTransition = { fadeIn() },
