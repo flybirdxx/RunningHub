@@ -1,11 +1,9 @@
 package com.runninghub.app.platform
 
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.ComponentActivity
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -59,31 +57,60 @@ private class PermissionControllerImpl(
         }
     }
 
-    private val mediaPickerLauncher = activity.activityResultRegistry.register(
-        "rh_media_picker",
-        ActivityResultContracts.PickVisualMedia()
+    private val mediaImageLauncher = activity.activityResultRegistry.register(
+        "rh_media_image",
+        ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        uri?.let {
-            try {
-                activity.contentResolver.takePersistableUriPermission(
-                    it,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION
-                )
-            } catch (_: SecurityException) {
+        handleMediaResult(uri)
+    }
+
+    private val mediaVideoLauncher = activity.activityResultRegistry.register(
+        "rh_media_video",
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        handleMediaResult(uri)
+    }
+
+    private val mediaAudioLauncher = activity.activityResultRegistry.register(
+        "rh_media_audio",
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        handleMediaResult(uri)
+    }
+
+    private fun handleMediaResult(uri: Uri?) {
+        try {
+            uri?.let {
+                try {
+                    activity.contentResolver.takePersistableUriPermission(
+                        it,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (_: SecurityException) {
+                }
+                pendingMediaCallback?.invoke(it.toString())
             }
-            pendingMediaCallback?.invoke(it.toString())
+        } catch (t: Throwable) {
+            // MIUI PhotoPicker may deliver malformed Intent with null extras bundle.
+            // Catch any unexpected exception so pending state is always cleaned up.
+        } finally {
+            pendingMediaCallback = null
+            pendingMediaType = null
         }
-        pendingMediaCallback = null
-        pendingMediaType = null
     }
 
     private fun launchMediaPicker(type: MediaType) {
-        val request = when (type) {
-            MediaType.IMAGE -> PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-            MediaType.VIDEO -> PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
-            MediaType.AUDIO -> return
+        val mimeType = when (type) {
+            MediaType.IMAGE -> "image/*"
+            MediaType.VIDEO -> "video/*"
+            MediaType.AUDIO -> "audio/*"
         }
-        mediaPickerLauncher.launch(request)
+        val launcher = when (type) {
+            MediaType.IMAGE -> mediaImageLauncher
+            MediaType.VIDEO -> mediaVideoLauncher
+            MediaType.AUDIO -> mediaAudioLauncher
+        }
+        launcher.launch(mimeType)
     }
 
     override fun pickMedia(
