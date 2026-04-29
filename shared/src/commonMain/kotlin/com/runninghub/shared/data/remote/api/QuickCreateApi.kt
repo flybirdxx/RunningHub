@@ -7,10 +7,15 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
 
+private fun debug(tag: String, msg: String) {
+    println("[$tag] $msg")
+}
+
 class QuickCreateApi(private val client: HttpClient) {
 
     companion object {
         const val BASE_URL = "https://www.runninghub.cn"
+        private const val TAG = "QuickCreateApi"
         const val IMAGE_TEXT_TO_IMAGE = "/openapi/v2/rhart-image-g-2-official/text-to-image"
         const val IMAGE_IMAGE_TO_IMAGE = "/openapi/v2/rhart-image-g-2-official/image-to-image"
         const val VIDEO_TEXT_TO_VIDEO = "/openapi/v2/rhart-video-s-official/text-to-video-pro"
@@ -71,17 +76,35 @@ class QuickCreateApi(private val client: HttpClient) {
     // ── 媒体上传 ──────────────────────────────────────────
 
     suspend fun uploadMedia(
+        apiKey: String,
         fileBytes: ByteArray,
         fileName: String,
         contentType: String = "application/octet-stream"
-    ): MediaUploadResponseDto =
-        client.submitFormWithBinaryData(
-            url = "$BASE_URL$MEDIA_UPLOAD",
+    ): MediaUploadResponseDto {
+        val url = "$BASE_URL$MEDIA_UPLOAD"
+        debug(TAG, "uploadMedia: START")
+        debug(TAG, "  url        = $url")
+        debug(TAG, "  apiKey     = ${apiKey.take(8)}...")
+        debug(TAG, "  fileName   = $fileName")
+        debug(TAG, "  contentType= $contentType")
+        debug(TAG, "  fileBytes  = ${fileBytes.size} bytes")
+
+        val response: MediaUploadResponseDto = client.submitFormWithBinaryData(
+            url = url,
             formData = formData {
+                append("apiKey", apiKey)
+                append("fileType", contentType)
                 append("file", fileBytes, Headers.build {
                     append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
                     append(HttpHeaders.ContentType, contentType)
                 })
             }
         ).body()
+
+        debug(TAG, "uploadMedia: SUCCESS")
+        debug(TAG, "  response.url     = ${response.url}")
+        debug(TAG, "  response.fileId  = ${response.fileId}")
+        debug(TAG, "  response.fileName= ${response.fileName}")
+        return response
+    }
 }

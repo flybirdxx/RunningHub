@@ -8,13 +8,19 @@ import com.runninghub.shared.domain.repository.ImageGenerationRequest
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateResultItem
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.VideoGenerationRequest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
+private fun debug(tag: String, msg: String) {
+    println("[$tag] $msg")
+}
+
 class QuickCreateRepositoryImpl(
-    private val quickCreateApi: QuickCreateApi
+    private val quickCreateApi: QuickCreateApi,
+    private val settingsRepository: SettingsRepository,
 ) : QuickCreateRepository {
 
     override fun generateImage(request: ImageGenerationRequest): Flow<QuickCreateTaskStatus> = flow {
@@ -152,7 +158,26 @@ class QuickCreateRepositoryImpl(
         fileName: String,
         mimeType: String
     ): Result<String> = runCatching {
-        val response = quickCreateApi.uploadMedia(fileBytes, fileName, mimeType)
+        val TAG = "QuickCreateRepo"
+        debug(TAG, "uploadMedia: START")
+        debug(TAG, "  fileName  = $fileName")
+        debug(TAG, "  mimeType  = $mimeType")
+        debug(TAG, "  fileBytes = ${fileBytes.size} bytes")
+
+        val apiKey = settingsRepository.getApiKey()
+        debug(TAG, "  apiKey found = ${!apiKey.isNullOrBlank()}")
+        if (apiKey.isNullOrBlank()) {
+            throw IllegalStateException("请先登录获取 API Key")
+        }
+
+        debug(TAG, "  calling QuickCreateApi.uploadMedia...")
+        val response = quickCreateApi.uploadMedia(apiKey, fileBytes, fileName, mimeType)
+        debug(TAG, "  response.url = ${response.url}")
+
         response.url
+    }.onFailure { e ->
+        val TAG = "QuickCreateRepo"
+        debug(TAG, "uploadMedia: FAILED")
+        debug(TAG, "  exception = ${e::class.simpleName}: ${e.message}")
     }
 }

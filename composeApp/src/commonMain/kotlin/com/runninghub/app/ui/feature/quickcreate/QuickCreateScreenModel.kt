@@ -8,6 +8,7 @@ import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
+
+private fun debug(tag: String, msg: String) {
+    println("[$tag] $msg")
+}
 
 class QuickCreateScreenModel(
     private val quickCreateRepository: QuickCreateRepository,
@@ -152,10 +157,13 @@ class QuickCreateScreenModel(
     }
 
     private fun addMediaReference(uriString: String, type: QuickCreateMediaType) {
+        val TAG = "QCScreenModel"
         val now = Clock.System.now().toEpochMilliseconds()
         val id = "${type.name}_$now"
+        debug(TAG, "addMediaReference: uri=$uriString type=$type")
         val fileName = mediaResolver.getDisplayName(uriString) ?: "${type.name.lowercase()}_$now"
         val fileSize = mediaResolver.getFileSizeBytes(uriString)
+        debug(TAG, "addMediaReference: displayName=$fileName size=$fileSize bytes")
 
         val newRef = MediaReference(
             id = id,
@@ -186,6 +194,12 @@ class QuickCreateScreenModel(
     }
 
     private fun uploadReference(id: String, uriString: String, type: QuickCreateMediaType, fileName: String) {
+        val TAG = "QCScreenModel"
+        debug(TAG, "uploadReference: START")
+        debug(TAG, "  id       = $id")
+        debug(TAG, "  uri      = $uriString")
+        debug(TAG, "  type     = $type")
+        debug(TAG, "  fileName = $fileName")
         uploadJobs[id]?.cancel()
         uploadJobs[id] = screenModelScope.launch {
             val mimeType = when (type) {
@@ -202,15 +216,24 @@ class QuickCreateScreenModel(
 
             try {
                 updateReferenceStatus(id, UploadStatus.UPLOADING, 0.1f)
-
+                debug(TAG, "uploadReference: reading bytes from URI...")
                 val bytes = withContext(Dispatchers.IO) {
                     mediaResolver.readBytes(uriString)
                 }
-
+                debug(TAG, "uploadReference: read ${bytes.size} bytes")
                 updateReferenceStatus(id, UploadStatus.UPLOADING, 0.7f)
 
-                val remoteUrl = quickCreateRepository.uploadMedia(bytes, actualFileName, mimeType).getOrThrow()
+                debug(TAG, "uploadReference: calling repository.uploadMedia...")
+                val remoteUrl = quickCreateRepository.uploadMedia(
+                    fileBytes = bytes,
+                    fileName = actualFileName,
+                    mimeType = mimeType
+                ).getOrElse { e ->
+                    debug(TAG, "uploadReference: FAILED - ${e::class.simpleName}: ${e.message}")
+                    throw e
+                }
 
+                debug(TAG, "uploadReference: SUCCESS, remoteUrl = $remoteUrl")
                 updateReferenceStatus(id, UploadStatus.PROCESSING, 0.85f)
 
                 _uiState.update { state ->
@@ -241,6 +264,7 @@ class QuickCreateScreenModel(
                     }
                 }
             } catch (e: Exception) {
+                debug(TAG, "uploadReference: CATCH - ${e::class.simpleName}: ${e.message}")
                 _uiState.update { state ->
                     if (state.currentTab == QuickCreateTab.IMAGE) {
                         state.copy(
@@ -329,10 +353,60 @@ class QuickCreateScreenModel(
                     results = emptyList(),
                 )
             }
+            try {
+                awaitPendingUploads()
+            } catch (e: IllegalStateException) {
+                _uiState.update {
+                    it.copy(taskStatus = QuickCreateTaskUiStatus.IDLE, error = e.message)
+                }
+                return@launch
+            }
             when (_uiState.value.currentTab) {
                 QuickCreateTab.IMAGE -> generateImage()
                 QuickCreateTab.VIDEO -> generateVideo()
             }
+        }
+    }
+
+    private suspend fun awaitPendingUploads() {
+        val mediaRefs = if (_uiState.value.currentTab == QuickCreateTab.IMAGE) {
+            _uiState.value.imageConfig.mediaReferences
+        } else {
+            _uiState.value.videoConfig.mediaReferences
+        }
+        val pending = mediaRefs.filter { it.uploadStatus == UploadStatus.UPLOADING }
+        if (pending.isEmpty()) return
+
+        _uiState.update { it.copy(statusText = "正在上传素材(${pending.size})...") }
+
+        val pendingIds = pending.map { it.id }.toSet()
+        var waited = 0
+        while (waited < 120) {
+            delay(500)
+            waited++
+            val stillPending = _uiState.value.let { state ->
+                val refs = if (state.currentTab == QuickCreateTab.IMAGE) {
+                    state.imageConfig.mediaReferences
+                } else {
+                    state.videoConfig.mediaReferences
+                }
+                refs.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.UPLOADING }
+                    .map { it.id }
+                    .toSet()
+            }
+            if (stillPending.isEmpty()) return
+        }
+
+        val failed = _uiState.value.let { state ->
+            val refs = if (state.currentTab == QuickCreateTab.IMAGE) {
+                state.imageConfig.mediaReferences
+            } else {
+                state.videoConfig.mediaReferences
+            }
+            refs.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
+        }
+        if (failed.isNotEmpty()) {
+            throw IllegalStateException("素材上传失败: ${failed.joinToString { it.displayName }}")
         }
     }
 
