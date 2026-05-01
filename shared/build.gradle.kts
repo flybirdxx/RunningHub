@@ -65,7 +65,7 @@ kotlin {
 
 android {
     namespace = "com.runninghub.shared"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 24

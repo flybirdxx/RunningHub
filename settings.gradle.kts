@@ -19,4 +19,3 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 rootProject.name = "RunningHub"
 include(":shared")
 include(":composeApp")
-include(":app")

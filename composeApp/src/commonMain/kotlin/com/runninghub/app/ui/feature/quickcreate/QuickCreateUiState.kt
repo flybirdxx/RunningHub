@@ -1,7 +1,5 @@
 package com.runninghub.app.ui.feature.quickcreate
 
-import coil3.Uri
-
 enum class QuickCreateTab(val displayName: String) {
     IMAGE("图片"),
     VIDEO("视频"),
@@ -11,9 +9,7 @@ const val MAX_PROMPT_CHARS = 500
 const val MAX_VISIBLE_CHARS_WARN = 400
 
 enum class QuickCreateMediaType {
-    IMAGE,
-    VIDEO,
-    AUDIO,
+    IMAGE, VIDEO, AUDIO,
 }
 
 data class MediaReference(
@@ -29,63 +25,12 @@ data class MediaReference(
 )
 
 enum class UploadStatus {
-    UPLOADING,
-    PROCESSING,
-    DONE,
-    FAILED,
+    UPLOADING, PROCESSING, DONE, FAILED,
 }
 
-enum class ImageModel(
-    val displayName: String,
-    val apiValue: String,
-    val defaultAspectRatio: String,
-    val defaultResolution: String,
-    val defaultQuality: String,
-) {
-    ALL_POWER_IMAGE_G2(
-        displayName = "全能图片 G-2.0",
-        apiValue = "all-power-image-g2",
-        defaultAspectRatio = "16:9",
-        defaultResolution = "1K",
-        defaultQuality = "medium",
-    ),
-    SEEDREAM_5(
-        displayName = "Seedream 5.0",
-        apiValue = "seedream5",
-        defaultAspectRatio = "3:4",
-        defaultResolution = "1K",
-        defaultQuality = "medium",
-    ),
-    SEEDREAM_4(
-        displayName = "Seedream 4.0",
-        apiValue = "seedream4",
-        defaultAspectRatio = "3:4",
-        defaultResolution = "1K",
-        defaultQuality = "medium",
-    ),
-    ;
-
-    fun estimateCost(resolution: String, quality: String): Double {
-        val base = when (this) {
-            ALL_POWER_IMAGE_G2 -> 0.93
-            SEEDREAM_5 -> 1.50
-            SEEDREAM_4 -> 0.80
-        }
-        val resMultiplier = when (resolution) {
-            "1K" -> 1.0
-            "2K" -> 1.5
-            "4K" -> 2.5
-            else -> 1.0
-        }
-        val qualityMultiplier = when (quality) {
-            "low" -> 0.7
-            "medium" -> 1.0
-            "high" -> 1.3
-            else -> 1.0
-        }
-        return base * resMultiplier * qualityMultiplier
-    }
-}
+// ═══════════════════════════════════════════════════
+//  Image Models
+// ═══════════════════════════════════════════════════
 
 enum class ImageAspectRatio(val displayName: String, val apiValue: String) {
     RATIO_16_9("16:9", "16:9"),
@@ -107,6 +52,79 @@ enum class ImageQuality(val displayName: String, val apiValue: String) {
     QUALITY_MEDIUM("中", "medium"),
     QUALITY_HIGH("高", "high"),
 }
+
+enum class ImageModel(
+    val displayName: String,
+    val apiValue: String,
+    val defaultAspectRatio: ImageAspectRatio,
+    val defaultResolution: ImageResolution,
+    val defaultQuality: ImageQuality,
+    val supportedResolutions: Set<ImageResolution>,
+    val supportedRatios: Set<ImageAspectRatio>,
+    val supportedQualities: Set<ImageQuality>,
+    val supportsImageToImage: Boolean = true,
+    val baseCost: Double,
+) {
+    ALL_POWER_IMAGE_G2(
+        displayName = "全能图片 G-2.0",
+        apiValue = "all-power-image-g2",
+        defaultAspectRatio = ImageAspectRatio.RATIO_16_9,
+        defaultResolution = ImageResolution.RES_1K,
+        defaultQuality = ImageQuality.QUALITY_MEDIUM,
+        supportedResolutions = ImageResolution.entries.toSet(),
+        supportedRatios = ImageAspectRatio.entries.toSet(),
+        supportedQualities = ImageQuality.entries.toSet(),
+        supportsImageToImage = true,
+        baseCost = 0.93,
+    ),
+    SEEDREAM_5(
+        displayName = "Seedream 5.0",
+        apiValue = "seedream5",
+        defaultAspectRatio = ImageAspectRatio.RATIO_3_4,
+        defaultResolution = ImageResolution.RES_1K,
+        defaultQuality = ImageQuality.QUALITY_MEDIUM,
+        supportedResolutions = ImageResolution.entries.toSet(),
+        supportedRatios = setOf(
+            ImageAspectRatio.RATIO_3_4, ImageAspectRatio.RATIO_1_1,
+            ImageAspectRatio.RATIO_4_3, ImageAspectRatio.RATIO_16_9,
+            ImageAspectRatio.RATIO_9_16,
+        ),
+        supportedQualities = ImageQuality.entries.toSet(),
+        supportsImageToImage = true,
+        baseCost = 1.50,
+    ),
+    SEEDREAM_4(
+        displayName = "Seedream 4.0",
+        apiValue = "seedream4",
+        defaultAspectRatio = ImageAspectRatio.RATIO_3_4,
+        defaultResolution = ImageResolution.RES_1K,
+        defaultQuality = ImageQuality.QUALITY_MEDIUM,
+        supportedResolutions = setOf(ImageResolution.RES_1K, ImageResolution.RES_2K),
+        supportedRatios = setOf(
+            ImageAspectRatio.RATIO_3_4, ImageAspectRatio.RATIO_1_1,
+            ImageAspectRatio.RATIO_4_3, ImageAspectRatio.RATIO_16_9,
+            ImageAspectRatio.RATIO_9_16,
+        ),
+        supportedQualities = ImageQuality.entries.toSet(),
+        supportsImageToImage = true,
+        baseCost = 0.80,
+    ),
+    ;
+
+    fun estimateCost(resolution: String, quality: String): Double {
+        val resMultiplier = when (resolution) {
+            "1K" -> 1.0; "2K" -> 1.5; "4K" -> 2.5; else -> 1.0
+        }
+        val qualityMultiplier = when (quality) {
+            "low" -> 0.7; "medium" -> 1.0; "high" -> 1.3; else -> 1.0
+        }
+        return baseCost * resMultiplier * qualityMultiplier
+    }
+}
+
+// ═══════════════════════════════════════════════════
+//  Video Models
+// ═══════════════════════════════════════════════════
 
 enum class VideoAspectRatio(val displayName: String, val apiValue: String) {
     RATIO_AUTO("Auto", "auto"),
@@ -132,52 +150,141 @@ enum class VideoDuration(val displayName: String, val seconds: Int) {
     DURATION_10S("10秒", 10),
 }
 
+enum class VideoApiTier { S, G, KLING }
+
 enum class VideoModel(
     val displayName: String,
     val iconChar: String,
     val apiValue: String,
+    val apiTier: VideoApiTier,
+    val defaultAspectRatio: VideoAspectRatio,
+    val defaultResolution: VideoResolution,
+    val defaultDuration: VideoDuration,
+    val supportedResolutions: Set<VideoResolution>,
+    val supportedRatios: Set<VideoAspectRatio>,
+    val supportedDurations: Set<VideoDuration>,
+    val supportsImageToVideo: Boolean = true,
+    val supportsGenerateAudio: Boolean = false,
+    val supportsRealistic: Boolean = false,
+    val baseCost: Double,
 ) {
-    SEEDANCE_2("Seedance2.0", "🎬", "seedance2"),
-    SEEDANCE_2_FAST("Seedance2.0-Fast", "⚡", "seedance2-fast"),
-    WANXIANG_2_6("万相2.6", "🎞️", "wanxiang2.6"),
-    WANXIANG_2_7("万相2.7", "🌟", "wanxiang2.7"),
-    KLING_O1("可灵O1", "🎥", "kling-o1"),
-    KLING_O3_4K("可灵O3-4k", "🔮", "kling-o3-4k"),
+    SEEDANCE_2(
+        displayName = "Seedance2.0",
+        iconChar = "🎬",  // 🎬
+        apiValue = "seedance2",
+        apiTier = VideoApiTier.S,
+        defaultAspectRatio = VideoAspectRatio.RATIO_16_9,
+        defaultResolution = VideoResolution.RES_720P,
+        defaultDuration = VideoDuration.DURATION_5S,
+        supportedResolutions = setOf(VideoResolution.RES_480P, VideoResolution.RES_720P, VideoResolution.RES_1080P),
+        supportedRatios = VideoAspectRatio.entries.toSet(),
+        supportedDurations = VideoDuration.entries.toSet(),
+        supportsImageToVideo = true,
+        supportsGenerateAudio = true,
+        supportsRealistic = false,
+        baseCost = 6.0,
+    ),
+    SEEDANCE_2_FAST(
+        displayName = "Seedance2.0-Fast",
+        iconChar = "⚡",  // ⚡
+        apiValue = "seedance2-fast",
+        apiTier = VideoApiTier.S,
+        defaultAspectRatio = VideoAspectRatio.RATIO_16_9,
+        defaultResolution = VideoResolution.RES_720P,
+        defaultDuration = VideoDuration.DURATION_5S,
+        supportedResolutions = setOf(VideoResolution.RES_480P, VideoResolution.RES_720P),
+        supportedRatios = VideoAspectRatio.entries.toSet(),
+        supportedDurations = setOf(VideoDuration.DURATION_5S),
+        supportsImageToVideo = true,
+        supportsGenerateAudio = false,
+        supportsRealistic = false,
+        baseCost = 3.0,
+    ),
+    WANXIANG_2_6(
+        displayName = "万相2.6",
+        iconChar = "🎞️",  // 🎞️
+        apiValue = "wanxiang2.6",
+        apiTier = VideoApiTier.G,
+        defaultAspectRatio = VideoAspectRatio.RATIO_16_9,
+        defaultResolution = VideoResolution.RES_720P,
+        defaultDuration = VideoDuration.DURATION_5S,
+        supportedResolutions = setOf(VideoResolution.RES_480P, VideoResolution.RES_720P, VideoResolution.RES_1080P),
+        supportedRatios = VideoAspectRatio.entries.toSet(),
+        supportedDurations = VideoDuration.entries.toSet(),
+        supportsImageToVideo = true,
+        supportsGenerateAudio = false,
+        supportsRealistic = false,
+        baseCost = 6.0,
+    ),
+    WANXIANG_2_7(
+        displayName = "万相2.7",
+        iconChar = "🌟",  // 🌟
+        apiValue = "wanxiang2.7",
+        apiTier = VideoApiTier.G,
+        defaultAspectRatio = VideoAspectRatio.RATIO_16_9,
+        defaultResolution = VideoResolution.RES_720P,
+        defaultDuration = VideoDuration.DURATION_5S,
+        supportedResolutions = setOf(VideoResolution.RES_480P, VideoResolution.RES_720P, VideoResolution.RES_1080P, VideoResolution.RES_2K),
+        supportedRatios = VideoAspectRatio.entries.toSet(),
+        supportedDurations = VideoDuration.entries.toSet(),
+        supportsImageToVideo = true,
+        supportsGenerateAudio = false,
+        supportsRealistic = false,
+        baseCost = 8.0,
+    ),
+    KLING_O1(
+        displayName = "可灵O1",
+        iconChar = "🎥",  // 🎥
+        apiValue = "kling-o1",
+        apiTier = VideoApiTier.KLING,
+        defaultAspectRatio = VideoAspectRatio.RATIO_16_9,
+        defaultResolution = VideoResolution.RES_720P,
+        defaultDuration = VideoDuration.DURATION_5S,
+        supportedResolutions = setOf(VideoResolution.RES_720P, VideoResolution.RES_1080P),
+        supportedRatios = VideoAspectRatio.entries.toSet(),
+        supportedDurations = VideoDuration.entries.toSet(),
+        supportsImageToVideo = true,
+        supportsGenerateAudio = false,
+        supportsRealistic = false,
+        baseCost = 10.0,
+    ),
+    KLING_O3_4K(
+        displayName = "可灵O3-4k",
+        iconChar = "🔮",  // 🔮
+        apiValue = "kling-o3-4k",
+        apiTier = VideoApiTier.KLING,
+        defaultAspectRatio = VideoAspectRatio.RATIO_16_9,
+        defaultResolution = VideoResolution.RES_1080P,
+        defaultDuration = VideoDuration.DURATION_5S,
+        supportedResolutions = setOf(VideoResolution.RES_1080P, VideoResolution.RES_4K),
+        supportedRatios = VideoAspectRatio.entries.toSet(),
+        supportedDurations = VideoDuration.entries.toSet(),
+        supportsImageToVideo = true,
+        supportsGenerateAudio = false,
+        supportsRealistic = false,
+        baseCost = 20.0,
+    ),
     ;
 
-    companion object {
-        fun fromApiValue(value: String): VideoModel {
-            return entries.find { it.apiValue == value } ?: SEEDANCE_2
+    fun estimateCost(resolution: String, duration: Int, generateAudio: Boolean): Double {
+        val durationMultiplier = duration.toDouble() / 5.0
+        val resMultiplier = when (resolution) {
+            "480p" -> 0.7; "720p" -> 1.0; "native1080p", "1080p" -> 1.3
+            "2k" -> 1.6; "4k" -> 2.2; else -> 1.0
         }
+        val audioMultiplier = if (generateAudio) 1.15 else 1.0
+        return baseCost * durationMultiplier * resMultiplier * audioMultiplier
+    }
 
-        fun estimateCost(
-            apiValue: String,
-            resolution: String,
-            duration: Int,
-            generateAudio: Boolean,
-        ): Double {
-            val base = when (apiValue) {
-                "seedance2", "wanxiang2.6" -> 6.0
-                "seedance2-fast" -> 3.0
-                "wanxiang2.7" -> 8.0
-                "kling-o1" -> 10.0
-                "kling-o3-4k" -> 20.0
-                else -> 6.0
-            }
-            val durationMultiplier = duration / 5.0
-            val resMultiplier = when (resolution) {
-                "480p" -> 0.7
-                "720p" -> 1.0
-                "native1080p", "1080p" -> 1.3
-                "2k" -> 1.6
-                "4k" -> 2.2
-                else -> 1.0
-            }
-            val audioMultiplier = if (generateAudio) 1.15 else 1.0
-            return base * durationMultiplier * resMultiplier * audioMultiplier
-        }
+    companion object {
+        fun fromApiValue(value: String): VideoModel =
+            entries.find { it.apiValue == value } ?: SEEDANCE_2
     }
 }
+
+// ═══════════════════════════════════════════════════
+//  Config & State
+// ═══════════════════════════════════════════════════
 
 data class ImageConfig(
     val prompt: String = "",
@@ -185,19 +292,16 @@ data class ImageConfig(
     val aspectRatio: ImageAspectRatio = ImageAspectRatio.RATIO_16_9,
     val resolution: ImageResolution = ImageResolution.RES_1K,
     val quality: ImageQuality = ImageQuality.QUALITY_MEDIUM,
+    val count: Int = 1,
+    val seed: Int? = null,
     val mediaReferences: List<MediaReference> = emptyList(),
 ) {
     val estimatedCost: Double
-        get() = model.estimateCost(resolution.apiValue, quality.apiValue)
+        get() = model.estimateCost(resolution.apiValue, quality.apiValue) * count
 
-    val promptCharCount: Int
-        get() = prompt.length
-
-    val promptOverLimit: Boolean
-        get() = prompt.length > MAX_PROMPT_CHARS
-
-    val promptNearLimit: Boolean
-        get() = prompt.length > MAX_VISIBLE_CHARS_WARN
+    val promptCharCount: Int get() = prompt.length
+    val promptOverLimit: Boolean get() = prompt.length > MAX_PROMPT_CHARS
+    val promptNearLimit: Boolean get() = prompt.length > MAX_VISIBLE_CHARS_WARN
 }
 
 data class VideoConfig(
@@ -208,19 +312,16 @@ data class VideoConfig(
     val duration: VideoDuration = VideoDuration.DURATION_5S,
     val realisticMode: Boolean = false,
     val generateAudio: Boolean = false,
+    val count: Int = 1,
+    val seed: Int? = null,
     val mediaReferences: List<MediaReference> = emptyList(),
 ) {
     val estimatedCost: Double
-        get() = VideoModel.estimateCost(model.apiValue, resolution.apiValue, duration.seconds, generateAudio)
+        get() = model.estimateCost(resolution.apiValue, duration.seconds, generateAudio) * count
 
-    val promptCharCount: Int
-        get() = prompt.length
-
-    val promptOverLimit: Boolean
-        get() = prompt.length > MAX_PROMPT_CHARS
-
-    val promptNearLimit: Boolean
-        get() = prompt.length > MAX_VISIBLE_CHARS_WARN
+    val promptCharCount: Int get() = prompt.length
+    val promptOverLimit: Boolean get() = prompt.length > MAX_PROMPT_CHARS
+    val promptNearLimit: Boolean get() = prompt.length > MAX_VISIBLE_CHARS_WARN
 }
 
 data class QuickCreateUiState(
@@ -236,12 +337,7 @@ data class QuickCreateUiState(
 )
 
 enum class QuickCreateTaskUiStatus {
-    IDLE,
-    SUBMITTING,
-    QUEUING,
-    RUNNING,
-    SUCCESS,
-    FAILED,
+    IDLE, SUBMITTING, QUEUING, RUNNING, SUCCESS, FAILED,
 }
 
 data class QuickCreateResultUi(

@@ -3,12 +3,15 @@ package com.runninghub.app.ui.feature.detail
 import androidx.compose.ui.graphics.Color
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import com.runninghub.app.platform.MediaResolver
 import com.runninghub.shared.domain.model.AppDetail
 import com.runninghub.shared.domain.model.InputNode
 import com.runninghub.shared.domain.model.TaskOutput
 import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.WebAppRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.datetime.Clock
 import kotlinx.coroutines.flow.StateFlow
@@ -44,7 +47,8 @@ data class PendingImagePick(
 
 class AppDetailScreenModel(
     private val webAppRepository: WebAppRepository,
-    private val settingsRepository: SettingsRepository
+    private val settingsRepository: SettingsRepository,
+    private val mediaResolver: MediaResolver
 ) : ScreenModel {
 
     private val _uiState = MutableStateFlow(AppDetailUiState())
@@ -138,21 +142,38 @@ class AppDetailScreenModel(
             }
 
             try {
-                val fileName = localUri
-                    .substringAfterLast("/")
-                    .substringAfterLast("%2F")
-                    .substringAfterLast(":")
-                    .take(64)
-                    .ifBlank { "upload.png" }
+                val displayName = mediaResolver.getDisplayName(localUri)
+                val fileName = displayName
+                    ?: localUri
+                        .substringAfterLast("/")
+                        .substringAfterLast("%2F")
+                        .substringAfterLast(":")
+                        .take(64)
+                        .ifBlank { "upload.png" }
+
+                val mimeType = when {
+                    fileName.endsWith(".png", ignoreCase = true) -> "image/png"
+                    fileName.endsWith(".webp", ignoreCase = true) -> "image/webp"
+                    fileName.endsWith(".gif", ignoreCase = true) -> "image/gif"
+                    else -> "image/jpeg"
+                }
 
                 _uiState.update {
-                    it.copy(uploadingNodes = it.uploadingNodes + (nodeId to UploadingState(localUri = localUri, progress = 0.4f)))
+                    it.copy(uploadingNodes = it.uploadingNodes + (nodeId to UploadingState(localUri = localUri, progress = 0.3f)))
+                }
+
+                val fileBytes = withContext(Dispatchers.IO) {
+                    mediaResolver.readBytes(localUri)
+                }
+
+                _uiState.update {
+                    it.copy(uploadingNodes = it.uploadingNodes + (nodeId to UploadingState(localUri = localUri, progress = 0.5f)))
                 }
 
                 val result = webAppRepository.uploadFile(
                     apiKey = apiKey,
-                    fileType = "image/png",
-                    fileBytes = ByteArray(0),
+                    fileType = mimeType,
+                    fileBytes = fileBytes,
                     fileName = fileName
                 )
 

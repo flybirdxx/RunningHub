@@ -49,8 +49,9 @@ val sharedModule = module {
             }
 
             install(HttpTimeout) {
-                requestTimeoutMillis = 30_000
+                requestTimeoutMillis = 120_000
                 connectTimeoutMillis = 15_000
+                socketTimeoutMillis = 30_000
             }
 
             defaultRequest {
@@ -74,11 +75,11 @@ val sharedModule = module {
 
     single { RunningHubApi(get()) }
     single { AudioApi(get()) }
-    single { QuickCreateApi(get()) }
+    single { QuickCreateApi(get(), get()) }
 
     single<WebAppRepository> { WebAppRepositoryImpl(get()) }
     single<UserRepository> { UserRepositoryImpl(get()) }
     single<AudioRepository> { AudioRepositoryImpl(get()) }
-    single<QuickCreateRepository> { QuickCreateRepositoryImpl(get()) }
+    single<QuickCreateRepository> { QuickCreateRepositoryImpl(get(), get()) }
     single<AuthRepository> { AuthRepositoryImpl(get(), get()) }
 }

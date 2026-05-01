@@ -56,13 +56,14 @@ kotlin {
             implementation(libs.media3.ui)
             implementation(libs.lottie.compose)
             implementation(libs.activity.compose)
+            implementation(libs.filepicker)
         }
     }
 }
 
 android {
     namespace = "com.runninghub.app"
-    compileSdk = 35
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.runninghub.app"

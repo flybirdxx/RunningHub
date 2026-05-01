@@ -17,18 +17,19 @@ composeApp/ - 跨平台 UI 模块 (commonMain/androidMain/iosMain)
   ui/navigation/ - 路由与导航
   di/ - ViewModel Koin 模块
 
-app/ - 旧版 Android 模块 (Hilt/Retrofit/Room，逐步废弃)
 gradle/ - Gradle Wrapper + libs.versions.toml 版本目录
 </directory>
 
 <config>
 gradle/libs.versions.toml - 统一依赖版本管理
 build.gradle.kts - 顶级 KMP 插件声明
-settings.gradle.kts - 模块成员: shared, composeApp, app
+settings.gradle.kts - 模块成员: shared, composeApp
 gradle.properties - JVM/KMP 环境变量
 CLAUDE.md - L1 项目宪法·全局地图·技术栈
 </config>
 
 法则: 极简·稳定·导航·版本精确·共享优先·平台隔离
+
+语言: 中文优先 — 所有回复以中文为第一语言，保持沟通流畅。
 
 [PROTOCOL]: 变更时更新此头部，然后检查 CLAUDE.md

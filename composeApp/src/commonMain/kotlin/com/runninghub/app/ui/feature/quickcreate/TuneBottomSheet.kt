@@ -78,6 +78,8 @@ fun TuneBottomSheet(
     onImageCountChange: (ImageCount) -> Unit,
     onVideoCountChange: (VideoCount) -> Unit,
     onImageStyleChange: (ImageStylePreset) -> Unit,
+    onImageSeedChange: (Int?) -> Unit = {},
+    onVideoSeedChange: (Int?) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by remember { mutableStateOf(TuneTab.STYLE) }
@@ -175,15 +177,20 @@ fun TuneBottomSheet(
                         }
                         TuneTab.QUALITY -> {
                             if (isImage) {
+                                val model = uiState.imageConfig.model
                                 ImageQualityContent(
                                     quality = uiState.imageConfig.quality,
                                     resolution = uiState.imageConfig.resolution,
+                                    supportedResolutions = model.supportedResolutions.toList(),
+                                    supportedQualities = model.supportedQualities.toList(),
                                     onQualityChange = onImageQualityChange,
                                     onResChange = onImageResChange,
                                 )
                             } else {
+                                val model = uiState.videoConfig.model
                                 VideoQualityContent(
                                     quality = uiState.videoConfig.resolution,
+                                    supportedResolutions = model.supportedResolutions.toList(),
                                     onQualityChange = onVideoResChange,
                                 )
                             }
@@ -191,13 +198,13 @@ fun TuneBottomSheet(
                         TuneTab.RATIO -> {
                             if (isImage) {
                                 RatioContent(
-                                    ratios = ImageAspectRatio.entries,
+                                    ratios = uiState.imageConfig.model.supportedRatios.toList(),
                                     selected = uiState.imageConfig.aspectRatio,
                                     onSelect = onImageRatioChange,
                                 )
                             } else {
                                 VideoRatioContent(
-                                    ratios = VideoAspectRatio.entries,
+                                    ratios = uiState.videoConfig.model.supportedRatios.toList(),
                                     selected = uiState.videoConfig.aspectRatio,
                                     onSelect = onVideoRatioChange,
                                 )
@@ -205,15 +212,17 @@ fun TuneBottomSheet(
                         }
                         TuneTab.COUNT -> {
                             if (isImage) {
+                                val curCount = ImageCount.entries.find { it.count == uiState.imageConfig.count } ?: ImageCount.ONE
                                 CountContent(
                                     counts = ImageCount.entries,
-                                    selected = ImageCount.ONE,
+                                    selected = curCount,
                                     onSelect = onImageCountChange,
                                 )
                             } else {
+                                val curCount = VideoCount.entries.find { it.count == uiState.videoConfig.count } ?: VideoCount.ONE
                                 CountContent(
                                     counts = VideoCount.entries,
-                                    selected = VideoCount.ONE,
+                                    selected = curCount,
                                     onSelect = onVideoCountChange,
                                 )
                             }
@@ -223,16 +232,20 @@ fun TuneBottomSheet(
                                 ImageAdvancedContent(
                                     models = ImageModel.entries,
                                     selected = uiState.imageConfig.model,
+                                    seed = uiState.imageConfig.seed,
                                     onSelect = onImageModelSelected,
+                                    onSeedChange = onImageSeedChange,
                                 )
                             } else {
                                 VideoAdvancedContent(
                                     realistic = uiState.videoConfig.realisticMode,
                                     generateAudio = uiState.videoConfig.generateAudio,
                                     duration = uiState.videoConfig.duration,
+                                    seed = uiState.videoConfig.seed,
                                     onRealisticToggle = onToggleRealistic,
                                     onAudioToggle = onToggleAudio,
                                     onDurationChange = onVideoDurationChange,
+                                    onSeedChange = onVideoSeedChange,
                                 )
                             }
                         }
@@ -327,6 +340,8 @@ private fun VideoModelContent(
 private fun ImageQualityContent(
     quality: ImageQuality,
     resolution: ImageResolution,
+    supportedResolutions: List<ImageResolution>,
+    supportedQualities: List<ImageQuality>,
     onQualityChange: (ImageQuality) -> Unit,
     onResChange: (ImageResolution) -> Unit,
 ) {
@@ -339,7 +354,7 @@ private fun ImageQualityContent(
             modifier = Modifier.padding(bottom = Dimens.SpaceSM),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
-            ImageQuality.entries.forEach { q ->
+            supportedQualities.forEach { q ->
                 val isSelected = q == quality
                 Surface(
                     modifier = Modifier.weight(1f),
@@ -369,7 +384,7 @@ private fun ImageQualityContent(
             modifier = Modifier.padding(bottom = Dimens.SpaceSM),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
-            ImageResolution.entries.forEach { r ->
+            supportedResolutions.forEach { r ->
                 val isSelected = r == resolution
                 Surface(
                     modifier = Modifier.weight(1f),
@@ -394,6 +409,7 @@ private fun ImageQualityContent(
 @Composable
 private fun VideoQualityContent(
     quality: VideoResolution,
+    supportedResolutions: List<VideoResolution>,
     onQualityChange: (VideoResolution) -> Unit,
 ) {
     Column {
@@ -405,7 +421,7 @@ private fun VideoQualityContent(
             modifier = Modifier.padding(bottom = Dimens.SpaceSM),
         )
         Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
-            VideoResolution.entries.forEach { res ->
+            supportedResolutions.forEach { res ->
                 val isSelected = res == quality
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -565,7 +581,9 @@ private fun <T> CountContent(
 private fun ImageAdvancedContent(
     models: List<ImageModel>,
     selected: ImageModel,
+    seed: Int?,
     onSelect: (ImageModel) -> Unit,
+    onSeedChange: (Int?) -> Unit,
 ) {
     Column {
         Text(
@@ -610,7 +628,45 @@ private fun ImageAdvancedContent(
                 }
             }
         }
+
+        Spacer(Modifier.height(Dimens.SpaceXL))
+
+        SeedInput(seed = seed, onSeedChange = onSeedChange)
     }
+}
+
+@Composable
+private fun SeedInput(seed: Int?, onSeedChange: (Int?) -> Unit) {
+    var text by remember(seed) { mutableStateOf(seed?.toString() ?: "") }
+
+    Text(
+        text = "Seed（留空为随机）",
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = Primary300,
+        modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+    )
+    OutlinedTextField(
+        value = text,
+        onValueChange = { newVal ->
+            text = newVal
+            val num = newVal.toIntOrNull()
+            onSeedChange(num)
+        },
+        placeholder = { Text("随机", color = Neutral500, fontSize = 13.sp) },
+        singleLine = true,
+        shape = RoundedCornerShape(Dimens.RadiusSM),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedTextColor = Color.White,
+            unfocusedTextColor = Color.White,
+            cursorColor = Primary300,
+            focusedBorderColor = Primary300,
+            unfocusedBorderColor = DarkSurfaceVariant,
+            focusedContainerColor = DarkSurfaceVariant,
+            unfocusedContainerColor = DarkSurfaceVariant,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable
@@ -618,9 +674,11 @@ private fun VideoAdvancedContent(
     realistic: Boolean,
     generateAudio: Boolean,
     duration: VideoDuration,
+    seed: Int?,
     onRealisticToggle: () -> Unit,
     onAudioToggle: () -> Unit,
     onDurationChange: (VideoDuration) -> Unit,
+    onSeedChange: (Int?) -> Unit,
 ) {
     Column {
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
@@ -667,6 +725,10 @@ private fun VideoAdvancedContent(
                 }
             }
         }
+
+        Spacer(Modifier.height(Dimens.SpaceLG))
+
+        SeedInput(seed = seed, onSeedChange = onSeedChange)
     }
 }
 

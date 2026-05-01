@@ -13,9 +13,10 @@ activity-compose = "1.9.0"
 coroutines = "1.9.0"
 datastore = "1.1.1"
 hilt = "2.57.1"
-ksp = "2.3.6"
+ksp = "2.3.21"
 kotlinx-serialization = "1.7.3"
 kotlinx-datetime = "0.6.1"
+filepicker = "0.7.1"
 
 # Android legacy stack
 core-ktx = "1.13.1"
@@ -91,6 +92,7 @@ media3-common = { group = "androidx.media3", name = "media3-common", version.ref
 # Lottie / Shimmer
 lottie-compose = { group = "com.airbnb.android", name = "lottie-compose", version.ref = "lottie" }
 shimmer-compose = { group = "com.valentinilk.shimmer", name = "compose-shimmer", version.ref = "shimmer" }
+filepicker = { group = "io.github.chochanaresh", name = "filepicker", version.ref = "filepicker" }
 
 # AndroidX core / lifecycle / activity / navigation
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "core-ktx" }

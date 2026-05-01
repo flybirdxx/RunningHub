@@ -1,0 +1,9 @@
+feat(kmp): migrate from monolithic app module to Kotlin Multiplatform architecture
+
+- Remove legacy app/ module (Android-only, monolithic structure)
+- Introduce androidApp/ as Android launcher entry point
+- Introduce composeApp/ as shared Compose UI module (androidMain/iosMain)
+- Expand shared/ module with new QuickCreateApi, DTOs, and repository impl
+- Add media upload logging instrumentation across the chain
+- Update gradle/build config for KMP multi-module structure
+

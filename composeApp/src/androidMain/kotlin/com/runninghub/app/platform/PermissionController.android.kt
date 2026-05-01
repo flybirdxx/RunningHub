@@ -9,6 +9,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.lifecycleScope
+import com.nareshchocha.filepickerlibrary.FilePickerResultContracts
+import com.nareshchocha.filepickerlibrary.models.DocumentFilePickerConfig
+import com.nareshchocha.filepickerlibrary.models.FilePickerResult
+import com.nareshchocha.filepickerlibrary.models.PickMediaConfig
+import com.nareshchocha.filepickerlibrary.models.PickMediaType
 import com.runninghub.app.ui.component.MediaType
 import com.runninghub.shared.data.local.PermissionDataStore
 import com.runninghub.shared.domain.model.Permission
@@ -36,9 +41,7 @@ private class PermissionControllerImpl(
         scope.launch {
             if (granted) {
                 dataStore.markGranted(manifest)
-                pendingMediaType?.let { type ->
-                    launchMediaPicker(type)
-                }
+                pendingMediaType?.let { type -> launchMediaPicker(type) }
             } else {
                 val shouldShowRationale = activity.shouldShowRequestPermissionRationale(manifest)
                 if (!shouldShowRationale) {
@@ -48,69 +51,62 @@ private class PermissionControllerImpl(
                     dataStore.markDenied(manifest)
                     pendingMediaDeniedCallback?.invoke()
                 }
+                pendingMediaCallback = null
+                pendingMediaDeniedCallback = null
+                pendingMediaType = null
             }
             pendingPermissionCallback?.invoke(granted)
             pendingPermissionCallback = null
-            pendingMediaCallback = null
-            pendingMediaDeniedCallback = null
-            pendingMediaType = null
         }
     }
 
     private val mediaImageLauncher = activity.activityResultRegistry.register(
-        "rh_media_image",
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        handleMediaResult(uri)
+        "rh_media_image_fp",
+        FilePickerResultContracts.PickMedia()
+    ) { result: FilePickerResult ->
+        handleMediaResult(result)
     }
 
     private val mediaVideoLauncher = activity.activityResultRegistry.register(
-        "rh_media_video",
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        handleMediaResult(uri)
+        "rh_media_video_fp",
+        FilePickerResultContracts.PickMedia()
+    ) { result: FilePickerResult ->
+        handleMediaResult(result)
     }
 
     private val mediaAudioLauncher = activity.activityResultRegistry.register(
-        "rh_media_audio",
-        ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        handleMediaResult(uri)
+        "rh_media_audio_fp",
+        FilePickerResultContracts.PickDocumentFile()
+    ) { result: FilePickerResult ->
+        handleMediaResult(result)
     }
 
-    private fun handleMediaResult(uri: Uri?) {
+    private fun handleMediaResult(result: FilePickerResult) {
         try {
-            uri?.let {
+            // Prefer content URI (most reliable across Android versions)
+            val uri = result.selectedFileUri
+            if (uri != null) {
                 try {
                     activity.contentResolver.takePersistableUriPermission(
-                        it,
+                        uri,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION
                     )
                 } catch (_: SecurityException) {
                 }
-                pendingMediaCallback?.invoke(it.toString())
+                pendingMediaCallback?.invoke(uri.toString())
+                return
             }
-        } catch (t: Throwable) {
-            // MIUI PhotoPicker may deliver malformed Intent with null extras bundle.
-            // Catch any unexpected exception so pending state is always cleaned up.
+            // Fallback to file path
+            val path = result.selectedFilePath
+            if (!path.isNullOrBlank()) {
+                pendingMediaCallback?.invoke(path)
+            }
+        } catch (_: Exception) {
         } finally {
             pendingMediaCallback = null
+            pendingMediaDeniedCallback = null
             pendingMediaType = null
         }
-    }
-
-    private fun launchMediaPicker(type: MediaType) {
-        val mimeType = when (type) {
-            MediaType.IMAGE -> "image/*"
-            MediaType.VIDEO -> "video/*"
-            MediaType.AUDIO -> "audio/*"
-        }
-        val launcher = when (type) {
-            MediaType.IMAGE -> mediaImageLauncher
-            MediaType.VIDEO -> mediaVideoLauncher
-            MediaType.AUDIO -> mediaAudioLauncher
-        }
-        launcher.launch(mimeType)
     }
 
     override fun pickMedia(
@@ -119,33 +115,54 @@ private class PermissionControllerImpl(
         onSuccess: (String) -> Unit,
         onPermissionDenied: () -> Unit,
     ) {
-        // Photo Picker (PickVisualMedia) 在独立进程中提供安全访问, 无需运行时权限
-        // 见 https://developer.android.com/training/data-storage/shared/photopicker
+        pendingMediaCallback = onSuccess
+        pendingMediaDeniedCallback = onPermissionDenied
+        pendingMediaType = mediaType
+
         when (mediaType) {
-            MediaType.IMAGE, MediaType.VIDEO -> {
-                pendingMediaCallback = onSuccess
-                pendingMediaDeniedCallback = onPermissionDenied
-                pendingMediaType = mediaType
-                launchMediaPicker(mediaType)
+            MediaType.IMAGE -> {
+                mediaImageLauncher.launch(
+                    PickMediaConfig(mPickMediaType = PickMediaType.ImageOnly)
+                )
+            }
+            MediaType.VIDEO -> {
+                mediaVideoLauncher.launch(
+                    PickMediaConfig(mPickMediaType = PickMediaType.VideoOnly)
+                )
             }
             MediaType.AUDIO -> {
                 scope.launch {
                     when (dataStore.getCurrentStatus(mediaPermission)) {
                         PermissionStatus.GRANTED -> {
-                            pendingMediaCallback = onSuccess
-                            pendingMediaType = mediaType
-                            launchMediaPicker(mediaType)
+                            launchAudioPicker()
                         }
-                        PermissionStatus.PERMANENTLY_DENIED -> onPermissionDenied()
+                        PermissionStatus.PERMANENTLY_DENIED -> {
+                            onPermissionDenied()
+                            pendingMediaCallback = null
+                            pendingMediaDeniedCallback = null
+                            pendingMediaType = null
+                        }
                         else -> {
-                            pendingMediaCallback = onSuccess
-                            pendingMediaDeniedCallback = onPermissionDenied
-                            pendingMediaType = mediaType
                             permissionLauncher.launch(arrayOf(mediaPermission.androidManifest))
                         }
                     }
                 }
             }
+        }
+    }
+
+    private fun launchAudioPicker() {
+        mediaAudioLauncher.launch(
+            DocumentFilePickerConfig(
+                mMimeTypes = listOf("audio/*"),
+            )
+        )
+    }
+
+    private fun launchMediaPicker(type: MediaType) {
+        when (type) {
+            MediaType.AUDIO -> launchAudioPicker()
+            else -> {} // IMAGE/VIDEO launch directly via pickMedia, not via permission flow
         }
     }
 

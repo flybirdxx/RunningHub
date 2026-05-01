@@ -187,9 +187,26 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     onVideoDurationChange = screenModel::updateVideoDuration,
                     onToggleRealistic = screenModel::toggleRealisticMode,
                     onToggleAudio = screenModel::toggleGenerateAudio,
-                    onImageCountChange = {},
-                    onVideoCountChange = {},
-                    onImageStyleChange = {},
+                    onImageCountChange = { count -> screenModel.updateImageCount(count.count) },
+                    onVideoCountChange = { count -> screenModel.updateVideoCount(count.count) },
+                    onImageSeedChange = screenModel::updateImageSeed,
+                    onVideoSeedChange = screenModel::updateVideoSeed,
+                    onImageStyleChange = { style ->
+                        val styleTag = when (style) {
+                            ImageStylePreset.PHOTOREAL -> "写实摄影风格, "
+                            ImageStylePreset.ARTISTIC -> "艺术插画风格, "
+                            ImageStylePreset.RENDER_3D -> "3D渲染风格, "
+                            ImageStylePreset.WATERCOLOR -> "水彩画风格, "
+                        }
+                        val currentPrompt = screenModel.uiState.value.imageConfig.prompt
+                        // Remove existing style prefix if any
+                        val cleanPrompt = currentPrompt
+                            .removePrefix("写实摄影风格, ")
+                            .removePrefix("艺术插画风格, ")
+                            .removePrefix("3D渲染风格, ")
+                            .removePrefix("水彩画风格, ")
+                        screenModel.updateImagePrompt(styleTag + cleanPrompt)
+                    },
                 )
             }
         }

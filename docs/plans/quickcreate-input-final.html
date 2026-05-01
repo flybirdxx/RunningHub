@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>快捷创作 - 方案A 终版预览</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --rh-bg: #0a0a0f;
+      --rh-surface: #13131c;
+      --rh-surface-2: #1a1a26;
+      --rh-surface-3: #22222f;
+      --rh-border: rgba(255,255,255,0.07);
+      --rh-primary: #7c6af5;
+      --rh-primary-dim: rgba(124,106,245,0.15);
+      --rh-accent: #5df5c8;
+      --rh-text: #e8e8f0;
+      --rh-text-2: #9090a8;
+      --rh-text-3: #5a5a70;
+      --rh-error: #e54545;
+      --rh-warn: #f5a623;
+      --rh-success: #4caf50;
+      --rh-white: #ffffff;
+      --rh-white-8: rgba(255,255,255,0.08);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--rh-bg);
+      color: var(--rh-text);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Header */
+    .page-header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .page-header h1 {
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: -0.4px;
+      color: var(--rh-white);
+      margin-bottom: 8px;
+    }
+    .page-header p {
+      font-size: 13px;
+      color: var(--rh-text-3);
+    }
+    .decision-tags {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .decision-tag {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 20px;
+      background: var(--rh-surface-2);
+      border: 1px solid var(--rh-border);
+      color: var(--rh-text-2);
+    }
+    .decision-tag.selected {
+      background: var(--rh-primary-dim);
+      border-color: var(--rh-primary);
+      color: var(--rh-primary);
+    }
+
+    /* Preview Layout */
+    .preview-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 48px;
+      max-width: 1440px;
+      margin: 0 auto;
+    }
+
+    .preview-col {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .preview-label {
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: var(--rh-text-3);
+      margin-bottom: 14px;
+      margin-top: 8px;
+    }
+
+    /* Phone Frame */
+    .phone {
+      width: 375px;
+      height: 680px;
+      background: var(--rh-surface);
+      border-radius: 44px;
+      border: 1px solid rgba(255,255,255,0.06);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow:
+        0 40px 80px rgba(0,0,0,0.6),
+        0 0 0 1px rgba(255,255,255,0.04),
+        inset 0 1px 0 rgba(255,255,255,0.06);
+      position: relative;
+      flex-shrink: 0;
+    }
+
+    /* Notch */
+    .notch {
+      width: 126px;
+      height: 30px;
+      background: var(--rh-surface);
+      border-radius: 0 0 20px 20px;
+      margin: 0 auto;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      position: relative;
+      z-index: 10;
+      flex-shrink: 0;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      padding-bottom: 6px;
+    }
+    .notch::after {
+      content: '';
+      width: 52px;
+      height: 5px;
+      background: #1d1d28;
+      border-radius: 3px;
+    }
+
+    /* Top Bar */
+    .top-bar {
+      height: 54px;
+      background: var(--rh-surface);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-bottom: 1px solid var(--rh-border);
+      flex-shrink: 0;
+      position: relative;
+    }
+    .top-bar h2 {
+      font-size: 17px;
+      font-weight: 600;
+      color: var(--rh-white);
+    }
+    .top-bar .back-arrow {
+      position: absolute;
+      left: 16px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--rh-text-2);
+    }
+    .top-bar .back-arrow svg { width: 20px; height: 20px; stroke: currentColor; fill: none; }
+
+    /* Main Area */
+    .main-area {
+      flex: 1;
+      background: #0d0d14;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .main-area-placeholder {
+      text-align: center;
+    }
+    .main-area-placeholder .icon-wrap {
+      width: 56px;
+      height: 56px;
+      background: var(--rh-surface-2);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+      border: 1px solid var(--rh-border);
+    }
+    .main-area-placeholder .icon-wrap svg { width: 28px; height: 28px; stroke: var(--rh-text-3); fill: none; }
+    .main-area-placeholder p {
+      font-size: 13px;
+      color: var(--rh-text-3);
+    }
+
+    /* Bottom Panel */
+    .bottom-panel {
+      background: var(--rh-surface);
+      border-top: 1px solid var(--rh-border);
+      padding: 12px 14px 16px;
+      flex-shrink: 0;
+    }
+
+    /* Tab Pills */
+    .tab-pills {
+      display: flex;
+      background: var(--rh-surface-2);
+      border-radius: 10px;
+      padding: 4px;
+      margin-bottom: 10px;
+    }
+    .tab-pill {
+      flex: 1;
+      text-align: center;
+      padding: 7px 0;
+      font-size: 13px;
+      font-weight: 500;
+      border-radius: 7px;
+      color: var(--rh-text-2);
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .tab-pill.active {
+      background: var(--rh-surface-3);
+      color: var(--rh-white);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+
+    /* Toolbar Row */
+    .toolbar-row {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 8px;
+      overflow-x: auto;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .toolbar-row::-webkit-scrollbar { display: none; }
+
+    .toolbar-btn {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      background: var(--rh-surface-2);
+      border: 1px solid var(--rh-border);
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--rh-text-2);
+      white-space: nowrap;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: all 0.18s;
+      user-select: none;
+    }
+    .toolbar-btn svg {
+      width: 15px;
+      height: 15px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+      flex-shrink: 0;
+    }
+    .toolbar-btn:hover {
+      background: var(--rh-surface-3);
+      color: var(--rh-text);
+    }
+    .toolbar-btn:active {
+      transform: scale(0.96);
+    }
+    .toolbar-btn.has-items {
+      border-color: var(--rh-primary);
+      color: var(--rh-primary);
+      background: var(--rh-primary-dim);
+    }
+
+    /* Media Chip Cards */
+    .media-chips-container {
+      margin-bottom: 6px;
+    }
+
+    .media-chip-card {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--rh-surface-2);
+      border: 1px solid var(--rh-border);
+      border-radius: 10px;
+      padding: 8px 10px;
+      margin-bottom: 5px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .media-thumb {
+      width: 42px;
+      height: 42px;
+      border-radius: 7px;
+      background: var(--rh-surface-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      overflow: hidden;
+      position: relative;
+    }
+    .media-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .media-thumb svg {
+      width: 20px;
+      height: 20px;
+      stroke: var(--rh-text-3);
+      fill: none;
+      stroke-width: 1.5;
+    }
+
+    .media-info {
+      flex: 1;
+      min-width: 0;
+    }
+    .media-filename {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--rh-text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-bottom: 4px;
+    }
+    .media-type-label {
+      font-size: 10px;
+      color: var(--rh-text-3);
+      margin-bottom: 5px;
+    }
+
+    /* Progress Bar */
+    .progress-bar-wrap {
+      height: 3px;
+      background: var(--rh-surface-3);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .progress-uploading { background: var(--rh-primary); }
+    .progress-processing { background: var(--rh-warn); }
+    .progress-done { background: var(--rh-success); }
+
+    /* Progress States Text */
+    .progress-state {
+      font-size: 10px;
+      font-weight: 500;
+      margin-top: 3px;
+    }
+    .progress-state.uploading { color: var(--rh-primary); }
+    .progress-state.processing { color: var(--rh-warn); }
+    .progress-state.done { color: var(--rh-success); }
+
+    /* Delete Button */
+    .media-delete {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: transparent;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--rh-text-3);
+      cursor: pointer;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .media-delete svg {
+      width: 14px;
+      height: 14px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+    .media-delete:hover {
+      background: rgba(229,69,69,0.15);
+      color: var(--rh-error);
+    }
+
+    /* Done checkmark overlay */
+    .done-overlay {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      background: var(--rh-success);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .done-overlay svg {
+      width: 10px;
+      height: 10px;
+      stroke: white;
+      fill: none;
+      stroke-width: 2.5;
+    }
+
+    /* Input Box - Adaptive Height */
+    .input-wrapper {
+      margin-bottom: 10px;
+      position: relative;
+    }
+
+    .input-box {
+      background: var(--rh-surface-2);
+      border: 1.5px solid var(--rh-border);
+      border-radius: 14px;
+      padding: 13px 14px 28px;
+      font-size: 14px;
+      line-height: 1.55;
+      color: var(--rh-text);
+      outline: none;
+      min-height: 52px;
+      max-height: 168px;
+      overflow-y: auto;
+      transition: border-color 0.2s, box-shadow 0.2s;
+      scrollbar-width: none;
+      position: relative;
+      word-break: break-word;
+    }
+    .input-box::-webkit-scrollbar { display: none; }
+    .input-box::placeholder {
+      color: var(--rh-text-3);
+    }
+    .input-box:focus {
+      border-color: var(--rh-primary);
+      box-shadow: 0 0 0 3px var(--rh-primary-dim);
+    }
+
+    /* Character count */
+    .char-count {
+      position: absolute;
+      bottom: 8px;
+      right: 12px;
+      font-size: 10px;
+      color: var(--rh-text-3);
+      pointer-events: none;
+    }
+    .char-count.warn { color: var(--rh-warn); }
+    .char-count.error { color: var(--rh-error); }
+
+    /* Bottom Row */
+    .bottom-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .icon-btn {
+      width: 38px;
+      height: 38px;
+      background: var(--rh-surface-2);
+      border: 1px solid var(--rh-border);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--rh-text-2);
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: all 0.18s;
+    }
+    .icon-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.8;
+    }
+    .icon-btn:hover {
+      background: var(--rh-surface-3);
+      color: var(--rh-text);
+    }
+    .icon-btn:active { transform: scale(0.94); }
+
+    .icon-btn.tune-btn {
+      background: var(--rh-surface-3);
+      border-color: rgba(255,255,255,0.1);
+    }
+    .icon-btn.tune-btn.active {
+      color: var(--rh-primary);
+      border-color: var(--rh-primary);
+      background: var(--rh-primary-dim);
+    }
+
+    .icon-btn.attach-btn {
+      color: var(--rh-primary);
+      border-color: var(--rh-primary);
+      background: var(--rh-primary-dim);
+    }
+
+    .send-btn {
+      flex: 1;
+      height: 42px;
+      background: linear-gradient(135deg, #7c6af5, #9d8bff);
+      border: none;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      color: var(--rh-white);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 16px rgba(124,106,245,0.3);
+      transition: all 0.18s;
+    }
+    .send-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+    .send-btn:hover {
+      box-shadow: 0 6px 20px rgba(124,106,245,0.4);
+      transform: translateY(-1px);
+    }
+    .send-btn:active {
+      transform: scale(0.97);
+    }
+
+    .cost-label {
+      font-size: 11px;
+      color: var(--rh-accent);
+      font-weight: 600;
+      opacity: 0.9;
+    }
+
+    /* Tune Bottom Sheet */
+    .tune-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      z-index: 20;
+    }
+    .tune-sheet {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: var(--rh-surface-2);
+      border-radius: 20px 20px 0 0;
+      border: 1px solid var(--rh-border);
+      border-bottom: none;
+      z-index: 21;
+      animation: slideUp 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); }
+      to { transform: translateY(0); }
+    }
+    .tune-handle {
+      width: 36px;
+      height: 4px;
+      background: var(--rh-text-3);
+      border-radius: 2px;
+      margin: 10px auto 6px;
+    }
+    .tune-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 4px 18px 14px;
+    }
+    .tune-header h3 {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--rh-white);
+    }
+    .tune-close {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--rh-surface-3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--rh-text-2);
+      cursor: pointer;
+    }
+    .tune-close svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+    .tune-tabs {
+      display: flex;
+      gap: 6px;
+      padding: 0 18px 14px;
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tune-tabs::-webkit-scrollbar { display: none; }
+    .tune-tab {
+      padding: 6px 14px;
+      background: var(--rh-surface-3);
+      border-radius: 7px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--rh-text-2);
+      white-space: nowrap;
+      flex-shrink: 0;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tune-tab.active {
+      background: var(--rh-primary);
+      color: var(--rh-white);
+    }
+
+    .tune-content {
+      padding: 0 18px 32px;
+      max-height: 280px;
+      overflow-y: auto;
+      scrollbar-width: thin;
+      scrollbar-color: var(--rh-surface-3) transparent;
+    }
+    .tune-content::-webkit-scrollbar { width: 4px; }
+    .tune-content::-webkit-scrollbar-thumb { background: var(--rh-surface-3); border-radius: 2px; }
+
+    .tune-card {
+      background: var(--rh-surface-3);
+      border: 1px solid var(--rh-border);
+      border-radius: 12px;
+      padding: 14px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .tune-card:hover {
+      border-color: var(--rh-primary);
+      background: var(--rh-primary-dim);
+    }
+    .tune-card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 5px;
+    }
+    .tune-card h4 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--rh-white);
+    }
+    .tune-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 10px;
+      background: var(--rh-primary-dim);
+      color: var(--rh-primary);
+    }
+    .tune-card p {
+      font-size: 11px;
+      color: var(--rh-text-3);
+      line-height: 1.5;
+    }
+    .tune-card-tags {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    .tune-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--rh-surface-2);
+      color: var(--rh-text-3);
+    }
+
+    /* Animation for pulsing upload */
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .pulsing { animation: pulse 1.5s ease-in-out infinite; }
+
+    /* Section dividers */
+    .section-title {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: var(--rh-text-3);
+      padding: 0 18px 8px;
+      margin-top: 4px;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .preview-grid { flex-direction: column; align-items: center; gap: 32px; }
+      .phone { height: 600px; }
+    }
+  </style>
+</head>
+<body>
+
+<header class="page-header">
+  <h1>快捷创作 · 方案A 终版</h1>
+  <p>横向工具栏 + 内容自适应输入框 + 媒体卡片进度 + Tune 底部菜单</p>
+  <div class="decision-tags">
+    <span class="decision-tag selected">方案A 内联展开</span>
+    <span class="decision-tag selected">A2 内容自适应</span>
+    <span class="decision-tag selected">C1+C3 卡片+进度</span>
+    <span class="decision-tag selected">T3 无模板入口</span>
+  </div>
+</header>
+
+<div class="preview-grid">
+
+  <!-- ====== STATE 1: EMPTY ====== -->
+  <div class="preview-col">
+    <span class="preview-label">状态 1 · 空状态</span>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="top-bar">
+        <div class="back-arrow">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </div>
+        <h2>快捷创作</h2>
+      </div>
+      <div class="main-area">
+        <div class="main-area-placeholder">
+          <div class="icon-wrap">
+            <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <p>生成结果将在此区域展示</p>
+        </div>
+      </div>
+      <div class="bottom-panel">
+        <div class="tab-pills">
+          <div class="tab-pill active">图片</div>
+          <div class="tab-pill">视频</div>
+        </div>
+        <div class="toolbar-row">
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            图片参考
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            视频参考
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            音频参考
+          </div>
+        </div>
+        <div class="input-wrapper">
+          <div class="input-box" contenteditable="true" placeholder="描述你想生成的图片..."></div>
+        </div>
+        <div class="bottom-row">
+          <div class="icon-btn tune-btn">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <button class="send-btn">
+            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            <span class="cost-label">¥0.5</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== STATE 2: TYPING / ADAPTIVE GROW ====== -->
+  <div class="preview-col">
+    <span class="preview-label">状态 2 · 输入中（2行）</span>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="top-bar">
+        <div class="back-arrow">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </div>
+        <h2>快捷创作</h2>
+      </div>
+      <div class="main-area">
+        <div class="main-area-placeholder">
+          <div class="icon-wrap">
+            <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <p>生成结果将在此区域展示</p>
+        </div>
+      </div>
+      <div class="bottom-panel">
+        <div class="tab-pills">
+          <div class="tab-pill active">图片</div>
+          <div class="tab-pill">视频</div>
+        </div>
+        <div class="toolbar-row">
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            图片参考
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            视频参考
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            音频参考
+          </div>
+        </div>
+        <div class="input-wrapper">
+          <div class="input-box" contenteditable="true" style="height: 80px;">画一只穿着宇航服的橘猫，正在太空中漂浮，周围环绕着星星和一颗小行星。</div>
+          <span class="char-count">28</span>
+        </div>
+        <div class="bottom-row">
+          <div class="icon-btn tune-btn">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <button class="send-btn">
+            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            <span class="cost-label">¥0.5</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== STATE 3: MEDIA UPLOADING ====== -->
+  <div class="preview-col">
+    <span class="preview-label">状态 3 · 媒体上传中</span>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="top-bar">
+        <div class="back-arrow">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </div>
+        <h2>快捷创作</h2>
+      </div>
+      <div class="main-area">
+        <div class="main-area-placeholder">
+          <div class="icon-wrap">
+            <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <p>生成结果将在此区域展示</p>
+        </div>
+      </div>
+      <div class="bottom-panel">
+        <div class="tab-pills">
+          <div class="tab-pill active">图片</div>
+          <div class="tab-pill">视频</div>
+        </div>
+        <div class="toolbar-row">
+          <div class="toolbar-btn has-items">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            图片参考 · 2
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            视频参考
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            音频参考
+          </div>
+        </div>
+        <!-- Media chips with upload progress -->
+        <div class="media-chips-container">
+          <!-- Chip 1: Uploading -->
+          <div class="media-chip-card">
+            <div class="media-thumb">
+              <svg viewBox="0 0 24 24" class="pulsing"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            </div>
+            <div class="media-info">
+              <div class="media-filename">product_photo_001.jpg</div>
+              <div class="media-type-label">图片参考 · 2.4 MB</div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar progress-uploading" style="width: 62%;"></div>
+              </div>
+              <div class="progress-state uploading">上传中 62%...</div>
+            </div>
+            <button class="media-delete">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <!-- Chip 2: Processing -->
+          <div class="media-chip-card">
+            <div class="media-thumb">
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42'%3E%3Crect width='42' height='42' fill='%231a1a26'/%3E%3Ccircle cx='21' cy='21' r='8' fill='%2322222f'/%3E%3C/svg%3E" alt="thumb">
+            </div>
+            <div class="media-info">
+              <div class="media-filename">style_reference.png</div>
+              <div class="media-type-label">图片参考 · 1.1 MB</div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar progress-processing" style="width: 100%;"></div>
+              </div>
+              <div class="progress-state processing">AI 分析中...</div>
+            </div>
+            <button class="media-delete">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-wrapper">
+          <div class="input-box" contenteditable="true" style="height: 52px;">参考图片风格，画一只橘猫</div>
+          <span class="char-count">12</span>
+        </div>
+        <div class="bottom-row">
+          <div class="icon-btn tune-btn">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <button class="send-btn">
+            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            <span class="cost-label">¥0.8</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== STATE 4: ALL READY ====== -->
+  <div class="preview-col">
+    <span class="preview-label">状态 4 · 准备就绪</span>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="top-bar">
+        <div class="back-arrow">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </div>
+        <h2>快捷创作</h2>
+      </div>
+      <div class="main-area">
+        <div class="main-area-placeholder">
+          <div class="icon-wrap">
+            <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <p>生成结果将在此区域展示</p>
+        </div>
+      </div>
+      <div class="bottom-panel">
+        <div class="tab-pills">
+          <div class="tab-pill active">图片</div>
+          <div class="tab-pill">视频</div>
+        </div>
+        <div class="toolbar-row">
+          <div class="toolbar-btn has-items">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            图片参考 · 2
+          </div>
+          <div class="toolbar-btn has-items">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            视频参考 · 1
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            音频参考
+          </div>
+        </div>
+        <!-- Done media chips -->
+        <div class="media-chips-container">
+          <div class="media-chip-card">
+            <div class="media-thumb">
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42'%3E%3Crect width='42' height='42' fill='%231a1a26'/%3E%3Crect x='4' y='4' width='34' height='34' rx='3' fill='%2322222f'/%3E%3Ccircle cx='16' cy='18' r='4' fill='%233a3a4a'/%3E%3Cpath d='M38 30 L28 22 L4 30 L4 38 L38 38 Z' fill='%233a3a4a'/%3E%3C/svg%3E" alt="thumb">
+            </div>
+            <div class="media-info">
+              <div class="media-filename">product_photo_001.jpg</div>
+              <div class="media-type-label">图片参考 · 2.4 MB</div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar progress-done" style="width: 100%;"></div>
+              </div>
+            </div>
+            <div class="done-overlay">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <button class="media-delete">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="media-chip-card">
+            <div class="media-thumb">
+              <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='42' height='42'%3E%3Crect width='42' height='42' fill='%231a1a26'/%3E%3Crect x='4' y='4' width='34' height='34' rx='3' fill='%2322222f'/%3E%3Ccircle cx='21' cy='21' r='8' fill='%233a3a4a'/%3E%3C/svg%3E" alt="thumb">
+            </div>
+            <div class="media-info">
+              <div class="media-filename">style_reference.png</div>
+              <div class="media-type-label">图片参考 · 1.1 MB</div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar progress-done" style="width: 100%;"></div>
+              </div>
+            </div>
+            <div class="done-overlay">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <button class="media-delete">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div class="media-chip-card">
+            <div class="media-thumb">
+              <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3" fill="rgba(124,106,245,0.3)" stroke="#7c6af5" stroke-width="1.5"/></svg>
+            </div>
+            <div class="media-info">
+              <div class="media-filename">demo_video_clip.mp4</div>
+              <div class="media-type-label">视频参考 · 12.8 MB · 00:15</div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar progress-done" style="width: 100%;"></div>
+              </div>
+            </div>
+            <div class="done-overlay">
+              <svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+            </div>
+            <button class="media-delete">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="input-wrapper">
+          <div class="input-box" contenteditable="true" style="height: 100px;">参考 product_photo_001.jpg 的光照和构图风格，结合 style_reference.png 的艺术风格，以及 demo_video_clip.mp4 的动态效果，画一只穿着宇航服的橘猫，正在太空中漂浮，周围环绕着星星和一颗小行星，氛围温暖治愈。</div>
+          <span class="char-count">78</span>
+        </div>
+        <div class="bottom-row">
+          <div class="icon-btn tune-btn">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <button class="send-btn">
+            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            <span class="cost-label">¥1.2</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== STATE 5: TUNE SHEET OPEN ====== -->
+  <div class="preview-col">
+    <span class="preview-label">状态 5 · Tune 菜单展开</span>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="top-bar">
+        <div class="back-arrow">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </div>
+        <h2>快捷创作</h2>
+      </div>
+      <div class="main-area">
+        <div class="main-area-placeholder">
+          <div class="icon-wrap">
+            <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <p>生成结果将在此区域展示</p>
+        </div>
+      </div>
+      <div class="bottom-panel">
+        <div class="tab-pills">
+          <div class="tab-pill active">图片</div>
+          <div class="tab-pill">视频</div>
+        </div>
+        <div class="toolbar-row">
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            图片参考
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            视频参考
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            音频参考
+          </div>
+        </div>
+        <div class="input-wrapper">
+          <div class="input-box" contenteditable="true" style="height: 52px;">画一只可爱的橘猫</div>
+          <span class="char-count">7</span>
+        </div>
+        <div class="bottom-row">
+          <div class="icon-btn tune-btn active">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <button class="send-btn">
+            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            <span class="cost-label">¥0.5</span>
+          </button>
+        </div>
+        <!-- Tune Overlay -->
+        <div class="tune-overlay"></div>
+        <div class="tune-sheet">
+          <div class="tune-handle"></div>
+          <div class="tune-header">
+            <h3>创作调优</h3>
+            <div class="tune-close">
+              <svg viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </div>
+          </div>
+          <div class="tune-tabs">
+            <div class="tune-tab active">风格</div>
+            <div class="tune-tab">质量</div>
+            <div class="tune-tab">比例</div>
+            <div class="tune-tab">数量</div>
+            <div class="tune-tab">高级</div>
+          </div>
+          <div class="tune-content">
+            <p class="section-title">风格预设</p>
+            <div class="tune-card">
+              <div class="tune-card-header">
+                <h4>摄影写实</h4>
+                <span class="tune-badge">推荐</span>
+              </div>
+              <p>生成接近真实相机拍摄的照片效果，适合产品展示、人物写真等场景</p>
+              <div class="tune-card-tags">
+                <span class="tune-tag">写实</span>
+                <span class="tune-tag">高细节</span>
+                <span class="tune-tag">光影自然</span>
+              </div>
+            </div>
+            <div class="tune-card">
+              <div class="tune-card-header">
+                <h4>艺术插画</h4>
+              </div>
+              <p>将文字描述转化为富有艺术感的插画作品，适合创意概念设计</p>
+              <div class="tune-card-tags">
+                <span class="tune-tag">艺术</span>
+                <span class="tune-tag">风格化</span>
+              </div>
+            </div>
+            <div class="tune-card">
+              <div class="tune-card-header">
+                <h4>3D 渲染</h4>
+              </div>
+              <p>三维软件渲染风格，适合建筑、产品设计、卡通角色等场景</p>
+              <div class="tune-card-tags">
+                <span class="tune-tag">3D</span>
+                <span class="tune-tag">渲染</span>
+                <span class="tune-tag">卡通</span>
+              </div>
+            </div>
+            <div class="tune-card">
+              <div class="tune-card-header">
+                <h4>水彩手绘</h4>
+              </div>
+              <p>模拟水彩画和手绘插画风格，柔和的色彩过渡和纸纹质感</p>
+              <div class="tune-card-tags">
+                <span class="tune-tag">手绘</span>
+                <span class="tune-tag">水彩</span>
+                <span class="tune-tag">柔和</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== STATE 6: INPUT MAX HEIGHT (6 LINES) ====== -->
+  <div class="preview-col">
+    <span class="preview-label">状态 6 · 输入达上限（6行）</span>
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="top-bar">
+        <div class="back-arrow">
+          <svg viewBox="0 0 24 24" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
+        </div>
+        <h2>快捷创作</h2>
+      </div>
+      <div class="main-area">
+        <div class="main-area-placeholder">
+          <div class="icon-wrap">
+            <svg viewBox="0 0 24 24" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          </div>
+          <p>生成结果将在此区域展示</p>
+        </div>
+      </div>
+      <div class="bottom-panel">
+        <div class="tab-pills">
+          <div class="tab-pill active">图片</div>
+          <div class="tab-pill">视频</div>
+        </div>
+        <div class="toolbar-row">
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+            图片参考
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            视频参考
+          </div>
+          <div class="toolbar-btn">
+            <svg viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+            音频参考
+          </div>
+        </div>
+        <div class="input-wrapper">
+          <div class="input-box" contenteditable="true" style="height: 168px;">参考以下要求生成一张图片：
+1. 主体是一只橘色的胖猫，穿着小型宇航服，表情呆萌可爱
+2. 背景是深邃的星空，有星星点点闪烁的星光
+3. 猫的周围有几颗小行星和一条淡淡的银河光带
+4. 光照采用暖色调，宇航服有反光质感
+5. 整体风格偏向治愈系，适合做壁纸</div>
+          <span class="char-count warn">180</span>
+        </div>
+        <div class="bottom-row">
+          <div class="icon-btn tune-btn">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </div>
+          <button class="send-btn">
+            <svg viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+            <span class="cost-label">¥0.5</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Simple interactive behaviors for the HTML preview
+  document.querySelectorAll('.input-box').forEach(box => {
+    box.addEventListener('focus', () => {
+      if (box.textContent.trim() === '') {
+        box.setAttribute('data-placeholder', box.getAttribute('placeholder') || '');
+      }
+    });
+  });
+
+  // Tab switching
+  document.querySelectorAll('.tab-pill').forEach(pill => {
+    pill.addEventListener('click', () => {
+      pill.parentElement.querySelectorAll('.tab-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+    });
+  });
+
+  // Tune tabs
+  document.querySelectorAll('.tune-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      tab.parentElement.querySelectorAll('.tune-tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+    });
+  });
+
+  // Toolbar buttons toggle
+  document.querySelectorAll('.toolbar-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('has-items');
+    });
+  });
+
+  // Tune button toggle (in state 5 it's already active)
+  document.querySelectorAll('.tune-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.classList.toggle('active');
+    });
+  });
+</script>
+
+</body>
+</html>

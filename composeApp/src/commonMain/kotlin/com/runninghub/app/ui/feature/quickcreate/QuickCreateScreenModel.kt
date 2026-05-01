@@ -60,26 +60,28 @@ class QuickCreateScreenModel(
 
     fun updateImageModel(model: ImageModel) {
         _uiState.update {
-            it.copy(
-                imageConfig = it.imageConfig.copy(
-                    model = model,
-                    aspectRatio = ImageAspectRatio.entries.find { r -> r.apiValue == model.defaultAspectRatio }
-                        ?: ImageAspectRatio.RATIO_16_9,
-                    resolution = ImageResolution.entries.find { r -> r.apiValue == model.defaultResolution }
-                        ?: ImageResolution.RES_1K,
-                    quality = ImageQuality.entries.find { q -> q.apiValue == model.defaultQuality }
-                        ?: ImageQuality.QUALITY_MEDIUM,
-                ),
-                estimatedCost = model.estimateCost(
-                    _uiState.value.imageConfig.resolution.apiValue,
-                    _uiState.value.imageConfig.quality.apiValue
-                )
+            val newConfig = it.imageConfig.copy(
+                model = model,
+                aspectRatio = model.defaultAspectRatio,
+                resolution = model.defaultResolution,
+                quality = model.defaultQuality,
             )
+            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
     }
 
     fun updateVideoModel(model: VideoModel) {
-        _uiState.update { it.copy(videoConfig = it.videoConfig.copy(model = model)) }
+        _uiState.update {
+            val newConfig = it.videoConfig.copy(
+                model = model,
+                aspectRatio = model.defaultAspectRatio,
+                resolution = model.defaultResolution,
+                duration = model.defaultDuration,
+                generateAudio = model.supportsGenerateAudio && it.videoConfig.generateAudio,
+                realisticMode = model.supportsRealistic && it.videoConfig.realisticMode,
+            )
+            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+        }
     }
 
     fun updateImageAspectRatio(ratio: ImageAspectRatio) {
@@ -88,16 +90,27 @@ class QuickCreateScreenModel(
 
     fun updateImageResolution(res: ImageResolution) {
         _uiState.update {
-            val newCost = it.imageConfig.model.estimateCost(res.apiValue, it.imageConfig.quality.apiValue)
-            it.copy(imageConfig = it.imageConfig.copy(resolution = res), estimatedCost = newCost)
+            val newConfig = it.imageConfig.copy(resolution = res)
+            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
     }
 
     fun updateImageQuality(quality: ImageQuality) {
         _uiState.update {
-            val newCost = it.imageConfig.model.estimateCost(it.imageConfig.resolution.apiValue, quality.apiValue)
-            it.copy(imageConfig = it.imageConfig.copy(quality = quality), estimatedCost = newCost)
+            val newConfig = it.imageConfig.copy(quality = quality)
+            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+    }
+
+    fun updateImageCount(count: Int) {
+        _uiState.update {
+            val newConfig = it.imageConfig.copy(count = count)
+            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+        }
+    }
+
+    fun updateImageSeed(seed: Int?) {
+        _uiState.update { it.copy(imageConfig = it.imageConfig.copy(seed = seed)) }
     }
 
     fun updateVideoAspectRatio(ratio: VideoAspectRatio) {
@@ -105,19 +118,28 @@ class QuickCreateScreenModel(
     }
 
     fun updateVideoResolution(res: VideoResolution) {
-        _uiState.update { it.copy(videoConfig = it.videoConfig.copy(resolution = res)) }
+        _uiState.update {
+            val newConfig = it.videoConfig.copy(resolution = res)
+            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+        }
     }
 
     fun updateVideoDuration(duration: VideoDuration) {
         _uiState.update {
-            val newCost = VideoModel.estimateCost(
-                it.videoConfig.model.apiValue,
-                it.videoConfig.resolution.apiValue,
-                duration.seconds,
-                it.videoConfig.generateAudio
-            )
-            it.copy(videoConfig = it.videoConfig.copy(duration = duration), estimatedCost = newCost)
+            val newConfig = it.videoConfig.copy(duration = duration)
+            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+    }
+
+    fun updateVideoCount(count: Int) {
+        _uiState.update {
+            val newConfig = it.videoConfig.copy(count = count)
+            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+        }
+    }
+
+    fun updateVideoSeed(seed: Int?) {
+        _uiState.update { it.copy(videoConfig = it.videoConfig.copy(seed = seed)) }
     }
 
     fun toggleRealisticMode() {
@@ -128,14 +150,8 @@ class QuickCreateScreenModel(
 
     fun toggleGenerateAudio() {
         _uiState.update {
-            val newAudio = !it.videoConfig.generateAudio
-            val newCost = VideoModel.estimateCost(
-                it.videoConfig.model.apiValue,
-                it.videoConfig.resolution.apiValue,
-                it.videoConfig.duration.seconds,
-                newAudio
-            )
-            it.copy(videoConfig = it.videoConfig.copy(generateAudio = newAudio), estimatedCost = newCost)
+            val newConfig = it.videoConfig.copy(generateAudio = !it.videoConfig.generateAudio)
+            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
     }
 
@@ -427,10 +443,13 @@ class QuickCreateScreenModel(
         quickCreateRepository.generateImage(
             com.runninghub.shared.domain.repository.ImageGenerationRequest(
                 prompt = prompt,
+                model = config.model.apiValue,
                 aspectRatio = config.aspectRatio.apiValue,
                 resolution = config.resolution.apiValue,
                 quality = config.quality.apiValue,
                 referenceImageUri = imageRef?.remoteUrl,
+                numImages = config.count,
+                seed = config.seed,
             )
         ).collect { status ->
             handleTaskStatus(status)
@@ -461,6 +480,7 @@ class QuickCreateScreenModel(
             com.runninghub.shared.domain.repository.VideoGenerationRequest(
                 prompt = prompt,
                 model = config.model.apiValue,
+                apiTier = config.model.apiTier.name,
                 aspectRatio = config.aspectRatio.apiValue,
                 duration = config.duration.seconds,
                 resolution = config.resolution.apiValue,
@@ -469,6 +489,8 @@ class QuickCreateScreenModel(
                 referenceAudioUri = audioRef?.remoteUrl,
                 realistic = config.realisticMode,
                 generateAudio = config.generateAudio,
+                numVideos = config.count,
+                seed = config.seed,
             )
         ).collect { status ->
             handleTaskStatus(status)
