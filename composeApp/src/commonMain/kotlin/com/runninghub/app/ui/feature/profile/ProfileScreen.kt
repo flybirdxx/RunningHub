@@ -71,6 +71,7 @@ class ProfileVoyagerScreen : Screen {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreenContent(
     modifier: Modifier = Modifier,
@@ -161,7 +162,6 @@ fun ProfileScreenContent(
                         )
                     }
                 },
-        }
                 confirmButton = {
                     TextButton(onClick = { onBindApiKey(apiKeyBuffer.value) }) {
                         Text("绑定", color = MaterialTheme.colorScheme.primary)
@@ -212,7 +212,7 @@ fun ProfileScreenContent(
             )
         }
     }
-}
+
 
 @Composable
 private fun ProfileHeader(user: User?) {
