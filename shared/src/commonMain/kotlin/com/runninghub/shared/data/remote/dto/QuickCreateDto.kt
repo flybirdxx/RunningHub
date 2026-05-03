@@ -7,11 +7,11 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class QuickCreateTaskQueryResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
     @SerialName("progress") val progress: Int = 0,
-    @SerialName("errorMessage") val errorMessage: String? = null,
-    @SerialName("errorCode") val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
+    @SerialName("errorCode") override val errorCode: String = "",
     @SerialName("estimatedCost") val estimatedCost: Double = 0.0,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
@@ -261,10 +261,10 @@ data class HappyHorseTextToVideoRequestDto(
 
 @Serializable
 data class HappyHorseTextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -293,10 +293,10 @@ data class SeedanceTextToVideoRequestDto(
 
 @Serializable
 data class SeedanceTextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -319,10 +319,10 @@ data class SeedanceImageToVideoRequestDto(
 
 @Serializable
 data class SeedanceImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -341,10 +341,10 @@ data class KlingO1TextToVideoRequestDto(
 
 @Serializable
 data class KlingO1TextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -363,14 +363,14 @@ data class KlingO1ImageToVideoRequestDto(
 
 @Serializable
 data class KlingO1ImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
-)
+) : TaskResponse
 
 // 可灵 O3-4K 图生视频
 @Serializable
@@ -387,10 +387,10 @@ data class KlingO34KImageToVideoRequestDto(
 
 @Serializable
 data class KlingO34KImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -408,10 +408,10 @@ data class KlingO3ProTextToVideoRequestDto(
 
 @Serializable
 data class KlingO3ProTextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -431,10 +431,10 @@ data class KlingO3ProImageToVideoRequestDto(
 
 @Serializable
 data class KlingO3ProImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -452,10 +452,10 @@ data class KlingO3StdTextToVideoRequestDto(
 
 @Serializable
 data class KlingO3StdTextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -475,10 +475,10 @@ data class KlingO3StdImageToVideoRequestDto(
 
 @Serializable
 data class KlingO3StdImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -501,10 +501,10 @@ data class Wan27TextToVideoRequestDto(
 
 @Serializable
 data class Wan27TextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -528,10 +528,10 @@ data class Wan27ImageToVideoRequestDto(
 
 @Serializable
 data class Wan27ImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -550,10 +550,10 @@ data class Wan26ImageToVideoRequestDto(
 
 @Serializable
 data class Wan26ImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -571,10 +571,10 @@ data class PixVerseV6TextToVideoRequestDto(
 
 @Serializable
 data class PixVerseV6TextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -592,10 +592,10 @@ data class PixVerseV6ImageToVideoRequestDto(
 
 @Serializable
 data class PixVerseV6ImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -612,10 +612,10 @@ data class AllPowerVideoXTextToVideoRequestDto(
 
 @Serializable
 data class AllPowerVideoXTextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -632,14 +632,14 @@ data class AllPowerVideoXImageToVideoRequestDto(
 
 @Serializable
 data class AllPowerVideoXImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
-)
+) : TaskResponse
 
 // 全能视频 X 图生视频 (低价版) - 使用 imageUrls (多图)
 @Serializable
@@ -653,10 +653,10 @@ data class AllPowerVideoXCheapImageToVideoRequestDto(
 
 @Serializable
 data class AllPowerVideoXCheapImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -674,10 +674,10 @@ data class AllPowerVideoV31FastTextToVideoRequestDto(
 
 @Serializable
 data class AllPowerVideoV31FastTextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -696,10 +696,10 @@ data class AllPowerVideoV31FastImageToVideoRequestDto(
 
 @Serializable
 data class AllPowerVideoV31FastImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -718,10 +718,10 @@ data class AllPowerVideoV31FastStartEndToVideoRequestDto(
 
 @Serializable
 data class AllPowerVideoV31FastStartEndToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -739,10 +739,10 @@ data class AllPowerVideoV31ProTextToVideoRequestDto(
 
 @Serializable
 data class AllPowerVideoV31ProTextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -763,10 +763,10 @@ data class AllPowerVideoV31ProImageToVideoRequestDto(
 
 @Serializable
 data class AllPowerVideoV31ProImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -785,10 +785,10 @@ data class ViduQ3TextToVideoRequestDto(
 
 @Serializable
 data class ViduQ3TextToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -809,10 +809,10 @@ data class ViduQ3ImageToVideoRequestDto(
 
 @Serializable
 data class ViduQ3ImageToVideoResponseDto(
-    @SerialName("taskId") val taskId: String,
-    @SerialName("status") val status: String,
-    @SerialName("errorCode") val errorCode: String = "",
-    @SerialName("errorMessage") val errorMessage: String? = null,
+    @SerialName("taskId") override val taskId: String,
+    @SerialName("status") override val status: String,
+    @SerialName("errorCode") override val errorCode: String = "",
+    @SerialName("errorMessage") override val errorMessage: String? = null,
     @SerialName("results") val results: List<QuickCreateResultDto>? = null,
     @SerialName("clientId") val clientId: String = "",
     @SerialName("promptTips") val promptTips: String = "",
@@ -835,6 +835,7 @@ data class MediaUploadResponseDto(
     @SerialName("data") val data: MediaUploadDataDto? = null,
 ) {
     val isSuccess: Boolean get() = code == 0
-    val url: String? get() = data?.downloadUrl
+    /** Server may return fileName instead of downloadUrl — construct CDN URL from fileName */
+    val url: String? get() = data?.downloadUrl ?: data?.fileName?.let { "https://rh-images.xiaoyaoyou.com/$it" }
 }
 

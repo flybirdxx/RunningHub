@@ -29,7 +29,7 @@ class RunningHubApi(private val client: HttpClient) {
         }.body()
 
     suspend fun sendSmsCode(request: SmsCodeRequest): BaseResponseDto<JsonObject?> {
-        val response = client.post("${UC_BASE_URL}sendSmsCode") {
+        val response = client.post("${UC_BASE_URL}sendSms") {
             contentType(ContentType.Application.Json)
             setBody(request)
         }
