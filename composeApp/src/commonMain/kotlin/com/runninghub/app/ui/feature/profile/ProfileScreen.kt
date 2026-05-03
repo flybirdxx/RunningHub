@@ -212,6 +212,7 @@ fun ProfileScreenContent(
             )
         }
     }
+}
 
 
 @Composable
