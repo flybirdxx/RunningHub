@@ -90,8 +90,13 @@ class LoginVoyagerScreen : Screen {
                 uiState = uiState,
                 onPhoneChanged = screenModel::onPhoneChanged,
                 onSmsCodeChanged = screenModel::onSmsCodeChanged,
+                onPasswordChanged = screenModel::onPasswordChanged,
                 onSendCodeClick = screenModel::sendSmsCode,
-                onLoginClick = screenModel::smsLogin,
+                onLoginClick = {
+                    if (uiState.isSmsMode) screenModel.smsLogin()
+                    else screenModel.pwdLogin()
+                },
+                onToggleMode = screenModel::toggleMode,
                 onSkipClick = { navigator.replaceAll(MainVoyagerScreen()) },
                 countdownHasStarted = screenModel.uiState.value.countdownSeconds > 0,
             )
@@ -104,8 +109,10 @@ private fun LoginContent(
     uiState: LoginUiState,
     onPhoneChanged: (String) -> Unit,
     onSmsCodeChanged: (String) -> Unit,
+    onPasswordChanged: (String) -> Unit,
     onSendCodeClick: () -> Unit,
     onLoginClick: () -> Unit,
+    onToggleMode: () -> Unit,
     onSkipClick: () -> Unit,
     countdownHasStarted: Boolean = false,
 ) {
@@ -209,17 +216,66 @@ private fun LoginContent(
 
             Spacer(Modifier.height(16.dp))
 
-            // SMS code input + send button row
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            if (uiState.isSmsMode) {
+                // === SMS code input ===
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    OutlinedTextField(
+                        value = uiState.smsCode,
+                        onValueChange = onSmsCodeChanged,
+                        label = { Text("验证码") },
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Number,
+                            imeAction = ImeAction.Done,
+                        ),
+                        keyboardActions = KeyboardActions(
+                            onDone = {
+                                focusManager.clearFocus()
+                                onLoginClick()
+                            }
+                        ),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = textFieldColors,
+                        modifier = Modifier
+                            .weight(1f)
+                            .focusRequester(smsCodeFocusRequester),
+                    )
+
+                    Spacer(Modifier.width(12.dp))
+
+                    val sendEnabled = !uiState.isSendingCode && uiState.countdownSeconds == 0
+                    Button(
+                        onClick = onSendCodeClick,
+                        enabled = sendEnabled,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.secondary,
+                            contentColor = MaterialTheme.colorScheme.onSecondary,
+                            disabledContainerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
+                        ),
+                        modifier = Modifier.height(56.dp),
+                    ) {
+                        Text(
+                            text = when {
+                                uiState.isSendingCode -> "发送中"
+                                uiState.countdownSeconds > 0 -> "重新发送 (${uiState.countdownSeconds}s)"
+                                else -> "获取验证码"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+            } else {
+                // === Password input ===
                 OutlinedTextField(
-                    value = uiState.smsCode,
-                    onValueChange = onSmsCodeChanged,
-                    label = { Text("验证码") },
+                    value = uiState.password,
+                    onValueChange = onPasswordChanged,
+                    label = { Text("密码") },
                     keyboardOptions = KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
+                        keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done,
                     ),
                     keyboardActions = KeyboardActions(
@@ -231,34 +287,8 @@ private fun LoginContent(
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = textFieldColors,
-                    modifier = Modifier
-                        .weight(1f)
-                        .focusRequester(smsCodeFocusRequester),
+                    modifier = Modifier.fillMaxWidth(),
                 )
-
-                Spacer(Modifier.width(12.dp))
-
-                val sendEnabled = !uiState.isSendingCode && uiState.countdownSeconds == 0
-                Button(
-                    onClick = onSendCodeClick,
-                    enabled = sendEnabled,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary,
-                        disabledContainerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
-                    ),
-                    modifier = Modifier.height(56.dp),
-                ) {
-                    Text(
-                        text = when {
-                            uiState.isSendingCode -> "发送中"
-                            uiState.countdownSeconds > 0 -> "重新发送 (${uiState.countdownSeconds}s)"
-                            else -> "获取验证码"
-                        },
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                }
             }
 
             Spacer(Modifier.height(32.dp))
@@ -304,6 +334,16 @@ private fun LoginContent(
             }
 
             Spacer(Modifier.height(16.dp))
+
+            TextButton(onClick = onToggleMode) {
+                Text(
+                    text = if (uiState.isSmsMode) "使用密码登录" else "使用验证码登录",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
 
             TextButton(onClick = onSkipClick) {
                 Text(

@@ -6,7 +6,10 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class PwdLoginRequest(
     @SerialName("mobile") val mobile: String,
-    @SerialName("password") val password: String
+    @SerialName("password") val password: String,
+    @SerialName("serviceAgreement") val serviceAgreement: Boolean = true,
+    @SerialName("channel") val channel: String? = null,
+    @SerialName("inviteCode") val inviteCode: String? = null
 )
 
 @Serializable
@@ -17,4 +20,15 @@ data class LoginTokenData(
     @SerialName("identify") val identify: String = "",
     @SerialName("firstLogin") val firstLogin: Boolean = false,
     @SerialName("inviteCodeUsed") val inviteCodeUsed: String? = null
+)
+
+@Serializable
+data class SmsCodeRequest(
+    @SerialName("mobile") val mobile: String
+)
+
+@Serializable
+data class SmsLoginRequest(
+    @SerialName("mobile") val mobile: String,
+    @SerialName("code") val code: String
 )

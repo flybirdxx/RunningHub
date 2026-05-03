@@ -15,6 +15,8 @@ import kotlinx.coroutines.launch
 data class LoginUiState(
     val phone: String = "",
     val smsCode: String = "",
+    val password: String = "",
+    val isSmsMode: Boolean = true,  // true=SMS verification, false=password
     val isLoading: Boolean = false,
     val isSendingCode: Boolean = false,
     val countdownSeconds: Int = 0,
@@ -107,6 +109,48 @@ class LoginScreenModel(
                             // AC3: wrong code → clear. AC4: expired → preserve. AC6: network → preserve.
                             smsCode = if (wrongCode) "" else it.smsCode,
                             countdownSeconds = if (codeExpired) 0 else it.countdownSeconds
+                        )
+                    }
+                }
+        }
+    }
+
+    fun onPasswordChanged(password: String) {
+        _uiState.update { it.copy(password = password, errorMessage = null) }
+    }
+
+    fun toggleMode() {
+        _uiState.update { it.copy(isSmsMode = !it.isSmsMode, errorMessage = null) }
+    }
+
+    fun pwdLogin() {
+        val state = _uiState.value
+        if (state.phone.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "请输入手机号") }
+            return
+        }
+        if (!isValidPhone(state.phone)) {
+            _uiState.update { it.copy(errorMessage = "请输入正确的手机号") }
+            return
+        }
+        if (state.password.isBlank()) {
+            _uiState.update { it.copy(errorMessage = "请输入密码") }
+            return
+        }
+
+        screenModelScope.launch {
+            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            authRepository.login(state.phone, state.password)
+                .onSuccess { user ->
+                    _uiState.update {
+                        it.copy(isLoading = false, loginSuccess = true, user = user)
+                    }
+                }
+                .onFailure { e ->
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            errorMessage = e.message ?: "登录失败，请稍后重试"
                         )
                     }
                 }
