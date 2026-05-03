@@ -11,6 +11,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -22,6 +24,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
@@ -31,6 +34,10 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.feature.login.LoginVoyagerScreen
+import com.runninghub.app.ui.theme.Dimens
+import com.runninghub.app.ui.theme.RunningHubThemeExt
+import com.runninghub.app.ui.theme.WindowSizeClass
+import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.shared.domain.model.User
 
 class ProfileVoyagerScreen : Screen {
@@ -41,9 +48,20 @@ class ProfileVoyagerScreen : Screen {
         val uiState by screenModel.uiState.collectAsState()
         val navigator = LocalNavigator.currentOrThrow
 
+        // Voyager rule: no suspend in ScreenModel.init{} — load here
+        LaunchedEffect(Unit) {
+            screenModel.loadUserData()
+        }
+
         ProfileScreenContent(
             uiState = uiState,
             onRefresh = screenModel::refreshUserData,
+            onBindApiKey = screenModel::bindApiKey,
+            onBindCookie = screenModel::bindCookie,
+            onShowApiKeyDialog = screenModel::showApiKeyDialog,
+            onDismissApiKeyDialog = screenModel::dismissApiKeyDialog,
+            onShowCookieDialog = screenModel::showCookieDialog,
+            onDismissCookieDialog = screenModel::dismissCookieDialog,
             onLogout = {
                 screenModel.logout {
                     navigator.replaceAll(LoginVoyagerScreen())
@@ -58,11 +76,20 @@ fun ProfileScreenContent(
     modifier: Modifier = Modifier,
     uiState: ProfileUiState,
     onRefresh: () -> Unit = {},
+    onBindApiKey: (String) -> Unit = {},
+    onBindCookie: (String) -> Unit = {},
+    onShowApiKeyDialog: () -> Unit = {},
+    onDismissApiKeyDialog: () -> Unit = {},
+    onShowCookieDialog: () -> Unit = {},
+    onDismissCookieDialog: () -> Unit = {},
     onLogout: () -> Unit = {},
 ) {
+    val pullToRefreshState = rememberPullToRefreshState()
+    val isRefreshing = uiState.isLoading && uiState.user != null
+
     Scaffold(
         modifier = modifier,
-        containerColor = Color(0xFF0B0F1A),
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         when {
@@ -73,24 +100,114 @@ fun ProfileScreenContent(
                 NotLoggedInContent(modifier = Modifier.padding(padding))
             }
             else -> {
-                Column(
+                PullToRefreshBox(
+                    isRefreshing = isRefreshing,
+                    onRefresh = onRefresh,
+                    state = pullToRefreshState,
+                    modifier = Modifier.padding(padding).fillMaxSize(),
+                ) {
+                val sizeClass = rememberWindowSizeClass()
+                Box(
                     modifier = Modifier
                         .padding(padding)
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
+                        .fillMaxSize(),
+                    contentAlignment = Alignment.TopCenter,
                 ) {
-                    ProfileHeader(user = uiState.user)
-                    Spacer(Modifier.height(16.dp))
-                    AssetsSection(user = uiState.user)
-                    Spacer(Modifier.height(16.dp))
-                    QuickActionsGrid()
-                    Spacer(Modifier.height(16.dp))
-                    StatsRow(user = uiState.user)
-                    Spacer(Modifier.height(16.dp))
-                    SettingsSection(onLogout = onLogout)
-                    Spacer(Modifier.height(32.dp))
-                }
+                    Column(
+                        modifier = Modifier
+                            .widthIn(max = if (sizeClass >= WindowSizeClass.Medium) 600.dp else Dp.Unspecified)
+                            .fillMaxSize()
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        ProfileHeader(user = uiState.user)
+                        Spacer(Modifier.height(16.dp))
+                        AssetsSection(user = uiState.user)
+                        Spacer(Modifier.height(16.dp))
+                        QuickActionsGrid(
+                            onApiKey = onShowApiKeyDialog,
+                            onCookie = onShowCookieDialog,
+                        )
+                        Spacer(Modifier.height(16.dp))
+                        StatsRow(user = uiState.user)
+                        Spacer(Modifier.height(16.dp))
+                        SettingsSection(onLogout = onLogout)
+                        Spacer(Modifier.height(32.dp))
+                    }
+                } // PullToRefreshBox
             }
+        }
+
+        // API Key binding dialog
+        if (uiState.showApiKeyDialog) {
+            val apiKeyBuffer = remember { mutableStateOf("") }
+            AlertDialog(
+                onDismissRequest = onDismissApiKeyDialog,
+                title = { Text("绑定 API Key") },
+                text = {
+                    Column {
+                        Text(
+                            "输入来自 RunningHub 网站的 API Key，用于访问 AI 应用。",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = apiKeyBuffer.value,
+                            onValueChange = { apiKeyBuffer.value = it },
+                            label = { Text("API Key") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { onBindApiKey(apiKeyBuffer.value) }) {
+                        Text("绑定", color = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismissApiKeyDialog) {
+                        Text("取消")
+                    }
+                },
+            )
+        }
+
+        // Cookie binding dialog
+        if (uiState.showCookieDialog) {
+            val cookieBuffer = remember { mutableStateOf("") }
+            AlertDialog(
+                onDismissRequest = onDismissCookieDialog,
+                title = { Text("绑定 Cookie") },
+                text = {
+                    Column {
+                        Text(
+                            "输入来自 RunningHub 网站的 Cookie，用于高级功能访问。",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        OutlinedTextField(
+                            value = cookieBuffer.value,
+                            onValueChange = { cookieBuffer.value = it },
+                            label = { Text("Cookie") },
+                            singleLine = false,
+                            maxLines = 3,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { onBindCookie(cookieBuffer.value) }) {
+                        Text("绑定", color = MaterialTheme.colorScheme.primary)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = onDismissCookieDialog) {
+                        Text("取消")
+                    }
+                },
+            )
         }
     }
 }
@@ -103,8 +220,8 @@ private fun ProfileHeader(user: User?) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF1A1F35),
-                        Color(0xFF0B0F1A),
+                        MaterialTheme.colorScheme.surfaceVariant,
+                        MaterialTheme.colorScheme.background,
                     )
                 )
             )
@@ -119,22 +236,22 @@ private fun ProfileHeader(user: User?) {
                 modifier = Modifier
                     .size(64.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF2A3050)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 if (!user?.headIcon.isNullOrEmpty()) {
                     AsyncImage(
                         model = user?.headIcon,
-                        contentDescription = null,
+                        contentDescription = user?.nickName ?: "头像",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop
                     )
                 } else {
                     Icon(
                         Icons.Default.Person,
-                        contentDescription = null,
+                        contentDescription = "默认头像",
                         modifier = Modifier.size(32.dp),
-                        tint = Color(0xFF64748B)
+                        tint = MaterialTheme.colorScheme.outline
                     )
                 }
             }
@@ -144,9 +261,8 @@ private fun ProfileHeader(user: User?) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = user?.nickName ?: "RunningHub 用户",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -159,8 +275,8 @@ private fun ProfileHeader(user: User?) {
                         } ?: ""
                         Text(
                             text = "Tel: $maskedPhone",
-                            fontSize = 13.sp,
-                            color = Color(0xFF94A3B8),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -173,7 +289,7 @@ private fun ProfileHeader(user: User?) {
             Icon(
                 Icons.Default.Settings,
                 contentDescription = "设置",
-                tint = Color(0xFF94A3B8),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .size(24.dp)
                     .clickable { }
@@ -187,7 +303,7 @@ private fun MemberBadge(memberName: String?) {
     if (memberName.isNullOrEmpty()) return
     Surface(
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF6C5CE7).copy(alpha = 0.15f),
+        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
@@ -195,16 +311,15 @@ private fun MemberBadge(memberName: String?) {
         ) {
             Icon(
                 Icons.Default.Star,
-                contentDescription = null,
-                tint = Color(0xFFFFD700),
+                contentDescription = "会员等级",
+                tint = RunningHubThemeExt.colors.premiumGold,
                 modifier = Modifier.size(14.dp)
             )
             Spacer(Modifier.width(4.dp))
             Text(
                 text = memberName,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFFA78BFA),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primaryContainer,
             )
         }
     }
@@ -216,8 +331,8 @@ private fun AssetsSection(user: User?) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF141929)),
+        shape = RoundedCornerShape(Dimens.RadiusLG),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
             Row(
@@ -227,16 +342,15 @@ private fun AssetsSection(user: User?) {
             ) {
                 Text(
                     text = "我的资产",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
                 TextButton(
                     onClick = {},
                     contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFFF9500)),
+                    colors = ButtonDefaults.textButtonColors(contentColor = RunningHubThemeExt.colors.premiumOrange),
                 ) {
-                    Text("充值", fontSize = 13.sp)
+                    Text("充值", style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
@@ -250,20 +364,20 @@ private fun AssetsSection(user: User?) {
                     label = "RH币余额",
                     value = formatNumber(user?.totalCoin ?: "0"),
                     icon = Icons.Default.MonetizationOn,
-                    iconTint = Color(0xFFFFD700),
+                    iconTint = RunningHubThemeExt.colors.premiumGold,
                     modifier = Modifier.weight(1f),
                 )
                 Box(
                     Modifier
                         .width(1.dp)
                         .height(50.dp)
-                        .background(Color(0xFF2A3050))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 )
                 AssetItem(
                     label = "钱包余额",
                     value = "${user?.walletInfo?.currencySymbol ?: "¥"}${user?.walletInfo?.balance ?: "0.00"}",
                     icon = Icons.Default.AccountBalanceWallet,
-                    iconTint = Color(0xFF00D2FF),
+                    iconTint = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -299,17 +413,16 @@ private fun AssetsSection(user: User?) {
                             ) {
                                 Icon(
                                     Icons.Default.WorkspacePremium,
-                                    contentDescription = null,
-                                    tint = Color(0xFFFFD700),
+                                    contentDescription = "会员权益",
+                                    tint = RunningHubThemeExt.colors.premiumGold,
                                     modifier = Modifier.size(22.dp),
                                 )
                                 Spacer(Modifier.width(8.dp))
                                 Column {
                                     Text(
                                         text = user.memberInfo?.memberName ?: "会员",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = Color(0xFFFFD700),
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = RunningHubThemeExt.colors.premiumGold,
                                     )
                                     val expiry = user.memberInfo?.memberExpiredTime?.split(" ")?.firstOrNull() ?: ""
                                     val remaining = user.memberInfo?.memberRemainingDays
@@ -321,7 +434,7 @@ private fun AssetsSection(user: User?) {
                                     if (expiryText.isNotEmpty()) {
                                         Text(
                                             text = expiryText,
-                                            fontSize = 11.sp,
+                                            style = MaterialTheme.typography.labelSmall,
                                             color = Color(0xFFBFA76A),
                                         )
                                     }
@@ -331,12 +444,12 @@ private fun AssetsSection(user: User?) {
                                 onClick = {},
                                 shape = RoundedCornerShape(8.dp),
                                 colors = ButtonDefaults.buttonColors(
-                                    containerColor = Color(0xFFFF9500),
-                                    contentColor = Color.White,
+                                    containerColor = RunningHubThemeExt.colors.premiumOrange,
+                                    contentColor = MaterialTheme.colorScheme.onSurface,
                                 ),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
                             ) {
-                                Text("续费", fontSize = 13.sp)
+                                Text("续费", style = MaterialTheme.typography.bodyMedium)
                             }
                         }
                     }
@@ -360,35 +473,37 @@ private fun AssetItem(
     ) {
         Icon(
             icon,
-            contentDescription = null,
+            contentDescription = label,
             tint = iconTint,
             modifier = Modifier.size(24.dp),
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = value,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
         )
         Spacer(Modifier.height(2.dp))
         Text(
             text = label,
-            fontSize = 12.sp,
-            color = Color(0xFF64748B),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.outline,
         )
     }
 }
 
 @Composable
-private fun QuickActionsGrid() {
+private fun QuickActionsGrid(
+    onApiKey: () -> Unit = {},
+    onCookie: () -> Unit = {},
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF141929)),
+        shape = RoundedCornerShape(Dimens.RadiusLG),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column(modifier = Modifier.padding(vertical = 12.dp)) {
             Row(
@@ -397,7 +512,7 @@ private fun QuickActionsGrid() {
             ) {
                 QuickActionItem(Icons.Default.Campaign, "网站公告")
                 QuickActionItem(Icons.Default.Folder, "作品管理")
-                QuickActionItem(Icons.Default.Api, "API 管理")
+                QuickActionItem(Icons.Default.Api, "API 管理", onClick = onApiKey)
                 QuickActionItem(Icons.Default.Groups, "开发者社区")
             }
             Spacer(Modifier.height(4.dp))
@@ -415,25 +530,25 @@ private fun QuickActionsGrid() {
 }
 
 @Composable
-private fun QuickActionItem(icon: ImageVector, label: String) {
+private fun QuickActionItem(icon: ImageVector, label: String, onClick: () -> Unit = {}) {
     Column(
         modifier = Modifier
             .width(80.dp)
-            .clickable { }
+            .clickable(onClick = onClick)
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
             icon,
             contentDescription = label,
-            tint = Color(0xFFCBD5E1),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(24.dp),
         )
         Spacer(Modifier.height(6.dp))
         Text(
             text = label,
-            fontSize = 11.sp,
-            color = Color(0xFF94A3B8),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             textAlign = TextAlign.Center,
         )
@@ -446,8 +561,8 @@ private fun StatsRow(user: User?) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF141929)),
+        shape = RoundedCornerShape(Dimens.RadiusLG),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Row(
             modifier = Modifier
@@ -468,15 +583,14 @@ private fun StatItem(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
+            style = MaterialTheme.typography.headlineSmall,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(2.dp))
         Text(
             text = label,
-            fontSize = 12.sp,
-            color = Color(0xFF64748B),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.outline,
         )
     }
 }
@@ -487,8 +601,8 @@ private fun SettingsSection(onLogout: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color(0xFF141929)),
+        shape = RoundedCornerShape(Dimens.RadiusLG),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column {
             SettingsMenuItem(
@@ -506,7 +620,7 @@ private fun SettingsSection(onLogout: () -> Unit) {
             SettingsMenuItem(
                 icon = Icons.AutoMirrored.Filled.ExitToApp,
                 title = "退出登录",
-                titleColor = Color(0xFFF87171),
+                titleColor = MaterialTheme.colorScheme.error,
                 onClick = onLogout
             )
         }
@@ -518,7 +632,7 @@ private fun MenuDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 56.dp),
         thickness = 0.5.dp,
-        color = Color(0xFF2A3050),
+        color = MaterialTheme.colorScheme.surfaceVariant,
     )
 }
 
@@ -526,7 +640,7 @@ private fun MenuDivider() {
 private fun SettingsMenuItem(
     icon: ImageVector,
     title: String,
-    titleColor: Color = Color(0xFFCBD5E1),
+    titleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     onClick: () -> Unit,
 ) {
     Row(
@@ -538,21 +652,21 @@ private fun SettingsMenuItem(
     ) {
         Icon(
             icon,
-            contentDescription = null,
+            contentDescription = title,
             tint = titleColor,
             modifier = Modifier.size(22.dp),
         )
         Spacer(Modifier.width(14.dp))
         Text(
             text = title,
-            fontSize = 15.sp,
+            style = MaterialTheme.typography.bodyLarge,
             color = titleColor,
             modifier = Modifier.weight(1f),
         )
         Icon(
             Icons.Default.ChevronRight,
-            contentDescription = null,
-            tint = Color(0xFF475569),
+            contentDescription = "更多",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(18.dp),
         )
     }
@@ -573,30 +687,29 @@ private fun NotLoggedInContent(modifier: Modifier = Modifier) {
                 .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
-                        listOf(Color(0xFF6C5CE7), Color(0xFF00D2FF))
+                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
                     )
                 ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 Icons.Default.Lock,
-                contentDescription = null,
-                tint = Color.White,
+                contentDescription = "已锁定",
+                tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(40.dp),
             )
         }
         Spacer(Modifier.height(24.dp))
         Text(
             text = "未登录",
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.White,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = "登录后查看个人信息和资产",
-            fontSize = 14.sp,
-            color = Color(0xFF64748B),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.outline,
         )
     }
 }

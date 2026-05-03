@@ -25,7 +25,9 @@ fun PermissionBottomSheet(
     onDismiss: () -> Unit,
     onAuthorize: () -> Unit,
     onOpenSettings: (() -> Unit)? = null,
+    onDontAskAgain: (() -> Unit)? = null,
 ) {
+    var dontAskAgain by remember { mutableStateOf(false) }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -39,7 +41,7 @@ fun PermissionBottomSheet(
         ) {
             Icon(
                 imageVector = getIconForPermission(permission.icon),
-                contentDescription = null,
+                contentDescription = permission.description,
                 modifier = Modifier.size(56.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
@@ -53,7 +55,30 @@ fun PermissionBottomSheet(
                 color = MaterialTheme.colorScheme.onSurface,
             )
 
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(16.dp))
+
+            // "Don't ask again" checkbox
+            if (onDontAskAgain != null) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { dontAskAgain = !dontAskAgain }
+                        .padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = dontAskAgain,
+                        onCheckedChange = { dontAskAgain = it },
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = "不再提示",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
 
             Button(
                 onClick = onAuthorize,
@@ -71,7 +96,10 @@ fun PermissionBottomSheet(
                 }
             } else {
                 TextButton(
-                    onClick = onDismiss,
+                    onClick = {
+                        if (dontAskAgain) onDontAskAgain?.invoke()
+                        onDismiss()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("暂不需要")
