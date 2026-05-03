@@ -14,41 +14,41 @@ class UserRepositoryImpl(
     override suspend fun getAccountStatus(apiKey: String): Result<AccountStatus> = runCatching {
         val response = api.getAccountStatus(AccountStatusRequest(apikey = apiKey))
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun getUserInfo(userId: String?): Result<User> = runCatching {
         val params = if (!userId.isNullOrEmpty()) mapOf("userId" to userId) else emptyMap()
         val response = api.getUserInfo(params)
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun getUserDetail(userId: String): Result<User> = runCatching {
         val referer = "https://www.runninghub.cn/profile/$userId"
         val response = api.getUserDetail(referer, mapOf("userId" to userId))
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun isFollow(targetUserId: String): Result<Boolean> = runCatching {
         val referer = "https://www.runninghub.cn/profile/$targetUserId"
         val response = api.isFollow(referer, mapOf("followId" to targetUserId))
         check(response.code == 0) { response.msg }
-        response.data
+        response.data ?: false
     }
 
     override suspend fun followUser(targetUserId: String): Result<Boolean> = runCatching {
         val referer = "https://www.runninghub.cn/profile/$targetUserId"
         val response = api.followUser(referer, mapOf("followId" to targetUserId))
         check(response.code == 0) { response.msg }
-        response.data
+        response.data ?: false
     }
 
     override suspend fun unFollowUser(targetUserId: String): Result<Boolean> = runCatching {
         val referer = "https://www.runninghub.cn/profile/$targetUserId"
         val response = api.unFollowUser(referer, mapOf("followId" to targetUserId))
         check(response.code == 0) { response.msg }
-        response.data
+        response.data ?: false
     }
 }

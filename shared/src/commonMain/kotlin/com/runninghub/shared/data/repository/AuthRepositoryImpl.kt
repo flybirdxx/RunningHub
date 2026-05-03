@@ -8,6 +8,7 @@ import com.runninghub.shared.data.remote.dto.toDomain
 import com.runninghub.shared.di.SessionExpiredHandler
 import com.runninghub.shared.domain.model.User
 import com.runninghub.shared.domain.repository.AuthRepository
+import com.runninghub.shared.domain.repository.SmsError
 import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.util.md5
 
@@ -123,7 +124,7 @@ class AuthRepositoryImpl(
         val userResponse = api.getUserInfoWithToken(accessToken, userId)
         check(userResponse.code == 0) { userResponse.msg.ifEmpty { "Failed to get user info" } }
 
-        val user = userResponse.data.toDomain()
+        val user = userResponse.data?.toDomain() ?: throw IllegalStateException("Empty user response")
         user.apiKey?.let { settings.setApiKey(it) }
         return user
     }

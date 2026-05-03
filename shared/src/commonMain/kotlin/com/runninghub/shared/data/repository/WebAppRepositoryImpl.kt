@@ -28,19 +28,19 @@ class WebAppRepositoryImpl(
             )
         )
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun getCarefullyChosenList(): Result<List<WebApp>> = runCatching {
         val response = api.getCarefullyChosenList()
         check(response.code == 0) { response.msg }
-        response.data.map { it.toDomain() }
+        response.data?.map { it.toDomain() } ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun getCustomMadeWebappList(tags: List<String>): Result<List<WebApp>> = runCatching {
         val response = api.getCustomMadeWebappList(CustomMadeWebappRequest(tags))
         check(response.code == 0) { response.msg }
-        response.data.map { it.toDomain() }
+        response.data?.map { it.toDomain() } ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun getUserAppList(
@@ -55,25 +55,25 @@ class WebAppRepositoryImpl(
         )
         val response = api.getWebAppUserList(params)
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun getTagTree(rang: String): Result<List<Tag>> = runCatching {
         val response = api.getTagTree(TagTreeRequest(rang))
         check(response.code == 0) { response.msg }
-        response.data.map { it.toDomain() }
+        response.data?.map { it.toDomain() } ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun getAppDetail(appId: String): Result<AppDetail> = runCatching {
         val response = api.getWebAppDetail(mapOf("webappId" to appId))
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun getApiCallDemo(apiKey: String, webappId: String): Result<AppDetail> = runCatching {
         val response = api.getApiCallDemo(apiKey, webappId)
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun searchApps(
@@ -89,7 +89,7 @@ class WebAppRepositoryImpl(
             )
         )
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun runTask(
@@ -108,13 +108,13 @@ class WebAppRepositoryImpl(
         )
         val response = api.runTask(request)
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun getTaskOutputs(taskId: Long, apiKey: String): Result<List<TaskOutput>> = runCatching {
         val response = api.getTaskOutputs(TaskStatusRequest(taskId, apiKey))
         check(response.code == 0) { response.msg }
-        response.data.map { it.toDomain() }
+        response.data?.map { it.toDomain() } ?: throw IllegalStateException("Empty response data")
     }
 
     override suspend fun uploadFile(
@@ -125,6 +125,18 @@ class WebAppRepositoryImpl(
     ): Result<UploadResult> = runCatching {
         val response = api.uploadFile(apiKey, fileType, fileBytes, fileName)
         check(response.code == 0) { response.msg }
-        response.data.toDomain()
+        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
+    }
+
+    override suspend fun getTaskHistory(
+        apiKey: String,
+        pageNum: Int,
+        pageSize: Int,
+    ): Result<List<TaskHistoryItem>> = runCatching {
+        val response = api.getTaskHistory(
+            mapOf("apiKey" to apiKey, "pageNum" to pageNum, "pageSize" to pageSize)
+        )
+        check(response.code == 0) { response.msg.ifEmpty { "Failed to load history" } }
+        response.data?.records?.map { it.toDomain() } ?: throw IllegalStateException("Empty response data")
     }
 }

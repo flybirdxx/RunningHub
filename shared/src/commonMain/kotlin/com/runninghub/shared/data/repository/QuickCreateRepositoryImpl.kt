@@ -323,7 +323,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.happyHorseImageToVideo(
                             HappyHorseImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                imageUrl = request.referenceImageUri,
+                                imageUrl = refImageUrl,
                                 resolution = request.resolution,
                                 duration = request.duration,
                                 aspectRatio = request.aspectRatio,
@@ -540,7 +540,7 @@ class QuickCreateRepositoryImpl(
                     if (hasImageRef) {
                         quickCreateApi.pixVerseV6ImageToVideo(
                             PixVerseV6ImageToVideoRequestDto(
-                                imageUrl = request.referenceImageUri,
+                                imageUrl = refImageUrl,
                                 prompt = request.prompt,
                                 resolution = request.resolution,
                                 duration = request.duration,
@@ -577,7 +577,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.allPowerV31FastImageToVideo(
                             AllPowerVideoV31FastImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                imageUrl = request.referenceImageUri,
+                                imageUrl = refImageUrl,
                                 resolution = request.resolution,
                                 duration = request.duration,
                                 aspectRatio = request.aspectRatio,
@@ -614,7 +614,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.allPowerV31FastImageToVideo(
                             AllPowerVideoV31FastImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                imageUrl = request.referenceImageUri,
+                                imageUrl = refImageUrl,
                                 resolution = request.resolution,
                                 duration = request.duration,
                                 aspectRatio = request.aspectRatio,
@@ -653,7 +653,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.allPowerV31ProImageToVideo(
                             AllPowerVideoV31ProImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                imageUrl = request.referenceImageUri,
+                                imageUrl = refImageUrl,
                                 resolution = request.resolution,
                                 duration = request.duration,
                                 aspectRatio = request.aspectRatio,
@@ -692,7 +692,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.allPowerV31ProImageToVideo(
                             AllPowerVideoV31ProImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                imageUrl = request.referenceImageUri,
+                                imageUrl = refImageUrl,
                                 resolution = request.resolution,
                                 duration = request.duration,
                                 aspectRatio = request.aspectRatio,
@@ -718,7 +718,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.allPowerVXImageToVideo(
                             AllPowerVideoXImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                imageUrl = request.referenceImageUri,
+                                imageUrl = refImageUrl,
                                 resolution = request.resolution,
                                 duration = request.duration.toString(),
                             )
