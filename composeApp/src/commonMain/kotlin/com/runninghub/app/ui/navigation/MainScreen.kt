@@ -83,11 +83,12 @@ class MainVoyagerScreen : Screen {
         val settingsRepository = koinInject<SettingsRepository>()
         var creditCoins by rememberSaveable { mutableStateOf("--") }
 
+        var isLoggedIn by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) {
             creditCoins = settingsRepository.getLastKnownCoins() ?: "--"
+            isLoggedIn = settingsRepository.isLoggedIn()
         }
 
-        val isLoggedIn = remember { settingsRepository.isLoggedIn() }  // snapshot, non-reactive
         val sizeClass = rememberWindowSizeClass()
 
         // Guest mode banner (dismissible)

@@ -136,6 +136,7 @@ fun ProfileScreenContent(
                 } // PullToRefreshBox
             }
         }
+    } // when
 
         // API Key binding dialog
         if (uiState.showApiKeyDialog) {
@@ -160,6 +161,7 @@ fun ProfileScreenContent(
                         )
                     }
                 },
+        }
                 confirmButton = {
                     TextButton(onClick = { onBindApiKey(apiKeyBuffer.value) }) {
                         Text("绑定", color = MaterialTheme.colorScheme.primary)

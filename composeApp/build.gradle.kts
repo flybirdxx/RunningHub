@@ -57,6 +57,11 @@ kotlin {
             implementation(libs.lottie.compose)
             implementation(libs.activity.compose)
             implementation(libs.filepicker)
+            implementation(libs.kotlinx.serialization.json)
+        }
+
+        commonTest.dependencies {
+            implementation(kotlin("test"))
         }
     }
 }
