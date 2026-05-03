@@ -74,7 +74,7 @@ val sharedModule = module {
             }
 
             defaultRequest {
-                header("User-Agent", "RunningHub/1.0 (KMP Mobile)")
+                header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/144.0.0.0 Mobile Safari/537.36")
                 header("Accept", "application/json, text/plain, */*")
                 header("Origin", "https://www.runninghub.cn")
                 header("Referer", "https://www.runninghub.cn/")
