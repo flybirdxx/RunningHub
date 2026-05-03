@@ -13,11 +13,15 @@ class SettingsRepositoryImpl(
 ) : SettingsRepository {
 
     companion object {
+        // TODO: Migrate token/API key storage to EncryptedSharedPreferences (Android) or Keychain (iOS)
+        // Currently stored as plaintext in DataStore — vulnerable to rooted device / backup extraction
         private val KEY_API_KEY = stringPreferencesKey("api_key")
         private val KEY_ENTERPRISE_API_KEY = stringPreferencesKey("enterprise_api_key")
         private val KEY_COOKIE = stringPreferencesKey("user_cookie")
         private val KEY_AUTH_TOKEN = stringPreferencesKey("auth_token")
         private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
+        private val KEY_LAST_KNOWN_COINS = stringPreferencesKey("last_known_coins")
+        private val KEY_QUICK_CREATE_DRAFT = stringPreferencesKey("quick_create_draft")
     }
 
     override suspend fun getApiKey(): String? =
@@ -77,6 +81,28 @@ class SettingsRepositoryImpl(
 
     override suspend fun isLoggedIn(): Boolean =
         !getAuthToken().isNullOrEmpty()
+
+    override suspend fun getLastKnownCoins(): String? =
+        dataStore.data.map { it[KEY_LAST_KNOWN_COINS] }.first()
+
+    override suspend fun setLastKnownCoins(coins: String) {
+        dataStore.edit { it[KEY_LAST_KNOWN_COINS] = coins }
+    }
+
+    override suspend fun clearLastKnownCoins() {
+        dataStore.edit { it.remove(KEY_LAST_KNOWN_COINS) }
+    }
+
+    override suspend fun getQuickCreateDraft(): String? =
+        dataStore.data.map { it[KEY_QUICK_CREATE_DRAFT] }.first()
+
+    override suspend fun saveQuickCreateDraft(json: String) {
+        dataStore.edit { it[KEY_QUICK_CREATE_DRAFT] = json }
+    }
+
+    override suspend fun clearQuickCreateDraft() {
+        dataStore.edit { it.remove(KEY_QUICK_CREATE_DRAFT) }
+    }
 
     override suspend fun clearAll() {
         dataStore.edit { it.clear() }

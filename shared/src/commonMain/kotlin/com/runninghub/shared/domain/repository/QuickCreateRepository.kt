@@ -3,6 +3,9 @@ package com.runninghub.shared.domain.repository
 import kotlinx.coroutines.flow.Flow
 
 // ── 图片模型枚举 ────────────────────────────────────────
+// NOTE: apiEndpoint/apiTier/apiCategory fields leak data-layer routing details into the domain.
+// Consider moving endpoint routing to a when-mapping in QuickCreateApi and keeping the domain
+// enum focused on identity + display properties only.
 
 enum class ImageModel(
     val displayName: String,
@@ -106,6 +109,7 @@ enum class VideoModel(
         apiTier = "HH",
         apiCategory = "alibaba/happyhorse-1.0",
         modelKey = "happyhorse",
+        description = "阿里巴巴多模态视频生成模型",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = false,

@@ -31,11 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.ErrorDark
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Primary300
-import com.runninghub.app.ui.theme.SuccessDark
+import androidx.compose.material3.MaterialTheme
 
 enum class TaskStep {
     IDLE,
@@ -74,7 +70,7 @@ fun TaskProgressIndicator(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurfaceVariant)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .padding(20.dp)
     ) {
         Row(
@@ -92,7 +88,7 @@ fun TaskProgressIndicator(
                     TaskStep.SUCCESS -> "生成完成"
                     TaskStep.FAILED -> "任务失败"
                 },
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -101,12 +97,12 @@ fun TaskProgressIndicator(
                     CircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp,
-                        color = Primary300
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
                         text = "${elapsedSeconds}s",
-                        color = Neutral400,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
                 }
@@ -122,11 +118,11 @@ fun TaskProgressIndicator(
                 .height(4.dp)
                 .clip(RoundedCornerShape(2.dp)),
             color = when (currentStep) {
-                TaskStep.FAILED -> ErrorDark
-                TaskStep.SUCCESS -> SuccessDark
-                else -> Primary300
+                TaskStep.FAILED -> MaterialTheme.colorScheme.error
+                TaskStep.SUCCESS -> MaterialTheme.colorScheme.primary
+                else -> MaterialTheme.colorScheme.primary
             },
-            trackColor = Neutral400.copy(alpha = 0.15f)
+            trackColor = MaterialTheme.colorScheme.surfaceVariant
         )
 
         Spacer(Modifier.height(16.dp))
@@ -181,30 +177,30 @@ private fun StepIndicator(
                 .clip(CircleShape)
                 .background(
                     when {
-                        isCompleted -> SuccessDark
-                        isFailed -> ErrorDark
-                        isActive -> Primary300
-                        else -> Neutral400.copy(alpha = 0.3f)
+                        isCompleted -> MaterialTheme.colorScheme.primary
+                        isFailed -> MaterialTheme.colorScheme.error
+                        isActive -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.surfaceVariant
                     }
                 )
         ) {
             when {
                 isCompleted -> Icon(
                     Icons.Default.CheckCircle,
-                    contentDescription = null,
-                    tint = Color.White,
+                    contentDescription = "已完成",
+                    tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(16.dp)
                 )
                 isFailed -> Icon(
                     Icons.Default.Error,
-                    contentDescription = null,
-                    tint = Color.White,
+                    contentDescription = "失败",
+                    tint = MaterialTheme.colorScheme.onError,
                     modifier = Modifier.size(16.dp)
                 )
                 isActive -> CircularProgressIndicator(
                     modifier = Modifier.size(12.dp),
                     strokeWidth = 1.5.dp,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onPrimary
                 )
             }
         }
@@ -212,10 +208,10 @@ private fun StepIndicator(
         Text(
             text = label,
             color = when {
-                isCompleted -> SuccessDark
-                isFailed -> ErrorDark
-                isActive -> Color.White
-                else -> Neutral400
+                isCompleted -> MaterialTheme.colorScheme.primary
+                isFailed -> MaterialTheme.colorScheme.error
+                isActive -> MaterialTheme.colorScheme.onSurface
+                else -> MaterialTheme.colorScheme.onSurfaceVariant
             },
             fontSize = 10.sp,
             fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal
@@ -230,7 +226,7 @@ private fun StepConnector(isActive: Boolean) {
             .width(32.dp)
             .height(2.dp)
             .background(
-                if (isActive) SuccessDark else Neutral400.copy(alpha = 0.3f),
+                if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(1.dp)
             )
     )

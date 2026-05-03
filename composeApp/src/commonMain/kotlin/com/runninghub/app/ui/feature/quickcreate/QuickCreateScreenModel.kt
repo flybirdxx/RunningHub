@@ -5,6 +5,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
@@ -16,14 +17,27 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 private fun debug(tag: String, msg: String) {
     println("[$tag] $msg")
 }
 
+@Serializable
+data class DraftData(
+    val currentTab: String = "IMAGE",
+    val imagePrompt: String = "",
+    val videoPrompt: String = "",
+)
+
+private val draftJson = Json { encodeDefaults = true }
+
 class QuickCreateScreenModel(
     private val quickCreateRepository: QuickCreateRepository,
     private val mediaResolver: MediaResolver,
+    private val settingsRepository: SettingsRepository,
 ) : ScreenModel {
 
     private val _uiState = MutableStateFlow(QuickCreateUiState())
@@ -31,6 +45,54 @@ class QuickCreateScreenModel(
 
     private var generationJob: Job? = null
     private val uploadJobs = mutableMapOf<String, Job>()
+    private var draftSaveJob: Job? = null
+
+    /** Check if a draft exists and returns its content.
+     *  TODO: These properties are non-reactive and currently have no UI consumers.
+     *  Consider moving draft state into QuickCreateUiState for reactive UI binding. */
+    var hasDraft: Boolean = false
+        private set
+    var draftData: DraftData? = null
+        private set
+
+    fun checkForDraft() {
+        screenModelScope.launch {
+            val raw = settingsRepository.getQuickCreateDraft()
+            if (!raw.isNullOrEmpty()) {
+                try {
+                    val draft = draftJson.decodeFromString<DraftData>(raw)
+                    draftData = draft
+                    hasDraft = true
+                } catch (_: Exception) {
+                    settingsRepository.clearQuickCreateDraft()
+                }
+            }
+        }
+    }
+
+    fun restoreDraft() {
+        val draft = draftData ?: return
+        if (draft.imagePrompt.isNotEmpty()) {
+            _uiState.update { it.copy(imageConfig = it.imageConfig.copy(prompt = draft.imagePrompt)) }
+        }
+        if (draft.videoPrompt.isNotEmpty()) {
+            _uiState.update { it.copy(videoConfig = it.videoConfig.copy(prompt = draft.videoPrompt)) }
+        }
+        if (draft.currentTab == "VIDEO") {
+            _uiState.update { it.copy(currentTab = QuickCreateTab.VIDEO) }
+        }
+        clearDraft()
+    }
+
+    fun discardDraft() {
+        clearDraft()
+    }
+
+    private fun clearDraft() {
+        hasDraft = false
+        draftData = null
+        screenModelScope.launch { settingsRepository.clearQuickCreateDraft() }
+    }
 
     // ── Tab & Prompt ──────────────────────────────────────────────────────────
 
@@ -40,14 +102,32 @@ class QuickCreateScreenModel(
             QuickCreateTab.VIDEO -> _uiState.value.videoConfig.estimatedCost
         }
         _uiState.update { it.copy(currentTab = tab, estimatedCost = cost) }
+        autoSaveDraft()
     }
 
     fun updateImagePrompt(prompt: String) {
         _uiState.update { it.copy(imageConfig = it.imageConfig.copy(prompt = prompt)) }
+        autoSaveDraft()
     }
 
     fun updateVideoPrompt(prompt: String) {
         _uiState.update { it.copy(videoConfig = it.videoConfig.copy(prompt = prompt)) }
+        autoSaveDraft()
+    }
+
+    /** Debounced auto-save (500ms after last keystroke). */
+    private fun autoSaveDraft() {
+        draftSaveJob?.cancel()
+        draftSaveJob = screenModelScope.launch {
+            delay(500)
+            val state = _uiState.value
+            val draft = DraftData(
+                currentTab = state.currentTab.name,
+                imagePrompt = state.imageConfig.prompt,
+                videoPrompt = state.videoConfig.prompt,
+            )
+            settingsRepository.saveQuickCreateDraft(draftJson.encodeToString(draft))
+        }
     }
 
     // ── Tune Sheet ───────────────────────────────────────────────────────────
@@ -503,9 +583,13 @@ class QuickCreateScreenModel(
                 is QuickCreateTaskStatus.Submitting -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING, statusText = "正在提交..."
                 )
-                is QuickCreateTaskStatus.Queuing -> it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.QUEUING, statusText = "排队中..."
-                )
+                is QuickCreateTaskStatus.Queuing -> {
+                    // AC5: draft cleared on successful submit — side effect moved outside update lambda
+                    screenModelScope.launch { settingsRepository.clearQuickCreateDraft() }
+                    it.copy(
+                        taskStatus = QuickCreateTaskUiStatus.QUEUING, statusText = "排队中..."
+                    )
+                }
                 is QuickCreateTaskStatus.Running -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.RUNNING,
                     statusText = "生成中... ${status.progress}%"

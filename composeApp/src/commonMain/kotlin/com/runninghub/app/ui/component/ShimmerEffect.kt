@@ -11,11 +11,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.LocalExtendedColors
@@ -26,10 +31,13 @@ fun ShimmerPlaceholder(
     shape: Shape = MaterialTheme.shapes.medium
 ) {
     val extendedColors = LocalExtendedColors.current
+    val density = LocalDensity.current
+    var widthPx by remember { mutableStateOf(600f) }  // default fallback
+
     val transition = rememberInfiniteTransition(label = "shimmer")
     val translateX by transition.animateFloat(
-        initialValue = -300f,
-        targetValue = 300f,
+        initialValue = -widthPx,
+        targetValue = widthPx,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1000, easing = LinearEasing),
             repeatMode = RepeatMode.Restart
@@ -43,9 +51,14 @@ fun ShimmerPlaceholder(
             extendedColors.shimmerBase
         ),
         start = Offset(translateX, 0f),
-        end = Offset(translateX + 300f, 0f)
+        end = Offset(translateX + widthPx, 0f)
     )
-    Box(modifier = modifier.clip(shape).background(brush))
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(brush)
+            .onSizeChanged { size -> widthPx = size.width.toFloat() }
+    )
 }
 
 @Composable

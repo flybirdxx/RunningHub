@@ -22,15 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -43,42 +37,34 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
+import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.runninghub.app.ui.navigation.MainVoyagerScreen
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.get
 
-class LoginVoyagerScreen : Screen, KoinComponent {
+class LoginVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
 
     @Composable
     override fun Content() {
-        val screenModel = rememberScreenModel { LoginScreenModel(get()) }
+        val screenModel = koinScreenModel<LoginScreenModel>()
         val navigator = LocalNavigator.currentOrThrow
         val uiState by screenModel.uiState.collectAsState()
         val snackbarHostState = remember { SnackbarHostState() }
@@ -103,9 +89,11 @@ class LoginVoyagerScreen : Screen, KoinComponent {
             LoginContent(
                 uiState = uiState,
                 onPhoneChanged = screenModel::onPhoneChanged,
-                onPasswordChanged = screenModel::onPasswordChanged,
-                onLoginClick = screenModel::login,
+                onSmsCodeChanged = screenModel::onSmsCodeChanged,
+                onSendCodeClick = screenModel::sendSmsCode,
+                onLoginClick = screenModel::smsLogin,
                 onSkipClick = { navigator.replaceAll(MainVoyagerScreen()) },
+                countdownHasStarted = screenModel.uiState.value.countdownSeconds > 0,
             )
         }
     }
@@ -115,19 +103,25 @@ class LoginVoyagerScreen : Screen, KoinComponent {
 private fun LoginContent(
     uiState: LoginUiState,
     onPhoneChanged: (String) -> Unit,
-    onPasswordChanged: (String) -> Unit,
+    onSmsCodeChanged: (String) -> Unit,
+    onSendCodeClick: () -> Unit,
     onLoginClick: () -> Unit,
     onSkipClick: () -> Unit,
+    countdownHasStarted: Boolean = false,
 ) {
     val focusManager = LocalFocusManager.current
-    val passwordFocusRequester = remember { FocusRequester() }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    val smsCodeFocusRequester = remember { FocusRequester() }
+
+    // AC1: auto-focus code field after SMS sent successfully
+    LaunchedEffect(uiState.countdownSeconds == 60) {
+        smsCodeFocusRequester.requestFocus()
+    }
 
     val gradientBackground = Brush.verticalGradient(
         colors = listOf(
-            Color(0xFF0B0F1A),
-            Color(0xFF141929),
-            Color(0xFF1A1F35),
+            MaterialTheme.colorScheme.background,
+            MaterialTheme.colorScheme.surface,
+            MaterialTheme.colorScheme.surfaceVariant,
         )
     )
 
@@ -151,33 +145,33 @@ private fun LoginContent(
                 text = "R",
                 fontSize = 56.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF6C5CE7),
+                color = MaterialTheme.colorScheme.primary,
             )
 
             Text(
                 text = "RunningHUB",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
                 letterSpacing = 2.sp,
             )
 
             Spacer(Modifier.height(48.dp))
 
             val textFieldColors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color(0xFFCBD5E1),
-                focusedBorderColor = Color(0xFF6C5CE7),
-                unfocusedBorderColor = Color(0xFF2A3050),
-                cursorColor = Color(0xFF6C5CE7),
-                focusedLabelColor = Color(0xFF6C5CE7),
-                unfocusedLabelColor = Color(0xFF64748B),
-                focusedLeadingIconColor = Color(0xFF6C5CE7),
-                unfocusedLeadingIconColor = Color(0xFF64748B),
-                focusedContainerColor = Color(0xFF1E2438),
-                unfocusedContainerColor = Color(0xFF1E2438),
+                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                unfocusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                focusedBorderColor = MaterialTheme.colorScheme.primary,
+                unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant,
+                cursorColor = MaterialTheme.colorScheme.primary,
+                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                unfocusedLabelColor = MaterialTheme.colorScheme.outline,
+                focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
+                unfocusedLeadingIconColor = MaterialTheme.colorScheme.outline,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
             )
 
+            // Phone number input with +86 prefix
             OutlinedTextField(
                 value = uiState.phone,
                 onValueChange = onPhoneChanged,
@@ -187,15 +181,15 @@ private fun LoginContent(
                         Spacer(Modifier.width(12.dp))
                         Text(
                             text = "+86",
-                            color = Color(0xFFCBD5E1),
-                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
                         Spacer(Modifier.width(8.dp))
                         Box(
                             Modifier
                                 .width(1.dp)
                                 .height(20.dp)
-                                .background(Color(0xFF2A3050))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                         )
                         Spacer(Modifier.width(8.dp))
                     }
@@ -205,7 +199,7 @@ private fun LoginContent(
                     imeAction = ImeAction.Next,
                 ),
                 keyboardActions = KeyboardActions(
-                    onNext = { passwordFocusRequester.requestFocus() }
+                    onNext = { smsCodeFocusRequester.requestFocus() }
                 ),
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
@@ -215,42 +209,61 @@ private fun LoginContent(
 
             Spacer(Modifier.height(16.dp))
 
-            OutlinedTextField(
-                value = uiState.password,
-                onValueChange = onPasswordChanged,
-                label = { Text("密码") },
-                visualTransformation = if (passwordVisible) VisualTransformation.None
-                else PasswordVisualTransformation(),
-                trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            imageVector = if (passwordVisible) Icons.Filled.Visibility
-                            else Icons.Filled.VisibilityOff,
-                            contentDescription = if (passwordVisible) "隐藏密码" else "显示密码",
-                            tint = Color(0xFF64748B),
-                        )
-                    }
-                },
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Password,
-                    imeAction = ImeAction.Done,
-                ),
-                keyboardActions = KeyboardActions(
-                    onDone = {
-                        focusManager.clearFocus()
-                        onLoginClick()
-                    }
-                ),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = textFieldColors,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .focusRequester(passwordFocusRequester),
-            )
+            // SMS code input + send button row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedTextField(
+                    value = uiState.smsCode,
+                    onValueChange = onSmsCodeChanged,
+                    label = { Text("验证码") },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done,
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onDone = {
+                            focusManager.clearFocus()
+                            onLoginClick()
+                        }
+                    ),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = textFieldColors,
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(smsCodeFocusRequester),
+                )
+
+                Spacer(Modifier.width(12.dp))
+
+                val sendEnabled = !uiState.isSendingCode && uiState.countdownSeconds == 0
+                Button(
+                    onClick = onSendCodeClick,
+                    enabled = sendEnabled,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.secondary,
+                        contentColor = MaterialTheme.colorScheme.onSecondary,
+                        disabledContainerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
+                    ),
+                    modifier = Modifier.height(56.dp),
+                ) {
+                    Text(
+                        text = when {
+                            uiState.isSendingCode -> "发送中"
+                            uiState.countdownSeconds > 0 -> "重新发送 (${uiState.countdownSeconds}s)"
+                            else -> "获取验证码"
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
 
             Spacer(Modifier.height(32.dp))
 
+            // Login button
             Button(
                 onClick = {
                     focusManager.clearFocus()
@@ -259,9 +272,9 @@ private fun LoginContent(
                 enabled = !uiState.isLoading,
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF6C5CE7),
-                    contentColor = Color.White,
-                    disabledContainerColor = Color(0xFF6C5CE7).copy(alpha = 0.5f),
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onSurface,
+                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                 ),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -274,7 +287,7 @@ private fun LoginContent(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         strokeWidth = 2.dp,
                     )
                 }
@@ -284,9 +297,8 @@ private fun LoginContent(
                     exit = fadeOut(),
                 ) {
                     Text(
-                        text = "立即登录",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
+                        text = "登录",
+                        style = MaterialTheme.typography.titleMedium,
                     )
                 }
             }
@@ -296,8 +308,8 @@ private fun LoginContent(
             TextButton(onClick = onSkipClick) {
                 Text(
                     text = "暂不登录，直接浏览",
-                    color = Color(0xFF64748B),
-                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.outline,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
 
@@ -305,8 +317,8 @@ private fun LoginContent(
 
             Text(
                 text = "登录即表示您同意《用户协议》和《隐私政策》",
-                color = Color(0xFF475569),
-                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.labelSmall,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )

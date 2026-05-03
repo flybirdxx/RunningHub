@@ -1,5 +1,6 @@
 package com.runninghub.app.ui.component
 
+import com.runninghub.app.ui.theme.Dimens
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -51,8 +52,8 @@ fun CollapsibleSection(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurface)
+            .clip(RoundedCornerShape(Dimens.RadiusMD))
+            .background(MaterialTheme.colorScheme.surface)
             .animateContentSize()
     ) {
         Row(
@@ -60,20 +61,20 @@ fun CollapsibleSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { expanded = !expanded }
-                .padding(horizontal = 16.dp, vertical = 14.dp)
+                .padding(horizontal = Dimens.SpaceLG, vertical = Dimens.SpaceMD)
         ) {
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = Neutral400,
+                contentDescription = if (expanded) "收起" else "展开",
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
-                    .size(20.dp)
+                    .size(Dimens.IconSizeSM2)
                     .rotate(rotationAngle)
             )
-            Spacer(Modifier.width(8.dp))
+            Spacer(Modifier.width(Dimens.SpaceSM))
             Text(
                 text = title,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
@@ -82,14 +83,14 @@ fun CollapsibleSection(
             if (!expanded) {
                 Text(
                     text = "点击展开",
-                    color = Primary300,
+                    color = MaterialTheme.colorScheme.primary,
                     fontSize = 12.sp
                 )
             }
         }
 
         if (expanded) {
-            Column(modifier = Modifier.padding(bottom = 8.dp)) {
+            Column(modifier = Modifier.padding(bottom = Dimens.SpaceSM)) {
                 content()
             }
         }

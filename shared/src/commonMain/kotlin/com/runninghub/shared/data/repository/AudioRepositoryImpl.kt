@@ -2,7 +2,6 @@ package com.runninghub.shared.data.repository
 
 import com.runninghub.shared.data.remote.api.AudioApi
 import com.runninghub.shared.data.remote.dto.MiniMaxAudioRequestDto
-import com.runninghub.shared.data.remote.dto.TaskQueryRequestDto
 import com.runninghub.shared.domain.model.*
 import com.runninghub.shared.domain.repository.AudioRepository
 import kotlinx.coroutines.delay
@@ -39,7 +38,7 @@ class AudioRepositoryImpl(
             val maxAttempts = 60
 
             while (attempts < maxAttempts) {
-                val queryResponse = audioApi.queryTask(TaskQueryRequestDto(taskId))
+                val queryResponse = audioApi.queryTask(taskId)
 
                 when (queryResponse.status) {
                     "SUCCESS" -> {
@@ -69,7 +68,7 @@ class AudioRepositoryImpl(
     }
 
     override suspend fun queryTask(taskId: String): Result<AudioTaskResult> = runCatching {
-        val response = audioApi.queryTask(TaskQueryRequestDto(taskId))
+        val response = audioApi.queryTask(taskId)
         AudioTaskResult(
             taskId = response.taskId,
             status = response.status,

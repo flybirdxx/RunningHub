@@ -21,9 +21,9 @@ class AudioApi(private val client: HttpClient) {
             setBody(request)
         }.body()
 
-    suspend fun queryTask(request: TaskQueryRequestDto): TaskQueryResultDto =
-        client.post("${BASE_URL}openapi/v2/query") {
-            contentType(ContentType.Application.Json)
-            setBody(request)
+    // Uses GET with query params — consistent with QuickCreateApi.queryTask
+    suspend fun queryTask(taskId: String): TaskQueryResultDto =
+        client.get("${BASE_URL}openapi/v2/query") {
+            parameter("taskId", taskId)
         }.body()
 }

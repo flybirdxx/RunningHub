@@ -5,8 +5,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,8 +15,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -53,6 +59,9 @@ import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.feature.detail.AppDetailScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
+import com.runninghub.app.ui.theme.WindowSizeClass
+import com.runninghub.app.ui.theme.adaptiveGridColumns
+import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.shared.domain.model.Tag
 
 class SearchVoyagerScreen : Screen {
@@ -62,6 +71,8 @@ class SearchVoyagerScreen : Screen {
         val navigator = LocalNavigator.currentOrThrow
         val screenModel = koinScreenModel<SearchScreenModel>()
         val uiState by screenModel.uiState.collectAsState()
+
+        LaunchedEffect(Unit) { screenModel.loadHotTags() }
 
         SearchContent(
             uiState = uiState,
@@ -180,59 +191,114 @@ private fun SearchContent(
 
                 // Results list
                 else -> {
-                    LazyColumn(
-                        state = listState,
-                        contentPadding = PaddingValues(
-                            horizontal = Dimens.SpaceLG,
-                            vertical = Dimens.SpaceSM,
-                        ),
-                        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
-                        modifier = Modifier.fillMaxSize(),
-                    ) {
-                        items(
-                            items = uiState.results,
-                            key = { it.id },
-                        ) { app ->
-                            AppCard(
-                                title = app.title,
-                                imageUrl = app.coverUrl ?: app.thumbnailUrl,
-                                authorName = app.author?.name,
-                                authorAvatar = app.author?.avatar,
-                                likeCount = app.likeCount,
-                                useCount = app.useCount,
-                                onClick = { onAppClick(app.id) },
-                            )
-                        }
+                    val sizeClass = rememberWindowSizeClass()
+                    if (sizeClass >= WindowSizeClass.Medium) {
+                        // Medium+: grid layout
+                        val columns = adaptiveGridColumns(sizeClass)
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(columns),
+                            contentPadding = PaddingValues(
+                                horizontal = Dimens.SpaceLG,
+                                vertical = Dimens.SpaceSM,
+                            ),
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            items(uiState.results, key = { it.id }) { app ->
+                                AppCard(
+                                    title = app.title,
+                                    imageUrl = app.coverUrl ?: app.thumbnailUrl,
+                                    authorName = app.author?.name,
+                                    authorAvatar = app.author?.avatar,
+                                    likeCount = app.likeCount,
+                                    useCount = app.useCount,
+                                    onClick = { onAppClick(app.id) },
+                                )
+                            }
 
-                        // Load more indicator
-                        if (uiState.isSearching && uiState.results.isNotEmpty()) {
-                            item(key = "search_loading_more") {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(Dimens.SpaceLG),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(Dimens.IconSizeMD),
-                                        color = MaterialTheme.colorScheme.primary,
-                                        strokeWidth = 2.dp,
+                            if (uiState.isSearching && uiState.results.isNotEmpty()) {
+                                item(key = "search_loading_more", span = { GridItemSpan(maxLineSpan) }) {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(Dimens.SpaceLG),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(Dimens.IconSizeMD),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            strokeWidth = 2.dp,
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (!uiState.hasMore && uiState.results.isNotEmpty()) {
+                                item(key = "search_end", span = { GridItemSpan(maxLineSpan) }) {
+                                    Text(
+                                        text = "没有更多了",
+                                        modifier = Modifier.fillMaxWidth().padding(Dimens.SpaceLG),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
                                 }
                             }
                         }
-
-                        if (!uiState.hasMore && uiState.results.isNotEmpty()) {
-                            item(key = "search_end") {
-                                Text(
-                                    text = "没有更多了",
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(Dimens.SpaceLG),
-                                    textAlign = TextAlign.Center,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    } else {
+                        // Compact: list layout (unchanged)
+                        LazyColumn(
+                            state = listState,
+                            contentPadding = PaddingValues(
+                                horizontal = Dimens.SpaceLG,
+                                vertical = Dimens.SpaceSM,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            items(
+                                items = uiState.results,
+                                key = { it.id },
+                            ) { app ->
+                                AppCard(
+                                    title = app.title,
+                                    imageUrl = app.coverUrl ?: app.thumbnailUrl,
+                                    authorName = app.author?.name,
+                                    authorAvatar = app.author?.avatar,
+                                    likeCount = app.likeCount,
+                                    useCount = app.useCount,
+                                    onClick = { onAppClick(app.id) },
                                 )
+                            }
+
+                            if (uiState.isSearching && uiState.results.isNotEmpty()) {
+                                item(key = "search_loading_more") {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(Dimens.SpaceLG),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(Dimens.IconSizeMD),
+                                            color = MaterialTheme.colorScheme.primary,
+                                            strokeWidth = 2.dp,
+                                        )
+                                    }
+                                }
+                            }
+
+                            if (!uiState.hasMore && uiState.results.isNotEmpty()) {
+                                item(key = "search_end") {
+                                    Text(
+                                        text = "没有更多了",
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(Dimens.SpaceLG),
+                                        textAlign = TextAlign.Center,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
                             }
                         }
                     }
@@ -265,7 +331,7 @@ private fun HotTagsSection(
         ) {
             Icon(
                 imageVector = Icons.Default.LocalFireDepartment,
-                contentDescription = null,
+                contentDescription = "热门",
                 tint = extColors.hotBadge,
                 modifier = Modifier.size(Dimens.IconSizeMD),
             )
@@ -279,9 +345,9 @@ private fun HotTagsSection(
 
         Spacer(Modifier.height(Dimens.SpaceMD))
 
-        FlowRow(
+        Row(
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
-            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
         ) {
             tags.forEach { tag ->
                 SuggestionChip(

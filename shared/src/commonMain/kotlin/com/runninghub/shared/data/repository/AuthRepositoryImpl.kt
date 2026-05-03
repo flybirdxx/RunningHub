@@ -2,7 +2,10 @@ package com.runninghub.shared.data.repository
 
 import com.runninghub.shared.data.remote.api.RunningHubApi
 import com.runninghub.shared.data.remote.dto.PwdLoginRequest
+import com.runninghub.shared.data.remote.dto.SmsCodeRequest
+import com.runninghub.shared.data.remote.dto.SmsLoginRequest
 import com.runninghub.shared.data.remote.dto.toDomain
+import com.runninghub.shared.di.SessionExpiredHandler
 import com.runninghub.shared.domain.model.User
 import com.runninghub.shared.domain.repository.AuthRepository
 import com.runninghub.shared.domain.repository.SettingsRepository
@@ -21,19 +24,38 @@ class AuthRepositoryImpl(
         val tokenData = response.data ?: throw IllegalStateException("Empty login response")
         check(tokenData.accessToken.isNotEmpty()) { "No access token received" }
 
-        settings.setAuthToken(tokenData.accessToken)
-        settings.setRefreshToken(tokenData.refreshToken)
-
-        val userId = extractUserIdFromJwt(tokenData.accessToken)
-        val userResponse = api.getUserInfoWithToken(tokenData.accessToken, userId)
-        check(userResponse.code == 0) { userResponse.msg.ifEmpty { "Failed to get user info" } }
-
-        val user = userResponse.data.toDomain()
-        user.apiKey?.let { settings.setApiKey(it) }
-        user
+        persistTokens(tokenData)
+        fetchAndCacheUser(tokenData.accessToken)
     }
 
+    override suspend fun sendSmsCode(phone: String): Result<Unit> = runCatching {
+        val response = try {
+            api.sendSmsCode(SmsCodeRequest(mobile = phone))
+        } catch (e: Exception) {
+            throw RuntimeException(mapNetworkError(e))
+        }
+        if (response.code != 0) throw mapSmsError(response.msg, response.code)
+    }
+
+    override suspend fun smsLogin(phone: String, code: String): Result<User> = runCatching {
+        val response = try {
+            api.smsLogin(SmsLoginRequest(mobile = phone, code = code))
+        } catch (e: Exception) {
+            throw SmsError.Network(mapNetworkError(e))
+        }
+        if (response.code != 0) throw mapSmsError(response.msg, response.code)
+
+        val tokenData = response.data ?: throw IllegalStateException("Empty login response")
+        check(tokenData.accessToken.isNotEmpty()) { "No access token received" }
+
+        persistTokens(tokenData)
+        fetchAndCacheUser(tokenData.accessToken)
+    }
+
+    private var isLoggingOut = false
+
     override suspend fun logout() {
+        isLoggingOut = true  // prevent 401 interceptor from triggering refresh during logout
         try {
             settings.getAuthToken()?.let { api.logout(it) }
         } catch (_: Exception) {
@@ -43,6 +65,8 @@ class AuthRepositoryImpl(
         settings.clearRefreshToken()
         settings.clearCookie()
         settings.clearApiKey()
+        settings.clearLastKnownCoins()
+        isLoggingOut = false
     }
 
     override suspend fun isLoggedIn(): Boolean = !settings.getAuthToken().isNullOrEmpty()
@@ -54,16 +78,27 @@ class AuthRepositoryImpl(
         val refreshToken = settings.getRefreshToken()
             ?: throw IllegalStateException("No refresh token available")
 
-        val response = api.tokenRefresh(refreshToken)
-        check(response.code == 0) { response.msg.ifEmpty { "Token refresh failed" } }
-
-        val tokenData = response.data ?: throw IllegalStateException("Empty refresh response")
-        check(tokenData.accessToken.isNotEmpty()) { "No access token received" }
-
-        settings.setAuthToken(tokenData.accessToken)
-        if (tokenData.refreshToken.isNotEmpty()) {
-            settings.setRefreshToken(tokenData.refreshToken)
+        val response = try {
+            api.tokenRefresh(refreshToken)
+        } catch (e: Exception) {
+            SessionExpiredHandler.expire()
+            throw RuntimeException(mapNetworkError(e))
         }
+        check(response.code == 0) {
+            SessionExpiredHandler.expire()
+            response.msg.ifEmpty { "Token refresh failed" }
+        }
+
+        val tokenData = response.data ?: run {
+            SessionExpiredHandler.expire()
+            throw IllegalStateException("Empty refresh response")
+        }
+        check(tokenData.accessToken.isNotEmpty()) {
+            SessionExpiredHandler.expire()
+            "No access token received"
+        }
+
+        persistTokens(tokenData)
         tokenData.accessToken
     }
 
@@ -72,6 +107,50 @@ class AuthRepositoryImpl(
     override suspend fun getCurrentUserId(): String? {
         val token = settings.getAuthToken() ?: return null
         return extractUserIdFromJwt(token).ifEmpty { null }
+    }
+
+    // =========================================================================
+    // Private helpers
+    // =========================================================================
+
+    private suspend fun persistTokens(tokenData: com.runninghub.shared.data.remote.dto.LoginTokenData) {
+        settings.setAuthToken(tokenData.accessToken)
+        settings.setRefreshToken(tokenData.refreshToken)
+    }
+
+    private suspend fun fetchAndCacheUser(accessToken: String): User {
+        val userId = extractUserIdFromJwt(accessToken)
+        val userResponse = api.getUserInfoWithToken(accessToken, userId)
+        check(userResponse.code == 0) { userResponse.msg.ifEmpty { "Failed to get user info" } }
+
+        val user = userResponse.data.toDomain()
+        user.apiKey?.let { settings.setApiKey(it) }
+        return user
+    }
+
+    private fun mapSmsError(msg: String, code: Int): SmsError {
+        val upper = msg.uppercase()
+        return when {
+            upper.contains("SMS_CODE_EXPIRED") -> SmsError.CodeExpired()
+            upper.contains("SMS_CODE_INVALID") -> SmsError.WrongCode()
+            upper.contains("ACCOUNT_NOT_EXIST") -> SmsError.AccountNotFound()
+            upper.contains("SMS_SEND_TOO_FREQUENT") -> SmsError.RateLimited()
+            upper.contains("SMS_DAILY_LIMIT") -> SmsError.DailyLimit()
+            msg.isNotEmpty() -> SmsError.Unknown(msg)
+            else -> SmsError.Unknown("登录失败 (code=$code)")
+        }
+    }
+
+    private fun mapNetworkError(e: Throwable): String {
+        val msg = e.message?.lowercase() ?: ""
+        return when {
+            msg.contains("unable to resolve host")
+                || msg.contains("unknownhost")
+                || msg.contains("network")
+                || msg.contains("connect")
+                || msg.contains("timeout") -> "网络连接失败，请检查网络后重试"
+            else -> "登录失败，请稍后重试"
+        }
     }
 
     private fun extractUserIdFromJwt(jwt: String): String {

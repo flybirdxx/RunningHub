@@ -102,14 +102,14 @@ fun InputNode.toDto(): InputNodeDto = InputNodeDto(
     descriptionEn = descriptionEn
 )
 
-fun TagDto.toDomain(): Tag = Tag(
+fun TagDto.toDomain(maxDepth: Int = 10): Tag = Tag(
     id = id,
     name = name,
     level = level,
     parentId = parentId,
     rang = rang,
     enable = enable,
-    childTags = childTags?.map { it.toDomain() }
+    childTags = if (maxDepth > 0) childTags?.map { it.toDomain(maxDepth - 1) } else null
 )
 
 fun AccountStatusDto.toDomain(): AccountStatus = AccountStatus(

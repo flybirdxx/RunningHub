@@ -37,10 +37,8 @@ private fun pollTaskStatus(
     var attempts = 0
     val maxAttempts = 120
     while (attempts < maxAttempts) {
-        delay(2000)
-        attempts++
-
         val queryResponse = api.queryTask(taskId)
+        attempts++
         val results = mapResults(queryResponse.results)
 
         val taskStatus: QuickCreateTaskStatus = when (queryResponse.status) {
@@ -55,6 +53,7 @@ private fun pollTaskStatus(
         if (taskStatus is QuickCreateTaskStatus.Success || taskStatus is QuickCreateTaskStatus.Failed) {
             return@flow
         }
+        delay(2000)
     }
     emit(QuickCreateTaskStatus.Error("任务超时"))
 }
@@ -71,6 +70,7 @@ class QuickCreateRepositoryImpl(
 
         try {
             val hasRef = !request.referenceImageUri.isNullOrBlank()
+            val refImageUrl = request.referenceImageUri ?: ""  // validated non-null reference, replaces all !! usage
             val model = ImageModel.entries.find { it.modelKey == request.model }
                 ?: ImageModel.ALL_POWER_IMAGE_G_2_OFFICIAL
 
@@ -83,7 +83,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.imageG2ImageToImage(
                             AllPowerImageG2ImageToImageRequestDto(
                                 prompt = request.prompt,
-                                imageUrls = listOf(request.referenceImageUri!!),
+                                imageUrls = listOf(refImageUrl),
                                 aspectRatio = request.aspectRatio,
                                 resolution = request.resolution,
                                 quality = request.quality,
@@ -107,7 +107,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.imageG2CheapImageToImage(
                             AllPowerImageG2ImageToImageRequestDto(
                                 prompt = request.prompt,
-                                imageUrls = listOf(request.referenceImageUri!!),
+                                imageUrls = listOf(refImageUrl),
                                 aspectRatio = request.aspectRatio,
                                 resolution = request.resolution,
                                 quality = request.quality,
@@ -131,7 +131,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.imageXImageToImage(
                             AllPowerImageXImageToImageRequestDto(
                                 prompt = request.prompt,
-                                imageUrls = listOf(request.referenceImageUri!!),
+                                imageUrls = listOf(refImageUrl),
                                 aspectRatio = request.aspectRatio,
                             )
                         )
@@ -152,7 +152,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.imageXCheapImageToImage(
                             AllPowerImageXImageToImageRequestDto(
                                 prompt = request.prompt,
-                                imageUrls = listOf(request.referenceImageUri!!),
+                                imageUrls = listOf(refImageUrl),
                                 aspectRatio = request.aspectRatio,
                             )
                         )
@@ -173,7 +173,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.imageProImageToImage(
                             AllPowerImageV2ProImageToImageRequestDto(
                                 prompt = request.prompt,
-                                imageUrls = listOf(request.referenceImageUri!!),
+                                imageUrls = listOf(refImageUrl),
                                 aspectRatio = request.aspectRatio,
                                 resolution = request.resolution,
                             )
@@ -195,7 +195,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.imageProCheapImageToImage(
                             AllPowerImageV2ProImageToImageRequestDto(
                                 prompt = request.prompt,
-                                imageUrls = listOf(request.referenceImageUri!!),
+                                imageUrls = listOf(refImageUrl),
                                 aspectRatio = request.aspectRatio,
                                 resolution = request.resolution,
                             )
@@ -217,7 +217,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.imageV2ImageToImage(
                             AllPowerImageV2ProImageToImageRequestDto(
                                 prompt = request.prompt,
-                                imageUrls = listOf(request.referenceImageUri!!),
+                                imageUrls = listOf(refImageUrl),
                                 aspectRatio = request.aspectRatio,
                                 resolution = request.resolution,
                             )
@@ -239,7 +239,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.imageV2CheapImageToImage(
                             AllPowerImageV2ProImageToImageRequestDto(
                                 prompt = request.prompt,
-                                imageUrls = listOf(request.referenceImageUri!!),
+                                imageUrls = listOf(refImageUrl),
                                 aspectRatio = request.aspectRatio,
                                 resolution = request.resolution,
                             )
@@ -271,7 +271,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.imageSeedream4ImageToImage(
                             SeedreamV4ImageToImageRequestDto(
                                 prompt = request.prompt,
-                                imageUrls = listOf(request.referenceImageUri!!),
+                                imageUrls = listOf(refImageUrl),
                                 resolution = request.resolution,
                             )
                         )
@@ -308,6 +308,7 @@ class QuickCreateRepositoryImpl(
 
         try {
             val hasImageRef = !request.referenceImageUri.isNullOrBlank()
+            val refImageUrl = request.referenceImageUri ?: ""  // validated non-null reference, replaces all !! usage
             val hasFirstFrame = !request.firstFrameImageUri.isNullOrBlank()
             val hasLastFrame = !request.lastFrameImageUri.isNullOrBlank()
 
@@ -349,7 +350,7 @@ class QuickCreateRepositoryImpl(
                                 prompt = request.prompt,
                                 resolution = request.resolution,
                                 duration = request.duration,
-                                firstFrameUrl = request.firstFrameImageUri ?: request.referenceImageUri!!,
+                                firstFrameUrl = request.firstFrameImageUri ?: refImageUrl,
                                 lastFrameUrl = request.lastFrameImageUri,
                                 generateAudio = request.generateAudio,
                                 ratio = request.aspectRatio,
@@ -376,7 +377,7 @@ class QuickCreateRepositoryImpl(
                                 prompt = request.prompt,
                                 resolution = request.resolution,
                                 duration = request.duration,
-                                firstFrameUrl = request.firstFrameImageUri ?: request.referenceImageUri!!,
+                                firstFrameUrl = request.firstFrameImageUri ?: refImageUrl,
                                 lastFrameUrl = request.lastFrameImageUri,
                                 generateAudio = request.generateAudio,
                                 ratio = request.aspectRatio,
@@ -400,7 +401,7 @@ class QuickCreateRepositoryImpl(
                     quickCreateApi.klingO34KImageToVideo(
                         KlingO34KImageToVideoRequestDto(
                             prompt = request.prompt,
-                            firstImageUrl = request.firstFrameImageUri ?: request.referenceImageUri!!,
+                            firstImageUrl = request.firstFrameImageUri ?: refImageUrl,
                             lastImageUrl = request.lastFrameImageUri,
                             duration = request.duration,
                             sound = request.generateAudio,
@@ -414,7 +415,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.klingO3ProImageToVideo(
                             KlingO3ProImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                firstImageUrl = request.firstFrameImageUri ?: request.referenceImageUri!!,
+                                firstImageUrl = request.firstFrameImageUri ?: refImageUrl,
                                 lastImageUrl = request.lastFrameImageUri,
                                 resolution = request.resolution,
                                 duration = request.duration,
@@ -441,7 +442,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.klingO3StdImageToVideo(
                             KlingO3StdImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                firstImageUrl = request.firstFrameImageUri ?: request.referenceImageUri!!,
+                                firstImageUrl = request.firstFrameImageUri ?: refImageUrl,
                                 lastImageUrl = request.lastFrameImageUri,
                                 resolution = request.resolution,
                                 duration = request.duration,
@@ -468,7 +469,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.klingO1ImageToVideo(
                             KlingO1ImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                firstImageUrl = request.referenceImageUri!!,
+                                firstImageUrl = refImageUrl,
                                 resolution = request.resolution,
                                 duration = request.duration,
                                 aspectRatio = request.aspectRatio,
@@ -525,7 +526,7 @@ class QuickCreateRepositoryImpl(
                 VideoModel.WAN_2_6 -> {
                     quickCreateApi.wan26ImageToVideo(
                         Wan26ImageToVideoRequestDto(
-                            firstImageUrl = request.referenceImageUri!!,
+                            firstImageUrl = refImageUrl,
                             prompt = request.prompt,
                             resolution = request.resolution,
                             duration = request.duration,
@@ -744,7 +745,7 @@ class QuickCreateRepositoryImpl(
                         AllPowerVideoXCheapImageToVideoRequestDto(
                             prompt = request.prompt,
                             aspectRatio = request.aspectRatio,
-                            imageUrls = images.ifEmpty { listOf(request.referenceImageUri!!) },
+                            imageUrls = images.ifEmpty { listOf(refImageUrl) },
                             resolution = request.resolution,
                             duration = request.duration,
                         )
@@ -757,7 +758,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.viduQ3ProImageToVideo(
                             ViduQ3ImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                firstImageUrl = request.firstFrameImageUri ?: request.referenceImageUri!!,
+                                firstImageUrl = request.firstFrameImageUri ?: refImageUrl,
                                 lastImageUrl = request.lastFrameImageUri,
                                 style = request.style,
                                 aspectRatio = request.aspectRatio,
@@ -786,7 +787,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.viduQ3TurboImageToVideo(
                             ViduQ3ImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                firstImageUrl = request.firstFrameImageUri ?: request.referenceImageUri!!,
+                                firstImageUrl = request.firstFrameImageUri ?: refImageUrl,
                                 lastImageUrl = request.lastFrameImageUri,
                                 style = request.style,
                                 aspectRatio = request.aspectRatio,

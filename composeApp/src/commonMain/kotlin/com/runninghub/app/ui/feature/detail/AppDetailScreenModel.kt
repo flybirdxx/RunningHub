@@ -209,7 +209,9 @@ class AppDetailScreenModel(
     }
 
     fun runTask() {
-        val detail = _uiState.value.detail ?: return
+        val state = _uiState.value
+        if (state.isRunningTask) return  // guard against concurrent submissions
+        val detail = state.detail ?: return
         screenModelScope.launch {
             _uiState.update {
                 it.copy(

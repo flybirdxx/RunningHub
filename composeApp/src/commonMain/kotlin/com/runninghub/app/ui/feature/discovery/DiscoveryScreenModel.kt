@@ -49,11 +49,8 @@ class DiscoveryScreenModel(
 
     private var loadMoreJob: Job? = null
 
-    init {
-        loadInitialData()
-    }
-
-    private fun loadInitialData() {
+    // Called from Screen via LaunchedEffect(Unit) to avoid suspend-in-init anti-pattern
+    fun loadInitialData() {
         screenModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {

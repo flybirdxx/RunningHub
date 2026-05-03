@@ -35,12 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.ErrorDark
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Primary300
-import com.runninghub.app.ui.theme.Primary500
-import com.runninghub.app.ui.theme.SuccessDark
+import androidx.compose.material3.MaterialTheme
 
 @Composable
 fun ImageUploadButton(
@@ -62,13 +57,13 @@ fun ImageUploadButton(
             .fillMaxWidth()
             .height(120.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurfaceVariant)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .border(
                 width = 1.5.dp,
                 color = when {
-                    isError -> ErrorDark.copy(alpha = 0.6f)
-                    hasFile -> SuccessDark.copy(alpha = 0.5f)
-                    else -> Neutral400.copy(alpha = 0.3f)
+                    isError -> MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
+                    hasFile -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
+                    else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 },
                 shape = RoundedCornerShape(12.dp)
             )
@@ -85,13 +80,13 @@ fun ImageUploadButton(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(32.dp),
-                        color = Primary300,
+                        color = MaterialTheme.colorScheme.primary,
                         strokeWidth = 2.5.dp
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
                         text = "上传中... ${(uploadProgress * 100).toInt()}%",
-                        color = Neutral400,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp
                     )
                     Spacer(Modifier.height(8.dp))
@@ -101,8 +96,8 @@ fun ImageUploadButton(
                             .fillMaxWidth()
                             .height(3.dp)
                             .clip(RoundedCornerShape(2.dp)),
-                        color = Primary300,
-                        trackColor = Neutral400.copy(alpha = 0.2f)
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.surfaceVariant
                     )
                 }
             }
@@ -134,15 +129,13 @@ fun ImageUploadButton(
                         ) {
                             Text(
                                 text = if (remoteUrl != null) "已上传" else "本地预览",
-                                color = if (remoteUrl != null) SuccessDark else Primary300,
+                                color = if (remoteUrl != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium
                             )
                         }
-                        IconButton(
-                            onClick = onRemoveFile,
-                            modifier = Modifier.size(24.dp)
-                        ) {
+                        // Touch target: 44dp via default IconButton sizing (no size restriction)
+                        IconButton(onClick = onRemoveFile) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "移除",
@@ -178,8 +171,8 @@ fun ImageUploadButton(
                 ) {
                     Icon(
                         imageVector = if (isError) Icons.Default.Close else Icons.Default.Add,
-                        contentDescription = null,
-                        tint = if (isError) ErrorDark else Neutral400,
+                        contentDescription = if (isError) "重试上传" else "上传图片",
+                        tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(Modifier.height(6.dp))
@@ -188,7 +181,7 @@ fun ImageUploadButton(
                             isError -> "上传失败，点击重试"
                             else -> "点击上传图片"
                         },
-                        color = if (isError) ErrorDark else Neutral400,
+                        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 13.sp
                     )
                 }

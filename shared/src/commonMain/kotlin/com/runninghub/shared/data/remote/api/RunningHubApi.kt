@@ -27,6 +27,18 @@ class RunningHubApi(private val client: HttpClient) {
             setBody(emptyMap<String, String>())
         }.body()
 
+    suspend fun sendSmsCode(request: SmsCodeRequest): BaseResponseDto<Any?> =
+        client.post("${UC_BASE_URL}sendSmsCode") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    suspend fun smsLogin(request: SmsLoginRequest): BaseResponseDto<LoginTokenData?> =
+        client.post("${UC_BASE_URL}smsLogin") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
     suspend fun logout(accessToken: String): BaseResponseDto<Any?> =
         client.post("${UC_BASE_URL}logout") {
             contentType(ContentType.Application.Json)
@@ -75,9 +87,10 @@ class RunningHubApi(private val client: HttpClient) {
         }.body()
 
     suspend fun getApiCallDemo(apiKey: String, webappId: String): BaseResponseDto<WebAppDetailDto> =
-        client.get("${BASE_URL}webapp/apiCallDemo") {
-            parameter("apiKey", apiKey)
-            parameter("webappId", webappId)
+        client.post("${BASE_URL}webapp/apiCallDemo") {
+            contentType(ContentType.Application.Json)
+            header("X-API-Key", apiKey)
+            setBody(mapOf("webappId" to webappId))
         }.body()
 
     suspend fun getWebAppDetail(params: Map<String, String>): BaseResponseDto<WebAppDetailDto> =

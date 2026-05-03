@@ -77,15 +77,6 @@ import com.runninghub.shared.domain.model.TagSimple
 import com.runninghub.shared.domain.model.WebApp
 import kotlinx.coroutines.delay
 
-private val DarkBg = Color(0xFF0B0F1A)
-private val CardBg = Color(0xFF141929)
-private val PrimaryText = Color.White
-private val SecondaryText = Color(0xFF94A3B8)
-private val DimText = Color(0xFF64748B)
-private val AccentPurple = Color(0xFF6C5CE7)
-private val TagUnselectedBg = Color(0xFF1E2336)
-private val SearchBarBg = Color(0xFF141929)
-
 class DiscoveryVoyagerScreen : Screen {
 
     @Composable
@@ -93,6 +84,8 @@ class DiscoveryVoyagerScreen : Screen {
         val navigator = LocalNavigator.currentOrThrow
         val screenModel = koinScreenModel<DiscoveryScreenModel>()
         val uiState by screenModel.uiState.collectAsState()
+
+        LaunchedEffect(Unit) { screenModel.loadInitialData() }
 
         DiscoveryContent(
             uiState = uiState,
@@ -119,7 +112,7 @@ private fun DiscoveryContent(
     onLoadMore: () -> Unit = {},
 ) {
     Scaffold(
-        containerColor = DarkBg,
+        containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         modifier = modifier,
     ) { padding ->
@@ -146,7 +139,7 @@ private fun DiscoveryContent(
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
             LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
+                columns = GridCells.Adaptive(minSize = 180.dp),
                 contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -191,7 +184,7 @@ private fun DiscoveryContent(
                             modifier = Modifier.fillMaxWidth().height(300.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("暂无应用", color = SecondaryText, fontSize = 14.sp)
+                            Text("暂无应用", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
                 } else {
@@ -220,7 +213,7 @@ private fun DiscoveryContent(
                                 ) {
                                     CircularProgressIndicator(
                                         modifier = Modifier.size(24.dp),
-                                        color = AccentPurple,
+                                        color = MaterialTheme.colorScheme.primary,
                                         strokeWidth = 2.dp,
                                     )
                                 }
@@ -230,8 +223,8 @@ private fun DiscoveryContent(
                                     text = "没有更多了",
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                                     textAlign = TextAlign.Center,
-                                    fontSize = 12.sp,
-                                    color = DimText,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.outline,
                                 )
                             }
                         }
@@ -253,20 +246,20 @@ private fun SearchBar(
         modifier = modifier
             .fillMaxWidth()
             .padding(top = 12.dp, bottom = 4.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(SearchBarBg)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick)
             .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = Icons.Default.Search,
-                contentDescription = null,
+                contentDescription = "搜索",
                 modifier = Modifier.size(20.dp),
-                tint = DimText,
+                tint = MaterialTheme.colorScheme.outline,
             )
             Spacer(Modifier.width(10.dp))
-            Text("搜索AI应用", fontSize = 14.sp, color = DimText)
+            Text("搜索AI应用", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
         }
     }
 }
@@ -287,9 +280,8 @@ private fun FeaturedAppsSection(
     Column(modifier = modifier) {
         Text(
             text = "推荐应用",
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = PrimaryText,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
         )
 
@@ -313,7 +305,7 @@ private fun FeaturedAppsSection(
                         .padding(bottom = 8.dp)
                         .background(
                             color = Color.Black.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                         )
                         .padding(horizontal = 10.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -325,7 +317,7 @@ private fun FeaturedAppsSection(
                                 .size(if (index == pagerState.currentPage) 8.dp else 6.dp)
                                 .clip(CircleShape)
                                 .background(
-                                    if (index == pagerState.currentPage) AccentPurple else Color.White.copy(alpha = 0.4f)
+                                    if (index == pagerState.currentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                                 ),
                         )
                     }
@@ -334,8 +326,9 @@ private fun FeaturedAppsSection(
         }
     }
 
-    LaunchedEffect(banners.size) {
-        if (banners.size <= 1) return@LaunchedEffect
+    var isUserInteracting by remember { mutableStateOf(false) }
+    LaunchedEffect(banners.size, isUserInteracting) {
+        if (banners.size <= 1 || isUserInteracting) return@LaunchedEffect
         while (true) {
             delay(4000)
             val nextPage = (pagerState.currentPage + 1) % banners.size
@@ -354,8 +347,8 @@ private fun FeaturedAppBanner(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardBg)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick),
     ) {
         val displayUrl = app.thumbnailUrl ?: app.coverUrl
@@ -376,14 +369,14 @@ private fun FeaturedAppBanner(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color(0xFF2A2A3E)),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                 )
             }
         } else {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color(0xFF2A2A3E)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
             )
         }
 
@@ -408,9 +401,8 @@ private fun FeaturedAppBanner(
         ) {
             Text(
                 text = app.title.trim(),
-                fontSize = 15.sp,
-                fontWeight = FontWeight.Bold,
-                color = PrimaryText,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -421,15 +413,15 @@ private fun FeaturedAppBanner(
                         Box(
                             modifier = Modifier
                                 .background(
-                                    color = AccentPurple.copy(alpha = 0.6f),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
                                     shape = RoundedCornerShape(4.dp),
                                 )
                                 .padding(horizontal = 6.dp, vertical = 2.dp),
                         ) {
                             Text(
                                 text = tag.name,
-                                fontSize = 10.sp,
-                                color = Color.White,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 maxLines = 1,
                             )
                         }
@@ -479,8 +471,8 @@ private fun CategoryTag(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
-    val bgColor = if (selected) AccentPurple else TagUnselectedBg
-    val textColor = if (selected) Color.White else SecondaryText
+    val bgColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val textColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
 
     Box(
         modifier = modifier
@@ -492,7 +484,7 @@ private fun CategoryTag(
     ) {
         Text(
             text = label,
-            fontSize = 12.sp,
+            style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             color = textColor,
         )
@@ -512,7 +504,7 @@ private fun SortRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("全部应用", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = PrimaryText)
+        Text("全部应用", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
 
         Box {
             Row(
@@ -522,12 +514,12 @@ private fun SortRow(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(selectedSort.label, fontSize = 12.sp, color = SecondaryText)
+                Text(selectedSort.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Icon(
                     Icons.Default.KeyboardArrowDown,
-                    contentDescription = null,
+                    contentDescription = "排序",
                     modifier = Modifier.size(16.dp),
-                    tint = SecondaryText,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             DropdownMenu(
@@ -536,7 +528,7 @@ private fun SortRow(
             ) {
                 SortOption.entries.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option.label, fontSize = 13.sp) },
+                        text = { Text(option.label, style = MaterialTheme.typography.bodyMedium) },
                         onClick = {
                             onSortSelected(option)
                             expanded = false
@@ -562,8 +554,8 @@ private fun AppGridCard(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(3f / 4f)
-            .clip(RoundedCornerShape(12.dp))
-            .background(CardBg)
+            .clip(RoundedCornerShape(14.dp))
+            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick),
     ) {
         when (app.coverMediaType) {
@@ -621,9 +613,8 @@ private fun AppGridCard(
         ) {
             Text(
                 text = app.title.trim(),
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
                 lineHeight = 15.sp,
@@ -634,15 +625,15 @@ private fun AppGridCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = app.author?.avatar,
-                    contentDescription = null,
+                    contentDescription = app.author?.name,
                     modifier = Modifier.size(14.dp).clip(CircleShape),
                     contentScale = ContentScale.Crop,
                 )
                 Spacer(Modifier.width(3.dp))
                 Text(
                     text = app.author?.name ?: "",
-                    fontSize = 9.sp,
-                    color = Color.White.copy(alpha = 0.8f),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
@@ -665,10 +656,10 @@ private fun FlowTagRow(tags: List<TagSimple>) {
             Text(
                 text = tag.name,
                 fontSize = 8.sp,
-                color = Color.White,
+                color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1,
                 modifier = Modifier
-                    .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(3.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), RoundedCornerShape(3.dp))
                     .padding(horizontal = 4.dp, vertical = 1.dp),
             )
         }
@@ -680,19 +671,20 @@ private fun StatChip(
     icon: ImageVector,
     count: String,
     modifier: Modifier = Modifier,
+    label: String = "统计",
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         Icon(
             imageVector = icon,
-            contentDescription = null,
+            contentDescription = label,
             modifier = Modifier.size(10.dp),
-            tint = Color.White.copy(alpha = 0.7f),
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
         )
         Spacer(Modifier.width(2.dp))
         Text(
             text = formatCount(count),
-            fontSize = 9.sp,
-            color = Color.White.copy(alpha = 0.7f),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
         )
     }
 }

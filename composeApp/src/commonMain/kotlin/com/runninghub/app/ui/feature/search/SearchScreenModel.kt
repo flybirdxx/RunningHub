@@ -35,11 +35,8 @@ class SearchScreenModel(
 
     private var searchJob: Job? = null
 
-    init {
-        loadHotTags()
-    }
-
-    private fun loadHotTags() {
+    // Called from Screen via LaunchedEffect(Unit) to avoid suspend-in-init anti-pattern
+    fun loadHotTags() {
         screenModelScope.launch {
             webAppRepository.getTagTree()
                 .onSuccess { tags ->

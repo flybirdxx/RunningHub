@@ -1,8 +1,10 @@
 package com.runninghub.app.ui.component
 
+import com.runninghub.app.ui.theme.Dimens
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -30,7 +32,7 @@ fun AppSearchBar(
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
-        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp),
+        modifier = modifier.fillMaxWidth().heightIn(min = Dimens.ButtonHeightLG),
         placeholder = {
             Text(
                 text = placeholder,
@@ -40,7 +42,7 @@ fun AppSearchBar(
         leadingIcon = {
             Icon(
                 imageVector = Icons.Rounded.Search,
-                contentDescription = null,
+                contentDescription = "搜索",
                 modifier = Modifier.size(24.dp),
             )
         },
@@ -54,10 +56,10 @@ fun AppSearchBar(
             null
         },
         singleLine = true,
-        shape = MaterialTheme.shapes.small,
+        shape = RoundedCornerShape(Dimens.RadiusMD),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+            focusedContainerColor = MaterialTheme.colorScheme.surface,
+            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
             focusedBorderColor = MaterialTheme.colorScheme.primary,
             unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
             cursorColor = MaterialTheme.colorScheme.primary,
