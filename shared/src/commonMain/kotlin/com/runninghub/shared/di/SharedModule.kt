@@ -93,7 +93,7 @@ val sharedModule = module {
 
             // RESPONSE interceptor: 401 → refresh → retry (deduped)
             val refreshClient = get<HttpClient>(named("refreshClient"))
-            client.responsePipeline.intercept(HttpResponsePipeline.ReceivePrior) {
+            client.responsePipeline.intercept(HttpResponsePipeline.State) {
                 val response = context.response
                 if (response.status == HttpStatusCode.Unauthorized) {
                     // Read token OUTSIDE the mutex so we can detect concurrent refreshes
