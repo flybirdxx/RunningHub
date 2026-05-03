@@ -33,8 +33,10 @@ class AuthRepositoryImpl(
         val response = try {
             api.sendSmsCode(SmsCodeRequest(mobile = phone))
         } catch (e: Exception) {
+            println("[sendSmsCode] Network error: ${e.message}")
             throw RuntimeException(mapNetworkError(e))
         }
+        println("[sendSmsCode] Server response: code=${response.code}, msg=${response.msg}")
         if (response.code != 0) throw mapSmsError(response.msg, response.code)
     }
 

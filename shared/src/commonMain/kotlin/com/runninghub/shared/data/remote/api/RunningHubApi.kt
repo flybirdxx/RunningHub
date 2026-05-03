@@ -6,6 +6,7 @@ import io.ktor.client.call.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
+import kotlinx.serialization.json.JsonObject
 
 class RunningHubApi(private val client: HttpClient) {
 
@@ -27,11 +28,14 @@ class RunningHubApi(private val client: HttpClient) {
             setBody(emptyMap<String, String>())
         }.body()
 
-    suspend fun sendSmsCode(request: SmsCodeRequest): BaseResponseDto<Any?> =
-        client.post("${UC_BASE_URL}sendSmsCode") {
+    suspend fun sendSmsCode(request: SmsCodeRequest): BaseResponseDto<JsonObject?> {
+        val response = client.post("${UC_BASE_URL}sendSmsCode") {
             contentType(ContentType.Application.Json)
             setBody(request)
-        }.body()
+        }
+        println("[sendSmsCode] HTTP ${response.status.value}")
+        return response.body()
+    }
 
     suspend fun smsLogin(request: SmsLoginRequest): BaseResponseDto<LoginTokenData?> =
         client.post("${UC_BASE_URL}smsLogin") {
@@ -39,7 +43,7 @@ class RunningHubApi(private val client: HttpClient) {
             setBody(request)
         }.body()
 
-    suspend fun logout(accessToken: String): BaseResponseDto<Any?> =
+    suspend fun logout(accessToken: String): BaseResponseDto<JsonObject?> =
         client.post("${UC_BASE_URL}logout") {
             contentType(ContentType.Application.Json)
             header("Authorization", "Bearer $accessToken")
