@@ -1,7 +1,9 @@
 package com.runninghub.app.ui.feature.discovery
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -11,12 +13,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -27,19 +35,20 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.outlined.PlayArrow
-import androidx.compose.material.icons.outlined.RemoveRedEye
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
@@ -59,6 +68,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
@@ -66,11 +76,19 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
+import com.runninghub.app.ui.component.AppBarLogo
+import com.runninghub.app.ui.component.AppCard
+import com.runninghub.app.ui.component.AppSearchBar
 import com.runninghub.app.ui.component.ErrorState
 import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.app.ui.feature.detail.AppDetailScreen
-import com.runninghub.app.ui.feature.search.SearchVoyagerScreen
+import com.runninghub.app.ui.theme.Dimens
+import com.runninghub.app.ui.theme.WindowSizeClass
+import com.runninghub.app.ui.theme.adaptiveAppBarHeight
+import com.runninghub.app.ui.theme.adaptiveGridColumns
+import com.runninghub.app.ui.theme.adaptiveGridSpacing
+import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.shared.domain.model.CoverMediaType
 import com.runninghub.shared.domain.model.Tag
 import com.runninghub.shared.domain.model.TagSimple
@@ -89,7 +107,11 @@ class DiscoveryVoyagerScreen : Screen {
 
         DiscoveryContent(
             uiState = uiState,
-            onSearchClick = { navigator.push(SearchVoyagerScreen()) },
+            onExpandSearch = screenModel::expandSearch,
+            onCollapseSearch = screenModel::collapseSearch,
+            onSearchQueryChange = screenModel::onSearchQueryChange,
+            onSearchSubmit = screenModel::searchSubmit,
+            onLoadMoreSearchResults = screenModel::loadMoreSearchResults,
             onAppClick = { appId -> navigator.push(AppDetailScreen(appId)) },
             onCategorySelected = screenModel::selectCategory,
             onSortSelected = screenModel::selectSort,
@@ -104,14 +126,85 @@ class DiscoveryVoyagerScreen : Screen {
 private fun DiscoveryContent(
     uiState: DiscoveryUiState,
     modifier: Modifier = Modifier,
-    onSearchClick: () -> Unit = {},
+    onExpandSearch: () -> Unit = {},
+    onCollapseSearch: () -> Unit = {},
+    onSearchQueryChange: (String) -> Unit = {},
+    onSearchSubmit: (String) -> Unit = {},
+    onLoadMoreSearchResults: () -> Unit = {},
     onAppClick: (String) -> Unit = {},
     onCategorySelected: (Int) -> Unit = {},
     onSortSelected: (SortOption) -> Unit = {},
     onRefresh: () -> Unit = {},
     onLoadMore: () -> Unit = {},
 ) {
+    val windowSizeClass = rememberWindowSizeClass()
+    val gridSpacing: Dp = adaptiveGridSpacing(windowSizeClass)
+    val appBarHeight = adaptiveAppBarHeight(windowSizeClass)
+    val borderColor = MaterialTheme.colorScheme.outlineVariant
+
     Scaffold(
+        topBar = {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 0.dp,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column {
+                    Spacer(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .windowInsetsTopHeight(WindowInsets.statusBars)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(appBarHeight)
+                            .padding(horizontal = Dimens.SpaceLG),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        // Logo (left side)
+                        AppBarLogo(
+                            assetPath = "logo_appbar.svg",
+                            modifier = Modifier
+                                .height(28.dp)
+                                .widthIn(max = 120.dp),
+                        )
+
+                        Spacer(Modifier.weight(1f))
+
+                        // Search / actions (right side)
+                        if (!uiState.isSearchExpanded) {
+                            IconButton(onClick = onExpandSearch) {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "搜索",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        } else {
+                            AppSearchBar(
+                                query = uiState.searchQuery,
+                                onQueryChange = onSearchQueryChange,
+                                onSearch = onSearchSubmit,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(onClick = onCollapseSearch) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "关闭",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                )
+                            }
+                        }
+                    }
+                    // Bottom border
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = borderColor,
+                    )
+                }
+            }
+        },
         containerColor = MaterialTheme.colorScheme.background,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
         modifier = modifier,
@@ -140,37 +233,51 @@ private fun DiscoveryContent(
         ) {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 180.dp),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                contentPadding = PaddingValues(
+                    start = padding.calculateStartPadding(LayoutDirection.Ltr),
+                    end = padding.calculateEndPadding(LayoutDirection.Ltr),
+                    top = gridSpacing,
+                    bottom = Dimens.Space3XL
+                ),
+                horizontalArrangement = Arrangement.spacedBy(gridSpacing),
+                verticalArrangement = Arrangement.spacedBy(gridSpacing),
                 modifier = Modifier.fillMaxSize(),
             ) {
-                item(key = "search_bar", span = { GridItemSpan(maxLineSpan) }) {
-                    SearchBar(onClick = onSearchClick)
-                }
-
-                if (uiState.banners.isNotEmpty()) {
-                    item(key = "featured_section", span = { GridItemSpan(maxLineSpan) }) {
-                        FeaturedAppsSection(
-                            banners = uiState.banners,
+                // ── Inline Search Results ──
+                if (uiState.isSearchExpanded) {
+                    item(key = "search_results", span = { GridItemSpan(maxLineSpan) }) {
+                        InlineSearchResults(
+                            uiState = uiState,
+                            windowSizeClass = windowSizeClass,
                             onAppClick = onAppClick,
+                            onLoadMore = onLoadMoreSearchResults,
                         )
                     }
-                }
+                } else {
+                    // ── Normal Discovery Content ──
+                    if (uiState.banners.isNotEmpty()) {
+                        item(key = "featured_section", span = { GridItemSpan(maxLineSpan) }) {
+                            FeaturedAppsSection(
+                                banners = uiState.banners,
+                                windowSizeClass = windowSizeClass,
+                                onAppClick = onAppClick,
+                            )
+                        }
+                    }
 
-                item(key = "categories", span = { GridItemSpan(maxLineSpan) }) {
-                    Column {
-                        CategoryTagsRow(
-                            categories = uiState.categories,
-                            selectedIndex = uiState.selectedCategoryIndex,
-                            onSelected = onCategorySelected,
-                        )
-                        SortRow(
-                            selectedSort = uiState.selectedSort,
-                            onSortSelected = onSortSelected,
-                        )
+                    item(key = "categories", span = { GridItemSpan(maxLineSpan) }) {
+                        Column {
+                            CategoryTagsRow(
+                                categories = uiState.categories,
+                                selectedIndex = uiState.selectedCategoryIndex,
+                                onSelected = onCategorySelected,
+                            )
+                            SortRow(
+                                selectedSort = uiState.selectedSort,
+                                onSortSelected = onSortSelected,
+                            )
+                        }
                     }
-                }
 
                 if (uiState.isLoadingApps) {
                     item(key = "content_loading", span = { GridItemSpan(maxLineSpan) }) {
@@ -230,41 +337,124 @@ private fun DiscoveryContent(
                         }
                     }
                 }
+                }
             }
         }
     }
 }
 
-// region SearchBar
+// region Inline Search Results
 
 @Composable
-private fun SearchBar(
+private fun InlineSearchResults(
+    uiState: DiscoveryUiState,
+    windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
+    onAppClick: (String) -> Unit = {},
+    onLoadMore: () -> Unit = {},
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 4.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "搜索",
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.outline,
-            )
-            Spacer(Modifier.width(10.dp))
-            Text("搜索AI应用", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+    val columns = adaptiveGridColumns(windowSizeClass)
+
+    Column(modifier = modifier.padding(vertical = Dimens.SpaceSM)) {
+        when {
+            uiState.isSearching && uiState.searchResults.isEmpty() -> {
+                LoadingIndicator(modifier = Modifier.fillMaxWidth().height(200.dp))
+            }
+            uiState.searchError != null && uiState.searchResults.isEmpty() -> {
+                ErrorState(
+                    message = uiState.searchError,
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    onRetry = { onLoadMore() },
+                )
+            }
+            uiState.searchQuery.isBlank() -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "输入关键词搜索 AI 应用",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            uiState.searchResults.isEmpty() && !uiState.isSearching -> {
+                Box(
+                    modifier = Modifier.fillMaxWidth().height(200.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = "未找到 \"${uiState.searchQuery}\" 相关结果",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            else -> {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
+                    Text(
+                        text = "搜索结果",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = Dimens.SpaceLG),
+                    )
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(columns),
+                        contentPadding = PaddingValues(horizontal = Dimens.SpaceLG),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                        modifier = Modifier.height(
+                            ((uiState.searchResults.size.coerceAtMost(10) / columns + 1) * 240).dp
+                        ),
+                    ) {
+                        items(
+                            count = uiState.searchResults.size.coerceAtMost(10),
+                            key = { idx -> uiState.searchResults[idx].id },
+                        ) { idx ->
+                            val app = uiState.searchResults[idx]
+                            AppCard(
+                                title = app.title,
+                                imageUrl = app.coverUrl ?: app.thumbnailUrl,
+                                authorName = app.author?.name,
+                                authorAvatar = app.author?.avatar,
+                                likeCount = app.likeCount,
+                                useCount = app.useCount,
+                                onClick = { onAppClick(app.id) },
+                            )
+                        }
+                    }
+
+                    // Load more
+                    if (uiState.searchResults.size >= 10) {
+                        if (uiState.searchHasMore && !uiState.isSearching) {
+                            LaunchedEffect(Unit) { onLoadMore() }
+                            Box(
+                                modifier = Modifier.fillMaxWidth().padding(Dimens.SpaceMD),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(Dimens.IconSizeMD),
+                                    color = MaterialTheme.colorScheme.primary,
+                                    strokeWidth = 2.dp,
+                                )
+                            }
+                        }
+                        if (!uiState.searchHasMore) {
+                            Text(
+                                text = "没有更多了",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.fillMaxWidth().padding(Dimens.SpaceMD),
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
-
-// endregion
 
 // region Featured Apps
 
@@ -272,25 +462,37 @@ private fun SearchBar(
 @Composable
 private fun FeaturedAppsSection(
     banners: List<WebApp>,
+    windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier,
     onAppClick: (String) -> Unit = {},
 ) {
     val pagerState = rememberPagerState(pageCount = { banners.size })
+    val spacing = adaptiveGridSpacing(windowSizeClass)
 
     Column(modifier = modifier) {
+        var isUserInteracting by remember { mutableStateOf(false) }
+        LaunchedEffect(banners.size, isUserInteracting) {
+            if (banners.size <= 1 || isUserInteracting) return@LaunchedEffect
+            while (true) {
+                delay(4000)
+                val nextPage = (pagerState.currentPage + 1) % banners.size
+                pagerState.animateScrollToPage(nextPage)
+            }
+        }
+
         Text(
             text = "推荐应用",
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 4.dp, vertical = spacing),
         )
 
         Box(modifier = Modifier.fillMaxWidth()) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                pageSpacing = 10.dp,
+                contentPadding = PaddingValues(horizontal = spacing * 1.5f),
+                pageSpacing = spacing,
             ) { page ->
                 FeaturedAppBanner(
                     app = banners[page],
@@ -325,16 +527,6 @@ private fun FeaturedAppsSection(
             }
         }
     }
-
-    var isUserInteracting by remember { mutableStateOf(false) }
-    LaunchedEffect(banners.size, isUserInteracting) {
-        if (banners.size <= 1 || isUserInteracting) return@LaunchedEffect
-        while (true) {
-            delay(4000)
-            val nextPage = (pagerState.currentPage + 1) % banners.size
-            pagerState.animateScrollToPage(nextPage)
-        }
-    }
 }
 
 @Composable
@@ -343,90 +535,67 @@ private fun FeaturedAppBanner(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
-    Box(
+    Surface(
         modifier = modifier
             .fillMaxWidth()
             .aspectRatio(16f / 9f)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick),
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.primary,
     ) {
-        val displayUrl = app.thumbnailUrl ?: app.coverUrl
-        var isLoading by remember { mutableStateOf(true) }
-        var isError by remember { mutableStateOf(false) }
-
-        if (displayUrl != null) {
-            AsyncImage(
-                model = displayUrl,
-                contentDescription = app.title,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                onLoading = { isLoading = true; isError = false },
-                onSuccess = { isLoading = false; isError = false },
-                onError = { isLoading = false; isError = true },
-            )
-            if (isLoading || isError) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                )
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            )
-        }
-
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    Brush.verticalGradient(
+                    Brush.linearGradient(
                         colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.7f),
+                            MaterialTheme.colorScheme.primary,
+                            MaterialTheme.colorScheme.secondary,
                         ),
-                        startY = 100f,
                     )
-                )
-        )
-
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(12.dp),
+                ),
         ) {
-            Text(
-                text = app.title.trim(),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
+            val displayUrl = app.thumbnailUrl ?: app.coverUrl
+            if (displayUrl != null) {
+                AsyncImage(
+                    model = displayUrl,
+                    contentDescription = app.title,
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.5f),
+                            ),
+                        )
+                    )
             )
-            if (app.tags.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    app.tags.take(2).forEach { tag ->
-                        Box(
-                            modifier = Modifier
-                                .background(
-                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                                    shape = RoundedCornerShape(4.dp),
-                                )
-                                .padding(horizontal = 6.dp, vertical = 2.dp),
-                        ) {
-                            Text(
-                                text = tag.name,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                maxLines = 1,
-                            )
-                        }
-                    }
-                }
+
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(18.dp),
+            ) {
+                Text(
+                    text = "精选工作流",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.82f),
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = app.title.trim(),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
@@ -445,7 +614,7 @@ private fun CategoryTagsRow(
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier.padding(vertical = 8.dp),
+        modifier = modifier.padding(vertical = 4.dp),
     ) {
         item(key = "category_all") {
             CategoryTag(
@@ -471,22 +640,22 @@ private fun CategoryTag(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
-    val bgColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-    val textColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val bgColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+    val textColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+    val borderColor = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
 
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(20.dp))
-            .background(bgColor)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 6.dp),
-        contentAlignment = Alignment.Center,
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        shape = RoundedCornerShape(Dimens.RadiusFull),
+        color = bgColor,
+        border = BorderStroke(1.dp, borderColor),
     ) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
             color = textColor,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
         )
     }
 }
@@ -550,100 +719,107 @@ private fun AppGridCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
-    Box(
+    val cardHeight = 160.dp
+
+    Surface(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(3f / 4f)
-            .clip(RoundedCornerShape(14.dp))
-            .background(MaterialTheme.colorScheme.surface)
             .clickable(onClick = onClick),
+        shape = RoundedCornerShape(Dimens.RadiusMD),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        when (app.coverMediaType) {
-            CoverMediaType.VIDEO -> {
-                val videoUrl = app.coverUrl
-                if (videoUrl != null) {
-                    VideoThumbnail(
-                        url = videoUrl,
+        Box(modifier = Modifier.fillMaxWidth().height(cardHeight)) {
+            // Cover image fills entire card
+            when (app.coverMediaType) {
+                CoverMediaType.VIDEO -> {
+                    app.coverUrl?.let {
+                        VideoThumbnail(
+                            url = it,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
+                else -> {
+                    AsyncImage(
+                        model = app.coverUrl ?: app.thumbnailUrl,
+                        contentDescription = app.title,
                         modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
                     )
                 }
             }
-            else -> {
-                AsyncImage(
-                    model = app.coverUrl ?: app.thumbnailUrl,
-                    contentDescription = app.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                )
-            }
-        }
 
-        if (app.tags.isNotEmpty()) {
+            // Bottom gradient for text readability
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .align(Alignment.TopStart)
+                    .height(cardHeight * 0.55f)
+                    .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Black.copy(alpha = 0.5f),
-                                Color.Transparent,
-                            ),
+                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))
                         )
                     )
-                    .padding(6.dp),
-            ) {
-                FlowTagRow(app.tags.take(3))
-            }
-        }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .align(Alignment.BottomStart)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.8f),
-                        ),
-                    )
-                )
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-        ) {
-            Text(
-                text = app.title.trim(),
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                lineHeight = 15.sp,
             )
 
-            Spacer(Modifier.height(4.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(
-                    model = app.author?.avatar,
-                    contentDescription = app.author?.name,
-                    modifier = Modifier.size(14.dp).clip(CircleShape),
-                    contentScale = ContentScale.Crop,
-                )
-                Spacer(Modifier.width(3.dp))
+            // Top-left: title + tags
+            Column(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(start = 10.dp, top = 10.dp, end = 40.dp),
+            ) {
                 Text(
-                    text = app.author?.name ?: "",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    text = app.title.trim(),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f, fill = false),
                 )
-                Spacer(Modifier.width(6.dp))
-                StatChip(Icons.Default.FavoriteBorder, app.collectCount)
-                Spacer(Modifier.width(5.dp))
-                StatChip(Icons.Outlined.PlayArrow, app.useCount)
-                Spacer(Modifier.width(5.dp))
-                StatChip(Icons.Outlined.RemoveRedEye, app.pv)
+                if (app.tags.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = app.tags.take(2).joinToString(" / ") { it.name },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.75f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+
+            // Bottom-left: stats
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 10.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = "▷ ${formatCount(app.useCount)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.85f),
+                )
+                Text(
+                    text = "♡ ${formatCount(app.collectCount)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.White.copy(alpha = 0.85f),
+                )
+            }
+
+            // Bottom-right: play button
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(8.dp)
+                    .size(26.dp)
+                    .clip(CircleShape)
+                    .background(Color.White.copy(alpha = 0.85f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("▶", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
