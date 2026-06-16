@@ -20,10 +20,15 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
+import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
+import com.runninghub.app.ui.adaptive.RunningHubPreviewSurface
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class CommunityVoyagerScreen : Screen {
 
@@ -47,6 +52,7 @@ fun CommunityScreenContent(
     onToolClick: (CommunityTool) -> Unit = {}
 ) {
     val extColors = RunningHubThemeExt.colors
+    val windowInfo = LocalRhWindowInfo.current
 
     Scaffold(
         modifier = modifier,
@@ -66,10 +72,11 @@ fun CommunityScreenContent(
                             listOf(extColors.gradientStart, extColors.gradientEnd)
                         )
                     )
+                    .statusBarsPadding()
                     .padding(
                         start = Dimens.SpaceXXL,
                         end = Dimens.SpaceXXL,
-                        top = Dimens.Space3XL,
+                        top = Dimens.SpaceLG,
                         bottom = Dimens.SpaceXXL
                     )
             ) {
@@ -97,18 +104,25 @@ fun CommunityScreenContent(
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             } else {
-                LazyVerticalGrid(
-                    columns = GridCells.Fixed(2),
-                    contentPadding = PaddingValues(Dimens.SpaceLG),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
-                    verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
-                    modifier = Modifier.fillMaxSize()
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.TopCenter,
                 ) {
-                    items(uiState.tools, key = { it.id }) { tool ->
-                        ToolCard(
-                            tool = tool,
-                            onClick = { onToolClick(tool) }
-                        )
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = windowInfo.feedGridMinCardWidth),
+                        contentPadding = PaddingValues(Dimens.SpaceLG),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .widthIn(max = windowInfo.feedContentMaxWidth)
+                    ) {
+                        items(uiState.tools, key = { it.id }) { tool ->
+                            ToolCard(
+                                tool = tool,
+                                onClick = { onToolClick(tool) }
+                            )
+                        }
                     }
                 }
             }
@@ -159,14 +173,16 @@ private fun ToolCard(
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Spacer(Modifier.height(Dimens.SpaceXS))
                 Text(
                     text = tool.description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -192,4 +208,67 @@ private fun resolveIcon(name: String): ImageVector = when (name) {
     "crop" -> Icons.Default.Crop
     "hub" -> Icons.Default.Hub
     else -> Icons.Default.Build
+}
+
+private fun communityPreviewState(): CommunityUiState = CommunityUiState(
+    tools = listOf(
+        CommunityTool(
+            id = "audio_gen",
+            title = "Audio Generation",
+            description = "Generate voice, music, and short sound effects from text prompts.",
+            iconName = "audiotrack",
+            route = "audio_generation",
+        ),
+        CommunityTool(
+            id = "steganography",
+            title = "Secret Decode",
+            description = "Extract hidden data from images without breaking the compact card layout.",
+            iconName = "visibility",
+            route = "secret_decode",
+        ),
+        CommunityTool(
+            id = "ui_inspector",
+            title = "UI Inspector",
+            description = "Inspect screen metrics, insets, and display details across devices.",
+            iconName = "info",
+            route = "ui_inspector",
+        ),
+        CommunityTool(
+            id = "color_extract",
+            title = "Palette Extractor",
+            description = "Build reusable palettes from reference imagery.",
+            iconName = "palette",
+            route = "color_extract",
+        ),
+        CommunityTool(
+            id = "smart_crop",
+            title = "Smart Crop",
+            description = "Keep the subject centered while adapting aspect ratios.",
+            iconName = "crop",
+            route = "smart_crop",
+        ),
+        CommunityTool(
+            id = "workflow",
+            title = "Workflow Plaza",
+            description = "Browse reusable community workflows and starter presets.",
+            iconName = "hub",
+            route = "workflow_plaza",
+        ),
+    )
+)
+
+@Preview
+@Composable
+private fun CommunityMediumPreview() {
+    RunningHubPreviewSurface(windowWidth = 600.dp, windowHeight = 840.dp) {
+        CommunityScreenContent(uiState = communityPreviewState())
+    }
+}
+
+@Preview
+@Composable
+private fun CommunityExpandedPreview() {
+    RunningHubPreviewSurface(windowWidth = 840.dp, windowHeight = 1180.dp) {
+        CommunityScreenContent(uiState = communityPreviewState())
+    }
 }

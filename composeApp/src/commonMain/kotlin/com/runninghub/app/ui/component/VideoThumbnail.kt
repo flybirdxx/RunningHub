@@ -7,4 +7,6 @@ import androidx.compose.ui.Modifier
 expect fun VideoThumbnail(
     url: String,
     modifier: Modifier = Modifier,
+    posterUrl: String? = null,
+    autoPlay: Boolean = true,
 )

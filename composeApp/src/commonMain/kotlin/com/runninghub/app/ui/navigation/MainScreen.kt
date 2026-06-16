@@ -151,6 +151,7 @@ class MainVoyagerScreen : Screen {
         } else {
             // Compact / Medium: bottom tab bar
             Scaffold(
+                modifier = Modifier.fillMaxSize(),
                 bottomBar = {
                     NavigationBar(
                         containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),

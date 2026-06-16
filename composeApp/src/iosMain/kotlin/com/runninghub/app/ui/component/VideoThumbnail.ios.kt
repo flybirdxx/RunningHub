@@ -13,11 +13,21 @@ import androidx.compose.ui.unit.sp
 actual fun VideoThumbnail(
     url: String,
     modifier: Modifier,
+    posterUrl: String?,
+    autoPlay: Boolean,
 ) {
-    Box(
-        modifier = modifier.background(Color(0xFF1E2A5E)),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text("▶", fontSize = 32.sp, color = Color.White.copy(alpha = 0.6f))
+    if (posterUrl != null) {
+        SmartAsyncImage(
+            imageUrl = posterUrl,
+            contentDescription = null,
+            modifier = modifier,
+        )
+    } else {
+        Box(
+            modifier = modifier.background(Color(0xFF1E2A5E)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text("▶", fontSize = 32.sp, color = Color.White.copy(alpha = 0.6f))
+        }
     }
 }

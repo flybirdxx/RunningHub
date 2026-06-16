@@ -5,8 +5,6 @@ description: Android Kotlin development with Coroutines, Jetpack Compose, Hilt, 
 
 # Android Kotlin Skill
 
-*Load with: base.md*
-
 ---
 
 ## Project Structure

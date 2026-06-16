@@ -36,6 +36,10 @@ class ProfileScreenModel(
         refreshUserData()
     }
 
+    fun loadUserData() {
+        refreshUserData()
+    }
+
     fun refreshUserData() {
         screenModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }

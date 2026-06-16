@@ -7,6 +7,8 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+val composeMultiplatformVersion = libs.versions.compose.multiplatform.get()
+
 kotlin {
     androidTarget {
         compilerOptions {
@@ -34,6 +36,7 @@ kotlin {
             implementation(compose.material3)
             implementation(compose.materialIconsExtended)
             implementation(compose.components.resources)
+            implementation("org.jetbrains.compose.components:components-ui-tooling-preview:$composeMultiplatformVersion")
 
             implementation(libs.voyager.navigator)
             implementation(libs.voyager.screenmodel)
@@ -52,6 +55,8 @@ kotlin {
 
         androidMain.dependencies {
             implementation(libs.koin.android)
+            implementation(libs.coil.video)
+            implementation(libs.lifecycle.runtime.compose)
             implementation(libs.media3.exoplayer)
             implementation(libs.media3.ui)
             implementation(libs.lottie.compose)
@@ -64,6 +69,10 @@ kotlin {
             implementation(kotlin("test"))
         }
     }
+}
+
+dependencies {
+    debugImplementation("org.jetbrains.compose.ui:ui-tooling:$composeMultiplatformVersion")
 }
 
 android {

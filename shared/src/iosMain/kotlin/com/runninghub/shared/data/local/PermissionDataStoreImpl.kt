@@ -21,4 +21,4 @@ class PermissionDataStoreImpl : PermissionDataStore {
         PermissionStatus.GRANTED
 }
 
-fun createPermissionDataStore(): PermissionDataStore = PermissionDataStoreImpl()
+actual fun createPermissionDataStore(): PermissionDataStore = PermissionDataStoreImpl()

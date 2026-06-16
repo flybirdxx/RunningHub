@@ -35,7 +35,14 @@ data class DiscoveryUiState(
     val currentPage: Int = 1,
     val hasMore: Boolean = true,
     val isLoadingMore: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isSearchExpanded: Boolean = false,
+    val searchQuery: String = "",
+    val isSearching: Boolean = false,
+    val searchResults: List<WebApp> = emptyList(),
+    val searchPage: Int = 1,
+    val searchHasMore: Boolean = false,
+    val searchError: String? = null,
 )
 
 private const val PAGE_SIZE = 30
@@ -194,6 +201,108 @@ class DiscoveryScreenModel(
         loadMoreJob = screenModelScope.launch {
             loadApps(page = nextPage, reset = false)
             _uiState.update { it.copy(isLoadingMore = false) }
+        }
+    }
+
+    fun expandSearch() {
+        _uiState.update { it.copy(isSearchExpanded = true) }
+    }
+
+    fun collapseSearch() {
+        _uiState.update {
+            it.copy(
+                isSearchExpanded = false,
+                searchQuery = "",
+                searchResults = emptyList(),
+                searchPage = 1,
+                searchHasMore = false,
+                searchError = null,
+            )
+        }
+    }
+
+    fun onSearchQueryChange(query: String) {
+        _uiState.update { it.copy(searchQuery = query) }
+    }
+
+    fun searchSubmit(query: String = _uiState.value.searchQuery) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            _uiState.update {
+                it.copy(
+                    searchQuery = "",
+                    searchResults = emptyList(),
+                    searchPage = 1,
+                    searchHasMore = false,
+                    searchError = null,
+                )
+            }
+            return
+        }
+
+        screenModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    searchQuery = trimmed,
+                    isSearching = true,
+                    searchError = null,
+                    searchPage = 1,
+                )
+            }
+            webAppRepository.searchApps(
+                keyword = trimmed,
+                pageNum = 1,
+                pageSize = PAGE_SIZE,
+            ).onSuccess { pageData ->
+                _uiState.update {
+                    it.copy(
+                        isSearching = false,
+                        searchResults = pageData.records,
+                        searchHasMore = pageData.hasNext,
+                        searchError = null,
+                    )
+                }
+            }.onFailure { e ->
+                _uiState.update {
+                    it.copy(
+                        isSearching = false,
+                        searchResults = emptyList(),
+                        searchHasMore = false,
+                        searchError = e.message ?: "搜索失败",
+                    )
+                }
+            }
+        }
+    }
+
+    fun loadMoreSearchResults() {
+        val state = _uiState.value
+        if (state.isSearching || !state.searchHasMore || state.searchQuery.isBlank()) return
+
+        val nextPage = state.searchPage + 1
+        screenModelScope.launch {
+            _uiState.update { it.copy(isSearching = true, searchError = null) }
+            webAppRepository.searchApps(
+                keyword = state.searchQuery,
+                pageNum = nextPage,
+                pageSize = PAGE_SIZE,
+            ).onSuccess { pageData ->
+                _uiState.update {
+                    it.copy(
+                        isSearching = false,
+                        searchResults = it.searchResults + pageData.records,
+                        searchPage = nextPage,
+                        searchHasMore = pageData.hasNext,
+                    )
+                }
+            }.onFailure { e ->
+                _uiState.update {
+                    it.copy(
+                        isSearching = false,
+                        searchError = e.message ?: "搜索失败",
+                    )
+                }
+            }
         }
     }
 

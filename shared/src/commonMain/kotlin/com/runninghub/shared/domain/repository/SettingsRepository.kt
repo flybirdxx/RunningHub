@@ -23,5 +23,13 @@ interface SettingsRepository {
 
     suspend fun isLoggedIn(): Boolean
 
+    suspend fun getLastKnownCoins(): String?
+    suspend fun setLastKnownCoins(coins: String)
+    suspend fun clearLastKnownCoins()
+
+    suspend fun getQuickCreateDraft(): String?
+    suspend fun saveQuickCreateDraft(json: String)
+    suspend fun clearQuickCreateDraft()
+
     suspend fun clearAll()
 }

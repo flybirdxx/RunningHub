@@ -33,6 +33,7 @@ object Dimens {
 
     // Component sizes
     val IconSizeSM = 16.dp
+    val IconSizeSM2 = 20.dp
     val IconSizeMD = 24.dp
     val IconSizeLG = 32.dp
     val IconSizeXL = 48.dp

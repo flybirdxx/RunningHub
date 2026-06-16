@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -53,6 +55,10 @@ import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
+import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
+import com.runninghub.app.ui.adaptive.RunningHubPreviewSurface
+import com.runninghub.app.ui.adaptive.previewUser
+import com.runninghub.app.ui.adaptive.previewWebApp
 import com.runninghub.app.ui.component.ErrorState
 import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.component.SmartAsyncImage
@@ -61,6 +67,7 @@ import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
 import com.runninghub.shared.domain.model.User
 import com.runninghub.shared.domain.model.WebApp
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 data class CreatorProfileScreen(val userId: String) : Screen {
 
@@ -101,6 +108,8 @@ private fun ProfileScaffold(
     onToggleFollow: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val windowInfo = LocalRhWindowInfo.current
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -117,63 +126,66 @@ private fun ProfileScaffold(
         },
         modifier = modifier
     ) { padding ->
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(
-                start = Dimens.SpaceLG,
-                end = Dimens.SpaceLG,
-                bottom = Dimens.Space6XL
-            ),
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
-            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter,
         ) {
-            // ── Header (full-span) ──
-            item(span = { GridItemSpan(maxLineSpan) }) {
-                ProfileHeader(
-                    user = uiState.user,
-                    isFollowing = uiState.isFollowing,
-                    onToggleFollow = onToggleFollow
-                )
-            }
-
-            // ── Section title ──
-            if (uiState.apps.isNotEmpty()) {
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = windowInfo.feedGridMinCardWidth),
+                contentPadding = PaddingValues(
+                    start = Dimens.SpaceLG,
+                    end = Dimens.SpaceLG,
+                    bottom = Dimens.Space6XL
+                ),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = windowInfo.feedContentMaxWidth)
+            ) {
                 item(span = { GridItemSpan(maxLineSpan) }) {
-                    Text(
-                        text = "发布的应用",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(vertical = Dimens.SpaceSM)
+                    ProfileHeader(
+                        user = uiState.user,
+                        isFollowing = uiState.isFollowing,
+                        onToggleFollow = onToggleFollow
                     )
                 }
-            }
 
-            // ── App Grid ──
-            items(uiState.apps, key = { it.id }) { app ->
-                AppGridItem(
-                    app = app,
-                    onClick = { onAppClick(app.id) },
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-
-            // ── Empty state ──
-            if (uiState.apps.isEmpty() && !uiState.isLoading) {
-                item(span = { GridItemSpan(maxLineSpan) }) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = Dimens.Space6XL),
-                        contentAlignment = Alignment.Center
-                    ) {
+                if (uiState.apps.isNotEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
                         Text(
-                            text = "暂无作品",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "发布的应用",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(vertical = Dimens.SpaceSM)
                         )
+                    }
+                }
+
+                items(uiState.apps, key = { it.id }) { app ->
+                    AppGridItem(
+                        app = app,
+                        onClick = { onAppClick(app.id) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+
+                if (uiState.apps.isEmpty() && !uiState.isLoading) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = Dimens.Space6XL),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "暂无作品",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -258,7 +270,7 @@ private fun ProfileHeader(
             if (!user?.introduce.isNullOrBlank()) {
                 Spacer(Modifier.height(Dimens.SpaceXS))
                 Text(
-                    text = user!!.introduce!!,
+                    text = user.introduce.orEmpty(),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 3,
@@ -309,52 +321,102 @@ private fun AppGridItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(Dimens.RadiusMD),
-        elevation = CardDefaults.cardElevation(defaultElevation = Dimens.ElevationSM),
-        modifier = modifier
-    ) {
-        Column {
-            SmartAsyncImage(
-                imageUrl = app.thumbnailUrl ?: app.coverUrl,
-                contentDescription = app.title,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(4f / 3f),
-                contentScale = ContentScale.Crop
-            )
+    BoxWithConstraints(modifier = modifier) {
+        val isNarrowCard = maxWidth < 180.dp
 
-            Column(modifier = Modifier.padding(Dimens.SpaceSM)) {
-                Text(
-                    text = app.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
+        Card(
+            onClick = onClick,
+            shape = RoundedCornerShape(Dimens.RadiusMD),
+            elevation = CardDefaults.cardElevation(defaultElevation = Dimens.ElevationSM),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column {
+                SmartAsyncImage(
+                    imageUrl = app.thumbnailUrl ?: app.coverUrl,
+                    contentDescription = app.title,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f),
+                    contentScale = ContentScale.Crop
                 )
-                Spacer(Modifier.height(Dimens.SpaceXS))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)
-                ) {
+
+                Column(modifier = Modifier.padding(Dimens.SpaceSM)) {
                     Text(
-                        text = "${app.useCount}次使用",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = app.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
                     )
-                    Text(
-                        text = "·",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "${app.likeCount}赞",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Spacer(Modifier.height(Dimens.SpaceXS))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)
+                    ) {
+                        Text(
+                            text = "${app.useCount}次使用",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        if (!isNarrowCard) {
+                            Text(
+                                text = "·",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "${app.likeCount}赞",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
             }
         }
+    }
+}
+
+private fun creatorProfilePreviewState(): CreatorProfileUiState = CreatorProfileUiState(
+    isLoading = false,
+    user = previewUser(),
+    apps = listOf(
+        previewWebApp(id = "creator-1", title = "Portrait Workflow for Social Posters"),
+        previewWebApp(id = "creator-2", title = "Ultra Detail Product Upscale"),
+        previewWebApp(id = "creator-3", title = "Anime Character Prompt Builder"),
+        previewWebApp(id = "creator-4", title = "Fashion Studio Lighting Toolkit"),
+    ),
+    isFollowing = true,
+)
+
+@Preview
+@Composable
+private fun CreatorProfileCompactPreview() {
+    RunningHubPreviewSurface(windowWidth = 360.dp, windowHeight = 800.dp) {
+        ProfileScaffold(
+            uiState = creatorProfilePreviewState(),
+            onBack = {},
+            onAppClick = {},
+            onToggleFollow = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun CreatorProfileMediumPreview() {
+    RunningHubPreviewSurface(windowWidth = 600.dp, windowHeight = 840.dp) {
+        ProfileScaffold(
+            uiState = creatorProfilePreviewState(),
+            onBack = {},
+            onAppClick = {},
+            onToggleFollow = {},
+        )
     }
 }

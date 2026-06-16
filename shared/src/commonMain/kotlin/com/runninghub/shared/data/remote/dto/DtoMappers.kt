@@ -4,19 +4,21 @@ import com.runninghub.shared.domain.model.*
 
 fun WebAppDto.toDomain(): WebApp {
     val firstCover = covers?.firstOrNull()
-    val rawUrl = firstCover?.url ?: preview?.url
-    val mediaType = inferMediaType(rawUrl)
+    val rawCoverUrl = firstCover?.url ?: preview?.url
+    val mediaType = inferMediaType(rawCoverUrl)
+    val resolvedThumbnailUrl = thumbnailUrl ?: firstCover?.thumbnailUri
     val resolvedCoverUrl = when (mediaType) {
-        CoverMediaType.VIDEO -> preview?.url ?: firstCover?.thumbnailUri ?: rawUrl
-        else -> firstCover?.thumbnailUri ?: rawUrl
+        CoverMediaType.VIDEO -> resolvedThumbnailUrl ?: rawCoverUrl
+        else -> firstCover?.thumbnailUri ?: rawCoverUrl
     }
     return WebApp(
         id = id ?: "",
         title = title ?: "",
         description = desc,
-        thumbnailUrl = thumbnailUrl,
+        thumbnailUrl = resolvedThumbnailUrl,
         coverUrl = resolvedCoverUrl,
         coverMediaType = mediaType,
+        videoUrl = rawCoverUrl.takeIf { mediaType == CoverMediaType.VIDEO },
         coverWidth = firstCover?.imageWidth,
         coverHeight = firstCover?.imageHeight,
         author = author?.toDomain(),

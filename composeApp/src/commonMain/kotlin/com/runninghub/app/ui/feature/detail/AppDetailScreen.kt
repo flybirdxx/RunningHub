@@ -20,7 +20,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -85,6 +87,10 @@ import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.TaskProgressIndicator
 import com.runninghub.app.ui.component.TaskStep
+import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
+import com.runninghub.app.ui.adaptive.RunningHubPreviewSurface
+import com.runninghub.app.ui.adaptive.previewAppDetail
+import com.runninghub.app.ui.adaptive.previewTaskOutputs
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreen
 import com.runninghub.app.ui.theme.DarkBackground
 import com.runninghub.app.ui.theme.DarkSurface
@@ -100,6 +106,7 @@ import com.runninghub.shared.domain.model.InputNode
 import com.runninghub.shared.domain.model.Permission
 import com.runninghub.shared.domain.model.StatisticsInfo
 import com.runninghub.shared.domain.model.TaskOutput
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /* ═══════════════════════════════════════════════════
    Screen entry point
@@ -197,12 +204,21 @@ private fun DetailContent(
     onRemoveFile: (String, String) -> Unit
 ) {
     val detail = uiState.detail ?: return
+    val windowInfo = LocalRhWindowInfo.current
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            contentPadding = PaddingValues(bottom = 96.dp),
-            modifier = Modifier.fillMaxSize()
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .widthIn(max = windowInfo.detailContentMaxWidth),
         ) {
+            LazyColumn(
+                contentPadding = PaddingValues(bottom = 96.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
             // ── 1. Top bar (no app name, only back + actions) ──
             item(key = "topbar") {
                 TopBar(onBack = onBack)
@@ -325,17 +341,17 @@ private fun DetailContent(
                     }
                 }
             }
-        }
+            }
 
-        // ── Bottom run button (fixed) ──
-        RunTaskBottomBar(
-            isRunning = uiState.isRunningTask,
-            taskStep = uiState.taskStep,
-            hasResult = uiState.taskOutputs.isNotEmpty() || uiState.taskError != null,
-            onRun = onRunTask,
-            onReset = onResetTask,
-            modifier = Modifier.align(Alignment.BottomCenter)
-        )
+            RunTaskBottomBar(
+                isRunning = uiState.isRunningTask,
+                taskStep = uiState.taskStep,
+                hasResult = uiState.taskOutputs.isNotEmpty() || uiState.taskError != null,
+                onRun = onRunTask,
+                onReset = onResetTask,
+                modifier = Modifier.align(Alignment.BottomCenter)
+            )
+        }
     }
 }
 
@@ -350,6 +366,7 @@ private fun TopBar(onBack: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .background(DarkBackground)
+            .statusBarsPadding()
             .padding(horizontal = 4.dp, vertical = 8.dp)
     ) {
         IconButton(onClick = onBack) {
@@ -1030,9 +1047,11 @@ private fun RunTaskBottomBar(
     onReset: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val windowInfo = LocalRhWindowInfo.current
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .widthIn(max = windowInfo.detailContentMaxWidth)
             .background(DarkBackground.copy(alpha = 0.95f))
             .navigationBarsPadding()
             .padding(horizontal = 16.dp, vertical = 12.dp)
@@ -1104,5 +1123,69 @@ private fun RunTaskBottomBar(
                 }
             }
         }
+    }
+}
+
+private fun detailPreviewState(): AppDetailUiState {
+    val detail = previewAppDetail()
+    return AppDetailUiState(
+        isLoading = false,
+        detail = detail,
+        inputValues = detail.inputNodes.associate { node ->
+            AppDetailScreenModel.inputKey(node) to (node.fieldValue ?: "")
+        },
+        taskStep = TaskStep.SUCCESS,
+        taskOutputs = previewTaskOutputs(),
+    )
+}
+
+@Composable
+private fun DetailAdaptivePreview(widthDp: Int, heightDp: Int) {
+    RunningHubPreviewSurface(windowWidth = widthDp.dp, windowHeight = heightDp.dp) {
+        DetailContent(
+            uiState = detailPreviewState(),
+            onBack = {},
+            onAuthorClick = {},
+            onInputChanged = { _, _, _ -> },
+            onRunTask = {},
+            onResetTask = {},
+            onPickImage = { _, _ -> },
+            onRemoveFile = { _, _ -> },
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun DetailMediumPreview() {
+    DetailAdaptivePreview(widthDp = 600, heightDp = 840)
+}
+
+@Preview
+@Composable
+private fun DetailExpandedPreview() {
+    DetailAdaptivePreview(widthDp = 840, heightDp = 1180)
+}
+
+@Preview
+@Composable
+private fun DetailLandscapePreview() {
+    DetailAdaptivePreview(widthDp = 800, heightDp = 360)
+}
+
+@Preview
+@Composable
+private fun DetailFontScale15Preview() {
+    RunningHubPreviewSurface(windowWidth = 360.dp, windowHeight = 800.dp, fontScale = 1.5f) {
+        DetailContent(
+            uiState = detailPreviewState(),
+            onBack = {},
+            onAuthorClick = {},
+            onInputChanged = { _, _, _ -> },
+            onRunTask = {},
+            onResetTask = {},
+            onPickImage = { _, _ -> },
+            onRemoveFile = { _, _ -> },
+        )
     }
 }

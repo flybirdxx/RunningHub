@@ -21,7 +21,9 @@ data class ExtendedColors(
     val warning: Color,
     val onWarning: Color,
     val info: Color,
-    val onInfo: Color
+    val onInfo: Color,
+    val premiumGold: Color,
+    val premiumOrange: Color
 )
 
 val LightExtendedColors = ExtendedColors(
@@ -40,7 +42,9 @@ val LightExtendedColors = ExtendedColors(
     warning = WarningLight,
     onWarning = Color.White,
     info = InfoLight,
-    onInfo = Color.White
+    onInfo = Color.White,
+    premiumGold = Color(0xFFD6A94A),
+    premiumOrange = Color(0xFFFF8A3D)
 )
 
 val DarkExtendedColors = ExtendedColors(
@@ -59,7 +63,9 @@ val DarkExtendedColors = ExtendedColors(
     warning = WarningDark,
     onWarning = Color(0xFF3D2800),
     info = InfoDark,
-    onInfo = Color(0xFF001A40)
+    onInfo = Color(0xFF001A40),
+    premiumGold = Color(0xFFFFD166),
+    premiumOrange = Color(0xFFFF9F43)
 )
 
 val LocalExtendedColors = staticCompositionLocalOf { LightExtendedColors }

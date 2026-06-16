@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
@@ -25,14 +26,15 @@ fun SmartAsyncImage(
     imageUrl: String?,
     contentDescription: String?,
     modifier: Modifier = Modifier,
-    contentScale: ContentScale = ContentScale.Crop
+    contentScale: ContentScale = ContentScale.Crop,
+    shape: Shape = RoundedCornerShape(Dimens.RadiusMD),
 ) {
     var isLoading by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
     // Null/empty URL: skip shimmer, show nothing (handled by caller)
     val hasValidUrl = !imageUrl.isNullOrBlank()
 
-    Box(modifier = modifier.clip(RoundedCornerShape(Dimens.RadiusMD))) {
+    Box(modifier = modifier.clip(shape)) {
         if (hasValidUrl) {
             AsyncImage(
                 model = imageUrl,

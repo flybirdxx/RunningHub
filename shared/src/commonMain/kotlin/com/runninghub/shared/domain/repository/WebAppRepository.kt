@@ -44,6 +44,12 @@ interface WebAppRepository {
 
     suspend fun getTaskOutputs(taskId: Long, apiKey: String): Result<List<TaskOutput>>
 
+    suspend fun getTaskHistory(
+        apiKey: String,
+        pageNum: Int,
+        pageSize: Int
+    ): Result<List<TaskHistoryItem>>
+
     suspend fun uploadFile(
         apiKey: String,
         fileType: String,

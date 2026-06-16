@@ -36,14 +36,19 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import com.runninghub.app.ui.component.MediaType
 import com.runninghub.app.platform.PermissionController
 import com.runninghub.app.platform.rememberPermissionController
+import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
+import com.runninghub.app.ui.adaptive.RunningHubPreviewSurface
+import com.runninghub.app.ui.adaptive.previewQuickCreateUiState
 import com.runninghub.app.ui.component.PermissionBottomSheet
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.app.ui.theme.*
+import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.shared.data.local.PermissionDataStore
 import com.runninghub.shared.domain.model.Permission
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class QuickCreateVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
@@ -59,6 +64,7 @@ class QuickCreateVoyagerScreen : Screen {
 private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
     val uiState by screenModel.uiState.collectAsState()
     val currentScreenModel by rememberUpdatedState(screenModel)
+    val windowInfo = LocalRhWindowInfo.current
 
     val dataStore: PermissionDataStore = koinInject()
     val controller: PermissionController = rememberPermissionController(dataStore)
@@ -77,55 +83,64 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
             .fillMaxSize()
             .background(DarkBackground)
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            TopBar(title = "快捷创作", onBack = null)
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = windowInfo.detailContentMaxWidth)
+            ) {
+                TopBar(title = "快捷创作", onBack = null)
 
-            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                when {
-                    uiState.results.isNotEmpty() -> ResultArea(
-                        results = uiState.results,
-                        onClear = screenModel::clearResults,
-                    )
-                    uiState.taskStatus != QuickCreateTaskUiStatus.IDLE -> TaskStatusArea(
-                        status = uiState.taskStatus,
-                        statusText = uiState.statusText,
-                    )
-                    else -> EmptyArea()
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    when {
+                        uiState.results.isNotEmpty() -> ResultArea(
+                            results = uiState.results,
+                            onClear = screenModel::clearResults,
+                        )
+                        uiState.taskStatus != QuickCreateTaskUiStatus.IDLE -> TaskStatusArea(
+                            status = uiState.taskStatus,
+                            statusText = uiState.statusText,
+                        )
+                        else -> EmptyArea()
+                    }
                 }
-            }
 
-            BottomPromptPanel(
-                uiState = uiState,
-                onTabSwitch = screenModel::switchTab,
-                onPromptChange = if (uiState.currentTab == QuickCreateTab.IMAGE) screenModel::updateImagePrompt else screenModel::updateVideoPrompt,
-                onLaunchImagePicker = {
-                    controller.pickMedia(
-                        mediaPermission = Permission.MediaImages,
-                        mediaType = MediaType.IMAGE,
-                        onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
-                        onPermissionDenied = { pendingPermission = Permission.MediaImages },
-                    )
-                },
-                onLaunchVideoPicker = {
-                    controller.pickMedia(
-                        mediaPermission = Permission.MediaVideo,
-                        mediaType = MediaType.VIDEO,
-                        onSuccess = { uriString -> currentScreenModel.pickVideoReference(uriString) },
-                        onPermissionDenied = { pendingPermission = Permission.MediaVideo },
-                    )
-                },
-                onLaunchAudioPicker = {
-                    controller.pickMedia(
-                        mediaPermission = Permission.MediaAudio,
-                        mediaType = MediaType.AUDIO,
-                        onSuccess = { uriString -> currentScreenModel.pickAudioReference(uriString) },
-                        onPermissionDenied = { pendingPermission = Permission.MediaAudio },
-                    )
-                },
-                onRemoveMedia = screenModel::removeMediaReference,
-                onToggleTune = { screenModel.setTuneSheetVisible(!uiState.tuneSheetVisible) },
-                onGenerate = screenModel::generate,
-            )
+                BottomPromptPanel(
+                    uiState = uiState,
+                    onTabSwitch = screenModel::switchTab,
+                    onPromptChange = if (uiState.currentTab == QuickCreateTab.IMAGE) screenModel::updateImagePrompt else screenModel::updateVideoPrompt,
+                    onLaunchImagePicker = {
+                        controller.pickMedia(
+                            mediaPermission = Permission.MediaImages,
+                            mediaType = MediaType.IMAGE,
+                            onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
+                            onPermissionDenied = { pendingPermission = Permission.MediaImages },
+                        )
+                    },
+                    onLaunchVideoPicker = {
+                        controller.pickMedia(
+                            mediaPermission = Permission.MediaVideo,
+                            mediaType = MediaType.VIDEO,
+                            onSuccess = { uriString -> currentScreenModel.pickVideoReference(uriString) },
+                            onPermissionDenied = { pendingPermission = Permission.MediaVideo },
+                        )
+                    },
+                    onLaunchAudioPicker = {
+                        controller.pickMedia(
+                            mediaPermission = Permission.MediaAudio,
+                            mediaType = MediaType.AUDIO,
+                            onSuccess = { uriString -> currentScreenModel.pickAudioReference(uriString) },
+                            onPermissionDenied = { pendingPermission = Permission.MediaAudio },
+                        )
+                    },
+                    onRemoveMedia = screenModel::removeMediaReference,
+                    onToggleTune = { screenModel.setTuneSheetVisible(!uiState.tuneSheetVisible) },
+                    onGenerate = screenModel::generate,
+                )
+            }
         }
 
         Box(modifier = Modifier.fillMaxSize()) {
@@ -234,6 +249,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
 @Composable
 private fun TopBar(title: String, onBack: (() -> Unit)?) {
     TopAppBar(
+        modifier = Modifier.statusBarsPadding(),
         title = {
             Text(
                 title,
@@ -375,6 +391,7 @@ private fun BottomPromptPanel(
     onToggleTune: () -> Unit,
     onGenerate: () -> Unit,
 ) {
+    val windowInfo = LocalRhWindowInfo.current
     val isImage = uiState.currentTab == QuickCreateTab.IMAGE
     val imageConfig = uiState.imageConfig
     val videoConfig = uiState.videoConfig
@@ -394,84 +411,90 @@ private fun BottomPromptPanel(
         color = DarkSurface.copy(alpha = 0.97f),
         shape = RoundedCornerShape(topStart = Dimens.RadiusXL, topEnd = Dimens.RadiusXL),
     ) {
-        Column(
-            modifier = Modifier
-                .padding(horizontal = Dimens.SpaceMD)
-                .navigationBarsPadding()
-                .padding(bottom = Dimens.SpaceMD),
+        Box(
+            modifier = Modifier.fillMaxWidth(),
+            contentAlignment = Alignment.BottomCenter,
         ) {
-            // 1. Tab Pills
-            TabPillRow(
-                selectedTab = uiState.currentTab,
-                onTabSelected = onTabSwitch,
-            )
-
-            Spacer(Modifier.height(Dimens.SpaceSM))
-
-            // 2. Horizontal Toolbar
-            MediaToolbarRow(
-                mediaReferences = configMediaRefs,
-                onLaunchImagePicker = onLaunchImagePicker,
-                onLaunchVideoPicker = onLaunchVideoPicker,
-                onLaunchAudioPicker = onLaunchAudioPicker,
-            )
-
-            // 3. Media Chip Cards (when references exist)
-            if (configMediaRefs.isNotEmpty()) {
-                Spacer(Modifier.height(Dimens.SpaceSM))
-                configMediaRefs.forEach { ref: MediaReference ->
-                    MediaChipCard(
-                        reference = ref,
-                        onRemove = { onRemoveMedia(ref.id) },
-                    )
-                    Spacer(Modifier.height(4.dp))
-                }
-            }
-
-            // 4. Adaptive Input
-            Spacer(Modifier.height(Dimens.SpaceSM))
-            AdaptivePromptTextField(
-                prompt = configPrompt,
-                onPromptChange = onPromptChange,
-                placeholder = if (isImage) "描述你的图片..." else "描述你的视频...",
-                charCount = configCharCount,
-                nearLimit = configNearLimit,
-                overLimit = configOverLimit,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            // 5. Bottom Row: Tune + Send
-            Spacer(Modifier.height(Dimens.SpaceSM))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .widthIn(max = windowInfo.bottomSheetMaxWidth)
+                    .heightIn(max = windowInfo.windowHeight * windowInfo.bottomPanelMaxHeightFraction)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = Dimens.SpaceMD)
+                    .imePadding()
+                    .navigationBarsPadding()
+                    .padding(bottom = Dimens.SpaceMD),
             ) {
-                IconButton(
-                    onClick = onToggleTune,
-                    modifier = Modifier
-                        .size(38.dp)
-                        .background(
-                            if (uiState.tuneSheetVisible) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
-                            RoundedCornerShape(Dimens.RadiusMD),
-                        ),
-                    enabled = !isTaskActive,
-                ) {
-                    Icon(
-                        Icons.Default.Tune,
-                        contentDescription = "创作调优",
-                        modifier = Modifier.size(18.dp),
-                        tint = if (uiState.tuneSheetVisible) Primary300 else Neutral400,
-                    )
+                TabPillRow(
+                    selectedTab = uiState.currentTab,
+                    onTabSelected = onTabSwitch,
+                )
+
+                Spacer(Modifier.height(Dimens.SpaceSM))
+
+                MediaToolbarRow(
+                    mediaReferences = configMediaRefs,
+                    onLaunchImagePicker = onLaunchImagePicker,
+                    onLaunchVideoPicker = onLaunchVideoPicker,
+                    onLaunchAudioPicker = onLaunchAudioPicker,
+                )
+
+                Spacer(Modifier.height(Dimens.SpaceSM))
+
+                if (configMediaRefs.isNotEmpty()) {
+                    configMediaRefs.forEach { ref: MediaReference ->
+                        MediaChipCard(
+                            reference = ref,
+                            onRemove = { onRemoveMedia(ref.id) },
+                        )
+                        Spacer(Modifier.height(4.dp))
+                    }
                 }
 
-                SendButton(
-                    enabled = !isTaskActive && configPrompt.isNotBlank() && !configOverLimit,
-                    isLoading = isTaskActive,
-                    cost = uiState.estimatedCost,
-                    onClick = onGenerate,
-                    modifier = Modifier.weight(1f),
+                Spacer(Modifier.height(Dimens.SpaceSM))
+                AdaptivePromptTextField(
+                    prompt = configPrompt,
+                    onPromptChange = onPromptChange,
+                    placeholder = if (isImage) "描述你的图片..." else "描述你的视频...",
+                    charCount = configCharCount,
+                    nearLimit = configNearLimit,
+                    overLimit = configOverLimit,
+                    modifier = Modifier.fillMaxWidth(),
                 )
+
+                Spacer(Modifier.height(Dimens.SpaceSM))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    IconButton(
+                        onClick = onToggleTune,
+                        modifier = Modifier
+                            .size(38.dp)
+                            .background(
+                                if (uiState.tuneSheetVisible) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
+                                RoundedCornerShape(Dimens.RadiusMD),
+                            ),
+                        enabled = !isTaskActive,
+                    ) {
+                        Icon(
+                            Icons.Default.Tune,
+                            contentDescription = "创作调优",
+                            modifier = Modifier.size(18.dp),
+                            tint = if (uiState.tuneSheetVisible) Primary300 else Neutral400,
+                        )
+                    }
+
+                    SendButton(
+                        enabled = !isTaskActive && configPrompt.isNotBlank() && !configOverLimit,
+                        isLoading = isTaskActive,
+                        cost = uiState.estimatedCost,
+                        onClick = onGenerate,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }
@@ -634,7 +657,7 @@ private fun SendButton(
                 Spacer(Modifier.width(6.dp))
                 if (cost > 0) {
                     Text(
-                        "¥${"%.1f".format(cost)}",
+                        "¥${formatOneDecimal(cost)}",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (enabled) Primary300 else Neutral500,
@@ -650,4 +673,60 @@ private fun SendButton(
             }
         }
     }
+}
+
+@Composable
+private fun QuickCreateBottomPanelAdaptivePreview(
+    widthDp: Int,
+    heightDp: Int,
+    fontScale: Float = 1f,
+) {
+    RunningHubPreviewSurface(
+        windowWidth = widthDp.dp,
+        windowHeight = heightDp.dp,
+        fontScale = fontScale,
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(DarkBackground),
+            contentAlignment = Alignment.BottomCenter,
+        ) {
+            BottomPromptPanel(
+                uiState = previewQuickCreateUiState(),
+                onTabSwitch = {},
+                onPromptChange = {},
+                onLaunchImagePicker = {},
+                onLaunchVideoPicker = {},
+                onLaunchAudioPicker = {},
+                onRemoveMedia = {},
+                onToggleTune = {},
+                onGenerate = {},
+            )
+        }
+    }
+}
+
+@Preview
+@Composable
+private fun QuickCreateBottomPanelPreview() {
+    QuickCreateBottomPanelAdaptivePreview(widthDp = 360, heightDp = 800)
+}
+
+@Preview
+@Composable
+private fun QuickCreateBottomPanelLandscapePreview() {
+    QuickCreateBottomPanelAdaptivePreview(widthDp = 800, heightDp = 360)
+}
+
+@Preview
+@Composable
+private fun QuickCreateBottomPanelFontScale13Preview() {
+    QuickCreateBottomPanelAdaptivePreview(widthDp = 360, heightDp = 800, fontScale = 1.3f)
+}
+
+@Preview
+@Composable
+private fun QuickCreateBottomPanelFontScale15Preview() {
+    QuickCreateBottomPanelAdaptivePreview(widthDp = 360, heightDp = 800, fontScale = 1.5f)
 }

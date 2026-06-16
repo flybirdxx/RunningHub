@@ -29,6 +29,7 @@ private class IosMediaResolver : MediaResolver {
     override fun getDisplayName(uri: String): String? =
         NSURL.URLWithString(uri)?.lastPathComponent
 
+    @OptIn(ExperimentalForeignApi::class)
     override fun getFileSizeBytes(uri: String): Long {
         val url = NSURL.URLWithString(uri) ?: return 0L
         val path = url.path ?: return 0L

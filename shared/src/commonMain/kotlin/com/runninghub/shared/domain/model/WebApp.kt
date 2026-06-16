@@ -9,6 +9,7 @@ data class WebApp(
     val thumbnailUrl: String?,
     val coverUrl: String?,
     val coverMediaType: CoverMediaType,
+    val videoUrl: String? = null,
     val coverWidth: String?,
     val coverHeight: String?,
     val author: Author?,

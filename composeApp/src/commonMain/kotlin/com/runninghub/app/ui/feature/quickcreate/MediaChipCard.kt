@@ -21,6 +21,8 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.theme.*
+import com.runninghub.app.util.formatMinutesSeconds
+import com.runninghub.app.util.formatOneDecimal
 
 @Composable
 fun MediaChipCard(
@@ -228,12 +230,8 @@ private fun formatFileSize(bytes: Long): String {
         bytes < 1024 -> "$bytes B"
         bytes < 1024 * 1024 -> "${bytes / 1024} KB"
         bytes < 1024 * 1024 * 1024 -> "${bytes / (1024 * 1024)} MB"
-        else -> "%.1f GB".format(bytes / (1024.0 * 1024 * 1024))
+        else -> "${formatOneDecimal(bytes / (1024.0 * 1024 * 1024))} GB"
     }
 }
 
-private fun formatDuration(seconds: Int): String {
-    val m = seconds / 60
-    val s = seconds % 60
-    return "%d:%02d".format(m, s)
-}
+private fun formatDuration(seconds: Int): String = formatMinutesSeconds(seconds)

@@ -8,7 +8,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.theme.Dimens
@@ -58,8 +57,8 @@ fun AppCard(
                         imageUrl = authorAvatar,
                         contentDescription = authorName,
                         modifier = Modifier
-                            .size(Dimens.AvatarSizeSM)
-                            .clip(CircleShape)
+                            .size(Dimens.AvatarSizeSM),
+                        shape = CircleShape,
                     )
                     Spacer(Modifier.width(Dimens.SpaceSM))
                     Text(
