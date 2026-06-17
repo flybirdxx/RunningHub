@@ -367,7 +367,7 @@ POST /task/quick-creation/project/detail
 POST /task/quick-creation/project/tasks
 ```
 
-本次账号项目列表为空。项目功能放到二期。
+抓包确认 `project/list` 请求体为 `{"page":1,"size":20}`，响应分页字段为 `records/size/current/total/pages/hasNext/hasPrevious/nextCursor`。本次账号项目列表为空；移动端已先落地项目列表 DTO/API/repository 映射，项目创建、重命名、删除、置顶、详情和项目内任务 UI 放到后续步骤。
 
 ### 4.10 取消任务接口
 
@@ -548,7 +548,7 @@ data class QuickCreationCommitRequestDto(
 1. 快捷创作历史使用 `/task/quick-creation/list`。
 2. 详情使用 `outputId`。
 3. 接入取消任务。
-4. 项目列表、创建、重命名、删除、置顶另行实现。
+4. 项目列表数据层先接入；创建、重命名、删除、置顶、详情和项目内任务 UI 另行实现。
 
 执行进展（2026-06-18）：
 
@@ -556,6 +556,7 @@ data class QuickCreationCommitRequestDto(
 - domain 历史模型已覆盖任务状态、分类、模型 ID、扣费金额、`apiRequestParams` 标量参数、输出 URL/预览图/尺寸/过期信息。
 - 已用 `QuickCreateRepositoryImplHistoryTest` 覆盖历史分页映射和按 `outputId` 获取详情。
 - 创作页已在中间内容区展示最近创作，生成成功后刷新历史；列表底部可加载更多历史页并去重追加；非终态历史任务会每 5 秒刷新当前已加载范围，并支持调用 `/task/quick-creation/cancel` 取消后刷新；点击历史项会按 `outputId` 加载详情并展示详情弹窗。
+- 项目列表数据层已接入 `/task/quick-creation/project/list`，兼容 Web 抓包确认的分页结构；项目管理 UI 和其它项目接口仍待接入。
 
 验收：
 
