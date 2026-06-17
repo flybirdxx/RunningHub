@@ -48,6 +48,7 @@ import com.runninghub.app.ui.component.PermissionBottomSheet
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.app.ui.theme.*
+import com.runninghub.app.util.formatCashAmount
 import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.shared.data.local.PermissionDataStore
 import com.runninghub.shared.domain.model.Permission
@@ -1025,7 +1026,7 @@ private fun HistoryItemRow(
                 )
                 if (item.cashAmount > 0.0) {
                     Text(
-                        "${formatOneDecimal(item.cashAmount)} ${item.cashCurrency.orEmpty()}",
+                        "${formatCashAmount(item.cashAmount)} ${item.cashCurrency.orEmpty()}",
                         color = Primary300,
                         fontSize = 12.sp,
                     )
@@ -1137,7 +1138,7 @@ private fun HistoryDetailDialog(
                     )
                     if (item.cashAmount > 0.0) {
                         Text(
-                            "${formatOneDecimal(item.cashAmount)} ${item.cashCurrency.orEmpty()}",
+                            "${formatCashAmount(item.cashAmount)} ${item.cashCurrency.orEmpty()}",
                             color = Primary300,
                             fontSize = 12.sp,
                         )
