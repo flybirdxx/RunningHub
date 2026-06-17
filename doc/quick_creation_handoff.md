@@ -595,3 +595,32 @@ git diff --check
 - 当前子输入值只要 paramKey 属于模型子字段就允许提交；后续可以把 `hasFieldParam()` 收紧为“当前激活的字段白名单”，但需要同时处理 fee-preview 和模板回填。
 - 视频高级参数区仍未渲染服务端模型字段；要继续把图片端的服务端参数区抽成 image/video 共用。
 - 继续不要触发真实生成或视频扣费；完整视频 `prepare/commit` 仍需新的明确授权。
+
+## 2026-06-18 追加交接：激活子输入文本校验
+
+代码提交 `56f0639 fix(quickcreate): validate active child text fields` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 子输入 domain `QuickCreationServiceFieldInputChild` 已保留 `maxLength/minLength`；mapper 会从子输入对象或子输入内嵌 `skuInputExtraJson` 中解析。
+- `QuickCreationServiceFieldInputChild.quickCreationTextValidationError(value)` 已覆盖 required 非空和 `minLength` 最小长度。
+- `QuickCreateScreenModel.validateServiceFields()` 会先校验顶层文本字段，再校验当前激活的子文本字段。
+- 激活规则继续复用 `quickCreationActiveInputChildren(params)`；未激活子输入不会参与提交前校验，因此不会因为隐藏 required 字段误拦截生成。
+- 本轮只处理文本/数值类子输入校验，没有处理上传类子输入校验，也没有触发真实生成。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.required child text validation uses child metadata" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.child min length validation uses child metadata"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when active required child text field is empty" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.inactive required child text field does not block image generation"
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :shared:testDebugUnitTest
+git diff --check
+```
+
+下一步建议：
+- 给 Tune 子输入文本框接 `maxLength` 截断和计数展示，行为应与顶层文本字段一致。
+- 给上传类子输入补 required/maxInputCount 校验；需要确认子输入上传如何映射到当前素材入口，避免和顶层上传字段重复计数。
+- 视频高级参数区仍未复用服务端模型字段 UI，下一步可以先抽 `ServiceFieldOptionsContent` 为 image/video 共用。
+- 继续不要触发真实生成或视频扣费；完整视频 `prepare/commit` 仍需新的明确授权。

@@ -520,3 +520,32 @@ git diff --check
 - 子输入 required/minLength/maxLength/maxInputCount 的字段级校验还没有完整接入提交前防线。
 - 当前 Tune UI 只在图片高级参数区渲染服务端模型和子输入；视频高级参数区仍需单独接服务端模型参数 UI。
 - 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。
+
+## 2026-06-18 激活子输入文本提交前校验
+
+代码提交 `56f0639 fix(quickcreate): validate active child text fields` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationServiceFieldInputChild` 新增 `maxLength/minLength`，mapper 会从子输入 JSON 或子输入内嵌 `skuInputExtraJson` 解析文本长度限制。
+- `QuickCreationServiceFieldUiModel.kt` 新增子输入文本校验 helper，覆盖 `required` 非空和 `minLength` 最小长度错误文案。
+- `QuickCreateScreenModel.validateServiceFields()` 现在会校验当前激活的子文本字段；校验失败时回到 `IDLE`，不进入正式 `generateImage/generateVideo`。
+- 未激活的 required 子输入不会阻止生成，避免条件字段在不可见状态下误拦截。
+- 新增 mapper、helper 和 ScreenModel 回归测试，覆盖子输入长度 metadata、子输入校验文案、激活子输入拦截和未激活子输入放行。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.required child text validation uses child metadata" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.child min length validation uses child metadata"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when active required child text field is empty" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.inactive required child text field does not block image generation"
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :shared:testDebugUnitTest
+git diff --check
+```
+
+仍未完成：
+- 子输入 `maxLength` 目前已解析到 domain，但 Tune 子输入输入框尚未按 `maxLength` 截断或显示计数。
+- 上传类子输入 required/maxInputCount 仍未接入提交前防线。
+- 当前 Tune UI 仍只在图片高级参数区渲染服务端模型和子输入；视频高级参数区仍需单独接服务端模型参数 UI。
+- 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。
