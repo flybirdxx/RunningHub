@@ -54,6 +54,14 @@ class QuickCreateScreenModelTest {
         val createdProjectNames = mutableListOf<String>()
         val renamedProjectRequests = mutableListOf<Pair<String, String>>()
         val deletedProjectIds = mutableListOf<String>()
+        var lastProjectDetailId: String? = null
+        var projectDetail = QuickCreationProject(
+            projectId = "project-1",
+            name = "项目详情",
+            coverUrl = "https://example.com/project-detail.png",
+            taskCount = 9,
+            pinned = true,
+        )
         var createdProject = QuickCreationProject(
             projectId = "project-new",
             name = "新项目",
@@ -334,7 +342,9 @@ class QuickCreateScreenModelTest {
             }
 
         override suspend fun getQuickCreationProjectDetail(projectId: String): Result<QuickCreationProject> =
-            Result.success(projectPage.items.first { it.projectId == projectId })
+            Result.success(projectDetail.copy(projectId = projectId)).also {
+                lastProjectDetailId = projectId
+            }
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -476,6 +486,20 @@ class QuickCreateScreenModelTest {
         assertEquals(null, model.uiState.value.selectedProjectId)
         assertEquals(listOf(1, 1), repository.requestedHistoryPages)
         assertEquals(emptySet(), model.uiState.value.projectMutatingIds)
+    }
+
+    @Test
+    fun `selecting project detail loads detail into state`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.selectProjectDetail("project-1")
+
+        assertEquals("project-1", repository.lastProjectDetailId)
+        assertEquals(false, model.uiState.value.projectDetailLoading)
+        assertEquals("项目详情", model.uiState.value.selectedProjectDetail?.name)
+        assertEquals("https://example.com/project-detail.png", model.uiState.value.selectedProjectDetail?.coverUrl)
+        assertEquals(9, model.uiState.value.selectedProjectDetail?.taskCount)
     }
 
     @Test

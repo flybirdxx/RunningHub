@@ -120,6 +120,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             onCreateProject = screenModel::createProject,
                             onRenameProject = screenModel::renameProject,
                             onDeleteProject = screenModel::deleteProject,
+                            onShowProjectDetail = screenModel::selectProjectDetail,
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(
                             uiState = uiState,
@@ -133,6 +134,14 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         isLoading = uiState.historyDetailLoading,
                         item = uiState.selectedHistoryDetail,
                         onDismiss = screenModel::dismissHistoryDetail,
+                    )
+                }
+
+                if (uiState.projectDetailLoading || uiState.selectedProjectDetail != null) {
+                    ProjectDetailDialog(
+                        isLoading = uiState.projectDetailLoading,
+                        project = uiState.selectedProjectDetail,
+                        onDismiss = screenModel::dismissProjectDetail,
                     )
                 }
 
@@ -373,6 +382,7 @@ private fun CreationScrollableArea(
     onCreateProject: (String) -> Unit,
     onRenameProject: (String, String) -> Unit,
     onDeleteProject: (String) -> Unit,
+    onShowProjectDetail: (String) -> Unit,
 ) {
     when {
         uiState.results.isNotEmpty() -> ResultArea(
@@ -394,6 +404,7 @@ private fun CreationScrollableArea(
             onCreateProject = onCreateProject,
             onRenameProject = onRenameProject,
             onDeleteProject = onDeleteProject,
+            onShowProjectDetail = onShowProjectDetail,
         )
     }
 }
@@ -410,6 +421,7 @@ private fun HistoryArea(
     onCreateProject: (String) -> Unit,
     onRenameProject: (String, String) -> Unit,
     onDeleteProject: (String) -> Unit,
+    onShowProjectDetail: (String) -> Unit,
 ) {
     val selectedProject = uiState.projects.firstOrNull { it.projectId == uiState.selectedProjectId }
     LazyColumn(
@@ -430,6 +442,7 @@ private fun HistoryArea(
                 onCreateProject = onCreateProject,
                 onRenameProject = onRenameProject,
                 onDeleteProject = onDeleteProject,
+                onShowProjectDetail = onShowProjectDetail,
             )
             Spacer(Modifier.height(Dimens.SpaceSM))
             Row(
@@ -503,6 +516,7 @@ private fun ProjectStrip(
     onCreateProject: (String) -> Unit,
     onRenameProject: (String, String) -> Unit,
     onDeleteProject: (String) -> Unit,
+    onShowProjectDetail: (String) -> Unit,
 ) {
     var createDialogVisible by remember { mutableStateOf(false) }
     var renameTarget by remember { mutableStateOf<QuickCreationProject?>(null) }
@@ -562,6 +576,7 @@ private fun ProjectStrip(
                     isMutating = project.projectId in mutatingIds,
                     onClick = { onProjectSelected(project.projectId) },
                     onTogglePin = { onToggleProjectPin(project.projectId) },
+                    onShowDetail = { onShowProjectDetail(project.projectId) },
                     onRename = { renameTarget = project },
                     onDelete = { deleteTarget = project },
                 )
@@ -649,6 +664,7 @@ private fun ProjectChip(
     isMutating: Boolean,
     onClick: () -> Unit,
     onTogglePin: () -> Unit,
+    onShowDetail: () -> Unit,
     onRename: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -731,6 +747,16 @@ private fun ProjectChip(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
+                    DropdownMenuItem(
+                        text = { Text("详情") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Info, contentDescription = null)
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onShowDetail()
+                        },
+                    )
                     DropdownMenuItem(
                         text = { Text("重命名") },
                         leadingIcon = {
@@ -823,6 +849,84 @@ private fun ProjectDeleteDialog(
             }
         },
     )
+}
+
+@Composable
+private fun ProjectDetailDialog(
+    isLoading: Boolean,
+    project: QuickCreationProject?,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        },
+        title = {
+            Text(
+                if (isLoading) "加载项目" else "项目详情",
+                fontWeight = FontWeight.SemiBold,
+            )
+        },
+        text = {
+            if (isLoading || project == null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    Text("正在加载项目详情")
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
+                    if (!project.coverUrl.isNullOrBlank()) {
+                        SmartAsyncImage(
+                            imageUrl = project.coverUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(160.dp)
+                                .background(DarkSurfaceVariant, RoundedCornerShape(Dimens.RadiusMD)),
+                            contentScale = ContentScale.Crop,
+                        )
+                    }
+                    Text(
+                        project.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    ProjectDetailRow(label = "任务数量", value = "${project.taskCount}")
+                    ProjectDetailRow(label = "置顶状态", value = if (project.pinned) "已置顶" else "未置顶")
+                    project.createdAt?.let { ProjectDetailRow(label = "创建时间", value = it) }
+                    project.updatedAt?.let { ProjectDetailRow(label = "更新时间", value = it) }
+                }
+            }
+        },
+    )
+}
+
+@Composable
+private fun ProjectDetailRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label, color = Neutral400, fontSize = 13.sp)
+        Text(
+            value,
+            color = Color.White.copy(alpha = 0.88f),
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
 }
 
 @Composable
@@ -1694,6 +1798,7 @@ private fun QuickCreatePreviewContent(
                             onCreateProject = {},
                             onRenameProject = { _, _ -> },
                             onDeleteProject = {},
+                            onShowProjectDetail = {},
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(uiState = uiState, onApplyTemplate = {})
                     }

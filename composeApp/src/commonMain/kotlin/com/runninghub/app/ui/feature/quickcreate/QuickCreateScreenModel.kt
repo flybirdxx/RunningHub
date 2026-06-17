@@ -403,6 +403,48 @@ class QuickCreateScreenModel(
         }
     }
 
+    fun selectProjectDetail(projectId: String) {
+        if (projectId.isBlank()) return
+
+        screenModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    projectDetailLoading = true,
+                    selectedProjectDetail = null,
+                    error = null,
+                )
+            }
+            val detail = quickCreateRepository.getQuickCreationProjectDetail(projectId)
+            detail.fold(
+                onSuccess = { project ->
+                    _uiState.update {
+                        it.copy(
+                            projectDetailLoading = false,
+                            selectedProjectDetail = project,
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            projectDetailLoading = false,
+                            error = error.message ?: "项目详情加载失败",
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    fun dismissProjectDetail() {
+        _uiState.update {
+            it.copy(
+                projectDetailLoading = false,
+                selectedProjectDetail = null,
+            )
+        }
+    }
+
     private fun updateHistoryRefreshJob(items: List<QuickCreationHistoryItem>) {
         if (items.none { it.needsHistoryRefresh }) {
             historyRefreshJob?.cancel()
