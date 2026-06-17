@@ -49,7 +49,6 @@ import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.app.ui.theme.*
 import com.runninghub.app.util.formatCashAmount
-import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.shared.data.local.PermissionDataStore
 import com.runninghub.shared.domain.model.Permission
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
@@ -1764,7 +1763,7 @@ private fun SendButton(
                 Spacer(Modifier.width(6.dp))
                 if (cost > 0) {
                     Text(
-                        "¥${formatOneDecimal(cost)}",
+                        "¥${formatCashAmount(cost)}",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (enabled) Primary300 else Neutral500,
