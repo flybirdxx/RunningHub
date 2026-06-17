@@ -124,6 +124,56 @@ class QuickCreationServiceFieldUiModelTest {
     }
 
     @Test
+    fun `active upload param keys resolve sibling field key conditions from param key values`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "IMAGE",
+            groupName = null,
+            bindingId = "binding-1",
+            skuId = "sku-1",
+            name = "Image model",
+            description = null,
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "creationMode",
+                    paramKey = "creation_mode",
+                    fieldType = "LIST",
+                    required = false,
+                    defaultValue = "text",
+                    options = emptyList(),
+                ),
+                QuickCreationServiceField(
+                    fieldKey = "referenceGroup",
+                    paramKey = "reference_group",
+                    fieldType = "LIST",
+                    required = false,
+                    defaultValue = null,
+                    options = emptyList(),
+                    inputExtra = QuickCreationServiceFieldExtra(
+                        inputChildren = listOf(
+                            QuickCreationServiceFieldInputChild(
+                                fieldKey = "referenceImage",
+                                paramKey = "reference_images",
+                                fieldType = "IMAGE_UPLOAD",
+                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                    fieldKey = "creationMode",
+                                    values = listOf("imageReference"),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            setOf("reference_images"),
+            model.quickCreationActiveUploadParamKeys(
+                serviceParams = mapOf("creation_mode" to "imageReference"),
+            ),
+        )
+    }
+
+    @Test
     fun `relevant media references keep global uploads and active field uploads only`() {
         val globalRef = mediaReference(id = "global", fieldParamKey = null)
         val activeFieldRef = mediaReference(id = "active", fieldParamKey = "imageUrls")

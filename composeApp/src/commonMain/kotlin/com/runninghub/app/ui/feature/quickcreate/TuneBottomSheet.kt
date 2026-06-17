@@ -642,7 +642,7 @@ private fun ImageAdvancedContent(
             ?.let { fields ->
                 ServiceFieldOptionsContent(
                     fields = fields,
-                    params = serviceParams,
+                    params = selectedServiceModel.quickCreationParamsWithFieldAliases(serviceParams),
                     mediaReferences = mediaReferences,
                     onParamChange = onServiceParamChange,
                     onUploadFieldClick = onServiceUploadFieldClick,
@@ -1205,7 +1205,7 @@ private fun VideoAdvancedContent(
             ?.let { fields ->
                 ServiceFieldOptionsContent(
                     fields = fields,
-                    params = serviceParams,
+                    params = selectedServiceModel.quickCreationParamsWithFieldAliases(serviceParams),
                     mediaReferences = mediaReferences,
                     onParamChange = onServiceParamChange,
                     onUploadFieldClick = onServiceUploadFieldClick,

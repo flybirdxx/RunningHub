@@ -74,6 +74,47 @@ internal fun QuickCreationServiceField.quickCreationActiveInputChildren(
         }
 }
 
+internal fun QuickCreationServiceModel?.quickCreationParamsWithFieldAliases(
+    params: Map<String, String>,
+): Map<String, String> {
+    val fields = this?.fields.orEmpty()
+    if (fields.isEmpty()) return params
+    return buildMap {
+        putAll(params)
+        fields.forEach { field ->
+            putQuickCreationParamAliases(
+                fieldKey = field.fieldKey,
+                paramKey = field.paramKey,
+                defaultValue = field.defaultValue,
+                params = params,
+            )
+            field.inputExtra?.inputChildren.orEmpty().forEach { child ->
+                putQuickCreationParamAliases(
+                    fieldKey = child.fieldKey,
+                    paramKey = child.paramKey,
+                    defaultValue = child.defaultValue,
+                    params = params,
+                )
+            }
+        }
+    }
+}
+
+private fun MutableMap<String, String>.putQuickCreationParamAliases(
+    fieldKey: String,
+    paramKey: String,
+    defaultValue: String?,
+    params: Map<String, String>,
+) {
+    val value = params[paramKey] ?: params[fieldKey] ?: defaultValue?.takeIf { it.isNotBlank() } ?: return
+    if (fieldKey.isNotBlank() && fieldKey !in this) {
+        put(fieldKey, value)
+    }
+    if (paramKey.isNotBlank() && paramKey !in this) {
+        put(paramKey, value)
+    }
+}
+
 internal fun QuickCreationServiceField.constrainQuickCreationTextInput(value: String): String {
     val maxLength = inputExtra?.maxLength?.takeIf { it >= 0 } ?: return value
     return value.take(maxLength)
@@ -159,8 +200,9 @@ internal fun List<MediaReference>.quickCreationFieldMediaReferences(paramKey: St
 
 internal fun QuickCreationServiceModel?.quickCreationActiveUploadParamKeys(
     serviceParams: Map<String, String>,
-): Set<String> =
-    this?.fields.orEmpty()
+): Set<String> {
+    val aliasedParams = quickCreationParamsWithFieldAliases(serviceParams)
+    return this?.fields.orEmpty()
         .filter { it.visible }
         .flatMap { field ->
             buildList {
@@ -168,13 +210,14 @@ internal fun QuickCreationServiceModel?.quickCreationActiveUploadParamKeys(
                     add(field.paramKey)
                 }
                 addAll(
-                    field.quickCreationActiveInputChildren(serviceParams)
+                    field.quickCreationActiveInputChildren(aliasedParams)
                         .filter { it.isQuickCreationUploadField() }
                         .map { it.paramKey }
                 )
             }
         }
         .toSet()
+}
 
 internal fun List<MediaReference>.quickCreationRelevantMediaReferences(
     activeFieldParamKeys: Set<String>,

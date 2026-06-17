@@ -1570,13 +1570,15 @@ class QuickCreateScreenModel(
 
     private fun QuickCreationServiceModel?.activeServiceParamKeys(
         serviceParams: Map<String, String>,
-    ): Set<String> =
-        this?.fields.orEmpty()
+    ): Set<String> {
+        val aliasedParams = quickCreationParamsWithFieldAliases(serviceParams)
+        return this?.fields.orEmpty()
             .filter { it.visible }
             .flatMap { field ->
-                listOf(field.paramKey) + field.quickCreationActiveInputChildren(serviceParams).map { it.paramKey }
+                listOf(field.paramKey) + field.quickCreationActiveInputChildren(aliasedParams).map { it.paramKey }
             }
             .toSet()
+    }
 
     private fun validateCurrentServiceFields(state: QuickCreateUiState): String? =
         when (state.currentTab) {
@@ -1595,6 +1597,7 @@ class QuickCreateScreenModel(
         serviceParams: Map<String, String>,
     ): String? {
         val defaults = model.defaultServiceParams()
+        val aliasedParams = model.quickCreationParamsWithFieldAliases(serviceParams)
         return model?.fields.orEmpty()
             .filter { it.visible }
             .firstNotNullOfOrNull { field ->
@@ -1602,7 +1605,7 @@ class QuickCreateScreenModel(
                     val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
                     field.quickCreationTextValidationError(value)?.let { return@firstNotNullOfOrNull it }
                 }
-                field.quickCreationActiveInputChildren(serviceParams)
+                field.quickCreationActiveInputChildren(aliasedParams)
                     .filter { it.supportsQuickCreationTextEntry() }
                     .firstNotNullOfOrNull { child ->
                         val value = serviceParams[child.paramKey] ?: child.defaultValue.orEmpty()
@@ -1697,11 +1700,13 @@ class QuickCreateScreenModel(
 
     private fun QuickCreationServiceModel?.activeChildUploadFields(
         serviceParams: Map<String, String>,
-    ): List<QuickCreationServiceFieldInputChild> =
-        this?.fields.orEmpty()
+    ): List<QuickCreationServiceFieldInputChild> {
+        val aliasedParams = quickCreationParamsWithFieldAliases(serviceParams)
+        return this?.fields.orEmpty()
             .filter { it.visible }
-            .flatMap { field -> field.quickCreationActiveInputChildren(serviceParams) }
+            .flatMap { field -> field.quickCreationActiveInputChildren(aliasedParams) }
             .filter { it.isQuickCreationUploadField() }
+    }
 
     private fun QuickCreationServiceField.uploadMediaType(): QuickCreateMediaType? {
         return quickCreationUploadMediaType()
@@ -1822,19 +1827,21 @@ class QuickCreateScreenModel(
 
     private fun QuickCreationServiceModel?.quickCreationActiveUploadParamAliases(
         serviceParams: Map<String, String>,
-    ): Map<String, String> =
-        buildMap {
+    ): Map<String, String> {
+        val aliasedParams = quickCreationParamsWithFieldAliases(serviceParams)
+        return buildMap {
             this@quickCreationActiveUploadParamAliases?.fields.orEmpty()
                 .filter { it.visible }
                 .forEach { field ->
                     if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {
                         putUploadAliases(field.fieldKey, field.paramKey)
                     }
-                    field.quickCreationActiveInputChildren(serviceParams)
+                    field.quickCreationActiveInputChildren(aliasedParams)
                         .filter { it.isQuickCreationUploadField() }
                         .forEach { child -> putUploadAliases(child.fieldKey, child.paramKey) }
                 }
         }
+    }
 
     private fun QuickCreationServiceModel?.quickCreationDeclaredUploadParamAliases(): Map<String, String> =
         buildMap {
