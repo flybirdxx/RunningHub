@@ -610,6 +610,7 @@ class QuickCreateScreenModel(
             _uiState.update { it.copy(currentTab = QuickCreateTab.VIDEO) }
         }
         clearDraft()
+        scheduleFeePreview()
     }
 
     fun discardDraft() {

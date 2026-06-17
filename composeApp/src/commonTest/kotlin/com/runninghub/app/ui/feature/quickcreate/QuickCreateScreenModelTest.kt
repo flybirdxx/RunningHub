@@ -2459,6 +2459,26 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `restore draft refreshes fee preview for restored image prompt`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"draft prompt","videoPrompt":""}""")
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), settings)
+        runCurrent()
+
+        model.checkForDraft()
+        runCurrent()
+        model.restoreDraft()
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(1, repository.feePreviewRequests.size)
+        assertEquals("draft prompt", repository.feePreviewRequests.single().prompt)
+    }
+
+    @Test
     fun `generate without prompt shows error`() {
         runBlocking {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
