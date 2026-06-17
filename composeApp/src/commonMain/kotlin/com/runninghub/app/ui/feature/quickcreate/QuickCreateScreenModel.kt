@@ -1863,6 +1863,11 @@ class QuickCreateScreenModel(
             params.forEach { (key, value) ->
                 put(aliases[key] ?: key, value)
             }
+            params.forEach { (key, value) ->
+                if (aliases[key] == key) {
+                    put(key, value)
+                }
+            }
         }
     }
 
