@@ -120,6 +120,43 @@ class QuickCreateScreenModel(
         }
     }
 
+    fun selectHistoryOutput(outputId: String) {
+        screenModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    historyDetailLoading = true,
+                    selectedHistoryDetail = null,
+                )
+            }
+            val detail = quickCreateRepository.getQuickCreationHistoryDetail(outputId)
+            _uiState.update { state ->
+                detail.fold(
+                    onSuccess = { item ->
+                        state.copy(
+                            historyDetailLoading = false,
+                            selectedHistoryDetail = item,
+                        )
+                    },
+                    onFailure = { error ->
+                        state.copy(
+                            historyDetailLoading = false,
+                            error = error.message ?: "历史详情加载失败",
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    fun dismissHistoryDetail() {
+        _uiState.update {
+            it.copy(
+                historyDetailLoading = false,
+                selectedHistoryDetail = null,
+            )
+        }
+    }
+
     fun checkForDraft() {
         screenModelScope.launch {
             val raw = settingsRepository.getQuickCreateDraft()

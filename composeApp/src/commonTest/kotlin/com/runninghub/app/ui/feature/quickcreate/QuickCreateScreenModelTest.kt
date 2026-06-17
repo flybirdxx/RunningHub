@@ -37,6 +37,7 @@ class QuickCreateScreenModelTest {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
         var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
         var lastVideoRequest: com.runninghub.shared.domain.repository.VideoGenerationRequest? = null
+        var lastHistoryDetailOutputId: String? = null
         var historyPage = QuickCreationHistoryPage(
             page = 1,
             size = 10,
@@ -61,6 +62,21 @@ class QuickCreateScreenModelTest {
                             height = 1152,
                         )
                     ),
+                )
+            ),
+        )
+        var historyDetail = QuickCreationHistoryItem(
+            taskId = "history-task-detail",
+            status = "SUCCESS",
+            categoryId = "IMAGE",
+            params = mapOf("prompt" to "detail prompt"),
+            outputs = listOf(
+                QuickCreationHistoryOutput(
+                    outputId = "output-1",
+                    url = "https://example.com/detail.png",
+                    type = "png",
+                    width = 1024,
+                    height = 1024,
                 )
             ),
         )
@@ -210,7 +226,9 @@ class QuickCreateScreenModelTest {
             Result.success(historyPage.copy(page = page, size = size))
 
         override suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem> =
-            Result.failure(IllegalStateException("No history detail in fake repository"))
+            Result.success(historyDetail).also {
+                lastHistoryDetailOutputId = outputId
+            }
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -260,6 +278,19 @@ class QuickCreateScreenModelTest {
         assertEquals(false, model.uiState.value.historyLoading)
         assertEquals("history-task-1", model.uiState.value.historyItems.single().taskId)
         assertEquals("https://example.com/result.png", model.uiState.value.historyItems.single().outputs.single().url)
+    }
+
+    @Test
+    fun `selecting history output loads detail into state`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.selectHistoryOutput("output-1")
+
+        assertEquals("output-1", repository.lastHistoryDetailOutputId)
+        assertEquals(false, model.uiState.value.historyDetailLoading)
+        assertEquals("history-task-detail", model.uiState.value.selectedHistoryDetail?.taskId)
+        assertEquals("https://example.com/detail.png", model.uiState.value.selectedHistoryDetail?.outputs?.single()?.url)
     }
 
     @Test

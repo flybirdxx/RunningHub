@@ -6,6 +6,7 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -109,12 +110,21 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         QuickCreateMode.CREATION -> CreationScrollableArea(
                             uiState = uiState,
                             onClearResults = screenModel::clearResults,
+                            onHistoryItemSelected = screenModel::selectHistoryOutput,
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(
                             uiState = uiState,
                             onApplyTemplate = screenModel::applyInspirationTemplate,
                         )
                     }
+                }
+
+                if (uiState.historyDetailLoading || uiState.selectedHistoryDetail != null) {
+                    HistoryDetailDialog(
+                        isLoading = uiState.historyDetailLoading,
+                        item = uiState.selectedHistoryDetail,
+                        onDismiss = screenModel::dismissHistoryDetail,
+                    )
                 }
 
                 if (uiState.showCreationInput) {
@@ -345,6 +355,7 @@ private fun ModeSwitch(
 private fun CreationScrollableArea(
     uiState: QuickCreateUiState,
     onClearResults: () -> Unit,
+    onHistoryItemSelected: (String) -> Unit,
 ) {
     when {
         uiState.results.isNotEmpty() -> ResultArea(
@@ -355,13 +366,19 @@ private fun CreationScrollableArea(
             status = uiState.taskStatus,
             statusText = uiState.statusText,
         )
-        uiState.historyLoading || uiState.historyItems.isNotEmpty() -> HistoryArea(uiState)
+        uiState.historyLoading || uiState.historyItems.isNotEmpty() -> HistoryArea(
+            uiState = uiState,
+            onHistoryItemSelected = onHistoryItemSelected,
+        )
         else -> EmptyArea()
     }
 }
 
 @Composable
-private fun HistoryArea(uiState: QuickCreateUiState) {
+private fun HistoryArea(
+    uiState: QuickCreateUiState,
+    onHistoryItemSelected: (String) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(Dimens.SpaceMD),
@@ -390,16 +407,26 @@ private fun HistoryArea(uiState: QuickCreateUiState) {
         }
 
         items(uiState.historyItems, key = { it.taskId }) { item ->
-            HistoryItemRow(item)
+            HistoryItemRow(
+                item = item,
+                onClick = {
+                    item.outputs.firstOrNull()?.outputId?.let(onHistoryItemSelected)
+                },
+            )
         }
     }
 }
 
 @Composable
-private fun HistoryItemRow(item: QuickCreationHistoryItem) {
+private fun HistoryItemRow(
+    item: QuickCreationHistoryItem,
+    onClick: () -> Unit,
+) {
     val output = item.outputs.firstOrNull()
     Surface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(enabled = output != null) { onClick() },
         color = DarkSurface,
         shape = RoundedCornerShape(Dimens.RadiusMD),
         border = BorderStroke(1.dp, DarkOutlineVariant),
@@ -469,6 +496,96 @@ private fun HistoryItemRow(item: QuickCreationHistoryItem) {
             }
         }
     }
+}
+
+@Composable
+private fun HistoryDetailDialog(
+    isLoading: Boolean,
+    item: QuickCreationHistoryItem?,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("关闭")
+            }
+        },
+        title = {
+            Text(
+                if (isLoading) "加载详情" else "创作详情",
+                fontWeight = FontWeight.SemiBold,
+            )
+        },
+        text = {
+            if (isLoading || item == null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
+                    Text("正在加载历史详情")
+                }
+            } else {
+                val output = item.outputs.firstOrNull()
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
+                    val previewUrl = output?.thumbnailUrl ?: output?.url
+                    if (previewUrl != null) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(180.dp)
+                                .background(DarkSurfaceVariant, RoundedCornerShape(Dimens.RadiusMD)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            SmartAsyncImage(
+                                imageUrl = previewUrl,
+                                contentDescription = null,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop,
+                            )
+                            if (output?.isVideo == true) {
+                                Icon(
+                                    Icons.Default.PlayCircle,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(38.dp),
+                                    tint = Color.White.copy(alpha = 0.86f),
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        item.params["prompt"] ?: item.taskId,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        listOfNotNull(
+                            item.categoryId,
+                            item.status,
+                            output?.type?.uppercase(),
+                            output?.let { "${it.width ?: "-"}x${it.height ?: "-"}" },
+                        ).joinToString(" · "),
+                        color = Neutral500,
+                        fontSize = 12.sp,
+                    )
+                    if (item.cashAmount > 0.0) {
+                        Text(
+                            "${formatOneDecimal(item.cashAmount)} ${item.cashCurrency.orEmpty()}",
+                            color = Primary300,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
+            }
+        },
+        containerColor = DarkSurface,
+        titleContentColor = Color.White,
+        textContentColor = Color.White.copy(alpha = 0.82f),
+    )
 }
 
 @Composable
@@ -1132,6 +1249,7 @@ private fun QuickCreatePreviewContent(
                         QuickCreateMode.CREATION -> CreationScrollableArea(
                             uiState = uiState,
                             onClearResults = {},
+                            onHistoryItemSelected = {},
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(uiState = uiState, onApplyTemplate = {})
                     }

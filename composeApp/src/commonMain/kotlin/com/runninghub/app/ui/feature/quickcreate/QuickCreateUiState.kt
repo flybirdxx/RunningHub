@@ -350,6 +350,8 @@ data class QuickCreateUiState(
     val inspirationTemplates: List<QuickCreateInspirationTemplate> = emptyList(),
     val historyLoading: Boolean = false,
     val historyItems: List<QuickCreationHistoryItem> = emptyList(),
+    val historyDetailLoading: Boolean = false,
+    val selectedHistoryDetail: QuickCreationHistoryItem? = null,
     val serviceModelsLoading: Boolean = false,
     val serviceImageModels: List<QuickCreationServiceModel> = emptyList(),
     val serviceVideoModels: List<QuickCreationServiceModel> = emptyList(),
