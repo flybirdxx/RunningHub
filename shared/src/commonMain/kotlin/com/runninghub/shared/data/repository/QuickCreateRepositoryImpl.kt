@@ -30,6 +30,31 @@ private fun mapResults(results: List<QuickCreateResultDto>?): List<QuickCreateRe
         )
     } ?: emptyList()
 
+private fun mapQuickCreationOutputs(outputs: List<QuickCreationOutputDto>): List<QuickCreateResultItem> =
+    outputs.map { output ->
+        val sizeParts = output.outputSize
+            ?.split("x", "X")
+            ?.takeIf { it.size == 2 }
+
+        QuickCreateResultItem(
+            url = output.fileUrl,
+            type = output.outputType ?: inferResultType(output.fileUrl),
+            thumbnailUrl = output.filePreviewUrl,
+            width = sizeParts?.getOrNull(0)?.toIntOrNull(),
+            height = sizeParts?.getOrNull(1)?.toIntOrNull(),
+            duration = null,
+        )
+    }
+
+private fun inferResultType(url: String): String {
+    val lower = url.lowercase()
+    return when {
+        lower.endsWith(".mp4") || lower.endsWith(".webm") || lower.endsWith(".mov") -> "video"
+        lower.endsWith(".mp3") || lower.endsWith(".wav") -> "audio"
+        else -> "image"
+    }
+}
+
 private fun pollTaskStatus(
     api: QuickCreateApi,
     taskId: String,
@@ -58,10 +83,86 @@ private fun pollTaskStatus(
     emit(QuickCreateTaskStatus.Error("任务超时"))
 }
 
+private fun pollQuickCreationTaskStatus(
+    api: QuickCreateApi,
+    taskId: String,
+): Flow<QuickCreateTaskStatus> = flow {
+    var attempts = 0
+    val maxAttempts = 120
+    while (attempts < maxAttempts) {
+        val page = api.listQuickCreationTasks(page = 1, size = 10)
+        attempts++
+
+        if (page.code != 0) {
+            emit(QuickCreateTaskStatus.Error(page.msg ?: page.message ?: "任务查询失败"))
+            return@flow
+        }
+
+        val record = page.data?.list?.firstOrNull { it.taskId == taskId }
+        if (record == null) {
+            emit(QuickCreateTaskStatus.Queuing(taskId))
+            delay(2000)
+            continue
+        }
+
+        val status: QuickCreateTaskStatus = when (record.taskStatus) {
+            "SUCCESS" -> QuickCreateTaskStatus.Success(taskId, mapQuickCreationOutputs(record.outputList))
+            "FAILED", "FAILURE", "ERROR" -> QuickCreateTaskStatus.Failed(taskId, "任务失败")
+            "RUNNING", "PROCESSING" -> QuickCreateTaskStatus.Running(taskId, 0)
+            else -> QuickCreateTaskStatus.Queuing(taskId)
+        }
+
+        emit(status)
+        if (status is QuickCreateTaskStatus.Success || status is QuickCreateTaskStatus.Failed) {
+            return@flow
+        }
+        delay(2000)
+    }
+    emit(QuickCreateTaskStatus.Error("任务超时"))
+}
+
 class QuickCreateRepositoryImpl(
     private val quickCreateApi: QuickCreateApi,
     private val settingsRepository: SettingsRepository,
 ) : QuickCreateRepository {
+
+    private fun generateImageWithQuickCreationV2(
+        request: ImageGenerationRequest,
+    ): Flow<QuickCreateTaskStatus> = flow {
+        val createRequest = QuickCreationV2Defaults.imageG2CreateRequest(request)
+
+        val feePreview = quickCreateApi.previewQuickCreationFee(createRequest)
+        if (feePreview.code != 0) {
+            emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: "价格预览失败"))
+            return@flow
+        }
+        val fee = feePreview.data
+        if (fee != null && (!fee.passed || fee.insufficientType != null)) {
+            emit(QuickCreateTaskStatus.Error("余额不足或价格预览未通过"))
+            return@flow
+        }
+
+        val prepare = quickCreateApi.prepareQuickCreation(createRequest)
+        if (prepare.code != 0 || prepare.data == null) {
+            emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: "任务预提交失败"))
+            return@flow
+        }
+
+        val commit = quickCreateApi.commitQuickCreation(
+            QuickCreationCommitRequestDto(
+                prepareToken = prepare.data.prepareToken,
+                createRequest = createRequest,
+            )
+        )
+        if (commit.code != 0 || commit.data == null) {
+            emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: "任务提交失败"))
+            return@flow
+        }
+
+        val taskId = commit.data.taskId
+        emit(QuickCreateTaskStatus.Queuing(taskId))
+        pollQuickCreationTaskStatus(quickCreateApi, taskId).collect { emit(it) }
+    }
 
     // ── 图片创作 ───────────────────────────────────────
 
@@ -69,6 +170,11 @@ class QuickCreateRepositoryImpl(
         emit(QuickCreateTaskStatus.Submitting)
 
         try {
+            if (request.model == "all-power-image-g2") {
+                generateImageWithQuickCreationV2(request).collect { emit(it) }
+                return@flow
+            }
+
             val hasRef = !request.referenceImageUri.isNullOrBlank()
             val refImageUrl = request.referenceImageUri ?: ""  // validated non-null reference, replaces all !! usage
             val model = ImageModel.entries.find { it.modelKey == request.model }

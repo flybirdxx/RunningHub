@@ -5,6 +5,11 @@ enum class QuickCreateTab(val displayName: String) {
     VIDEO("视频"),
 }
 
+enum class QuickCreateMode(val displayName: String) {
+    CREATION("创作"),
+    INSPIRATION("灵感"),
+}
+
 const val MAX_PROMPT_CHARS = 500
 const val MAX_VISIBLE_CHARS_WARN = 400
 
@@ -325,6 +330,7 @@ data class VideoConfig(
 }
 
 data class QuickCreateUiState(
+    val currentMode: QuickCreateMode = QuickCreateMode.CREATION,
     val currentTab: QuickCreateTab = QuickCreateTab.IMAGE,
     val imageConfig: ImageConfig = ImageConfig(),
     val videoConfig: VideoConfig = VideoConfig(),
@@ -334,7 +340,10 @@ data class QuickCreateUiState(
     val error: String? = null,
     val estimatedCost: Double = 0.0,
     val tuneSheetVisible: Boolean = false,
-)
+) {
+    val showCreationInput: Boolean
+        get() = currentMode == QuickCreateMode.CREATION
+}
 
 enum class QuickCreateTaskUiStatus {
     IDLE, SUBMITTING, QUEUING, RUNNING, SUCCESS, FAILED,

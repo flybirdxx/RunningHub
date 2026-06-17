@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.automirrored.filled.VolumeOff
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -94,54 +95,56 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     .fillMaxSize()
                     .widthIn(max = windowInfo.detailContentMaxWidth)
             ) {
-                TopBar(title = "快捷创作", onBack = null)
+                QuickCreateTopBar(
+                    selectedMode = uiState.currentMode,
+                    onModeSelected = screenModel::switchMode,
+                    onBack = null,
+                )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    when {
-                        uiState.results.isNotEmpty() -> ResultArea(
-                            results = uiState.results,
-                            onClear = screenModel::clearResults,
+                    when (uiState.currentMode) {
+                        QuickCreateMode.CREATION -> CreationScrollableArea(
+                            uiState = uiState,
+                            onClearResults = screenModel::clearResults,
                         )
-                        uiState.taskStatus != QuickCreateTaskUiStatus.IDLE -> TaskStatusArea(
-                            status = uiState.taskStatus,
-                            statusText = uiState.statusText,
-                        )
-                        else -> EmptyArea()
+                        QuickCreateMode.INSPIRATION -> InspirationArea()
                     }
                 }
 
-                BottomPromptPanel(
-                    uiState = uiState,
-                    onTabSwitch = screenModel::switchTab,
-                    onPromptChange = if (uiState.currentTab == QuickCreateTab.IMAGE) screenModel::updateImagePrompt else screenModel::updateVideoPrompt,
-                    onLaunchImagePicker = {
-                        controller.pickMedia(
-                            mediaPermission = Permission.MediaImages,
-                            mediaType = MediaType.IMAGE,
-                            onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
-                            onPermissionDenied = { pendingPermission = Permission.MediaImages },
-                        )
-                    },
-                    onLaunchVideoPicker = {
-                        controller.pickMedia(
-                            mediaPermission = Permission.MediaVideo,
-                            mediaType = MediaType.VIDEO,
-                            onSuccess = { uriString -> currentScreenModel.pickVideoReference(uriString) },
-                            onPermissionDenied = { pendingPermission = Permission.MediaVideo },
-                        )
-                    },
-                    onLaunchAudioPicker = {
-                        controller.pickMedia(
-                            mediaPermission = Permission.MediaAudio,
-                            mediaType = MediaType.AUDIO,
-                            onSuccess = { uriString -> currentScreenModel.pickAudioReference(uriString) },
-                            onPermissionDenied = { pendingPermission = Permission.MediaAudio },
-                        )
-                    },
-                    onRemoveMedia = screenModel::removeMediaReference,
-                    onToggleTune = { screenModel.setTuneSheetVisible(!uiState.tuneSheetVisible) },
-                    onGenerate = screenModel::generate,
-                )
+                if (uiState.showCreationInput) {
+                    BottomPromptPanel(
+                        uiState = uiState,
+                        onTabSwitch = screenModel::switchTab,
+                        onPromptChange = if (uiState.currentTab == QuickCreateTab.IMAGE) screenModel::updateImagePrompt else screenModel::updateVideoPrompt,
+                        onLaunchImagePicker = {
+                            controller.pickMedia(
+                                mediaPermission = Permission.MediaImages,
+                                mediaType = MediaType.IMAGE,
+                                onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
+                                onPermissionDenied = { pendingPermission = Permission.MediaImages },
+                            )
+                        },
+                        onLaunchVideoPicker = {
+                            controller.pickMedia(
+                                mediaPermission = Permission.MediaVideo,
+                                mediaType = MediaType.VIDEO,
+                                onSuccess = { uriString -> currentScreenModel.pickVideoReference(uriString) },
+                                onPermissionDenied = { pendingPermission = Permission.MediaVideo },
+                            )
+                        },
+                        onLaunchAudioPicker = {
+                            controller.pickMedia(
+                                mediaPermission = Permission.MediaAudio,
+                                mediaType = MediaType.AUDIO,
+                                onSuccess = { uriString -> currentScreenModel.pickAudioReference(uriString) },
+                                onPermissionDenied = { pendingPermission = Permission.MediaAudio },
+                            )
+                        },
+                        onRemoveMedia = screenModel::removeMediaReference,
+                        onToggleTune = { screenModel.setTuneSheetVisible(!uiState.tuneSheetVisible) },
+                        onGenerate = screenModel::generate,
+                    )
+                }
             }
         }
 
@@ -170,7 +173,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
         }
 
         AnimatedVisibility(
-            visible = uiState.tuneSheetVisible,
+            visible = uiState.tuneSheetVisible && uiState.showCreationInput,
             enter = slideInVertically { it } + fadeIn(animationSpec = tween(220)),
             exit = slideOutVertically { it } + fadeOut(animationSpec = tween(160)),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -247,17 +250,18 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TopBar(title: String, onBack: (() -> Unit)?) {
+private fun QuickCreateTopBar(
+    selectedMode: QuickCreateMode,
+    onModeSelected: (QuickCreateMode) -> Unit,
+    onBack: (() -> Unit)?,
+) {
     TopAppBar(
         modifier = Modifier.statusBarsPadding(),
         title = {
-            Text(
-                title,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                fontSize = 18.sp,
+            ModeSwitch(
+                selectedMode = selectedMode,
+                onModeSelected = onModeSelected,
             )
         },
         navigationIcon = {
@@ -269,10 +273,80 @@ private fun TopBar(title: String, onBack: (() -> Unit)?) {
                         tint = Color.White,
                     )
                 }
+            } else {
+                Spacer(Modifier.size(48.dp))
+            }
+        },
+        actions = {
+            IconButton(onClick = {}) {
+                Icon(
+                    Icons.Default.Call,
+                    contentDescription = "客服",
+                    tint = Color.White.copy(alpha = 0.86f),
+                )
+            }
+            IconButton(onClick = {}) {
+                Icon(
+                    Icons.AutoMirrored.Filled.VolumeOff,
+                    contentDescription = "静音",
+                    tint = Color.White.copy(alpha = 0.86f),
+                )
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground),
     )
+}
+
+@Composable
+private fun ModeSwitch(
+    selectedMode: QuickCreateMode,
+    onModeSelected: (QuickCreateMode) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        QuickCreateMode.entries.forEachIndexed { index, mode ->
+            TextButton(
+                onClick = { onModeSelected(mode) },
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                Text(
+                    mode.displayName,
+                    color = if (mode == selectedMode) Primary300 else Color.White.copy(alpha = 0.56f),
+                    fontWeight = if (mode == selectedMode) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 18.sp,
+                )
+            }
+            if (index == 0) {
+                Box(
+                    modifier = Modifier
+                        .width(1.dp)
+                        .height(20.dp)
+                        .background(Primary300.copy(alpha = 0.8f)),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CreationScrollableArea(
+    uiState: QuickCreateUiState,
+    onClearResults: () -> Unit,
+) {
+    when {
+        uiState.results.isNotEmpty() -> ResultArea(
+            results = uiState.results,
+            onClear = onClearResults,
+        )
+        uiState.taskStatus != QuickCreateTaskUiStatus.IDLE -> TaskStatusArea(
+            status = uiState.taskStatus,
+            statusText = uiState.statusText,
+        )
+        else -> EmptyArea()
+    }
 }
 
 @Composable
@@ -293,6 +367,113 @@ private fun EmptyArea() {
                 "输入提示词开始创作",
                 color = Color.White.copy(alpha = 0.35f),
                 fontSize = 14.sp,
+            )
+        }
+    }
+}
+
+@Composable
+private fun InspirationArea() {
+    val tags = listOf("热门", "人像", "电商", "舞蹈", "创意")
+    val templates = listOf(
+        "赛博城市漫游" to "IMAGE",
+        "产品海报主视觉" to "IMAGE",
+        "人物写真光影" to "IMAGE",
+        "节奏舞蹈短片" to "VIDEO",
+        "电商场景展示" to "VIDEO",
+    )
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Dimens.SpaceMD),
+        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+    ) {
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            ) {
+                tags.forEachIndexed { index, tag ->
+                    Surface(
+                        color = if (index == 0) Primary300.copy(alpha = 0.16f) else DarkSurfaceVariant,
+                        shape = RoundedCornerShape(Dimens.RadiusFull),
+                        border = BorderStroke(
+                            1.dp,
+                            if (index == 0) Primary300.copy(alpha = 0.42f) else DarkOutlineVariant,
+                        ),
+                    ) {
+                        Text(
+                            tag,
+                            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 7.dp),
+                            color = if (index == 0) Primary300 else Neutral400,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
+                }
+            }
+        }
+
+        items(templates) { (title, category) ->
+            InspirationTemplateCard(title = title, category = category)
+        }
+    }
+}
+
+@Composable
+private fun InspirationTemplateCard(title: String, category: String) {
+    Surface(
+        shape = RoundedCornerShape(Dimens.RadiusLG),
+        color = DarkSurface,
+        border = BorderStroke(1.dp, DarkOutlineVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(92.dp)
+                .padding(Dimens.SpaceMD),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(
+                        Brush.linearGradient(
+                            listOf(Primary300.copy(alpha = 0.26f), Secondary500.copy(alpha = 0.18f)),
+                        ),
+                        RoundedCornerShape(Dimens.RadiusMD),
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    if (category == "VIDEO") Icons.Default.Videocam else Icons.Default.Image,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = 0.72f),
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    title,
+                    color = Color.White,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    category,
+                    color = Neutral500,
+                    fontSize = 12.sp,
+                )
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                tint = Neutral500,
             )
         }
     }
@@ -697,33 +878,35 @@ private fun QuickCreatePreviewContent(
                     .fillMaxSize()
                     .widthIn(max = windowInfo.detailContentMaxWidth),
             ) {
-                TopBar(title = "快捷创作", onBack = null)
+                QuickCreateTopBar(
+                    selectedMode = uiState.currentMode,
+                    onModeSelected = {},
+                    onBack = null,
+                )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    when {
-                        uiState.results.isNotEmpty() -> ResultArea(
-                            results = uiState.results,
-                            onClear = {},
+                    when (uiState.currentMode) {
+                        QuickCreateMode.CREATION -> CreationScrollableArea(
+                            uiState = uiState,
+                            onClearResults = {},
                         )
-                        uiState.taskStatus != QuickCreateTaskUiStatus.IDLE -> TaskStatusArea(
-                            status = uiState.taskStatus,
-                            statusText = uiState.statusText,
-                        )
-                        else -> EmptyArea()
+                        QuickCreateMode.INSPIRATION -> InspirationArea()
                     }
                 }
 
-                BottomPromptPanel(
-                    uiState = uiState,
-                    onTabSwitch = {},
-                    onPromptChange = {},
-                    onLaunchImagePicker = {},
-                    onLaunchVideoPicker = {},
-                    onLaunchAudioPicker = {},
-                    onRemoveMedia = {},
-                    onToggleTune = {},
-                    onGenerate = {},
-                )
+                if (uiState.showCreationInput) {
+                    BottomPromptPanel(
+                        uiState = uiState,
+                        onTabSwitch = {},
+                        onPromptChange = {},
+                        onLaunchImagePicker = {},
+                        onLaunchVideoPicker = {},
+                        onLaunchAudioPicker = {},
+                        onRemoveMedia = {},
+                        onToggleTune = {},
+                        onGenerate = {},
+                    )
+                }
             }
         }
     }

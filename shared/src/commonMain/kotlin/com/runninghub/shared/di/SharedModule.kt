@@ -78,6 +78,7 @@ val sharedModule = module {
                 header("Accept", "application/json, text/plain, */*")
                 header("Origin", "https://www.runninghub.cn")
                 header("Referer", "https://www.runninghub.cn/")
+                header("user-language", "zh_CN")
             }
         }.also { client ->
             // REQUEST interceptor: attach Authorization header
@@ -87,6 +88,10 @@ val sharedModule = module {
                     val token = settingsRepo.getAuthToken()
                     if (!token.isNullOrEmpty()) {
                         context.headers.append("Authorization", "Bearer $token")
+                    }
+                    val cookie = settingsRepo.getCookie()
+                    if (!cookie.isNullOrEmpty() && !context.headers.contains(HttpHeaders.Cookie)) {
+                        context.headers.append(HttpHeaders.Cookie, cookie)
                     }
                 }
             }

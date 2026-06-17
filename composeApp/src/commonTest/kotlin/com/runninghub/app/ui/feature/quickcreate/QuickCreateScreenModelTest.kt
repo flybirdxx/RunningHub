@@ -4,12 +4,25 @@ import com.runninghub.app.platform.MediaResolver
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.SettingsRepository
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
 import kotlin.test.*
 
 class QuickCreateScreenModelTest {
+    @BeforeTest
+    fun setUpMainDispatcher() {
+        Dispatchers.setMain(UnconfinedTestDispatcher())
+    }
+
+    @AfterTest
+    fun resetMainDispatcher() {
+        Dispatchers.resetMain()
+    }
 
     class FakeQuickCreateRepository : QuickCreateRepository {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
@@ -19,8 +32,6 @@ class QuickCreateScreenModelTest {
     }
 
     class FakeMediaResolver : MediaResolver {
-        override suspend fun pickImages(): List<com.runninghub.app.platform.MediaFile> = emptyList()
-        override suspend fun pickVideos(): List<com.runninghub.app.platform.MediaFile> = emptyList()
         override fun readBytes(uri: String): ByteArray = ByteArray(0)
         override fun getDisplayName(uri: String): String? = "test.jpg"
         override fun getFileSizeBytes(uri: String): Long = 1024L
@@ -68,6 +79,19 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `switchMode toggles creation and inspiration surfaces`() {
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+
+        model.switchMode(QuickCreateMode.INSPIRATION)
+        assertEquals(QuickCreateMode.INSPIRATION, model.uiState.value.currentMode)
+        assertEquals(false, model.uiState.value.showCreationInput)
+
+        model.switchMode(QuickCreateMode.CREATION)
+        assertEquals(QuickCreateMode.CREATION, model.uiState.value.currentMode)
+        assertEquals(true, model.uiState.value.showCreationInput)
+    }
+
+    @Test
     fun `updateImagePrompt changes prompt`() {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.updateImagePrompt("test prompt")
@@ -88,21 +112,25 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
-    fun `checkForDraft finds saved draft`() = runBlocking {
+    fun `checkForDraft finds saved draft`() {
+        runBlocking {
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"hello","videoPrompt":""}""")
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         model.checkForDraft()
         // async — draft loaded in coroutine
         assertTrue(true) // basic sanity
+        }
     }
 
     @Test
-    fun `generate without prompt shows error`() = runBlocking {
+    fun `generate without prompt shows error`() {
+        runBlocking {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.generate()
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertNotNull(model.uiState.value.error)
+        }
     }
 
     @Test

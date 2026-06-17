@@ -22,6 +22,18 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         const val TASK_QUERY = "/openapi/v2/query"
         const val MEDIA_UPLOAD = "/openapi/v2/media/upload/binary"
 
+        // Web 快捷创作 v2 端点
+        const val QC_CATEGORIES = "/api/qc/v2/categories"
+        const val QC_MODELS = "/api/qc/v2/models"
+        const val QC_CREATION_MODES = "/api/qc/v2/creation-modes"
+        const val QC_FEE_PREVIEW = "/task/quick-creation/fee-preview"
+        const val QC_PREPARE = "/task/quick-creation/prepare"
+        const val QC_COMMIT = "/task/quick-creation/commit"
+        const val QC_TASK_LIST = "/task/quick-creation/list"
+        const val QC_TASK_DETAIL = "/task/quick-creation/detail"
+        const val QC_INSPIRATION_TAGS = "/task/quick-creation/inspiration/tags"
+        const val QC_INSPIRATION_TEMPLATES = "/task/quick-creation/inspiration/templates"
+
         // 图片模型端点 (全能图片G-2.0 官方)
         const val IMAGE_G2_TEXT = "/openapi/v2/rhart-image-g-2-official/text-to-image"
         const val IMAGE_G2_IMAGE = "/openapi/v2/rhart-image-g-2-official/image-to-image"
@@ -106,6 +118,83 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
     suspend fun queryTask(taskId: String): QuickCreateTaskQueryResponseDto =
         client.get("$BASE_URL$TASK_QUERY") {
             parameter("taskId", taskId)
+        }.body()
+
+    // ── Web 快捷创作 v2 ───────────────────────────────
+
+    suspend fun getQuickCreationCategories(): QuickCreationEnvelopeDto<List<QuickCreationCategoryDto>> =
+        client.post("$BASE_URL$QC_CATEGORIES") {
+            contentType(ContentType.Application.Json)
+            setBody(emptyMap<String, String>())
+        }.body()
+
+    suspend fun getQuickCreationModels(categoryIds: List<String>): QuickCreationEnvelopeDto<List<QuickCreationModelDto>> =
+        client.post("$BASE_URL$QC_MODELS") {
+            contentType(ContentType.Application.Json)
+            setBody(QuickCreationModelRequestDto(categoryIds))
+        }.body()
+
+    suspend fun getQuickCreationModes(categoryId: String): QuickCreationEnvelopeDto<List<String>> =
+        client.post("$BASE_URL$QC_CREATION_MODES") {
+            contentType(ContentType.Application.Json)
+            setBody(mapOf("categoryId" to categoryId))
+        }.body()
+
+    suspend fun previewQuickCreationFee(
+        request: QuickCreationCreateRequestDto,
+    ): QuickCreationEnvelopeDto<QuickCreationFeePreviewDto> =
+        client.post("$BASE_URL$QC_FEE_PREVIEW") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    suspend fun prepareQuickCreation(
+        request: QuickCreationCreateRequestDto,
+    ): QuickCreationEnvelopeDto<QuickCreationPrepareDataDto> =
+        client.post("$BASE_URL$QC_PREPARE") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    suspend fun commitQuickCreation(
+        request: QuickCreationCommitRequestDto,
+    ): QuickCreationEnvelopeDto<QuickCreationCommitDataDto> =
+        client.post("$BASE_URL$QC_COMMIT") {
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    suspend fun listQuickCreationTasks(
+        page: Int = 1,
+        size: Int = 10,
+    ): QuickCreationEnvelopeDto<QuickCreationTaskPageDto> =
+        client.post("$BASE_URL$QC_TASK_LIST") {
+            contentType(ContentType.Application.Json)
+            setBody(QuickCreationTaskPageRequestDto(page, size))
+        }.body()
+
+    suspend fun getQuickCreationTaskDetail(
+        outputId: String,
+    ): QuickCreationEnvelopeDto<QuickCreationTaskRecordDto> =
+        client.post("$BASE_URL$QC_TASK_DETAIL") {
+            contentType(ContentType.Application.Json)
+            setBody(QuickCreationTaskDetailRequestDto(outputId))
+        }.body()
+
+    suspend fun getQuickCreationInspirationTags(): QuickCreationEnvelopeDto<List<QuickCreationCategoryDto>> =
+        client.post("$BASE_URL$QC_INSPIRATION_TAGS") {
+            contentType(ContentType.Application.Json)
+            setBody(emptyMap<String, String>())
+        }.body()
+
+    suspend fun getQuickCreationInspirationTemplates(
+        page: Int = 1,
+        size: Int = 20,
+        tagId: String? = null,
+    ): QuickCreationEnvelopeDto<QuickCreationInspirationTemplatePageDto> =
+        client.post("$BASE_URL$QC_INSPIRATION_TEMPLATES") {
+            contentType(ContentType.Application.Json)
+            setBody(QuickCreationInspirationTemplatePageRequestDto(page, size, tagId))
         }.body()
 
     // ── 媒体上传 ──────────────────────────────────────

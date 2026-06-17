@@ -96,6 +96,15 @@ class QuickCreateScreenModel(
 
     // ── Tab & Prompt ──────────────────────────────────────────────────────────
 
+    fun switchMode(mode: QuickCreateMode) {
+        _uiState.update {
+            it.copy(
+                currentMode = mode,
+                tuneSheetVisible = if (mode == QuickCreateMode.CREATION) it.tuneSheetVisible else false,
+            )
+        }
+    }
+
     fun switchTab(tab: QuickCreateTab) {
         val cost = when (tab) {
             QuickCreateTab.IMAGE -> _uiState.value.imageConfig.estimatedCost
