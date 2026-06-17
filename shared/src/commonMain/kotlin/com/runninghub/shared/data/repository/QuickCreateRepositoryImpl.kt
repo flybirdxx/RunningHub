@@ -10,6 +10,7 @@ import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDet
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateResultItem
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.QuickCreationFeePreview
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
 import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
 import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
@@ -157,6 +158,18 @@ private fun QuickCreationTaskRecordDto.toHistoryItem(): QuickCreationHistoryItem
     )
 }
 
+private fun QuickCreationFeePreviewDto.toDomain(): QuickCreationFeePreview =
+    QuickCreationFeePreview(
+        passed = passed,
+        free = free,
+        settlementMode = settlementMode,
+        requiredRhAmount = requiredRhAmount,
+        requiredCashAmount = requiredCashAmount,
+        userCashBalance = userCashBalance,
+        insufficientType = insufficientType,
+        cashCurrency = cashCurrency,
+    )
+
 private fun QuickCreationOutputDto.toHistoryOutput(): QuickCreationHistoryOutput {
     val sizeParts = outputSize
         ?.split("x", "X")
@@ -245,6 +258,18 @@ class QuickCreateRepositoryImpl(
     private val quickCreateApi: QuickCreateApi,
     private val settingsRepository: SettingsRepository,
 ) : QuickCreateRepository {
+
+    override suspend fun previewImageQuickCreationFee(
+        request: ImageGenerationRequest,
+    ): Result<QuickCreationFeePreview> = runCatching {
+        val response = quickCreateApi.previewQuickCreationFee(
+            QuickCreationV2Defaults.imageG2CreateRequest(request)
+        )
+        if (response.code != 0 || response.data == null) {
+            error(response.msg ?: response.message ?: "价格预览失败")
+        }
+        response.data.toDomain()
+    }
 
     private fun generateImageWithQuickCreationV2(
         request: ImageGenerationRequest,

@@ -6,6 +6,7 @@ import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.QuickCreationFeePreview
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
 import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
 import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
@@ -271,6 +272,18 @@ class QuickCreateScreenModelTest {
             lastVideoRequest = request
             return flowOf(QuickCreateTaskStatus.Queuing("video-task-1"))
         }
+        override suspend fun previewImageQuickCreationFee(
+            request: com.runninghub.shared.domain.repository.ImageGenerationRequest,
+        ): Result<QuickCreationFeePreview> = Result.success(
+            QuickCreationFeePreview(
+                passed = true,
+                free = false,
+                settlementMode = "cash_only",
+                requiredCashAmount = 0.76,
+                userCashBalance = 156.376,
+                cashCurrency = "CNY",
+            )
+        )
         override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String> =
             when {
                 mimeType.startsWith("video") -> Result.success("https://example.com/video.mp4")

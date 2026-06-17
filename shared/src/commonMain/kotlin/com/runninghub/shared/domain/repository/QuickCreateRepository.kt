@@ -356,6 +356,17 @@ data class QuickCreateResultItem(
     val duration: Int? = null,
 )
 
+data class QuickCreationFeePreview(
+    val passed: Boolean,
+    val free: Boolean,
+    val settlementMode: String? = null,
+    val requiredRhAmount: Double = 0.0,
+    val requiredCashAmount: Double = 0.0,
+    val userCashBalance: Double = 0.0,
+    val insufficientType: String? = null,
+    val cashCurrency: String? = null,
+)
+
 data class QuickCreationHistoryPage(
     val page: Int,
     val size: Int,
@@ -489,6 +500,7 @@ data class QuickCreationServiceFieldOption(
 interface QuickCreateRepository {
     fun generateImage(request: ImageGenerationRequest): Flow<QuickCreateTaskStatus>
     fun generateVideo(request: VideoGenerationRequest): Flow<QuickCreateTaskStatus>
+    suspend fun previewImageQuickCreationFee(request: ImageGenerationRequest): Result<QuickCreationFeePreview>
     suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String>
     suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>>
     suspend fun getInspirationTemplates(
