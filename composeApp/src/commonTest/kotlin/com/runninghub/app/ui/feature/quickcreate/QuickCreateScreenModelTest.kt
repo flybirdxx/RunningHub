@@ -1835,6 +1835,26 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `apply inspiration video template keeps undeclared image list params as global reference`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchMode(QuickCreateMode.INSPIRATION)
+        model.applyInspirationTemplate("tpl-video")
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("https://example.com/ref.png", repository.lastVideoRequest?.referenceImageUri)
+        assertEquals(null, repository.lastVideoRequest?.quickCreationListParams?.get("imageUrls"))
+    }
+
+    @Test
     fun `apply inspiration image template keeps list params bound to service fields`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

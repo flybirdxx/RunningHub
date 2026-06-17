@@ -1734,12 +1734,15 @@ class QuickCreateScreenModel(
         detail: QuickCreateInspirationTemplateDetail,
     ): QuickCreateUiState {
         val selectedModel = serviceImageModels.matchTemplateModel(detail) ?: selectedImageServiceModel
+        val serviceParams = selectedModel.defaultServiceParams() + detail.params
         val nextConfig = imageConfig.copy(
             prompt = detail.prompt ?: imageConfig.prompt,
             aspectRatio = detail.params.templateImageAspectRatio() ?: imageConfig.aspectRatio,
             resolution = detail.params.templateImageResolution() ?: imageConfig.resolution,
             quality = detail.params.templateImageQuality() ?: imageConfig.quality,
-            mediaReferences = detail.templateMediaReferences(),
+            mediaReferences = detail.templateMediaReferences(
+                activeFieldParamKeys = selectedModel.quickCreationActiveUploadParamKeys(serviceParams),
+            ),
         )
         return copy(
             currentMode = QuickCreateMode.CREATION,
@@ -1747,7 +1750,7 @@ class QuickCreateScreenModel(
             inspirationLoading = false,
             selectedImageServiceModel = selectedModel,
             imageConfig = nextConfig,
-            imageServiceParams = selectedModel.defaultServiceParams() + detail.params,
+            imageServiceParams = serviceParams,
             estimatedCost = nextConfig.estimatedCost,
         )
     }
@@ -1756,6 +1759,7 @@ class QuickCreateScreenModel(
         detail: QuickCreateInspirationTemplateDetail,
     ): QuickCreateUiState {
         val selectedModel = serviceVideoModels.matchTemplateModel(detail) ?: selectedVideoServiceModel
+        val serviceParams = selectedModel.defaultServiceParams() + detail.params
         val nextConfig = videoConfig.copy(
             prompt = detail.prompt ?: videoConfig.prompt,
             aspectRatio = detail.params.templateVideoAspectRatio() ?: videoConfig.aspectRatio,
@@ -1763,7 +1767,9 @@ class QuickCreateScreenModel(
             duration = detail.params.templateVideoDuration() ?: videoConfig.duration,
             generateAudio = detail.params.templateBoolean("generateAudio") ?: videoConfig.generateAudio,
             realisticMode = detail.params.templateBoolean("realPersonMode") ?: videoConfig.realisticMode,
-            mediaReferences = detail.templateMediaReferences(),
+            mediaReferences = detail.templateMediaReferences(
+                activeFieldParamKeys = selectedModel.quickCreationActiveUploadParamKeys(serviceParams),
+            ),
         )
         return copy(
             currentMode = QuickCreateMode.CREATION,
@@ -1771,7 +1777,7 @@ class QuickCreateScreenModel(
             inspirationLoading = false,
             selectedVideoServiceModel = selectedModel,
             videoConfig = nextConfig,
-            videoServiceParams = selectedModel.defaultServiceParams() + detail.params,
+            videoServiceParams = serviceParams,
             estimatedCost = nextConfig.estimatedCost,
         )
     }
@@ -1784,7 +1790,9 @@ class QuickCreateScreenModel(
                 (detail.skuId != null && model.skuId == detail.skuId)
         }
 
-    private fun QuickCreateInspirationTemplateDetail.templateMediaReferences(): List<MediaReference> =
+    private fun QuickCreateInspirationTemplateDetail.templateMediaReferences(
+        activeFieldParamKeys: Set<String>,
+    ): List<MediaReference> =
         listParams.entries.flatMapIndexed { fieldIndex, (key, values) ->
             val mediaType = key.templateMediaType()
             values.mapIndexed { index, url ->
@@ -1794,7 +1802,7 @@ class QuickCreateScreenModel(
                     uri = url,
                     displayName = url.substringAfterLast('/').ifBlank { "${mediaType.name.lowercase()}_$index" },
                     fileSizeBytes = 0L,
-                    fieldParamKey = key,
+                    fieldParamKey = key.takeIf { it in activeFieldParamKeys },
                     uploadStatus = UploadStatus.DONE,
                     uploadProgress = 1f,
                     remoteUrl = url,
