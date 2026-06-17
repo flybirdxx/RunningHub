@@ -1247,3 +1247,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 继续审查模板 `params` 里 unknown key 是否会进入 `quickCreationParams`；如果真实接口要求只提交服务字段，需要把非服务模板配置和服务字段参数进一步拆开。
 - 真机复测带条件 child upload 的灵感模板：父字段由模板 params 激活后，素材卡片应出现在对应 child 槽位，并按 canonical `paramKey` 提交。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：模板 params canonical key 优先级
+
+代码提交 `7c92113 fix(quickcreate): prefer canonical template params` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `canonicalTemplateParams()` 分两步处理模板 params。
+- 第一步把所有已知 `fieldKey`/`paramKey` 归一化到 canonical `paramKey`，未知 key 保留原名。
+- 第二步把原始 key 已经是 canonical `paramKey` 的值再覆盖一次。
+- 因此如果服务端同时返回 `creationMode` 和 `mode`，最终以 `creationMode` 的值为准，避免别名覆盖正式字段。
+- 这条规则会影响模板 params 激活 child upload、Tune 默认显示和最终 `quickCreationParams`，但不影响 `listParams` 素材绑定别名规则。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template keeps canonical param value over field key alias"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 继续审查模板 detail 的 `params` 是否应拆分为 UI 配置字段和服务字段，避免非服务字段在未来接口变化时误进提交参数。
+- 补视频模板 `referenceAudios` 的字段级正向回归，覆盖音频素材的 fieldKey/paramKey 别名路径。
+- 真机复测字段别名冲突模板，重点看 Tune 默认值、child 激活状态和最终 prepare 请求字段。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

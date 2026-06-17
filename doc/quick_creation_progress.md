@@ -1156,3 +1156,24 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真机仍需复测模板 params/listParams 混用 fieldKey 与 paramKey 的真实返回，确认 Tune 展示和最终请求体字段名一致。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 模板 params canonical key 优先
+
+代码提交 `7c92113 fix(quickcreate): prefer canonical template params` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `canonicalTemplateParams()` 现在先归一化全部模板 params，再二次覆盖原本就是 canonical `paramKey` 的值。
+- 当模板同时返回 `paramKey` 和对应 `fieldKey` 时，canonical `paramKey` 优先，避免别名覆盖正式参数。
+- 保持未知 key 透传；只有已知服务字段别名参与 canonical 覆盖。
+- 新增回归测试覆盖：模板同时返回 `creationMode=imageReference` 和 `mode=text` 时，最终 `quickCreationParams["creationMode"]` 保留 `imageReference`，并继续激活 child upload 提交 `quickCreationListParams["childImages"]`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template keeps canonical param value over field key alias"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测模板 params 同时包含 fieldKey/paramKey 的真实返回，确认最终请求体使用 canonical paramKey 且值不被别名覆盖。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
