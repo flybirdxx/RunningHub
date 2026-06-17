@@ -371,6 +371,19 @@ data class QuickCreateInspirationTemplate(
     val tagNew: Boolean,
 )
 
+data class QuickCreateInspirationTemplateDetail(
+    val templateId: String,
+    val title: String,
+    val categoryId: String?,
+    val bindingId: String?,
+    val skuId: String?,
+    val prompt: String?,
+    val params: Map<String, String> = emptyMap(),
+    val listParams: Map<String, List<String>> = emptyMap(),
+    val coverUrl: String? = null,
+    val videoUrl: String? = null,
+)
+
 data class QuickCreationServiceModel(
     val categoryId: String,
     val groupName: String?,
@@ -409,5 +422,6 @@ interface QuickCreateRepository {
         size: Int = 20,
         tagId: String? = null,
     ): Result<List<QuickCreateInspirationTemplate>>
+    suspend fun getInspirationTemplateDetail(templateId: String): Result<QuickCreateInspirationTemplateDetail>
     suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>>
 }

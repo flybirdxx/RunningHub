@@ -3,6 +3,7 @@ package com.runninghub.app.ui.feature.quickcreate
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
@@ -171,6 +172,29 @@ class QuickCreateScreenModel(
                     error = error,
                 )
             }
+        }
+    }
+
+    fun applyInspirationTemplate(templateId: String) {
+        if (templateId.isBlank()) return
+        screenModelScope.launch {
+            _uiState.update { it.copy(inspirationLoading = true, error = null) }
+            val result = quickCreateRepository.getInspirationTemplateDetail(templateId)
+            result.fold(
+                onSuccess = { detail ->
+                    _uiState.update { state ->
+                        state.applyTemplateDetail(detail)
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            inspirationLoading = false,
+                            error = error.message ?: "模板详情加载失败",
+                        )
+                    }
+                },
+            )
         }
     }
 
@@ -779,6 +803,137 @@ class QuickCreateScreenModel(
         second: QuickCreationServiceModel?,
     ): Boolean =
         first != null && first.matchesServiceIdentity(second)
+
+    private fun QuickCreateUiState.applyTemplateDetail(
+        detail: QuickCreateInspirationTemplateDetail,
+    ): QuickCreateUiState {
+        val category = detail.categoryId?.uppercase()
+        return when (category) {
+            "VIDEO" -> applyVideoTemplateDetail(detail)
+            else -> applyImageTemplateDetail(detail)
+        }
+    }
+
+    private fun QuickCreateUiState.applyImageTemplateDetail(
+        detail: QuickCreateInspirationTemplateDetail,
+    ): QuickCreateUiState {
+        val selectedModel = serviceImageModels.matchTemplateModel(detail) ?: selectedImageServiceModel
+        val nextConfig = imageConfig.copy(
+            prompt = detail.prompt ?: imageConfig.prompt,
+            aspectRatio = detail.params.templateImageAspectRatio() ?: imageConfig.aspectRatio,
+            resolution = detail.params.templateImageResolution() ?: imageConfig.resolution,
+            quality = detail.params.templateImageQuality() ?: imageConfig.quality,
+            mediaReferences = detail.templateMediaReferences(),
+        )
+        return copy(
+            currentMode = QuickCreateMode.CREATION,
+            currentTab = QuickCreateTab.IMAGE,
+            inspirationLoading = false,
+            selectedImageServiceModel = selectedModel,
+            imageConfig = nextConfig,
+            imageServiceParams = selectedModel.defaultServiceParams() + detail.params,
+            estimatedCost = nextConfig.estimatedCost,
+        )
+    }
+
+    private fun QuickCreateUiState.applyVideoTemplateDetail(
+        detail: QuickCreateInspirationTemplateDetail,
+    ): QuickCreateUiState {
+        val selectedModel = serviceVideoModels.matchTemplateModel(detail) ?: selectedVideoServiceModel
+        val nextConfig = videoConfig.copy(
+            prompt = detail.prompt ?: videoConfig.prompt,
+            aspectRatio = detail.params.templateVideoAspectRatio() ?: videoConfig.aspectRatio,
+            resolution = detail.params.templateVideoResolution() ?: videoConfig.resolution,
+            duration = detail.params.templateVideoDuration() ?: videoConfig.duration,
+            generateAudio = detail.params.templateBoolean("generateAudio") ?: videoConfig.generateAudio,
+            realisticMode = detail.params.templateBoolean("realPersonMode") ?: videoConfig.realisticMode,
+            mediaReferences = detail.templateMediaReferences(),
+        )
+        return copy(
+            currentMode = QuickCreateMode.CREATION,
+            currentTab = QuickCreateTab.VIDEO,
+            inspirationLoading = false,
+            selectedVideoServiceModel = selectedModel,
+            videoConfig = nextConfig,
+            videoServiceParams = selectedModel.defaultServiceParams() + detail.params,
+            estimatedCost = nextConfig.estimatedCost,
+        )
+    }
+
+    private fun List<QuickCreationServiceModel>.matchTemplateModel(
+        detail: QuickCreateInspirationTemplateDetail,
+    ): QuickCreationServiceModel? =
+        firstOrNull { model ->
+            (detail.bindingId != null && model.bindingId == detail.bindingId) ||
+                (detail.skuId != null && model.skuId == detail.skuId)
+        }
+
+    private fun QuickCreateInspirationTemplateDetail.templateMediaReferences(): List<MediaReference> =
+        listParams.flatMap { (key, values) ->
+            val mediaType = key.templateMediaType()
+            values.mapIndexed { index, url ->
+                MediaReference(
+                    id = "template_${templateId}_${mediaType.name}_$index",
+                    type = mediaType,
+                    uri = url,
+                    displayName = url.substringAfterLast('/').ifBlank { "${mediaType.name.lowercase()}_$index" },
+                    fileSizeBytes = 0L,
+                    uploadStatus = UploadStatus.DONE,
+                    uploadProgress = 1f,
+                    remoteUrl = url,
+                )
+            }
+        }
+
+    private fun String.templateMediaType(): QuickCreateMediaType {
+        val marker = uppercase()
+        return when {
+            marker.contains("AUDIO") -> QuickCreateMediaType.AUDIO
+            marker.contains("VIDEO") -> QuickCreateMediaType.VIDEO
+            else -> QuickCreateMediaType.IMAGE
+        }
+    }
+
+    private fun Map<String, String>.templateImageAspectRatio(): ImageAspectRatio? =
+        (this["aspectRatio"] ?: this["ratio"])?.let { value ->
+            ImageAspectRatio.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
+        }
+
+    private fun Map<String, String>.templateVideoAspectRatio(): VideoAspectRatio? =
+        (this["aspectRatio"] ?: this["ratio"])?.let { value ->
+            VideoAspectRatio.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
+        }
+
+    private fun Map<String, String>.templateImageResolution(): ImageResolution? =
+        this["resolution"]?.let { value ->
+            ImageResolution.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
+        }
+
+    private fun Map<String, String>.templateVideoResolution(): VideoResolution? =
+        this["resolution"]?.let { value ->
+            VideoResolution.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
+        }
+
+    private fun Map<String, String>.templateImageQuality(): ImageQuality? =
+        this["quality"]?.let { value ->
+            ImageQuality.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
+        }
+
+    private fun Map<String, String>.templateVideoDuration(): VideoDuration? =
+        (this["duration"] ?: this["videoDuration"])?.toIntOrNull()?.let { seconds ->
+            VideoDuration.entries.minByOrNull { duration ->
+                kotlin.math.abs(duration.seconds - seconds)
+            }
+        }
+
+    private fun Map<String, String>.templateBoolean(key: String): Boolean? =
+        this[key]?.let { value ->
+            when (value.lowercase()) {
+                "true" -> true
+                "false" -> false
+                else -> null
+            }
+        }
 
     private suspend fun generateVideo() {
         val config = _uiState.value.videoConfig

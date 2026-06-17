@@ -202,3 +202,36 @@ data class QuickCreationInspirationTemplateDto(
     @SerialName("tagNew") val tagNew: Boolean = false,
     @SerialName("sortOrder") val sortOrder: Int? = null,
 )
+
+@Serializable
+data class QuickCreationInspirationTemplateDetailRequestDto(
+    @SerialName("templateId") val templateId: String,
+)
+
+@Serializable
+data class QuickCreationInspirationTemplateDetailDto(
+    @SerialName("templateId") val templateId: String,
+    @SerialName("nameCn") val nameCn: String? = null,
+    @SerialName("nameAi") val nameAi: String? = null,
+    @SerialName("description") val description: String? = null,
+    @SerialName("descriptionAi") val descriptionAi: String? = null,
+    @SerialName("coverUrl") val coverUrl: String? = null,
+    @SerialName("categoryId") val categoryId: String? = null,
+    @SerialName("videoUrl") val videoUrl: String? = null,
+    @SerialName("snapshot") val snapshot: QuickCreationInspirationTemplateSnapshotDto? = null,
+    @SerialName("bindingId") val bindingId: String? = null,
+    @SerialName("bindingCnName") val bindingCnName: String? = null,
+    @SerialName("bindingAiName") val bindingAiName: String? = null,
+    @SerialName("apiRequestParamsRaw") val apiRequestParamsRaw: String? = null,
+    @SerialName("skuId") val skuId: String? = null,
+)
+
+@Serializable
+data class QuickCreationInspirationTemplateSnapshotDto(
+    @SerialName("coverUrl") val coverUrl: String? = null,
+    @SerialName("taskSite") val taskSite: String? = null,
+    @SerialName("videoUrl") val videoUrl: String? = null,
+    @SerialName("presetParams") val presetParams: JsonElement,
+    @SerialName("sourceTaskId") val sourceTaskId: String? = null,
+    @SerialName("snapshotAt") val snapshotAt: String? = null,
+)

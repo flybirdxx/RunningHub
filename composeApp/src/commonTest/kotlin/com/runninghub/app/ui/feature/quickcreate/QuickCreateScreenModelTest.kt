@@ -3,6 +3,7 @@ package com.runninghub.app.ui.feature.quickcreate
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
@@ -44,6 +45,27 @@ class QuickCreateScreenModelTest {
                 tagHot = true,
                 tagNew = false,
             )
+        )
+        var templateDetail = QuickCreateInspirationTemplateDetail(
+            templateId = "tpl-video",
+            title = "薯片赛场",
+            categoryId = "VIDEO",
+            bindingId = "video-binding-1",
+            skuId = "video-sku-1",
+            prompt = "薯片人偶踢足球",
+            params = mapOf(
+                "ratio" to "3:4",
+                "aspectRatio" to "3:4",
+                "resolution" to "720p",
+                "duration" to "8",
+                "generateAudio" to "false",
+                "realPersonMode" to "false",
+            ),
+            listParams = mapOf(
+                "imageUrls" to listOf("https://example.com/ref.png"),
+            ),
+            coverUrl = "https://example.com/cover.jpg",
+            videoUrl = "https://example.com/preview.mp4",
         )
         var videoModels = listOf(
             QuickCreationServiceModel(
@@ -148,6 +170,9 @@ class QuickCreateScreenModelTest {
             size: Int,
             tagId: String?,
         ): Result<List<QuickCreateInspirationTemplate>> = Result.success(inspirationTemplates)
+        override suspend fun getInspirationTemplateDetail(
+            templateId: String,
+        ): Result<QuickCreateInspirationTemplateDetail> = Result.success(templateDetail.copy(templateId = templateId))
         override suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>> =
             Result.success((models + videoModels).filter { it.categoryId == categoryId })
     }
@@ -348,6 +373,31 @@ class QuickCreateScreenModelTest {
             assertEquals(
                 listOf("https://example.com/audio.mp3"),
                 repository.lastVideoRequest?.quickCreationListParams?.get("referenceAudios"),
+            )
+        }
+    }
+
+    @Test
+    fun `apply inspiration video template fills creation state from detail`() {
+        runBlocking {
+            val repository = FakeQuickCreateRepository()
+            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+            model.switchMode(QuickCreateMode.INSPIRATION)
+            model.applyInspirationTemplate("tpl-video")
+
+            assertEquals(QuickCreateMode.CREATION, model.uiState.value.currentMode)
+            assertEquals(QuickCreateTab.VIDEO, model.uiState.value.currentTab)
+            assertEquals("薯片人偶踢足球", model.uiState.value.videoConfig.prompt)
+            assertEquals(VideoAspectRatio.RATIO_3_4, model.uiState.value.videoConfig.aspectRatio)
+            assertEquals(VideoResolution.RES_720P, model.uiState.value.videoConfig.resolution)
+            assertEquals(VideoDuration.DURATION_10S, model.uiState.value.videoConfig.duration)
+            assertEquals(false, model.uiState.value.videoConfig.generateAudio)
+            assertEquals("video-binding-1", model.uiState.value.selectedVideoServiceModel?.bindingId)
+            assertEquals("video-sku-1", model.uiState.value.selectedVideoServiceModel?.skuId)
+            assertEquals(
+                listOf("https://example.com/ref.png"),
+                model.uiState.value.videoConfig.mediaReferences.mapNotNull { it.remoteUrl },
             )
         }
     }

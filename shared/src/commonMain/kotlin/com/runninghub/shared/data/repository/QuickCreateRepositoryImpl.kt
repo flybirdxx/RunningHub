@@ -6,6 +6,7 @@ import com.runninghub.shared.domain.repository.ImageGenerationRequest
 import com.runninghub.shared.domain.repository.ImageModel
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateResultItem
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
@@ -15,6 +16,13 @@ import com.runninghub.shared.domain.repository.VideoModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 private fun debug(tag: String, msg: String) {
     println("[$tag] $msg")
@@ -56,6 +64,26 @@ private fun inferResultType(url: String): String {
         else -> "image"
     }
 }
+
+private val quickCreationParamJson = Json {
+    ignoreUnknownKeys = true
+    explicitNulls = false
+}
+
+private fun JsonElement.asParamString(): String? =
+    (this as? JsonPrimitive)?.jsonPrimitive?.contentOrNull
+
+private fun JsonElement.asParamStringList(): List<String>? =
+    (this as? JsonArray)
+        ?.mapNotNull { it.asParamString()?.takeIf { value -> value.isNotBlank() } }
+        ?.takeIf { it.isNotEmpty() }
+
+private fun parseJsonObjectOrNull(raw: String?): JsonObject? =
+    raw
+        ?.takeIf { it.isNotBlank() }
+        ?.let { value ->
+            runCatching { quickCreationParamJson.decodeFromString<JsonObject>(value) }.getOrNull()
+        }
 
 private fun pollTaskStatus(
     api: QuickCreateApi,
@@ -1031,6 +1059,44 @@ class QuickCreateRepositoryImpl(
                 tagNew = template.tagNew,
             )
         }
+    }
+
+    override suspend fun getInspirationTemplateDetail(
+        templateId: String,
+    ): Result<QuickCreateInspirationTemplateDetail> = runCatching {
+        val response = quickCreateApi.getQuickCreationInspirationTemplateDetail(templateId)
+        if (response.code != 0) {
+            throw IllegalStateException(response.msg ?: response.message ?: "鐏垫劅妯℃澘璇︽儏鍔犺浇澶辫触")
+        }
+        val detail = response.data ?: throw IllegalStateException("鐏垫劅妯℃澘璇︽儏涓虹┖")
+        val paramsObject = (detail.snapshot?.presetParams as? JsonObject)
+            ?: parseJsonObjectOrNull(detail.apiRequestParamsRaw)
+            ?: JsonObject(emptyMap())
+        val scalarParams = paramsObject
+            .mapNotNull { (key, value) ->
+                val scalar = value.asParamString()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                key to scalar
+            }
+            .toMap()
+        val listParams = paramsObject
+            .mapNotNull { (key, value) ->
+                val values = value.asParamStringList() ?: return@mapNotNull null
+                key to values
+            }
+            .toMap()
+
+        QuickCreateInspirationTemplateDetail(
+            templateId = detail.templateId,
+            title = detail.nameCn ?: detail.nameAi ?: detail.templateId,
+            categoryId = detail.categoryId,
+            bindingId = detail.bindingId,
+            skuId = detail.skuId,
+            prompt = scalarParams["prompt"] ?: scalarParams["promptAi"],
+            params = scalarParams,
+            listParams = listParams,
+            coverUrl = detail.coverUrl ?: detail.snapshot?.coverUrl,
+            videoUrl = detail.videoUrl ?: detail.snapshot?.videoUrl,
+        )
     }
 
     override suspend fun getModels(categoryId: String): Result<List<com.runninghub.shared.domain.repository.QuickCreationServiceModel>> =

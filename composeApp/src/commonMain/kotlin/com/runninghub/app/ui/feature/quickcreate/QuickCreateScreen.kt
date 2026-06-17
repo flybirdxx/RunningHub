@@ -108,7 +108,10 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             uiState = uiState,
                             onClearResults = screenModel::clearResults,
                         )
-                        QuickCreateMode.INSPIRATION -> InspirationArea(uiState)
+                        QuickCreateMode.INSPIRATION -> InspirationArea(
+                            uiState = uiState,
+                            onApplyTemplate = screenModel::applyInspirationTemplate,
+                        )
                     }
                 }
 
@@ -378,7 +381,10 @@ private fun EmptyArea() {
 }
 
 @Composable
-private fun InspirationArea(uiState: QuickCreateUiState) {
+private fun InspirationArea(
+    uiState: QuickCreateUiState,
+    onApplyTemplate: (String) -> Unit,
+) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(Dimens.SpaceMD),
@@ -427,12 +433,14 @@ private fun InspirationArea(uiState: QuickCreateUiState) {
 
         items(uiState.inspirationTemplates, key = { it.templateId }) { template ->
             InspirationTemplateCard(
+                templateId = template.templateId,
                 title = template.title,
                 category = template.categoryId ?: "IMAGE",
                 coverUrl = template.coverUrl,
                 videoUrl = template.videoUrl,
                 tagHot = template.tagHot,
                 tagNew = template.tagNew,
+                onApplyTemplate = onApplyTemplate,
             )
         }
 
@@ -444,14 +452,17 @@ private fun InspirationArea(uiState: QuickCreateUiState) {
 
 @Composable
 private fun InspirationTemplateCard(
+    templateId: String,
     title: String,
     category: String,
     coverUrl: String?,
     videoUrl: String?,
     tagHot: Boolean,
     tagNew: Boolean,
+    onApplyTemplate: (String) -> Unit,
 ) {
     Surface(
+        onClick = { onApplyTemplate(templateId) },
         shape = RoundedCornerShape(Dimens.RadiusLG),
         color = DarkSurface,
         border = BorderStroke(1.dp, DarkOutlineVariant),
@@ -1008,7 +1019,7 @@ private fun QuickCreatePreviewContent(
                             uiState = uiState,
                             onClearResults = {},
                         )
-                        QuickCreateMode.INSPIRATION -> InspirationArea(uiState)
+                        QuickCreateMode.INSPIRATION -> InspirationArea(uiState = uiState, onApplyTemplate = {})
                     }
                 }
 

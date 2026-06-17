@@ -33,6 +33,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         const val QC_TASK_DETAIL = "/task/quick-creation/detail"
         const val QC_INSPIRATION_TAGS = "/task/quick-creation/inspiration/tags"
         const val QC_INSPIRATION_TEMPLATES = "/task/quick-creation/inspiration/templates"
+        const val QC_INSPIRATION_TEMPLATE_DETAIL = "/task/quick-creation/inspiration/template/detail"
 
         // 图片模型端点 (全能图片G-2.0 官方)
         const val IMAGE_G2_TEXT = "/openapi/v2/rhart-image-g-2-official/text-to-image"
@@ -195,6 +196,14 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         client.post("$BASE_URL$QC_INSPIRATION_TEMPLATES") {
             contentType(ContentType.Application.Json)
             setBody(QuickCreationInspirationTemplatePageRequestDto(page, size, tagId))
+        }.body()
+
+    suspend fun getQuickCreationInspirationTemplateDetail(
+        templateId: String,
+    ): QuickCreationEnvelopeDto<QuickCreationInspirationTemplateDetailDto> =
+        client.post("$BASE_URL$QC_INSPIRATION_TEMPLATE_DETAIL") {
+            contentType(ContentType.Application.Json)
+            setBody(QuickCreationInspirationTemplateDetailRequestDto(templateId))
         }.body()
 
     // ── 媒体上传 ──────────────────────────────────────

@@ -2,6 +2,10 @@ package com.runninghub.shared.data.remote.dto
 
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -135,5 +139,64 @@ class QuickCreationV2DtoTest {
         assertEquals("png", output.outputType)
         assertEquals("https://example.com/result.png", output.fileUrl)
         assertEquals("2048x1152", output.outputSize)
+    }
+
+    @Test
+    fun `inspiration template detail parses captured preset params`() {
+        val requestPayload = json.encodeToString(
+            QuickCreationInspirationTemplateDetailRequestDto(
+                templateId = "2066785582547582978",
+            )
+        )
+        assertEquals("""{"templateId":"2066785582547582978"}""", requestPayload)
+
+        val response = json.decodeFromString<QuickCreationEnvelopeDto<QuickCreationInspirationTemplateDetailDto>>(
+            """
+            {
+              "code": 0,
+              "msg": "success",
+              "data": {
+                "templateId": "2066785582547582978",
+                "nameCn": "薯片赛场",
+                "nameAi": "Snack Stadium",
+                "coverUrl": "https://example.com/cover.jpg",
+                "categoryId": "VIDEO",
+                "videoUrl": "https://example.com/preview.mp4",
+                "snapshot": {
+                  "presetParams": {
+                    "duration": "8",
+                    "videoDuration": "8",
+                    "realPersonMode": false,
+                    "prompt": "薯片人偶踢足球",
+                    "promptAi": "Snack mascot kicks a football",
+                    "imageUrls": ["https://example.com/ref.png"],
+                    "aspectRatio": "3:4",
+                    "resolution": "720p",
+                    "ratio": "3:4",
+                    "generateAudio": false
+                  },
+                  "sourceTaskId": "2066778680721629185",
+                  "snapshotAt": "2026-06-16T15:30:20.909+08:00"
+                },
+                "bindingId": "2046057458784591873",
+                "bindingCnName": "Seedance2.0",
+                "apiRequestParamsRaw": "{\"ratio\":\"3:4\",\"prompt\":\"薯片人偶踢足球\"}",
+                "skuId": "2132764885651525665",
+                "bindingAiName": "Seedance2.0"
+              }
+            }
+            """.trimIndent()
+        )
+
+        val detail = assertNotNull(response.data)
+        assertEquals("2066785582547582978", detail.templateId)
+        assertEquals("VIDEO", detail.categoryId)
+        assertEquals("2046057458784591873", detail.bindingId)
+        assertEquals("2132764885651525665", detail.skuId)
+        val presetParams = assertNotNull(detail.snapshot).presetParams.jsonObject
+        assertEquals("薯片人偶踢足球", presetParams.getValue("prompt").jsonPrimitive.content)
+        assertEquals("3:4", presetParams.getValue("ratio").jsonPrimitive.content)
+        assertEquals(false, presetParams.getValue("generateAudio").jsonPrimitive.boolean)
+        assertEquals("https://example.com/ref.png", presetParams.getValue("imageUrls").jsonArray.single().jsonPrimitive.content)
     }
 }
