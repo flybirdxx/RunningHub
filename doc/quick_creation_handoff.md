@@ -1362,3 +1362,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测复杂 `visibleWhen` 模型：先激活并填写 child，再切回父字段默认分支，确认 sibling 上传字段不显示、不校验、不提交。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：media id tab/category 隔离
+
+代码提交 `4b9034f fix(quickcreate): isolate media ids by tab` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 手动上传素材 id 格式从 `${type}_${timestamp}` 改为 `${currentTab}_${type}_${timestamp}`。
+- 模板素材 id 格式加入 `categoryId` 片段：`template_${categoryId}_${templateId}_${fieldIndex}_${key}_${mediaType}_${index}`。
+- `categoryId` 和 listParams key 都走同一个 ASCII 规整函数，空值回退到 `unknown`。
+- `removeMediaReference(id)` 仍保持跨 image/video config 过滤同 id 的实现；现在依靠 id 生成规则确保不同 tab 的不同素材不会撞 id。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing image template media does not remove video template media with same template id"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：图片模板和视频模板都带同名 `listParams` 时，分别删除两个 tab 的素材卡片，确认 UI 和请求体互不影响。
+- 继续观察历史草稿/恢复逻辑是否会持久化旧格式 media id；当前 draft 只保存 prompt/tab，暂未发现兼容风险。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
