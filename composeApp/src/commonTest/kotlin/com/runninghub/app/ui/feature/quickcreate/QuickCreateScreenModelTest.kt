@@ -1139,6 +1139,102 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `hidden required service text field does not block image generation`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "hiddenPrompt",
+                        paramKey = "hiddenPrompt",
+                        fieldType = "STRING",
+                        required = true,
+                        defaultValue = null,
+                        options = emptyList(),
+                        visible = false,
+                        inputExtra = QuickCreationServiceFieldExtra(title = "Hidden prompt"),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("prompt", repository.lastImageRequest?.prompt)
+        assertEquals(null, model.uiState.value.error)
+    }
+
+    @Test
+    fun `hidden service text field value is not submitted`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "hiddenPrompt",
+                        paramKey = "hiddenPrompt",
+                        fieldType = "STRING",
+                        required = false,
+                        defaultValue = null,
+                        options = emptyList(),
+                        visible = false,
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.updateImageServiceParam("hiddenPrompt", "secret")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("hiddenPrompt"))
+    }
+
+    @Test
+    fun `hidden service text field default value is not submitted`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "hiddenPrompt",
+                        paramKey = "hiddenPrompt",
+                        fieldType = "STRING",
+                        required = false,
+                        defaultValue = "secret-default",
+                        options = emptyList(),
+                        visible = false,
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("hiddenPrompt"))
+    }
+
+    @Test
     fun `generate image maps uploaded images to service upload field`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

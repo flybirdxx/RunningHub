@@ -1522,6 +1522,7 @@ class QuickCreateScreenModel(
 
     private fun QuickCreationServiceModel?.defaultServiceParams(): Map<String, String> =
         this?.fields.orEmpty()
+            .filter { it.visible }
             .mapNotNull { field ->
                 val value = field.defaultValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
                 field.paramKey to value
@@ -1538,6 +1539,7 @@ class QuickCreateScreenModel(
         serviceParams: Map<String, String>,
     ): Set<String> =
         this?.fields.orEmpty()
+            .filter { it.visible }
             .flatMap { field ->
                 listOf(field.paramKey) + field.quickCreationActiveInputChildren(serviceParams).map { it.paramKey }
             }
@@ -1561,6 +1563,7 @@ class QuickCreateScreenModel(
     ): String? {
         val defaults = model.defaultServiceParams()
         return model?.fields.orEmpty()
+            .filter { it.visible }
             .firstNotNullOfOrNull { field ->
                 if (field.supportsQuickCreationTextEntry()) {
                     val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
