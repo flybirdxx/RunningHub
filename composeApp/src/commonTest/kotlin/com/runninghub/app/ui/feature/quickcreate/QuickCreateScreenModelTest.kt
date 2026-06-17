@@ -1950,6 +1950,62 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `apply inspiration image template keeps media ids unique when field keys sanitize equally`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = listOf(
+                        QuickCreationServiceField(
+                            fieldKey = "image-urls",
+                            paramKey = "image-urls",
+                            fieldType = "IMAGE",
+                            required = false,
+                            defaultValue = null,
+                            options = emptyList(),
+                            maxUploadCount = 1,
+                        ),
+                        QuickCreationServiceField(
+                            fieldKey = "image_urls",
+                            paramKey = "image_urls",
+                            fieldType = "IMAGE",
+                            required = false,
+                            defaultValue = null,
+                            options = emptyList(),
+                            maxUploadCount = 1,
+                        ),
+                    )
+                )
+            )
+            templateDetail = QuickCreateInspirationTemplateDetail(
+                templateId = "tpl-image",
+                title = "Image template",
+                categoryId = "IMAGE",
+                bindingId = "binding-1",
+                skuId = "sku-1",
+                prompt = "template prompt",
+                params = emptyMap(),
+                listParams = mapOf(
+                    "image-urls" to listOf("https://example.com/dash.png"),
+                    "image_urls" to listOf("https://example.com/underscore.png"),
+                ),
+                coverUrl = "https://example.com/template-cover.png",
+                videoUrl = null,
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.applyInspirationTemplate("tpl-image")
+        runCurrent()
+
+        val references = model.uiState.value.imageConfig.mediaReferences
+        assertEquals(listOf("image-urls", "image_urls"), references.map { it.fieldParamKey })
+        assertEquals(references.size, references.map { it.id }.toSet().size)
+    }
+
+    @Test
     fun `updateImagePrompt changes prompt`() {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.updateImagePrompt("test prompt")

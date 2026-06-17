@@ -1785,11 +1785,11 @@ class QuickCreateScreenModel(
         }
 
     private fun QuickCreateInspirationTemplateDetail.templateMediaReferences(): List<MediaReference> =
-        listParams.flatMap { (key, values) ->
+        listParams.entries.flatMapIndexed { fieldIndex, (key, values) ->
             val mediaType = key.templateMediaType()
             values.mapIndexed { index, url ->
                 MediaReference(
-                    id = "template_${templateId}_${key.templateReferenceIdPart()}_${mediaType.name}_$index",
+                    id = "template_${templateId}_${fieldIndex}_${key.templateReferenceIdPart()}_${mediaType.name}_$index",
                     type = mediaType,
                     uri = url,
                     displayName = url.substringAfterLast('/').ifBlank { "${mediaType.name.lowercase()}_$index" },
