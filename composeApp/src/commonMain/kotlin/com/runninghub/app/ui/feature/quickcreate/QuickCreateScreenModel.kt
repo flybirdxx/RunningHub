@@ -1135,6 +1135,15 @@ class QuickCreateScreenModel(
                 }
                 return@launch
             }
+            validateCurrentServiceUploads(_uiState.value)?.let { error ->
+                _uiState.update {
+                    it.copy(
+                        taskStatus = QuickCreateTaskUiStatus.IDLE,
+                        error = error,
+                    )
+                }
+                return@launch
+            }
             when (_uiState.value.currentTab) {
                 QuickCreateTab.IMAGE -> generateImage()
                 QuickCreateTab.VIDEO -> generateVideo()
@@ -1503,6 +1512,39 @@ class QuickCreateScreenModel(
             .firstNotNullOfOrNull { field ->
                 val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
                 field.quickCreationTextValidationError(value)
+            }
+    }
+
+    private fun validateCurrentServiceUploads(state: QuickCreateUiState): String? =
+        when (state.currentTab) {
+            QuickCreateTab.IMAGE -> validateServiceUploads(
+                model = state.selectedImageServiceModel,
+                mediaReferences = state.imageConfig.mediaReferences,
+                fallbackMediaType = QuickCreateMediaType.IMAGE,
+            )
+            QuickCreateTab.VIDEO -> validateServiceUploads(
+                model = state.selectedVideoServiceModel,
+                mediaReferences = state.videoConfig.mediaReferences,
+                fallbackMediaType = null,
+            )
+        }
+
+    private fun validateServiceUploads(
+        model: QuickCreationServiceModel?,
+        mediaReferences: List<MediaReference>,
+        fallbackMediaType: QuickCreateMediaType?,
+    ): String? {
+        val urlsByType = mediaReferences
+            .filter { it.uploadStatus == UploadStatus.DONE }
+            .groupBy { it.type }
+            .mapValues { (_, refs) ->
+                refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
+            }
+        return model.uploadFields()
+            .firstNotNullOfOrNull { field ->
+                val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@firstNotNullOfOrNull null
+                val uploadedCount = urlsByType[mediaType].orEmpty().size
+                field.quickCreationUploadValidationError(uploadedCount)
             }
     }
 

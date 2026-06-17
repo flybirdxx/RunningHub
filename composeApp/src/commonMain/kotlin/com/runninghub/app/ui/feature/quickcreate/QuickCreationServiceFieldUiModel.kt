@@ -51,6 +51,18 @@ internal fun QuickCreationServiceField.quickCreationTextValidationError(value: S
     return null
 }
 
+internal fun QuickCreationServiceField.quickCreationUploadValidationError(uploadedCount: Int): String? {
+    val title = quickCreationFieldTitle()
+    if (required && uploadedCount <= 0) {
+        return "$title 不能为空"
+    }
+    val maxCount = inputExtra?.maxInputCount ?: maxUploadCount
+    if (maxCount != null && uploadedCount > maxCount) {
+        return "$title 最多 $maxCount 个文件"
+    }
+    return null
+}
+
 internal fun QuickCreationServiceField.quickCreationUploadHintParts(): List<String> =
     listOfNotNull(
         inputExtra?.acceptFormats?.takeIf { it.isNotEmpty() }?.joinToString("/"),

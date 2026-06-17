@@ -47,6 +47,39 @@ class QuickCreationServiceFieldUiModelTest {
     }
 
     @Test
+    fun `required upload validation uses service metadata`() {
+        val field = QuickCreationServiceField(
+            fieldKey = "imageUrls",
+            paramKey = "imageUrls",
+            fieldType = "IMAGE",
+            required = true,
+            defaultValue = null,
+            options = emptyList(),
+            inputExtra = QuickCreationServiceFieldExtra(title = "Reference image"),
+        )
+
+        assertEquals("Reference image 不能为空", field.quickCreationUploadValidationError(uploadedCount = 0))
+        assertEquals(null, field.quickCreationUploadValidationError(uploadedCount = 1))
+    }
+
+    @Test
+    fun `upload max count validation uses extra metadata before broad defaults`() {
+        val field = QuickCreationServiceField(
+            fieldKey = "imageUrls",
+            paramKey = "imageUrls",
+            fieldType = "IMAGE",
+            required = false,
+            defaultValue = null,
+            options = emptyList(),
+            maxUploadCount = 10,
+            inputExtra = QuickCreationServiceFieldExtra(title = "Reference image", maxInputCount = 4),
+        )
+
+        assertEquals("Reference image 最多 4 个文件", field.quickCreationUploadValidationError(uploadedCount = 5))
+        assertEquals(null, field.quickCreationUploadValidationError(uploadedCount = 4))
+    }
+
+    @Test
     fun `invisible service fields are not renderable in tune panel`() {
         val field = QuickCreationServiceField(
             fieldKey = "internalMode",

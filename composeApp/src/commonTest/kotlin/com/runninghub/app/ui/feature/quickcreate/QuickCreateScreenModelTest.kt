@@ -1017,6 +1017,39 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image is blocked when required service image field has no upload`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "imageUrls",
+                        paramKey = "imageUrls",
+                        fieldType = "IMAGE",
+                        required = true,
+                        defaultValue = null,
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(title = "Reference image"),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("Reference image 不能为空", model.uiState.value.error)
+    }
+
+    @Test
     fun `generate video maps uploaded video and audio to service upload fields`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
