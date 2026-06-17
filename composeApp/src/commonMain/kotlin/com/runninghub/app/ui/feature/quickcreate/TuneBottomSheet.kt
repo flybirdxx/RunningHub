@@ -20,6 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.theme.*
+import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 
 enum class TuneTab(val label: String) {
     STYLE("风格"),
@@ -66,6 +67,7 @@ fun TuneBottomSheet(
     uiState: QuickCreateUiState,
     onDismiss: () -> Unit,
     onImageModelSelected: (ImageModel) -> Unit,
+    onImageServiceModelSelected: (QuickCreationServiceModel) -> Unit,
     onVideoModelSelected: (VideoModel) -> Unit,
     onImageRatioChange: (ImageAspectRatio) -> Unit,
     onImageResChange: (ImageResolution) -> Unit,
@@ -232,8 +234,12 @@ fun TuneBottomSheet(
                                 ImageAdvancedContent(
                                     models = ImageModel.entries,
                                     selected = uiState.imageConfig.model,
+                                    serviceModels = uiState.serviceImageModels,
+                                    selectedServiceModel = uiState.selectedImageServiceModel,
+                                    serviceModelsLoading = uiState.serviceModelsLoading,
                                     seed = uiState.imageConfig.seed,
                                     onSelect = onImageModelSelected,
+                                    onServiceModelSelect = onImageServiceModelSelected,
                                     onSeedChange = onImageSeedChange,
                                 )
                             } else {
@@ -581,13 +587,105 @@ private fun <T> CountContent(
 private fun ImageAdvancedContent(
     models: List<ImageModel>,
     selected: ImageModel,
+    serviceModels: List<QuickCreationServiceModel>,
+    selectedServiceModel: QuickCreationServiceModel?,
+    serviceModelsLoading: Boolean,
     seed: Int?,
     onSelect: (ImageModel) -> Unit,
+    onServiceModelSelect: (QuickCreationServiceModel) -> Unit,
     onSeedChange: (Int?) -> Unit,
 ) {
-    Column {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+    ) {
         Text(
-            text = "模型",
+            text = "服务端模型",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Primary300,
+            modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+        )
+        when {
+            serviceModelsLoading -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = Dimens.SpaceSM),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = Primary300,
+                        strokeWidth = 2.dp,
+                    )
+                    Text("正在加载模型", fontSize = 12.sp, color = Neutral400)
+                }
+            }
+            serviceModels.isEmpty() -> {
+                Text(
+                    text = "暂未获取到服务端模型，继续使用本地默认配置",
+                    fontSize = 12.sp,
+                    color = Neutral500,
+                    modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+                )
+            }
+            else -> {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
+                    serviceModels.forEach { model ->
+                        val isSelected = selectedServiceModel != null &&
+                            model.bindingId == selectedServiceModel.bindingId &&
+                            model.skuId == selectedServiceModel.skuId
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Dimens.RadiusSM),
+                            color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
+                            border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
+                            onClick = { onServiceModelSelect(model) },
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(Dimens.SpaceMD),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = model.name,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                        color = if (isSelected) Primary300 else Neutral200,
+                                    )
+                                    if (!model.groupName.isNullOrBlank() || model.fields.isNotEmpty()) {
+                                        Text(
+                                            text = listOfNotNull(
+                                                model.groupName,
+                                                "${model.fields.size} 个参数",
+                                            ).joinToString(" · "),
+                                            fontSize = 11.sp,
+                                            color = Neutral500,
+                                        )
+                                    }
+                                }
+                                if (isSelected) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Primary300,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(Dimens.SpaceXL))
+
+        Text(
+            text = "本地兼容模型",
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             color = Primary300,

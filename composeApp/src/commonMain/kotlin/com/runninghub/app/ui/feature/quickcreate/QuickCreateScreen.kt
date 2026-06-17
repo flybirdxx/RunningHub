@@ -49,6 +49,7 @@ import com.runninghub.app.ui.theme.*
 import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.shared.data.local.PermissionDataStore
 import com.runninghub.shared.domain.model.Permission
+import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -195,6 +196,9 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     onDismiss = { screenModel.setTuneSheetVisible(false) },
                     onImageModelSelected = {
                         screenModel.updateImageModel(it)
+                    },
+                    onImageServiceModelSelected = {
+                        screenModel.updateImageServiceModel(it)
                     },
                     onVideoModelSelected = {
                         screenModel.updateVideoModel(it)
@@ -658,6 +662,14 @@ private fun BottomPromptPanel(
 
                 Spacer(Modifier.height(Dimens.SpaceSM))
 
+                ServiceModelSummaryRow(
+                    model = if (isImage) uiState.selectedImageServiceModel else uiState.selectedVideoServiceModel,
+                    loading = uiState.serviceModelsLoading,
+                    onClick = onToggleTune,
+                )
+
+                Spacer(Modifier.height(Dimens.SpaceSM))
+
                 MediaToolbarRow(
                     mediaReferences = configMediaRefs,
                     onLaunchImagePicker = onLaunchImagePicker,
@@ -758,6 +770,69 @@ private fun TabPillRow(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ServiceModelSummaryRow(
+    model: QuickCreationServiceModel?,
+    loading: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        color = DarkSurfaceVariant,
+        shape = RoundedCornerShape(Dimens.RadiusMD),
+        border = BorderStroke(1.dp, DarkOutlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+        ) {
+            Icon(
+                Icons.Default.Tune,
+                contentDescription = null,
+                modifier = Modifier.size(15.dp),
+                tint = Primary300,
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = when {
+                        loading -> "模型加载中"
+                        model != null -> model.name
+                        else -> "默认创作模型"
+                    },
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Neutral100,
+                    maxLines = 1,
+                )
+                val subtitle = when {
+                    loading -> "正在同步服务端模型参数"
+                    model != null -> listOfNotNull(
+                        model.groupName,
+                        "${model.fields.size} 个参数",
+                    ).joinToString(" · ")
+                    else -> "未获取到服务端模型，使用本地兼容参数"
+                }
+                if (subtitle.isNotBlank()) {
+                    Text(
+                        text = subtitle,
+                        fontSize = 11.sp,
+                        color = Neutral500,
+                        maxLines = 1,
+                    )
+                }
+            }
+            Icon(
+                Icons.Default.ChevronRight,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = Neutral500,
+            )
         }
     }
 }

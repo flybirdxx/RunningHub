@@ -1032,4 +1032,13 @@ class QuickCreateRepositoryImpl(
             )
         }
     }
+
+    override suspend fun getModels(categoryId: String): Result<List<com.runninghub.shared.domain.repository.QuickCreationServiceModel>> =
+        runCatching {
+            val response = quickCreateApi.getQuickCreationModels(listOf(categoryId))
+            if (response.code != 0) {
+                throw IllegalStateException(response.msg ?: response.message ?: "模型列表加载失败")
+            }
+            QuickCreationModelMapper.flatten(categoryId, response.data.orEmpty())
+        }
 }

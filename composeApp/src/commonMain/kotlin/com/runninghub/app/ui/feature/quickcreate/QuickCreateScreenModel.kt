@@ -55,6 +55,35 @@ class QuickCreateScreenModel(
     var draftData: DraftData? = null
         private set
 
+    init {
+        loadServiceModels()
+    }
+
+    fun loadServiceModels() {
+        screenModelScope.launch {
+            _uiState.update { it.copy(serviceModelsLoading = true) }
+
+            val imageModels = quickCreateRepository.getModels("IMAGE")
+            val videoModels = quickCreateRepository.getModels("VIDEO")
+
+            _uiState.update { state ->
+                val images = imageModels.getOrElse { emptyList() }
+                val videos = videoModels.getOrElse { emptyList() }
+                state.copy(
+                    serviceModelsLoading = false,
+                    serviceImageModels = images,
+                    serviceVideoModels = videos,
+                    selectedImageServiceModel = state.selectedImageServiceModel
+                        ?.takeIf { selected -> images.any { it.bindingId == selected.bindingId && it.skuId == selected.skuId } }
+                        ?: images.firstOrNull(),
+                    selectedVideoServiceModel = state.selectedVideoServiceModel
+                        ?.takeIf { selected -> videos.any { it.bindingId == selected.bindingId && it.skuId == selected.skuId } }
+                        ?: videos.firstOrNull(),
+                )
+            }
+        }
+    }
+
     fun checkForDraft() {
         screenModelScope.launch {
             val raw = settingsRepository.getQuickCreateDraft()
@@ -183,6 +212,14 @@ class QuickCreateScreenModel(
             )
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+    }
+
+    fun updateImageServiceModel(model: com.runninghub.shared.domain.repository.QuickCreationServiceModel) {
+        _uiState.update { it.copy(selectedImageServiceModel = model) }
+    }
+
+    fun updateVideoServiceModel(model: com.runninghub.shared.domain.repository.QuickCreationServiceModel) {
+        _uiState.update { it.copy(selectedVideoServiceModel = model) }
     }
 
     fun updateVideoModel(model: VideoModel) {
@@ -565,6 +602,9 @@ class QuickCreateScreenModel(
                 referenceImageUri = imageRef?.remoteUrl,
                 numImages = config.count,
                 seed = config.seed,
+                quickCreationCategoryId = _uiState.value.selectedImageServiceModel?.categoryId,
+                quickCreationBindingId = _uiState.value.selectedImageServiceModel?.bindingId,
+                quickCreationSkuId = _uiState.value.selectedImageServiceModel?.skuId,
             )
         ).collect { status ->
             handleTaskStatus(status)

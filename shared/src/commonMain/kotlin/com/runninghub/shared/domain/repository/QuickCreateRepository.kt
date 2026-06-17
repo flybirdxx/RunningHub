@@ -305,6 +305,9 @@ data class ImageGenerationRequest(
     val numImages: Int = 1,
     val seed: Int? = null,
     val negativePrompt: String? = null,
+    val quickCreationCategoryId: String? = null,
+    val quickCreationBindingId: String? = null,
+    val quickCreationSkuId: String? = null,
 )
 
 data class VideoGenerationRequest(
@@ -361,6 +364,30 @@ data class QuickCreateInspirationTemplate(
     val tagNew: Boolean,
 )
 
+data class QuickCreationServiceModel(
+    val categoryId: String,
+    val groupName: String?,
+    val bindingId: String,
+    val skuId: String,
+    val name: String,
+    val description: String?,
+    val fields: List<QuickCreationServiceField>,
+)
+
+data class QuickCreationServiceField(
+    val fieldKey: String,
+    val paramKey: String,
+    val fieldType: String,
+    val required: Boolean,
+    val defaultValue: String?,
+    val options: List<QuickCreationServiceFieldOption>,
+)
+
+data class QuickCreationServiceFieldOption(
+    val label: String,
+    val value: String,
+)
+
 interface QuickCreateRepository {
     fun generateImage(request: ImageGenerationRequest): Flow<QuickCreateTaskStatus>
     fun generateVideo(request: VideoGenerationRequest): Flow<QuickCreateTaskStatus>
@@ -371,4 +398,5 @@ interface QuickCreateRepository {
         size: Int = 20,
         tagId: String? = null,
     ): Result<List<QuickCreateInspirationTemplate>>
+    suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>>
 }

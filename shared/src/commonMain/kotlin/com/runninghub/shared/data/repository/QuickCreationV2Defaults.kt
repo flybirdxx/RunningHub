@@ -25,9 +25,9 @@ internal object QuickCreationV2Defaults {
         }
 
         return QuickCreationCreateRequestDto(
-            bindingId = IMAGE_G2_BINDING_ID,
-            categoryId = IMAGE_CATEGORY_ID,
-            skuId = IMAGE_G2_SKU_ID,
+            bindingId = request.quickCreationBindingId ?: IMAGE_G2_BINDING_ID,
+            categoryId = request.quickCreationCategoryId ?: IMAGE_CATEGORY_ID,
+            skuId = request.quickCreationSkuId ?: IMAGE_G2_SKU_ID,
             params = params,
         )
     }

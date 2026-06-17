@@ -5,10 +5,12 @@ import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -28,6 +30,7 @@ class QuickCreateScreenModelTest {
 
     class FakeQuickCreateRepository : QuickCreateRepository {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
+        var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
         var inspirationTags = listOf(QuickCreateInspirationTag(id = "hot", name = "热门"))
         var inspirationTemplates = listOf(
             QuickCreateInspirationTemplate(
@@ -40,7 +43,21 @@ class QuickCreateScreenModelTest {
                 tagNew = false,
             )
         )
-        override fun generateImage(request: com.runninghub.shared.domain.repository.ImageGenerationRequest): Flow<QuickCreateTaskStatus> = emptyFlow()
+        var models = listOf(
+            QuickCreationServiceModel(
+                categoryId = "IMAGE",
+                groupName = "全能图片",
+                bindingId = "binding-1",
+                skuId = "sku-1",
+                name = "全能图片G-2.0-官方版",
+                description = "服务端模型",
+                fields = emptyList(),
+            )
+        )
+        override fun generateImage(request: com.runninghub.shared.domain.repository.ImageGenerationRequest): Flow<QuickCreateTaskStatus> {
+            lastImageRequest = request
+            return flowOf(QuickCreateTaskStatus.Queuing("task-1"))
+        }
         override fun generateVideo(request: com.runninghub.shared.domain.repository.VideoGenerationRequest): Flow<QuickCreateTaskStatus> = emptyFlow()
         override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String) = uploadResult
         override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> = Result.success(inspirationTags)
@@ -49,6 +66,8 @@ class QuickCreateScreenModelTest {
             size: Int,
             tagId: String?,
         ): Result<List<QuickCreateInspirationTemplate>> = Result.success(inspirationTemplates)
+        override suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>> =
+            Result.success(models.filter { it.categoryId == categoryId })
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -121,6 +140,30 @@ class QuickCreateScreenModelTest {
         assertEquals(listOf("热门"), model.uiState.value.inspirationTags.map { it.name })
         assertEquals("tpl-1", model.uiState.value.inspirationTemplates.single().templateId)
         assertEquals(false, model.uiState.value.inspirationLoading)
+    }
+
+    @Test
+    fun `init loads service driven image models`() {
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+
+        assertEquals("全能图片G-2.0-官方版", model.uiState.value.serviceImageModels.single().name)
+        assertEquals("binding-1", model.uiState.value.selectedImageServiceModel?.bindingId)
+        assertEquals(false, model.uiState.value.serviceModelsLoading)
+    }
+
+    @Test
+    fun `generate image uses selected service model ids`() {
+        runBlocking {
+            val repository = FakeQuickCreateRepository()
+            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+            model.updateImagePrompt("prompt")
+            model.generate()
+
+            assertEquals("IMAGE", repository.lastImageRequest?.quickCreationCategoryId)
+            assertEquals("binding-1", repository.lastImageRequest?.quickCreationBindingId)
+            assertEquals("sku-1", repository.lastImageRequest?.quickCreationSkuId)
+        }
     }
 
     @Test
