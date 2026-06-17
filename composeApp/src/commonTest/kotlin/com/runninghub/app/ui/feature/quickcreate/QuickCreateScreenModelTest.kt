@@ -860,9 +860,7 @@ class QuickCreateScreenModelTest {
     fun `uploading global image media does not refresh image fee preview before remote url exists`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
-        val repository = FakeQuickCreateRepository().apply {
-            uploadDelayMillis = 1_000L
-        }
+        val repository = FakeQuickCreateRepository()
         val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
@@ -1379,6 +1377,30 @@ class QuickCreateScreenModelTest {
             listOf("https://example.com/file.jpg"),
             repository.lastImageRequest?.quickCreationListParams?.get("referenceImages"),
         )
+    }
+
+    @Test
+    fun `remove media reference removes image media after switching to video tab`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReference("content://image/1")
+        advanceUntilIdle()
+        val mediaId = model.uiState.value.imageConfig.mediaReferences.single().id
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.removeMediaReference(mediaId)
+        model.switchTab(QuickCreateTab.IMAGE)
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest?.quickCreationListParams?.get("referenceImages"))
     }
 
     @Test

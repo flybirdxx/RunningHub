@@ -1112,19 +1112,14 @@ class QuickCreateScreenModel(
         uploadJobs[id]?.cancel()
         uploadJobs.remove(id)
         _uiState.update { state ->
-            if (state.currentTab == QuickCreateTab.IMAGE) {
-                state.copy(
-                    imageConfig = state.imageConfig.copy(
-                        mediaReferences = state.imageConfig.mediaReferences.filter { it.id != id }
-                    )
-                )
-            } else {
-                state.copy(
-                    videoConfig = state.videoConfig.copy(
-                        mediaReferences = state.videoConfig.mediaReferences.filter { it.id != id }
-                    )
-                )
-            }
+            state.copy(
+                imageConfig = state.imageConfig.copy(
+                    mediaReferences = state.imageConfig.mediaReferences.filter { it.id != id }
+                ),
+                videoConfig = state.videoConfig.copy(
+                    mediaReferences = state.videoConfig.mediaReferences.filter { it.id != id }
+                ),
+            )
         }
         if (shouldRefreshFeePreview) {
             scheduleFeePreview()
