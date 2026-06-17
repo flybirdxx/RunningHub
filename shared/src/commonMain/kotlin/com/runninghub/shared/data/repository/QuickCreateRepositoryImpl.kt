@@ -99,10 +99,10 @@ private fun parseJsonObjectOrNull(raw: String?): JsonObject? =
 
 private fun QuickCreationTaskPageDto.toHistoryPage(): QuickCreationHistoryPage =
     QuickCreationHistoryPage(
-        page = page,
-        size = size,
-        total = total,
-        items = list.map { it.toHistoryItem() },
+        page = current.asIntOrZero().takeIf { it > 0 } ?: page.asIntOrZero(),
+        size = size.asIntOrZero(),
+        total = total.asIntOrZero(),
+        items = records.ifEmpty { list }.map { it.toHistoryItem() },
     )
 
 private fun QuickCreationProjectPageDto.toProjectPage(): QuickCreationProjectPage =

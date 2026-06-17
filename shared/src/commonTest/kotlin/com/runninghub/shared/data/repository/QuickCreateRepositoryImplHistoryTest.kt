@@ -235,10 +235,14 @@ class QuickCreateRepositoryImplHistoryTest {
                           "code": 0,
                           "msg": "success",
                           "data": {
-                            "page": 1,
-                            "size": 10,
-                            "total": 1,
-                            "list": [
+                            "current": "1",
+                            "size": "10",
+                            "total": "1",
+                            "pages": "1",
+                            "hasNext": false,
+                            "hasPrevious": false,
+                            "nextCursor": null,
+                            "records": [
                               {
                                 "taskId": "task-1",
                                 "taskStatus": "SUCCESS",
@@ -273,6 +277,8 @@ class QuickCreateRepositoryImplHistoryTest {
         assertEquals(listOf(QuickCreateApi.QC_PROJECT_TASKS), paths)
         assertEquals("""{"projectId":"project-1","page":1,"size":10}""", bodies.single())
         assertEquals(1, page.total)
+        assertEquals(1, page.page)
+        assertEquals(10, page.size)
         val item = page.items.single()
         assertEquals("task-1", item.taskId)
         assertEquals("project prompt", item.params["prompt"])
@@ -298,7 +304,7 @@ class QuickCreateRepositoryImplHistoryTest {
 
         assertEquals(Unit, result)
         assertEquals(listOf(QuickCreateApi.QC_PROJECT_PIN), paths)
-        assertEquals("""{"projectId":"project-1","pin":true}""", bodies.single())
+        assertEquals("""{"projectId":"project-1","pinned":true}""", bodies.single())
     }
 
     @Test

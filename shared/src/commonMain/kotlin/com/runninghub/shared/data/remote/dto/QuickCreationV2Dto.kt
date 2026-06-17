@@ -124,10 +124,16 @@ data class QuickCreationTaskPageRequestDto(
 
 @Serializable
 data class QuickCreationTaskPageDto(
-    @SerialName("page") val page: Int = 1,
-    @SerialName("size") val size: Int = 10,
-    @SerialName("total") val total: Int = 0,
+    @SerialName("page") val page: JsonElement? = null,
+    @SerialName("current") val current: JsonElement? = null,
+    @SerialName("size") val size: JsonElement? = null,
+    @SerialName("total") val total: JsonElement? = null,
+    @SerialName("pages") val pages: JsonElement? = null,
+    @SerialName("hasNext") val hasNext: Boolean = false,
+    @SerialName("hasPrevious") val hasPrevious: Boolean = false,
+    @SerialName("nextCursor") val nextCursor: String? = null,
     @SerialName("list") val list: List<QuickCreationTaskRecordDto> = emptyList(),
+    @SerialName("records") val records: List<QuickCreationTaskRecordDto> = emptyList(),
 )
 
 @Serializable
@@ -212,7 +218,7 @@ data class QuickCreationProjectIdRequestDto(
 @Serializable
 data class QuickCreationProjectPinRequestDto(
     @SerialName("projectId") val projectId: String,
-    @SerialName("pin") val pinned: Boolean,
+    @SerialName("pinned") val pinned: Boolean,
 )
 
 @Serializable
