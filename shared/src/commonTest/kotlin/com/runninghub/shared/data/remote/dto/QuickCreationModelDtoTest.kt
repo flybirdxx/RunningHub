@@ -124,4 +124,46 @@ class QuickCreationModelDtoTest {
         assertEquals("全能图片G-2.0-官方版", imageGroup.groupName)
         assertEquals("2046586338670891013", imageGroup.children.single().bindingId)
     }
+
+    @Test
+    fun `model response parses pricing metadata`() {
+        val response = json.decodeFromString<QuickCreationEnvelopeDto<QuickCreationModelCatalogDto>>(
+            """
+            {
+              "code": 0,
+              "msg": "success",
+              "data": {
+                "categories": {
+                  "IMAGE": [
+                    {
+                      "type": "model",
+                      "bindingId": "binding-1",
+                      "skuId": "sku-1",
+                      "name": "model",
+                      "pricing": {
+                        "pricingMode": "default",
+                        "settlementMode": "cash_only",
+                        "discountPercent": 100,
+                        "isFree": false,
+                        "freeRemaining": 0,
+                        "isTimeFree": false,
+                        "promoType": "none"
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val pricing = assertNotNull(response.data?.categories?.getValue("IMAGE")?.single()?.pricing)
+        assertEquals("default", pricing.pricingMode)
+        assertEquals("cash_only", pricing.settlementMode)
+        assertEquals(100, pricing.discountPercent)
+        assertEquals(false, pricing.isFree)
+        assertEquals(0, pricing.freeRemaining)
+        assertEquals(false, pricing.isTimeFree)
+        assertEquals("none", pricing.promoType)
+    }
 }

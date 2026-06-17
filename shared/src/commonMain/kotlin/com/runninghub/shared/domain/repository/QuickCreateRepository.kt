@@ -452,6 +452,20 @@ data class QuickCreationServiceModel(
     val name: String,
     val description: String?,
     val fields: List<QuickCreationServiceField>,
+    val pricing: QuickCreationServicePricing? = null,
+)
+
+data class QuickCreationServicePricing(
+    val pricingMode: String? = null,
+    val settlementMode: String? = null,
+    val paidPriceKind: String? = null,
+    val flatPriceRaw: String? = null,
+    val dimensionPricingRaw: String? = null,
+    val discountPercent: Int? = null,
+    val isFree: Boolean = false,
+    val freeRemaining: Int = 0,
+    val isTimeFree: Boolean = false,
+    val promoType: String? = null,
 )
 
 data class QuickCreationServiceField(

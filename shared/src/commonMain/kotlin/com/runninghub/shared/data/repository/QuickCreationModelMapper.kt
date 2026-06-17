@@ -3,9 +3,11 @@ package com.runninghub.shared.data.repository
 import com.runninghub.shared.data.remote.dto.QuickCreationFieldDto
 import com.runninghub.shared.data.remote.dto.QuickCreationFieldOptionDto
 import com.runninghub.shared.data.remote.dto.QuickCreationModelDto
+import com.runninghub.shared.data.remote.dto.QuickCreationPricingDto
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldOption
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
+import com.runninghub.shared.domain.repository.QuickCreationServicePricing
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -46,6 +48,7 @@ internal object QuickCreationModelMapper {
             name = nameCn ?: name ?: nameAi ?: sku,
             description = description,
             fields = fields.mapNotNull { it.toDomain() },
+            pricing = pricing?.toDomain(),
         )
     }
 
@@ -72,6 +75,20 @@ internal object QuickCreationModelMapper {
             value = optionValue,
         )
     }
+
+    private fun QuickCreationPricingDto.toDomain(): QuickCreationServicePricing =
+        QuickCreationServicePricing(
+            pricingMode = pricingMode,
+            settlementMode = settlementMode,
+            paidPriceKind = paidPriceKind,
+            flatPriceRaw = flatPrice?.toString(),
+            dimensionPricingRaw = dimensionPricing?.toString(),
+            discountPercent = discountPercent,
+            isFree = isFree,
+            freeRemaining = freeRemaining,
+            isTimeFree = isTimeFree,
+            promoType = promoType,
+        )
 }
 
 private fun kotlinx.serialization.json.JsonElement.stringValue(): String? {

@@ -58,6 +58,21 @@ data class QuickCreationModelDto(
     @SerialName("description") val description: String? = null,
     @SerialName("fields") val fields: List<QuickCreationFieldDto> = emptyList(),
     @SerialName("children") val children: List<QuickCreationModelDto> = emptyList(),
+    @SerialName("pricing") val pricing: QuickCreationPricingDto? = null,
+)
+
+@Serializable
+data class QuickCreationPricingDto(
+    @SerialName("pricingMode") val pricingMode: String? = null,
+    @SerialName("settlementMode") val settlementMode: String? = null,
+    @SerialName("paidPriceKind") val paidPriceKind: String? = null,
+    @SerialName("flatPrice") val flatPrice: JsonElement? = null,
+    @SerialName("dimensionPricing") val dimensionPricing: JsonElement? = null,
+    @SerialName("discountPercent") val discountPercent: Int? = null,
+    @SerialName("isFree") val isFree: Boolean = false,
+    @SerialName("freeRemaining") val freeRemaining: Int = 0,
+    @SerialName("isTimeFree") val isTimeFree: Boolean = false,
+    @SerialName("promoType") val promoType: String? = null,
 )
 
 @Serializable
