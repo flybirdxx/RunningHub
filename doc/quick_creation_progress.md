@@ -313,3 +313,27 @@ adb -s emulator-5554 shell am start -n com.runninghub.app/.MainActivity
 - 视频真实生成的 `prepare/commit/list/detail` 端到端链路仍未验证；需要用户重新授权扣费后才能点击生成。
 - 视频 `价格确认中` 的瞬时 UI 文案还缺少稳定截图证据。
 - `AuthRepositoryImpl.kt` 和 `output/` 仍保持未纳入提交状态。
+
+## 2026-06-18 服务字段 extra metadata 结构化解析
+
+本轮围绕截图底部“模型参数和提示词输入区域”的动态化继续收窄服务端字段矩阵，代码提交 `bcdf91a fix(quickcreate): parse service field extra metadata` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationServiceField` 新增 `inputExtra: QuickCreationServiceFieldExtra?`，在继续保留原始 `inputExtraJson` 的同时，结构化承载 `title/titleEn/paramDesc/paramDescEn/placeholder/accept/maxLength/minLength/maxInputCount/ignoreListValueCaseSensitive`。
+- `QuickCreationModelMapper` 兼容服务端真实形态：`skuInputExtraJson` 可以是 JSON 对象，也可以是内容为 JSON 对象的字符串；`accept` 兼容 JSON 数组字符串和逗号分隔字符串。
+- `TuneBottomSheet` 的服务端高级参数区开始使用 `inputExtra.title` 作为字段标题、`paramDesc` 作为说明、`placeholder` 作为文本输入占位符，并在上传字段提示中展示 `accept` 格式。
+- 新增 mapper 回归测试，锁定 extra metadata 的解析行为，避免后续动态表单退回只显示 `fieldKey/paramKey`。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :shared:testDebugUnitTest
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 条件字段、字段联动、`inputsChildList` 等复杂 `skuInputExtraJson` 结构尚未渲染为完整动态表单。
+- 本轮没有点击真实“生成”，没有触发新的 `prepare/commit`，也没有产生新扣费。
+- `AuthRepositoryImpl.kt` 仍是既有未提交改动，`output/` 仍是未跟踪证据目录，本轮代码和文档提交均不纳入它们。

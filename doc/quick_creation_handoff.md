@@ -389,3 +389,27 @@ adb -s emulator-5554 shell am start -n com.runninghub.app/.MainActivity
 - 视频 `价格确认中` 文案是瞬时状态，本轮没有稳定截获；若要补强证据，可以通过更慢网络或测试开关注入延迟。
 - 视频真实生成仍需要新的明确扣费授权。当前不要为了验证而点击 `¥6.00` 的生成按钮。
 - `AuthRepositoryImpl.kt` 和 `output/` 仍不要纳入后续提交，除非确认属于当前任务。
+
+## 2026-06-18 追加交接：服务字段 extra metadata
+
+代码提交 `bcdf91a fix(quickcreate): parse service field extra metadata` 已推送到 `feature/kmp-refactoring`。
+
+本轮解决的问题：
+- 服务端 `/api/qc/v2/models` 的字段里，`skuInputExtraJson` 不再只作为 raw string 保留；现在会解析为 `QuickCreationServiceField.inputExtra`。
+- 已结构化字段包括标题、英文标题、参数描述、英文描述、占位符、上传 accept 格式、文本长度限制、最大输入数量和列表值大小写敏感标记。
+- Tune 高级参数区现在优先展示服务端 `title/paramDesc/placeholder/accept`，更贴近截图底部“模型参数和提示词输入区域”的真实配置。
+
+验证过的命令：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :shared:testDebugUnitTest
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 继续用测试优先补复杂 `skuInputExtraJson`：优先覆盖 `inputsChildList`、条件展示、字段联动和 extra json 内嵌 options 的真实样例。
+- UI 侧可以把 `QuickCreationServiceFieldExtra.maxLength/minLength/maxInputCount` 接入输入限制和上传数量提示，但要注意不要和顶层 `maxUploadCount/maxUploadSize/multipleInputs` 冲突。
+- 若后续要验证真实视频生成，必须先取得新的明确扣费授权；当前只允许做不触发 `prepare/commit` 的 fee-preview、列表和 UI 验证。
+- 继续不要把既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录混入提交。
