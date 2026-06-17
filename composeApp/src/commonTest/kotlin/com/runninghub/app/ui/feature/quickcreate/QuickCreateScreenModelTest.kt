@@ -2503,6 +2503,32 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `checkForDraft clears stale in memory draft when stored draft is invalid`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"old draft","videoPrompt":""}""")
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), settings)
+        runCurrent()
+
+        model.checkForDraft()
+        runCurrent()
+        assertEquals(true, model.hasDraft)
+
+        settings.saveQuickCreateDraft("{")
+        model.checkForDraft()
+        runCurrent()
+        model.restoreDraft()
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(false, model.hasDraft)
+        assertEquals("", model.uiState.value.imageConfig.prompt)
+        assertEquals(0, repository.feePreviewRequests.size)
+    }
+
+    @Test
     fun `generate without prompt shows error`() {
         runBlocking {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())

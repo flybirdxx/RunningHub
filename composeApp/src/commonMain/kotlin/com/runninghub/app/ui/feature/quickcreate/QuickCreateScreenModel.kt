@@ -592,6 +592,8 @@ class QuickCreateScreenModel(
                     draftData = draft
                     hasDraft = true
                 } catch (_: Exception) {
+                    draftData = null
+                    hasDraft = false
                     settingsRepository.clearQuickCreateDraft()
                 }
             }
