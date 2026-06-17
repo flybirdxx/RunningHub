@@ -747,3 +747,26 @@ git diff --check
 - 服务端模型列表过长，当前虽然可滚动到字段和原有视频高级项，但用户要找字段成本较高；建议下一步优化服务模型选择控件。
 - 继续不要把既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录混入提交。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权扣费后，才能继续真实 `prepare/commit/list/detail`。
+
+## 2026-06-18 追加交接：紧凑服务端模型选择器
+
+代码提交 `fd77866 fix(quickcreate): compact service model picker` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `TuneBottomSheet` 中图片和视频高级参数区共用 `ServiceModelPickerContent`。
+- 服务端模型不再以内联长列表占据高级页，而是显示当前模型摘要；点击摘要后通过下拉菜单选择其他模型。
+- 选中模型的 `ServiceFieldOptionsContent` 紧跟选择器渲染，因此视频高级页打开后即可看到 `服务端参数` 和 `prompt` 等动态字段。
+- 下拉菜单仍显示模型名、分组名、参数数量和当前选中勾选态；服务模型加载态和空态保留。
+- 如果状态里没有 `selectedServiceModel`，选择器显示 `请选择服务端模型`，避免把第一项显示成已选但不渲染字段。
+
+验证记录：
+- `.\gradlew.bat :composeApp:compileDebugKotlinAndroid` 通过。
+- `.\gradlew.bat :composeApp:assembleDebug` 通过，安装到 `emulator-5554` 后打开 `创作 -> 视频 -> Seedance2.0 -> 创作调优 -> 高级`。
+- UI 树 `output/quickcreate_service_picker_advanced.xml` 显示 `服务端模型` 后紧跟 `服务端参数`、`prompt`、`视频生成提示词`。
+- UI 树 `output/quickcreate_service_picker_dropdown.xml` 显示下拉菜单中的 `Seedance2.0`、`Seedance2.0-首尾帧`、`Seedance2.0-Fast`、`全能视频X 1.5-图生视频-官方版` 等模型。
+- 截图证据为 `output/quickcreate_service_picker_dropdown.png`；`output/` 继续保持未跟踪，不纳入提交。
+
+下一步建议：
+- 继续处理“多个独立上传子槽”问题：如果一个模型同时要求多个图片/视频/音频上传字段，应建立素材列表与字段 `paramKey` 的绑定结构，而不是只按媒体类型复用全局素材。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。

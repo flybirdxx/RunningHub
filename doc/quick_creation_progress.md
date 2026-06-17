@@ -668,3 +668,36 @@ adb -s emulator-5554 pull /sdcard/quickcreate_video_tune_advanced_fields.png out
 - 高级页服务端模型列表较长，字段区需要向下滚动多屏才能看到；后续可考虑将服务模型选择器收敛为下拉/横向选择/折叠区，降低查找字段成本。
 - 本轮只做 UI 打开、滚动和字段可见性复测，没有点击真实生成，没有触发新的 `prepare/commit`，也没有新增扣费。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
+
+## 2026-06-18 紧凑服务端模型选择器
+
+代码提交 `fd77866 fix(quickcreate): compact service model picker` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 将图片/视频 Tune 高级参数区重复的服务端模型卡片列表抽成共用 `ServiceModelPickerContent`。
+- 服务端模型入口从“全量纵向列表”改为“当前模型摘要 + 下拉菜单”，选中模型的字段区现在紧跟在选择器下方。
+- 保留加载态、空态、当前选中态、模型分组名和参数数量提示；下拉菜单中仍可切换服务端模型。
+- 修正未选中服务模型时的显示语义：不再把第一项伪装成已选，而是显示 `请选择服务端模型`。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:compileDebugKotlinAndroid
+.\gradlew.bat :composeApp:assembleDebug
+adb -s emulator-5554 install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
+adb -s emulator-5554 shell am start -n com.runninghub.app/.MainActivity
+adb -s emulator-5554 exec-out uiautomator dump /dev/tty > output\quickcreate_service_picker_advanced.xml
+adb -s emulator-5554 exec-out uiautomator dump /dev/tty > output\quickcreate_service_picker_dropdown.xml
+adb -s emulator-5554 shell screencap -p /sdcard/quickcreate_service_picker_dropdown.png
+adb -s emulator-5554 pull /sdcard/quickcreate_service_picker_dropdown.png output\quickcreate_service_picker_dropdown.png
+git diff --check -- composeApp\src\commonMain\kotlin\com\runninghub\app\ui\feature\quickcreate\TuneBottomSheet.kt
+```
+
+UI 复测结果：
+- 视频 `Seedance2.0` 的高级页现在直接显示 `服务端模型`、`Seedance2.0`、`服务端参数`、`prompt`、`视频生成提示词`，不需要先滚过多屏服务端模型。
+- 点击模型摘要后，下拉菜单显示 `Seedance2.0`、`Seedance2.0-首尾帧`、`Seedance2.0-Fast`、`全能视频X 1.5-图生视频-官方版` 等模型，切换入口仍可用。
+- 本轮未点击真实生成，未触发新的 `prepare/commit`，也没有新增扣费。
+
+仍未完成：
+- 多个独立上传子槽仍需要后续扩展素材与 `paramKey` 的绑定结构。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
