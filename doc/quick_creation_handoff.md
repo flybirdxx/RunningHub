@@ -104,3 +104,31 @@ git add doc/quick_creation_feature_plan.md doc/quick_creation_progress.md doc/qu
 git commit -m "docs(quickcreate): add progress and handoff notes"
 git push origin feature/kmp-refactoring
 ```
+## 2026-06-18 追加交接：App 端成功任务展示验证
+
+本轮没有修改代码，只补充了模拟器验证。当前模拟器 `emulator-5554` 上的 `com.runninghub.app` 已能进入“创作”页并展示真实服务端模型与成功历史任务。
+
+验证步骤：
+
+```powershell
+adb -s emulator-5554 shell am start -n com.runninghub.app/.MainActivity
+adb -s emulator-5554 exec-out uiautomator dump /dev/tty > output\quickcreate_app_current_before_submit.xml
+adb -s emulator-5554 shell input tap 489 2739
+adb -s emulator-5554 exec-out uiautomator dump /dev/tty > output\quickcreate_app_create_before_generation.xml
+adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_create_before_generation.png
+adb -s emulator-5554 shell input tap 640 1110
+adb -s emulator-5554 exec-out uiautomator dump /dev/tty > output\quickcreate_app_history_detail_success.xml
+adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_history_detail_success.png
+```
+
+当前证据结论：
+
+- 创作页底部模型摘要显示 `全能图片G-2.0-文生图-官方版` / `全能图片G-2.0-官方版 · 4 个参数`。
+- 最近创作列表中有真实成功任务，状态为 `IMAGE · SUCCESS · PNG`，费用显示 `0.8 CNY`。
+- 详情弹窗显示 `IMAGE · SUCCESS · PNG · 2048x1152`、同一 prompt、费用 `0.8 CNY` 和输出预览区域。
+
+扣费边界：
+
+- 用户此前只明确授权 `0.76 元`继续验证。
+- 当前 App 已能读取并展示真实成功扣费任务；本轮没有再次点击“生成”，避免发生第二次扣费。
+- 若后续必须证明“移动端 App 自身点击生成后完成 prepare/commit/轮询/详情展示”的完整链路，需要先取得新的明确扣费授权，再提交一次低成本图片任务。

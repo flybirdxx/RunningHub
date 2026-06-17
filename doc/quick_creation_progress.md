@@ -63,3 +63,20 @@
 | 历史能力仍不完整 | 已能在创作页展示最近创作、项目横向筛选、项目内任务、项目置顶切换、项目创建/重命名/删除/详情、加载更多历史、定时刷新非终态任务、取消非终态任务并打开详情弹窗；项目管理端点已用 Chrome DevTools 临时项目验证，App 内已验证项目列表、菜单和详情只读流程 | 下一步在用户确认可改动数据后，验证项目创建、筛选、置顶、重命名和删除完整流程。 |
 | 视频 v2 仍缺少真实扣费复测 | 当前仅用抓包结构和 MockEngine 验证请求构造、路由和结果解析；不能宣称视频端到端完成 | 需要用户明确授权后，用低成本视频模型在 App 内提交一次真实任务；此前抓包的 Seedance2.0 模板预估价格为 9.60 元，不在既有 0.76 元授权范围内。 |
 | `AuthRepositoryImpl.kt` 有既有未提交修改 | 本轮未审查，可能影响登录态 | 后续提交时不要误包含，除非确认是本任务需要。 |
+
+## 2026-06-18 App 端补充验证
+
+本轮使用 `adb -s emulator-5554` 重新拉起 `com.runninghub.app/.MainActivity`，从底部导航进入“创作”页，并用 UI tree 而不是截图坐标定位关键控件。验证结果：
+
+- 创作页顶部结构符合当前截图理解：顶部“创作/灵感”切换，中间历史/项目内容区，底部固定模型参数与 prompt 输入区。
+- 底部模型摘要已加载真实服务端模型：`全能图片G-2.0-文生图-官方版`，副标题为 `全能图片G-2.0-官方版 · 4 个参数`。
+- 最近创作列表能显示真实成功任务：prompt 为“测试生成一张极简风格的绿色圆形图标，纯白背景，中心是 RunningHub 风格的绿色圆形符号”，状态为 `IMAGE · SUCCESS · PNG`，费用显示 `0.8 CNY`。
+- 点击最近创作项后，详情弹窗能显示输出预览区域、prompt、`IMAGE · SUCCESS · PNG · 2048x1152` 和 `0.8 CNY`。
+- 为避免超过用户已授权的 0.76 元扣费范围，本轮没有再次点击“生成”提交新的真实扣费任务；App 端新增验证范围限定为“读取并展示已成功扣费任务的历史和详情”。后续若要验证“从 App 再次发起 prepare/commit 并扣费”，需要用户重新确认一次扣费授权。
+
+本轮证据文件保存在未跟踪目录 `output/`，包括：
+
+- `output/quickcreate_app_create_before_generation.xml`
+- `output/quickcreate_app_create_before_generation.png`
+- `output/quickcreate_app_history_detail_success.xml`
+- `output/quickcreate_app_history_detail_success.png`
