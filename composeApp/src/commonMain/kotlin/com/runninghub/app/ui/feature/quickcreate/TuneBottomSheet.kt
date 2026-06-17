@@ -694,7 +694,7 @@ private fun ImageAdvancedContent(
         selectedServiceModel
             ?.fields
             .orEmpty()
-            .filter { it.isServiceFieldRenderable() }
+            .filter { it.isQuickCreationServiceFieldRenderable() }
             .takeIf { it.isNotEmpty() }
             ?.let { fields ->
                 ServiceFieldOptionsContent(
@@ -770,7 +770,7 @@ private fun ServiceFieldOptionsContent(
         fields.forEach { field ->
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
                 Text(
-                    text = field.displayTitle(),
+                    text = field.quickCreationFieldTitle(),
                     fontSize = 12.sp,
                     color = Neutral300,
                 )
@@ -805,7 +805,7 @@ private fun ServiceFieldOptionsContent(
                             }
                         }
                     }
-                } else if (field.supportsTextEntry()) {
+                } else if (field.supportsQuickCreationTextEntry()) {
                     var text by remember(field.paramKey, params[field.paramKey]) {
                         mutableStateOf(params[field.paramKey] ?: field.defaultValue.orEmpty())
                     }
@@ -816,7 +816,7 @@ private fun ServiceFieldOptionsContent(
                             onParamChange(field.paramKey, value)
                         },
                         singleLine = true,
-                        placeholder = { Text(field.inputPlaceholder(), color = Neutral500, fontSize = 12.sp) },
+                        placeholder = { Text(field.quickCreationInputPlaceholder(), color = Neutral500, fontSize = 12.sp) },
                         shape = RoundedCornerShape(Dimens.RadiusSM),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
@@ -829,13 +829,11 @@ private fun ServiceFieldOptionsContent(
                         ),
                         modifier = Modifier.fillMaxWidth(),
                     )
-                } else if (field.fieldType.uppercase().contains("UPLOAD")) {
+                } else if (field.isQuickCreationUploadField()) {
                     Text(
-                        text = listOfNotNull(
-                            field.inputExtra?.acceptFormats?.takeIf { it.isNotEmpty() }?.joinToString("/"),
-                            field.maxUploadCount?.let { "最多 $it 个文件" },
-                            field.maxUploadSize?.let { "单文件 ${it / 1024 / 1024}MB" },
-                        ).joinToString(" · ").ifBlank { "上传参数由素材入口处理" },
+                        text = field.quickCreationUploadHintParts()
+                            .joinToString(" · ")
+                            .ifBlank { "上传参数由素材入口处理" },
                         fontSize = 11.sp,
                         color = Neutral500,
                     )
@@ -844,24 +842,6 @@ private fun ServiceFieldOptionsContent(
         }
     }
 }
-
-private fun QuickCreationServiceField.supportsTextEntry(): Boolean {
-    val type = fieldType.uppercase()
-    return type.contains("STRING") ||
-        type.contains("TEXT") ||
-        type.contains("NUMBER") ||
-        type.contains("INTEGER") ||
-        type.contains("FLOAT")
-}
-
-private fun QuickCreationServiceField.displayTitle(): String =
-    inputExtra?.title?.takeIf { it.isNotBlank() } ?: fieldKey
-
-private fun QuickCreationServiceField.inputPlaceholder(): String =
-    inputExtra?.placeholder?.takeIf { it.isNotBlank() } ?: paramKey
-
-private fun QuickCreationServiceField.isServiceFieldRenderable(): Boolean =
-    options.isNotEmpty() || supportsTextEntry() || fieldType.uppercase().contains("UPLOAD")
 
 @Composable
 private fun SeedInput(seed: Int?, onSeedChange: (Int?) -> Unit) {
