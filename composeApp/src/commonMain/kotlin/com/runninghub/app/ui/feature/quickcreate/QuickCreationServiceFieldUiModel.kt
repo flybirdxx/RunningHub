@@ -131,6 +131,18 @@ internal fun QuickCreationServiceField.quickCreationUploadValidationError(upload
     return null
 }
 
+internal fun QuickCreationServiceFieldInputChild.quickCreationUploadValidationError(uploadedCount: Int): String? {
+    val title = quickCreationFieldTitle()
+    if (required && uploadedCount <= 0) {
+        return "$title \u4e0d\u80fd\u4e3a\u7a7a"
+    }
+    val maxCount = maxInputCount
+    if (maxCount != null && uploadedCount > maxCount) {
+        return "$title \u6700\u591a $maxCount \u4e2a\u6587\u4ef6"
+    }
+    return null
+}
+
 internal fun QuickCreationServiceField.quickCreationUploadHintParts(): List<String> =
     listOfNotNull(
         inputExtra?.acceptFormats?.takeIf { it.isNotEmpty() }?.joinToString("/"),

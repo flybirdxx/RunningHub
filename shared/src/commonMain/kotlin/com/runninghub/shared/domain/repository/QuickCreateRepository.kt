@@ -520,6 +520,7 @@ data class QuickCreationServiceFieldInputChild(
     val placeholder: String? = null,
     val maxLength: Int? = null,
     val minLength: Int? = null,
+    val maxInputCount: Int? = null,
     val options: List<QuickCreationServiceFieldOption> = emptyList(),
     val visibleWhen: QuickCreationServiceFieldVisibilityCondition? = null,
 )

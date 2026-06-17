@@ -251,4 +251,38 @@ class QuickCreationServiceFieldUiModelTest {
 
         assertEquals("3/5", child.quickCreationTextLimitCounter("abc"))
     }
+
+    @Test
+    fun `required child upload validation uses child metadata`() {
+        val child = QuickCreationServiceFieldInputChild(
+            fieldKey = "referenceImage",
+            paramKey = "referenceImages",
+            fieldType = "IMAGE",
+            required = true,
+            title = "Reference image",
+        )
+
+        assertEquals(
+            true,
+            child.quickCreationUploadValidationError(uploadedCount = 0)?.startsWith("Reference image"),
+        )
+        assertEquals(null, child.quickCreationUploadValidationError(uploadedCount = 1))
+    }
+
+    @Test
+    fun `child upload max count validation uses child metadata`() {
+        val child = QuickCreationServiceFieldInputChild(
+            fieldKey = "referenceImage",
+            paramKey = "referenceImages",
+            fieldType = "IMAGE",
+            title = "Reference image",
+            maxInputCount = 1,
+        )
+
+        assertEquals(
+            true,
+            child.quickCreationUploadValidationError(uploadedCount = 2)?.startsWith("Reference image"),
+        )
+        assertEquals(null, child.quickCreationUploadValidationError(uploadedCount = 1))
+    }
 }

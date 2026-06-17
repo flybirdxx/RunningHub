@@ -172,6 +172,7 @@ internal object QuickCreationModelMapper {
             placeholder = stringValue("placeholder") ?: childExtra?.stringValue("placeholder"),
             maxLength = intValue("maxLength") ?: childExtra?.intValue("maxLength"),
             minLength = intValue("minLength") ?: childExtra?.intValue("minLength"),
+            maxInputCount = intValue("maxInputCount") ?: childExtra?.intValue("maxInputCount"),
             options = optionsValue(),
             visibleWhen = visibleWhen(),
         )

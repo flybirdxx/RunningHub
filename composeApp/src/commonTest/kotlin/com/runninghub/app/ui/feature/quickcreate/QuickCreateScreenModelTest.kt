@@ -1152,6 +1152,51 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image maps uploaded images to active child upload field`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "imageReference",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "childImage",
+                                    paramKey = "childImages",
+                                    fieldType = "IMAGE",
+                                    maxInputCount = 1,
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReference("content://image/1")
+        advanceUntilIdle()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(
+            listOf("https://example.com/file.jpg"),
+            repository.lastImageRequest?.quickCreationListParams?.get("childImages"),
+        )
+    }
+
+    @Test
     fun `generate image is blocked when required service image field has no upload`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
@@ -1182,6 +1227,53 @@ class QuickCreateScreenModelTest {
         assertEquals(null, repository.lastImageRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertEquals("Reference image 不能为空", model.uiState.value.error)
+    }
+
+    @Test
+    fun `generate image is blocked when active required child image field has no upload`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "imageReference",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "childImage",
+                                    paramKey = "childImages",
+                                    fieldType = "IMAGE",
+                                    required = true,
+                                    title = "Child image",
+                                    visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                        fieldKey = "creationMode",
+                                        values = listOf("imageReference"),
+                                    ),
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals(true, model.uiState.value.error?.startsWith("Child image"))
     }
 
     @Test
