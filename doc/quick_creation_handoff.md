@@ -944,3 +944,25 @@ git diff --check
 - 如后续发现隐藏父字段下有服务端强制提交的内部子字段，需要在 mapper 层显式建模该语义，不应让 UI 隐藏字段默认进入用户提交路径。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：非提交参数不触发 fee preview
+
+代码提交 `24a0920 fix(quickcreate): skip preview for inactive params` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 服务端参数更新会先写入当前 tab 的 `serviceParams`，但只有该参数属于更新后的 active 提交白名单时才刷新价格预览。
+- 这意味着隐藏字段、隐藏父字段子字段、当前未激活子字段等不会进入正式请求的参数变更，不会重复发起 fee-preview。
+- 父字段切换仍会触发预览，因为父字段自身属于 active key；切换后 active child 集合变化会通过父字段变更刷新请求体。
+- 该规则只控制预览调度，不改变正式请求体过滤规则。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service param update does not refresh image fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+下一步建议：
+- 如后续发现 active 子字段被动失活但没有父字段变更事件，需要检查 Tune UI 是否总是通过父字段更新触发调度。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。

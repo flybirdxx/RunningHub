@@ -872,3 +872,25 @@ git diff --check
 仍未完成：
 - 字段级素材卡片的真实选择/移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 非提交参数不刷新价格预览
+
+代码提交 `24a0920 fix(quickcreate): skip preview for inactive params` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `updateImageServiceParam()` 和 `updateVideoServiceParam()` 仍允许写入模型声明过的参数，保留模板回填和临时 UI state 能力。
+- 写入后只有当 `paramKey` 属于更新后 `activeServiceParamKeys(nextParams)` 时才触发 `scheduleFeePreview()`。
+- 隐藏字段、非激活子字段等不会进入正式请求的参数变更，不再额外刷新价格预览，避免对同一请求体重复发起 fee-preview。
+- 新增回归测试覆盖 prompt 已预览后更新隐藏服务端参数不会再次请求图片 fee-preview。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service param update does not refresh image fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+仍未完成：
+- 字段级素材卡片的真实选择/移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
