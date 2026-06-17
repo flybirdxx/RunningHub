@@ -9,6 +9,7 @@ import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
 import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
 import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
+import com.runninghub.shared.domain.repository.QuickCreationProject
 import com.runninghub.shared.domain.repository.QuickCreationProjectPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
@@ -47,6 +48,7 @@ class QuickCreateScreenModelTest {
         var lastHistoryDetailOutputId: String? = null
         val cancelledTaskIds = mutableListOf<String>()
         val requestedHistoryPages = mutableListOf<Int>()
+        val requestedProjectPages = mutableListOf<Int>()
         var historyPage = QuickCreationHistoryPage(
             page = 1,
             size = 10,
@@ -75,6 +77,23 @@ class QuickCreateScreenModelTest {
             ),
         )
         var historyPages: Map<Int, QuickCreationHistoryPage>? = null
+        var projectPage = QuickCreationProjectPage(
+            page = 1,
+            size = 20,
+            total = 1,
+            pages = 1,
+            hasNext = false,
+            hasPrevious = false,
+            items = listOf(
+                QuickCreationProject(
+                    projectId = "project-1",
+                    name = "世界杯广告",
+                    coverUrl = "https://example.com/project.png",
+                    taskCount = 3,
+                    pinned = true,
+                )
+            ),
+        )
         var overrideHistoryList: ((page: Int, size: Int) -> QuickCreationHistoryPage)? = null
         var historyDetail = QuickCreationHistoryItem(
             taskId = "history-task-detail",
@@ -252,17 +271,9 @@ class QuickCreateScreenModelTest {
             }
 
         override suspend fun listQuickCreationProjects(page: Int, size: Int): Result<QuickCreationProjectPage> =
-            Result.success(
-                QuickCreationProjectPage(
-                    page = page,
-                    size = size,
-                    total = 0,
-                    pages = 0,
-                    hasNext = false,
-                    hasPrevious = false,
-                    items = emptyList(),
-                )
-            )
+            Result.success(projectPage.copy(page = page, size = size)).also {
+                requestedProjectPages += page
+            }
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -312,6 +323,19 @@ class QuickCreateScreenModelTest {
         assertEquals(false, model.uiState.value.historyLoading)
         assertEquals("history-task-1", model.uiState.value.historyItems.single().taskId)
         assertEquals("https://example.com/result.png", model.uiState.value.historyItems.single().outputs.single().url)
+    }
+
+    @Test
+    fun `initialization loads quick creation projects`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        assertEquals(listOf(1), repository.requestedProjectPages)
+        assertEquals(false, model.uiState.value.projectsLoading)
+        assertEquals("project-1", model.uiState.value.projects.single().projectId)
+        assertEquals("世界杯广告", model.uiState.value.projects.single().name)
+        assertEquals(true, model.uiState.value.projects.single().pinned)
+        assertEquals(false, model.uiState.value.projectsHasMore)
     }
 
     @Test

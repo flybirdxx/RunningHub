@@ -68,6 +68,7 @@ class QuickCreateScreenModel(
     init {
         loadServiceModels()
         loadQuickCreationHistory()
+        loadQuickCreationProjects()
     }
 
     fun loadServiceModels() {
@@ -126,6 +127,28 @@ class QuickCreateScreenModel(
                 },
                 onFailure = {
                     _uiState.update { state -> state.copy(historyLoading = false) }
+                },
+            )
+        }
+    }
+
+    fun loadQuickCreationProjects() {
+        screenModelScope.launch {
+            _uiState.update { it.copy(projectsLoading = true) }
+            val projects = quickCreateRepository.listQuickCreationProjects(page = 1, size = 20)
+            projects.fold(
+                onSuccess = { page ->
+                    _uiState.update { state ->
+                        state.copy(
+                            projectsLoading = false,
+                            projects = page.items,
+                            projectsPage = page.page,
+                            projectsHasMore = page.hasNext,
+                        )
+                    }
+                },
+                onFailure = {
+                    _uiState.update { state -> state.copy(projectsLoading = false) }
                 },
             )
         }

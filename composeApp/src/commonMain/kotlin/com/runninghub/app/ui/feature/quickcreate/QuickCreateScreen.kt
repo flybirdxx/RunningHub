@@ -52,6 +52,7 @@ import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.shared.data.local.PermissionDataStore
 import com.runninghub.shared.domain.model.Permission
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
+import com.runninghub.shared.domain.repository.QuickCreationProject
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
@@ -393,6 +394,13 @@ private fun HistoryArea(
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
     ) {
         item {
+            if (uiState.projects.isNotEmpty() || uiState.projectsLoading) {
+                ProjectStrip(
+                    projects = uiState.projects,
+                    isLoading = uiState.projectsLoading,
+                )
+                Spacer(Modifier.height(Dimens.SpaceSM))
+            }
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -446,6 +454,83 @@ private fun HistoryArea(
                     }
                     Text("加载更多")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProjectStrip(
+    projects: List<QuickCreationProject>,
+    isLoading: Boolean,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXS)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                "项目",
+                color = Color.White.copy(alpha = 0.82f),
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = Primary300,
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+        ) {
+            projects.forEach { project ->
+                ProjectChip(project)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ProjectChip(project: QuickCreationProject) {
+    Surface(
+        color = DarkSurface,
+        shape = RoundedCornerShape(Dimens.RadiusMD),
+        border = BorderStroke(1.dp, if (project.pinned) Primary300.copy(alpha = 0.65f) else DarkOutlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = Dimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXS),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (project.pinned) {
+                Icon(
+                    Icons.Default.PushPin,
+                    contentDescription = null,
+                    tint = Primary300,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    project.name,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    "${project.taskCount} 个任务",
+                    color = Neutral400,
+                    fontSize = 11.sp,
+                )
             }
         }
     }

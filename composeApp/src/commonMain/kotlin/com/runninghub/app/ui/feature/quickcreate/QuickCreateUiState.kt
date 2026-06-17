@@ -3,6 +3,7 @@ package com.runninghub.app.ui.feature.quickcreate
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
+import com.runninghub.shared.domain.repository.QuickCreationProject
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 
 enum class QuickCreateTab(val displayName: String) {
@@ -357,6 +358,10 @@ data class QuickCreateUiState(
     val historyCancellingTaskIds: Set<String> = emptySet(),
     val historyDetailLoading: Boolean = false,
     val selectedHistoryDetail: QuickCreationHistoryItem? = null,
+    val projectsLoading: Boolean = false,
+    val projects: List<QuickCreationProject> = emptyList(),
+    val projectsPage: Int = 0,
+    val projectsHasMore: Boolean = false,
     val serviceModelsLoading: Boolean = false,
     val serviceImageModels: List<QuickCreationServiceModel> = emptyList(),
     val serviceVideoModels: List<QuickCreationServiceModel> = emptyList(),
