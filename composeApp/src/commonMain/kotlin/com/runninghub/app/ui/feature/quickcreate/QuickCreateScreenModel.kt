@@ -596,6 +596,9 @@ class QuickCreateScreenModel(
                     hasDraft = false
                     settingsRepository.clearQuickCreateDraft()
                 }
+            } else {
+                draftData = null
+                hasDraft = false
             }
         }
     }
