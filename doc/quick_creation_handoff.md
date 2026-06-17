@@ -517,3 +517,27 @@ git diff --check
 下一步建议：
 - 上传字段提交前校验应继续复用 `isQuickCreationUploadField()`，避免 UI、请求映射、校验三套规则再次分叉。
 - 需要覆盖 required/maxInputCount，尤其是图生图的 `imageUrls` 和视频模型的参考图/视频/音频字段。
+
+## 2026-06-18 追加交接：上传字段提交前校验
+
+代码提交 `233aa91 fix(quickcreate): validate service upload fields before submit` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreationServiceFieldUiModel.quickCreationUploadValidationError(uploadedCount)` 已覆盖上传字段的 required 非空和最大文件数校验。
+- 最大文件数优先级为 `inputExtra.maxInputCount` 高于顶层 `maxUploadCount`，这与 Tune 上传提示的展示规则一致。
+- `QuickCreateScreenModel.generate()` 会先等待挂起上传完成，再校验当前服务端上传字段；失败时设置 `taskStatus=IDLE` 和字段错误，不调用 repository 的正式 `generateImage/generateVideo`。
+- 校验只统计 `UploadStatus.DONE` 且 `remoteUrl` 非空的素材，避免本地待上传、失败上传或空 URL 被误当成有效提交参数。
+- 上传字段范围继续复用 `IMAGE/VIDEO/AUDIO/UPLOAD` 的统一 helper，后续新增字段类型时应先扩展 helper，再同步测试 UI、请求映射和校验。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when required service image field has no upload"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 继续处理 `inputsChildList`、条件字段和复杂 `skuInputExtraJson`。这些能力应先补 domain/metadata 解析和 helper 单测，再接 Tune UI。
+- 后续如需验证真实视频 `prepare/commit/list/detail`，仍必须先取得新的明确扣费授权；本轮没有触发任何真实生成或扣费。
+- 继续不要把既有 `AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录混入后续提交。

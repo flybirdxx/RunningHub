@@ -445,3 +445,26 @@ git diff --check
 仍未完成：
 - 上传字段 required/maxInputCount 的提交前校验仍需继续补齐。
 - 本轮未触发真实生成或扣费。
+
+## 2026-06-18 上传字段 required/maxInputCount 提交前校验
+
+代码提交 `233aa91 fix(quickcreate): validate service upload fields before submit` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationServiceFieldUiModel.kt` 新增 `quickCreationUploadValidationError()`，对上传类字段执行 `required` 非空和最大文件数校验。
+- 最大文件数优先使用 `inputExtra.maxInputCount`，再回退顶层 `maxUploadCount`，与 Tune 上传提示保持同一优先级。
+- `QuickCreateScreenModel.generate()` 在等待挂起上传完成后、正式调用 `generateImage/generateVideo` 前校验当前 tab 的服务端上传字段；校验失败会回到 `IDLE` 并展示字段错误，不触发正式生成请求。
+- 上传字段识别继续复用 `isQuickCreationUploadField()` / `uploadFields()`，覆盖真实服务端常见的 `IMAGE/VIDEO/AUDIO/UPLOAD`，避免 UI 展示、请求映射和提交前校验规则分叉。
+- 新增 helper 和 ScreenModel 回归测试，覆盖必填上传为空、`inputExtra.maxInputCount` 优先级，以及必填服务端图片字段为空时不提交图片生成请求。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when required service image field has no upload"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 列表字段条件联动、`inputsChildList` 子输入和更复杂的 `skuInputExtraJson` 动态表单仍未完整覆盖。
+- 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。
