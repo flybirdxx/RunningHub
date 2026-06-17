@@ -534,6 +534,12 @@ data class QuickCreationCommitRequestDto(
 3. 接入取消任务。
 4. 项目列表、创建、重命名、删除、置顶另行实现。
 
+执行进展（2026-06-18）：
+
+- `QuickCreateRepository` 已新增历史分页和详情方法，数据源使用 `/task/quick-creation/list` 与 `/task/quick-creation/detail`。
+- domain 历史模型已覆盖任务状态、分类、模型 ID、扣费金额、`apiRequestParams` 标量参数、输出 URL/预览图/尺寸/过期信息。
+- 已用 `QuickCreateRepositoryImplHistoryTest` 覆盖历史分页映射和按 `outputId` 获取详情；UI 历史列表、运行中刷新和取消任务仍待接入。
+
 验收：
 
 - 历史列表能展示运行中和成功任务。
