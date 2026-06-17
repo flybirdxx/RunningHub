@@ -488,4 +488,9 @@ interface QuickCreateRepository {
     suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem>
     suspend fun cancelQuickCreationTask(taskId: String): Result<Unit>
     suspend fun listQuickCreationProjects(page: Int = 1, size: Int = 20): Result<QuickCreationProjectPage>
+    suspend fun listQuickCreationProjectTasks(
+        projectId: String,
+        page: Int = 1,
+        size: Int = 10,
+    ): Result<QuickCreationHistoryPage>
 }

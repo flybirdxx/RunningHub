@@ -222,6 +222,63 @@ class QuickCreateRepositoryImplHistoryTest {
         assertEquals("2026-06-17 11:00:00", project.updatedAt)
     }
 
+    @Test
+    fun `project task list posts project id and maps history page`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
+        val repository = repositoryWithMock(
+            responseForPath = { path ->
+                paths += path
+                when (path) {
+                    QuickCreateApi.QC_PROJECT_TASKS -> """
+                        {
+                          "code": 0,
+                          "msg": "success",
+                          "data": {
+                            "page": 1,
+                            "size": 10,
+                            "total": 1,
+                            "list": [
+                              {
+                                "taskId": "task-1",
+                                "taskStatus": "SUCCESS",
+                                "bindingCategoryId": "IMAGE",
+                                "apiRequestParams": "{\"prompt\":\"project prompt\"}",
+                                "outputList": [
+                                  {
+                                    "id": "output-1",
+                                    "outputType": "png",
+                                    "fileUrl": "https://example.com/project-result.png",
+                                    "filePreviewUrl": "https://example.com/project-preview.png",
+                                    "outputSize": "1024x1024"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                    """
+                    else -> """{"code":404,"msg":"unexpected path"}"""
+                }
+            },
+            captureBody = { bodies += it },
+        )
+
+        val page = repository.listQuickCreationProjectTasks(
+            projectId = "project-1",
+            page = 1,
+            size = 10,
+        ).getOrThrow()
+
+        assertEquals(listOf(QuickCreateApi.QC_PROJECT_TASKS), paths)
+        assertEquals("""{"projectId":"project-1","page":1,"size":10}""", bodies.single())
+        assertEquals(1, page.total)
+        val item = page.items.single()
+        assertEquals("task-1", item.taskId)
+        assertEquals("project prompt", item.params["prompt"])
+        assertEquals("https://example.com/project-result.png", item.outputs.single().url)
+    }
+
     private fun repositoryWithMock(responseForPath: (String) -> String): QuickCreateRepositoryImpl {
         return repositoryWithMock(responseForPath = responseForPath, captureBody = {})
     }

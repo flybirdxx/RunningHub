@@ -274,6 +274,13 @@ class QuickCreateScreenModelTest {
             Result.success(projectPage.copy(page = page, size = size)).also {
                 requestedProjectPages += page
             }
+
+        override suspend fun listQuickCreationProjectTasks(
+            projectId: String,
+            page: Int,
+            size: Int,
+        ): Result<QuickCreationHistoryPage> =
+            Result.success(historyPage.copy(page = page, size = size))
     }
 
     class FakeMediaResolver : MediaResolver {

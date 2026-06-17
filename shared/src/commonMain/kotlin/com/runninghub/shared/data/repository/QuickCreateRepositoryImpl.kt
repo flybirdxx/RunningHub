@@ -1279,4 +1279,21 @@ class QuickCreateRepositoryImpl(
             }
             response.data.toProjectPage()
         }
+
+    override suspend fun listQuickCreationProjectTasks(
+        projectId: String,
+        page: Int,
+        size: Int,
+    ): Result<QuickCreationHistoryPage> =
+        runCatching {
+            val response = quickCreateApi.listQuickCreationProjectTasks(
+                projectId = projectId,
+                page = page,
+                size = size,
+            )
+            if (response.code != 0 || response.data == null) {
+                throw IllegalStateException(response.msg ?: response.message ?: "Project task list load failed")
+            }
+            response.data.toHistoryPage()
+        }
 }

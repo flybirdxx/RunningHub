@@ -187,6 +187,13 @@ data class QuickCreationProjectPageRequestDto(
 )
 
 @Serializable
+data class QuickCreationProjectTasksRequestDto(
+    @SerialName("projectId") val projectId: String,
+    @SerialName("page") val page: Int,
+    @SerialName("size") val size: Int,
+)
+
+@Serializable
 data class QuickCreationProjectPageDto(
     @SerialName("records") val records: List<QuickCreationProjectDto> = emptyList(),
     @SerialName("size") val size: JsonElement? = null,
