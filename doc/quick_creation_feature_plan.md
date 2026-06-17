@@ -367,13 +367,13 @@ POST /task/quick-creation/project/detail
 POST /task/quick-creation/project/tasks
 ```
 
-抓包确认 `project/list` 请求体为 `{"page":1,"size":20}`，响应分页字段为 `records/size/current/total/pages/hasNext/hasPrevious/nextCursor`。本次账号项目列表为空；移动端已落地项目列表 DTO/API/repository 映射，并在创作页历史区域顶部展示项目横向列表。
+抓包确认 `project/list` 请求体为 `{"page":1,"size":20}`，响应分页字段为 `records/size/current/total/pages/hasNext/hasPrevious/nextCursor`。移动端已落地项目列表 DTO/API/repository 映射，并在创作页历史区域顶部展示项目横向列表。
 
-`project/tasks` 已通过 Chrome DevTools 观察到真实请求，当前空项目状态下 Web 会发送 `{"page":1,"size":10}` 并返回 `code=301,msg=不能为null`；前端包确认端点函数为 `quickCreationProjectTasksApi`。由于当前账号没有非空项目，移动端数据层按端点语义和服务端空字段错误推断请求体为 `{"projectId":"...","page":1,"size":10}`，响应复用 quick-creation 历史任务分页结构。项目横向条已接入筛选 UI，点击项目会加载项目内任务，点击“最近创作”可清除筛选。后续拿到非空项目抓包后需要校正字段名或响应差异。
+`project/tasks` 已通过 Chrome DevTools 用临时项目验证，请求体为 `{"projectId":"...","page":1,"size":10}`。响应分页字段为 `records/size/current/total/pages/hasNext/hasPrevious/nextCursor`，其中 `size/current/total/pages` 可能以字符串返回；任务记录结构与 `/task/quick-creation/list` 一致。移动端 DTO 已兼容 `list` 和 `records` 两种任务分页结构。项目横向条已接入筛选 UI，点击项目会加载项目内任务，点击“最近创作”可清除筛选。
 
-`project/pin` 已从前端 bundle 确认端点函数为 `quickCreationProjectPinApi`，项目列表响应字段包含 `pin/pinned`。由于当前账号没有非空项目可交互，移动端暂按 `{"projectId":"...","pin":true|false}` 请求体实现，并已在项目 chip 上接入置顶/取消置顶交互和请求中 loading 状态。后续需要用非空项目真实交互抓包确认 `pin` 字段名及响应结构。
+`project/pin` 已通过 Chrome DevTools 验证请求体字段为 `{"projectId":"...","pinned":true|false}`；`pin`、`isPinned`、`top`、`id + pin` 等字段会返回 `code=301,msg=不能为null`。移动端已按 `pinned` 字段提交，项目 chip 上的图钉可切换置顶/取消置顶，请求中显示 loading，成功后更新本地项目 state。
 
-`project/create`、`project/rename`、`project/delete`、`project/detail` 已从前端 bundle 确认端点函数存在，但未抓到非空项目真实调用体。移动端暂按端点语义实现请求体：
+`project/create`、`project/rename`、`project/delete`、`project/detail` 已通过 Chrome DevTools 用临时项目验证，请求体如下：
 
 ```json
 { "name": "项目名" }
@@ -381,7 +381,7 @@ POST /task/quick-creation/project/tasks
 { "projectId": "..." }
 ```
 
-其中创建和详情响应按 `QuickCreationProjectDto` 映射，重命名和删除按成功/失败 envelope 处理。创作页项目条已接新建按钮，项目 chip 更多菜单已接详情、重命名和删除；详情弹窗展示封面、任务数、置顶状态、创建时间和更新时间；删除当前筛选项目后会切回最近创作。后续需要用非空项目真实交互抓包确认字段名、响应结构和删除语义。
+其中创建响应会返回 `projectId/name/projectType`，详情响应会返回 `projectId/name/coverUrl/projectType/isSystem/pinned/pinnedAt/status/firstPrompt/lastGenerateAt/createTime/updateTime`。服务端会截断过长项目名称，本次验证中创建和重命名后的名称都被截断。重命名和删除按成功/失败 envelope 处理，删除临时项目返回 `code=0`。创作页项目条已接新建按钮，项目 chip 更多菜单已接详情、重命名和删除；详情弹窗展示封面、任务数、置顶状态、创建时间和更新时间；删除当前筛选项目后会切回最近创作。
 
 ### 4.10 取消任务接口
 
@@ -571,10 +571,10 @@ data class QuickCreationCommitRequestDto(
 - 已用 `QuickCreateRepositoryImplHistoryTest` 覆盖历史分页映射和按 `outputId` 获取详情。
 - 创作页已在中间内容区展示最近创作，生成成功后刷新历史；列表底部可加载更多历史页并去重追加；非终态历史任务会每 5 秒刷新当前已加载范围，并支持调用 `/task/quick-creation/cancel` 取消后刷新；点击历史项会按 `outputId` 加载详情并展示详情弹窗。
 - 项目列表已接入 `/task/quick-creation/project/list`，兼容 Web 抓包确认的分页结构，并在历史区顶部展示项目横向列表。
-- 项目任务已接入 `/task/quick-creation/project/tasks`，请求体暂按 `projectId/page/size` 实现并复用历史分页模型；历史区项目 chip 可筛选项目任务，也可切回“最近创作”。因为当前账号项目列表为空，尚缺非空项目真实响应校验。
-- 项目置顶已接入 `/task/quick-creation/project/pin`，请求体暂按 `projectId/pin` 实现；项目 chip 图钉可切换置顶状态，请求中显示 loading，成功后更新本地项目列表。因为当前账号项目列表为空，尚缺非空项目真实请求体和响应结构校验。
-- 项目创建、重命名和删除已接入 `/task/quick-creation/project/create|rename|delete`，请求体暂按 `name`、`projectId/name`、`projectId` 实现；历史区项目标题右侧可新建项目，项目 chip 更多菜单可重命名和删除。删除当前筛选项目后会清除筛选并回到最近创作。
-- 项目详情已接入 `/task/quick-creation/project/detail`，请求体暂按 `projectId` 实现并映射为 `QuickCreationProject`；项目 chip 更多菜单可打开项目详情弹窗。
+- 项目任务已接入 `/task/quick-creation/project/tasks`，请求体按真实验证的 `projectId/page/size` 实现；DTO 已兼容响应中的 `records/current` 和字符串分页值。历史区项目 chip 可筛选项目任务，也可切回“最近创作”。
+- 项目置顶已接入 `/task/quick-creation/project/pin`，请求体按真实验证的 `projectId/pinned` 实现；项目 chip 图钉可切换置顶状态，请求中显示 loading，成功后更新本地项目列表。
+- 项目创建、重命名和删除已接入 `/task/quick-creation/project/create|rename|delete`，请求体按真实验证的 `name`、`projectId/name`、`projectId` 实现；历史区项目标题右侧可新建项目，项目 chip 更多菜单可重命名和删除。删除当前筛选项目后会清除筛选并回到最近创作。需注意服务端会截断过长项目名称。
+- 项目详情已接入 `/task/quick-creation/project/detail`，请求体按真实验证的 `projectId` 实现并映射为 `QuickCreationProject`；项目 chip 更多菜单可打开项目详情弹窗。
 
 验收：
 
