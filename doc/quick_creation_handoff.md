@@ -152,3 +152,21 @@ adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_history_deta
 ```
 
 代码提交：`ac9d40b fix(quickcreate): preserve cash amount precision`。
+
+## 2026-06-18 追加交接：生成按钮金额格式
+
+在历史列表和详情弹窗修复后，又检查到底部生成按钮仍使用一位小数 formatter。现已改为：
+
+```kotlin
+"¥${formatCashAmount(cost)}"
+```
+
+这样生成前看到的价格、任务历史里的扣费金额、详情弹窗里的扣费金额都使用同一套现金金额格式，避免 `0.76` 被显示成 `0.8`。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.util.NumberFormatTest"
+```
+
+代码提交：`363048f fix(quickcreate): format send button cost as cash`。

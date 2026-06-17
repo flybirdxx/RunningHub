@@ -98,3 +98,15 @@
 ```
 
 代码提交：`ac9d40b fix(quickcreate): preserve cash amount precision`。
+
+## 2026-06-18 生成按钮费用精度补齐
+
+同类审计发现底部“生成”按钮仍使用 `formatOneDecimal(cost)`，当估算价或服务端价格为 `0.76` 时会显示为 `¥0.8`。本轮已将 `SendButton` 的费用文本改为 `¥${formatCashAmount(cost)}`，与历史列表、详情弹窗保持一致。
+
+已验证：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.util.NumberFormatTest"
+```
+
+代码提交：`363048f fix(quickcreate): format send button cost as cash`。
