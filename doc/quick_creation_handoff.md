@@ -328,3 +328,29 @@ git diff --check
 - 在真实 App UI 中切换到视频 tab，输入 prompt，观察按钮从 `价格确认中` 切到服务端金额或 `生成`；这一步只做 fee-preview，不需要扣费。
 - 如果要点击视频 `生成` 验证完整 `prepare/commit/list/detail` 链路，需要用户重新授权。此前抓包模板的 Seedance2.0 视频预览金额约 `9.60 CNY`，不在既有 `0.76 CNY` 授权范围内。
 - 继续保留工作区边界：不要把既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动或未跟踪 `output/` 证据目录混入后续提交。
+
+## 2026-06-18 追加交接：价格预览不确定时拦截生成
+
+代码提交 `075d749 fix(quickcreate): block generation during fee preview uncertainty` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+
+- `QuickCreateScreenModel.generate()` 会先检查 `feePreviewLoading`。如果价格仍在确认中，直接保持/回到 `IDLE`，设置页面错误为 `价格确认中`，不调用正式生成。
+- `QuickCreateScreenModel.generate()` 会检查 `feePreviewError`。如果价格预览失败，直接保持/回到 `IDLE`，设置页面错误为 `价格待确认`，不调用正式生成。
+- 这个保护覆盖图片和视频 tab，是 ScreenModel 级防线；即使后续 UI 按钮 enabled 逻辑被误改，也不会绕过价格确认直接触发扣费链路。
+- 旧的生成请求测试已按真实流程更新：输入 prompt 或上传素材后，先等待 500ms fee-preview debounce 完成，再断言正式生成请求体。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when fee preview failed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video is blocked when fee preview failed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked while fee preview is loading" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video is blocked while fee preview is loading"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest
+git diff --check
+```
+
+后续建议：
+
+- 在模拟器上复测图片和视频 tab：输入 prompt 后立刻尝试点击生成，应只看到价格确认状态，不应触发任务提交。
+- 如果后续要验证真实 `prepare/commit` 扣费链路，仍需要新的明确扣费授权。
+- 继续避免把既有 `AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 目录混入提交。
