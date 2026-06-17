@@ -1734,7 +1734,8 @@ class QuickCreateScreenModel(
         detail: QuickCreateInspirationTemplateDetail,
     ): QuickCreateUiState {
         val selectedModel = serviceImageModels.matchTemplateModel(detail) ?: selectedImageServiceModel
-        val serviceParams = selectedModel.defaultServiceParams() + detail.params
+        val templateParams = selectedModel.canonicalTemplateParams(detail.params)
+        val serviceParams = selectedModel.defaultServiceParams() + templateParams
         val nextConfig = imageConfig.copy(
             prompt = detail.prompt ?: imageConfig.prompt,
             aspectRatio = detail.params.templateImageAspectRatio() ?: imageConfig.aspectRatio,
@@ -1760,7 +1761,8 @@ class QuickCreateScreenModel(
         detail: QuickCreateInspirationTemplateDetail,
     ): QuickCreateUiState {
         val selectedModel = serviceVideoModels.matchTemplateModel(detail) ?: selectedVideoServiceModel
-        val serviceParams = selectedModel.defaultServiceParams() + detail.params
+        val templateParams = selectedModel.canonicalTemplateParams(detail.params)
+        val serviceParams = selectedModel.defaultServiceParams() + templateParams
         val nextConfig = videoConfig.copy(
             prompt = detail.prompt ?: videoConfig.prompt,
             aspectRatio = detail.params.templateVideoAspectRatio() ?: videoConfig.aspectRatio,
@@ -1849,6 +1851,34 @@ class QuickCreateScreenModel(
         }
 
     private fun MutableMap<String, String>.putUploadAliases(fieldKey: String, paramKey: String) {
+        if (fieldKey.isNotBlank()) put(fieldKey, paramKey)
+        if (paramKey.isNotBlank()) put(paramKey, paramKey)
+    }
+
+    private fun QuickCreationServiceModel?.canonicalTemplateParams(
+        params: Map<String, String>,
+    ): Map<String, String> {
+        val aliases = quickCreationServiceParamAliases()
+        return buildMap {
+            params.forEach { (key, value) ->
+                put(aliases[key] ?: key, value)
+            }
+        }
+    }
+
+    private fun QuickCreationServiceModel?.quickCreationServiceParamAliases(): Map<String, String> =
+        buildMap {
+            this@quickCreationServiceParamAliases?.fields.orEmpty()
+                .filter { it.visible }
+                .forEach { field ->
+                    putParamAliases(field.fieldKey, field.paramKey)
+                    field.inputExtra?.inputChildren.orEmpty()
+                        .filter { it.isQuickCreationServiceFieldRenderable() }
+                        .forEach { child -> putParamAliases(child.fieldKey, child.paramKey) }
+                }
+        }
+
+    private fun MutableMap<String, String>.putParamAliases(fieldKey: String, paramKey: String) {
         if (fieldKey.isNotBlank()) put(fieldKey, paramKey)
         if (paramKey.isNotBlank()) put(paramKey, paramKey)
     }
