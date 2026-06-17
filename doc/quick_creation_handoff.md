@@ -856,3 +856,25 @@ git diff --check
 - 在可控素材设备上做一次真实字段级上传，检查字段卡片、底部全局卡片、fee-preview 请求体和正式提交请求体四者一致。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：非激活上传字段不阻塞提交等待
+
+代码提交 `40844be fix(quickcreate): ignore inactive field uploads while waiting` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `quickCreationActiveUploadParamKeys(serviceParams)` 会根据当前服务端模型、顶层字段可见性和 active child 规则，计算仍然有效的上传字段 `paramKey` 集合。
+- `quickCreationRelevantMediaReferences(activeFieldParamKeys)` 保留全局素材，并只保留绑定到当前 active 上传字段的字段级素材。
+- `QuickCreateScreenModel.awaitPendingUploads()` 已改为使用上述有效素材列表；如果用户先为某个条件上传字段选择素材，随后切换父字段导致该上传字段隐藏，隐藏字段的上传中/处理中状态不会继续阻塞提交。
+- 这次变更不改变正式请求体的字段级映射规则：字段级素材仍通过 `fieldParamKey` 进入 `quickCreationListParams`，全局素材仍用于兼容 legacy reference 字段。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+下一步建议：
+- 在可控素材设备上实际上传一张字段级图片，切换父字段使该上传字段隐藏，再确认生成按钮不会被隐藏字段上传状态卡住。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。

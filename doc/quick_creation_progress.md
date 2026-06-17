@@ -764,6 +764,27 @@ UI 复测结果：
 - 字段级素材卡片的真实移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
 
+## 2026-06-18 非激活上传字段等待过滤
+代码提交 `40844be fix(quickcreate): ignore inactive field uploads while waiting` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `quickCreationActiveUploadParamKeys(serviceParams)`，按当前服务端模型、顶层字段可见性和 active child 规则计算当前真正有效的上传字段 `paramKey`。
+- 新增 `quickCreationRelevantMediaReferences(activeFieldParamKeys)`，提交前等待上传时只保留全局素材和当前激活字段绑定素材。
+- `QuickCreateScreenModel.awaitPendingUploads()` 现在不再等待隐藏/未激活字段绑定的上传任务，避免用户切换创作模式后，被旧字段的上传状态拖住提交。
+- 该过滤只影响提交前等待逻辑；请求参数组装仍沿用已实现的字段级 `quickCreationListParams` 和 legacy reference 隔离规则。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+仍未完成：
+- 字段级素材卡片的真实选择/移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
 ## 2026-06-18 字段级素材不再污染旧参考字段
 
 代码提交 `00616cc fix(quickcreate): keep field uploads out of legacy refs` 已推送到 `feature/kmp-refactoring`。
