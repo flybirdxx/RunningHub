@@ -1058,3 +1058,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真实设备上复测删除时 UI 卡片消失、底部全局素材区和 Tune 字段素材区各自过滤是否一致。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：全局素材 fallback 消除歧义
+
+代码提交 `fddd9a3 fix(quickcreate): avoid ambiguous global upload fallback` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `uploadFieldCountByType(serviceParams, fallbackMediaType)` 会把顶层可渲染上传字段和当前 active child 上传字段一起纳入统计。
+- `fallbackUrlsForSingleUploadField()` 只在同媒体类型活跃上传字段数量为 1 时返回底部全局素材 URL。
+- 请求体组装和 required 上传校验共用这套规则，避免请求体和校验对全局素材 fallback 的理解不一致。
+- 多个同类型字段时，只有字段级绑定素材会进入对应 `paramKey`；底部全局素材仍可用于 legacy `referenceImageUri/referenceVideoUri/referenceAudioUri`。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.global image media does not fill multiple service image fields" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image maps uploaded images to service image field"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 补 required 校验的显式回归：两个 required 图片上传字段加一个全局图片时，应阻止生成并提示缺少字段素材。
+- 真实设备上复测多字段模型的底部全局素材、字段级素材和 fee-preview 请求体，确认没有同 URL 多参数污染。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

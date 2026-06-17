@@ -982,3 +982,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真实设备上仍需复测跨 tab 删除：图片素材、视频素材、音频素材、字段级素材的删除回调是否都能清掉正确配置。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 全局素材只回填唯一同类型上传字段
+
+代码提交 `fddd9a3 fix(quickcreate): avoid ambiguous global upload fallback` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `quickCreationListParams()` 现在会统计当前模型中活跃上传字段按媒体类型的数量。
+- 底部全局素材只在某个媒体类型恰好对应一个活跃上传字段时作为 fallback 回填；如果同类型字段有多个，则必须使用字段级绑定素材。
+- `validateServiceUploads()` 使用同一规则，避免一个全局素材让多个 required 同类型上传字段误判通过。
+- 保留单上传字段兼容：只有一个图片上传字段时，底部全局图片仍可回填到该字段。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.global image media does not fill multiple service image fields" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image maps uploaded images to service image field"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真实设备上仍需复测多上传字段模型：底部全局素材不应同时填入多个字段，字段级上传应正确落到各自 `paramKey`。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
