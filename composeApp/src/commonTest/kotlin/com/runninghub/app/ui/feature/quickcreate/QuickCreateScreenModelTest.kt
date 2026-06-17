@@ -17,13 +17,13 @@ import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -720,32 +720,40 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
-    fun `generate image uses selected service model ids`() {
-        runBlocking {
-            val repository = FakeQuickCreateRepository()
-            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+    fun `generate image uses selected service model ids`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
 
-            model.updateImagePrompt("prompt")
-            model.generate()
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
 
-            assertEquals("IMAGE", repository.lastImageRequest?.quickCreationCategoryId)
-            assertEquals("binding-1", repository.lastImageRequest?.quickCreationBindingId)
-            assertEquals("sku-1", repository.lastImageRequest?.quickCreationSkuId)
-        }
+        assertEquals("IMAGE", repository.lastImageRequest?.quickCreationCategoryId)
+        assertEquals("binding-1", repository.lastImageRequest?.quickCreationBindingId)
+        assertEquals("sku-1", repository.lastImageRequest?.quickCreationSkuId)
     }
 
     @Test
-    fun `generate image uses selected service model field defaults`() {
-        runBlocking {
-            val repository = FakeQuickCreateRepository()
-            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+    fun `generate image uses selected service model field defaults`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
 
-            model.updateImagePrompt("prompt")
-            model.generate()
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
 
-            assertEquals("photoreal", repository.lastImageRequest?.quickCreationParams?.get("style"))
-            assertEquals("16:9", repository.lastImageRequest?.quickCreationParams?.get("aspectRatio"))
-        }
+        assertEquals("photoreal", repository.lastImageRequest?.quickCreationParams?.get("style"))
+        assertEquals("16:9", repository.lastImageRequest?.quickCreationParams?.get("aspectRatio"))
     }
 
     @Test
@@ -794,92 +802,179 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
-    fun `generate image uses updated service field values`() {
-        runBlocking {
-            val repository = FakeQuickCreateRepository()
-            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
-
-            model.updateImagePrompt("prompt")
-            model.updateImageServiceParam("style", "anime")
-            model.generate()
-
-            assertEquals("anime", repository.lastImageRequest?.quickCreationParams?.get("style"))
+    fun `generate image is blocked when fee preview failed`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            feePreviewResult = Result.failure(IllegalStateException("preview unavailable"))
         }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("preview unavailable", model.uiState.value.feePreviewError)
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("价格待确认", model.uiState.value.error)
     }
 
     @Test
-    fun `generate image only submits declared service field values`() {
-        runBlocking {
-            val repository = FakeQuickCreateRepository()
-            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
-
-            model.updateImagePrompt("prompt")
-            model.updateImageServiceParam("negativePrompt", "low quality")
-            model.updateImageServiceParam("unexpected", "value")
-            model.generate()
-
-            assertEquals("low quality", repository.lastImageRequest?.quickCreationParams?.get("negativePrompt"))
-            assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("unexpected"))
+    fun `generate video is blocked when fee preview failed`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            videoFeePreviewResult = Result.failure(IllegalStateException("preview unavailable"))
         }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("green icon animation")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("preview unavailable", model.uiState.value.feePreviewError)
+        assertEquals(null, repository.lastVideoRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("价格待确认", model.uiState.value.error)
     }
 
     @Test
-    fun `generate image maps uploaded images to service upload field`() {
-        runBlocking {
-            val repository = FakeQuickCreateRepository()
-            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+    fun `generate image is blocked while fee preview is loading`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
 
-            model.updateImagePrompt("prompt")
-            model.pickImageReference("content://image/1")
-            repeat(20) {
-                if (model.uiState.value.imageConfig.mediaReferences.any { it.uploadStatus == UploadStatus.DONE }) {
-                    return@repeat
-                }
-                delay(10)
-            }
-            model.generate()
+        model.updateImagePrompt("green icon")
+        runCurrent()
+        model.generate()
+        runCurrent()
 
-            assertEquals(
-                listOf("https://example.com/file.jpg"),
-                repository.lastImageRequest?.quickCreationListParams?.get("referenceImages"),
-            )
-        }
+        assertEquals(true, model.uiState.value.feePreviewLoading)
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("价格确认中", model.uiState.value.error)
     }
 
     @Test
-    fun `generate video maps uploaded video and audio to service upload fields`() {
-        runBlocking {
-            val repository = FakeQuickCreateRepository()
-            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+    fun `generate video is blocked while fee preview is loading`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
 
-            model.switchTab(QuickCreateTab.VIDEO)
-            model.updateVideoPrompt("video prompt")
-            model.pickVideoReference("content://video/1")
-            model.pickAudioReference("content://audio/1")
-            repeat(20) {
-                val doneCount = model.uiState.value.videoConfig.mediaReferences.count {
-                    it.uploadStatus == UploadStatus.DONE
-                }
-                if (doneCount == 2) {
-                    return@repeat
-                }
-                delay(10)
-            }
-            model.generate()
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("green icon animation")
+        runCurrent()
+        model.generate()
+        runCurrent()
 
-            assertEquals("VIDEO", repository.lastVideoRequest?.quickCreationCategoryId)
-            assertEquals("video-binding-1", repository.lastVideoRequest?.quickCreationBindingId)
-            assertEquals("video-sku-1", repository.lastVideoRequest?.quickCreationSkuId)
-            assertEquals("cinematic", repository.lastVideoRequest?.quickCreationParams?.get("style"))
-            assertEquals(
-                listOf("https://example.com/video.mp4"),
-                repository.lastVideoRequest?.quickCreationListParams?.get("referenceVideos"),
-            )
-            assertEquals(
-                listOf("https://example.com/audio.mp3"),
-                repository.lastVideoRequest?.quickCreationListParams?.get("referenceAudios"),
-            )
-        }
+        assertEquals(true, model.uiState.value.feePreviewLoading)
+        assertEquals(null, repository.lastVideoRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("价格确认中", model.uiState.value.error)
+    }
+
+    @Test
+    fun `generate image uses updated service field values`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.updateImageServiceParam("style", "anime")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("anime", repository.lastImageRequest?.quickCreationParams?.get("style"))
+    }
+
+    @Test
+    fun `generate image only submits declared service field values`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.updateImageServiceParam("negativePrompt", "low quality")
+        model.updateImageServiceParam("unexpected", "value")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("low quality", repository.lastImageRequest?.quickCreationParams?.get("negativePrompt"))
+        assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("unexpected"))
+    }
+
+    @Test
+    fun `generate image maps uploaded images to service upload field`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReference("content://image/1")
+        advanceUntilIdle()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(
+            listOf("https://example.com/file.jpg"),
+            repository.lastImageRequest?.quickCreationListParams?.get("referenceImages"),
+        )
+    }
+
+    @Test
+    fun `generate video maps uploaded video and audio to service upload fields`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("video prompt")
+        model.pickVideoReference("content://video/1")
+        model.pickAudioReference("content://audio/1")
+        advanceUntilIdle()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("VIDEO", repository.lastVideoRequest?.quickCreationCategoryId)
+        assertEquals("video-binding-1", repository.lastVideoRequest?.quickCreationBindingId)
+        assertEquals("video-sku-1", repository.lastVideoRequest?.quickCreationSkuId)
+        assertEquals("cinematic", repository.lastVideoRequest?.quickCreationParams?.get("style"))
+        assertEquals(
+            listOf("https://example.com/video.mp4"),
+            repository.lastVideoRequest?.quickCreationListParams?.get("referenceVideos"),
+        )
+        assertEquals(
+            listOf("https://example.com/audio.mp3"),
+            repository.lastVideoRequest?.quickCreationListParams?.get("referenceAudios"),
+        )
     }
 
     @Test

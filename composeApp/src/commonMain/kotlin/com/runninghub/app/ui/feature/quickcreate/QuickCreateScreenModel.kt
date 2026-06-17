@@ -1090,6 +1090,24 @@ class QuickCreateScreenModel(
     // ── Generate ──────────────────────────────────────────────────────────────
 
     fun generate() {
+        if (_uiState.value.feePreviewLoading) {
+            _uiState.update {
+                it.copy(
+                    taskStatus = QuickCreateTaskUiStatus.IDLE,
+                    error = "价格确认中",
+                )
+            }
+            return
+        }
+        if (_uiState.value.feePreviewError != null) {
+            _uiState.update {
+                it.copy(
+                    taskStatus = QuickCreateTaskUiStatus.IDLE,
+                    error = "价格待确认",
+                )
+            }
+            return
+        }
         generationJob?.cancel()
         generationJob = screenModelScope.launch {
             _uiState.update {
