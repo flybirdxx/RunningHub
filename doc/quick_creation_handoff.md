@@ -1384,3 +1384,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 继续观察历史草稿/恢复逻辑是否会持久化旧格式 media id；当前 draft 只保存 prompt/tab，暂未发现兼容风险。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：模板素材媒体类型来自服务字段
+
+代码提交 `630609b fix(quickcreate): infer template media type from service fields` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `templateMediaReferences()` 现在接收 active 上传字段别名表，别名值包含 canonical `paramKey` 和服务字段推断出的 `QuickCreateMediaType`。
+- 模板 `listParams` key 命中 active 上传字段别名时，生成的 `MediaReference.fieldParamKey` 仍写 canonical `paramKey`，`MediaReference.type` 优先使用服务字段声明推断出的媒体类型。
+- 因此真实模板如果返回通用 key，例如 `reference`，但当前模型声明 `fieldKey=reference,paramKey=referenceVideos,fieldType=VIDEO_UPLOAD`，客户端会把它渲染为视频字段素材，而不是按 key 文本默认成图片素材。
+- 未声明 key 仍走 legacy 全局素材路径，并继续按 key 文本推断图片/视频/音频类型；declared-but-inactive key 的丢弃规则不变。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration video template infers generic list param media type from service field"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测一个通用 `listParams` key 绑定视频/音频上传字段的模板，确认 Tune 字段区卡片类型、删除行为和最终 `quickCreationListParams` 一致。
+- 继续审查模板 detail 的 unknown `listParams` key 是否存在“字段声明缺失但后端仍要求字段级提交”的例外；当前规则会把未声明 key 当 legacy 全局素材处理。
+- 完整视频扣费链路本轮未复测；本轮没有点击真实生成、没有新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

@@ -1290,3 +1290,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机需复测图片/视频 tab 同时存在模板素材时，删除当前 tab 的素材卡片不会影响另一个 tab 的素材卡片和最终请求体。
 - 如果后续发现同一 tab 内模板素材跨刷新需要稳定复用 id，可再引入 key hash；当前规则优先保证删除目标隔离和单次状态唯一性。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 模板素材媒体类型优先服务字段元数据
+
+代码提交 `630609b fix(quickcreate): infer template media type from service fields` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `templateMediaReferences()` 解析模板 `listParams` 时，若 key 命中当前 active 上传字段别名，素材类型优先使用服务字段声明的 `fieldType/fieldKey/paramKey` 推断结果。
+- 活动上传字段别名从单纯的 `paramKey` 扩展为 `paramKey + mediaType`，保留 fieldKey/paramKey 到 canonical paramKey 的映射，同时让通用 key 例如 `reference` 能按 `VIDEO_UPLOAD` 渲染为视频素材。
+- 未命中服务字段的 legacy 全局素材仍按 key 文本推断图片/视频/音频类型，不改变既有 `referenceImageUri/referenceVideoUri/referenceAudioUri` 兼容路径。
+- 新增回归测试覆盖：视频模板 `listParams["reference"]` 命中服务字段 `fieldKey=reference,paramKey=referenceVideos,fieldType=VIDEO_UPLOAD` 时，生成的模板素材类型为 `VIDEO`，并绑定到 `referenceVideos`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration video template infers generic list param media type from service field"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测通用 `listParams` key 绑定到视频/音频字段时，Tune 字段素材卡片、删除动作和最终 `quickCreationListParams` 是否都按服务字段媒体类型展示和提交。
+- 完整视频 `prepare/commit/list/detail` 扣费链路本轮未触发；本轮没有点击真实生成、没有新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
