@@ -240,3 +240,32 @@ adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_history_deta
 - 在底部输入区消费 `feePreviewLoading/feePreviewError`，显示“价格确认中/价格待确认”，并考虑在价格预览失败时禁用生成或要求用户确认。
 - 继续补视频 fee-preview 的 UI 价格刷新；当前本轮只覆盖图片链路。
 - 下一次 App 真机/模拟器验证时，不需要额外扣费就能观察输入 prompt 后按钮金额是否从本地估算刷新为服务端 `0.76`；真正点击生成仍需新的扣费授权。
+
+## 2026-06-18 追加交接：底部按钮消费 fee-preview 状态
+
+代码提交 `29d2ee2 fix(quickcreate): show fee preview status on send button` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+
+- 图片 tab 下，底部生成按钮会根据 fee-preview 状态显示：
+  - `价格确认中`：`feePreviewLoading=true`，按钮临时禁用。
+  - `价格待确认`：`feePreviewError != null`，不再把旧的本地估算金额伪装成最终扣费价。
+  - `¥0.76`：服务端预览成功且有现金金额。
+  - `生成`：金额为 0 或尚无可展示金额。
+- 文案选择逻辑集中在 `QuickCreateBillingUiText.kt`，单测 `QuickCreateBillingUiTextTest` 覆盖优先级。
+- `QuickCreateScreen.kt` 的 `BottomPromptPanel -> SendButton` 已透传图片 fee-preview 状态；视频 tab 暂不使用这两个状态。
+
+验证命令：
+
+```powershell
+.\gradlew.bat --stop
+.\gradlew.bat :composeApp:testDebugUnitTest
+.\gradlew.bat :composeApp:assembleDebug
+```
+
+注意：本轮曾并行运行 `testDebugUnitTest` 与 `assembleDebug`，导致 Kotlin incremental cache 报 `Storage ... already registered` 和缓存文件 MD5 缺失。停止 Gradle daemon 后串行执行通过；后续验证不要并行跑会写 `composeApp/build/kotlin/compileDebugKotlinAndroid` 的 Gradle 任务。
+
+后续建议：
+
+- 用模拟器实际进入快捷创作页，输入图片 prompt，观察按钮从 `价格确认中` 切到服务端金额；这一步不需要点击生成，不会扣费。
+- 补视频 fee-preview 刷新和按钮状态。

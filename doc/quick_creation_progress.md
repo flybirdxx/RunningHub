@@ -177,3 +177,27 @@
 代码提交：`650e13d fix(quickcreate): refresh image price from fee preview`。
 
 仍未完成：UI 还没有显式展示 `feePreviewLoading/feePreviewError` 文案，当前按钮金额会在预览成功后更新；后续应在底部输入区增加“价格确认中/价格待确认”的轻量状态，避免弱网或服务端失败时用户误解当前金额。
+
+## 2026-06-18 底部按钮展示 fee-preview 状态
+
+本轮已把图片 fee-preview 的 loading/error 状态接到底部生成按钮：
+
+- 新增 `quickCreateSendButtonLabel`，统一输出 `价格确认中`、`价格待确认`、`¥0.76` 或 `生成`。
+- `BottomPromptPanel` 在图片 tab 下把 `feePreviewLoading/feePreviewError` 传入 `SendButton`。
+- 图片价格确认中时，生成按钮临时禁用，避免用户在服务端价格尚未确认时提交。
+- fee-preview 失败时按钮显示 `价格待确认`，不再继续显示可能被误认为最终扣费价的旧金额。
+- 新增 `QuickCreateBillingUiTextTest` 覆盖按钮文案优先级。
+
+已验证：
+
+```powershell
+.\gradlew.bat --stop
+.\gradlew.bat :composeApp:testDebugUnitTest
+.\gradlew.bat :composeApp:assembleDebug
+```
+
+并行运行 `testDebugUnitTest` 和 `assembleDebug` 曾触发 Kotlin incremental cache 竞争，表现为 `Storage ... already registered`。停止 Gradle daemon 后串行重跑两条命令均通过。后续在同一工作区做验证时，避免并行跑会写同一 Kotlin cache 的 Gradle 任务。
+
+代码提交：`29d2ee2 fix(quickcreate): show fee preview status on send button`。
+
+仍未完成：视频 tab 仍未接入服务端 fee-preview 价格刷新；真实 App UI 还需要在模拟器上观察输入 prompt 后按钮状态从“价格确认中”更新为服务端金额。
