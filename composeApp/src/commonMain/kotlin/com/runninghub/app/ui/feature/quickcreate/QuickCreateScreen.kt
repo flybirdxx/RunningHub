@@ -55,6 +55,9 @@ import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
 import com.runninghub.shared.domain.repository.QuickCreationProject
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import kotlinx.coroutines.delay
+import kotlinx.datetime.Instant
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.koinInject
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -671,6 +674,7 @@ private fun ProjectChip(
     var menuExpanded by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
+        modifier = Modifier.width(280.dp),
         color = if (selected) Primary300.copy(alpha = 0.16f) else DarkSurface,
         shape = RoundedCornerShape(Dimens.RadiusMD),
         border = BorderStroke(
@@ -707,7 +711,10 @@ private fun ProjectChip(
                     )
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
                 Text(
                     project.name,
                     color = if (selected) Primary300 else Color.White.copy(alpha = 0.9f),
@@ -900,12 +907,28 @@ private fun ProjectDetailDialog(
                     )
                     ProjectDetailRow(label = "任务数量", value = "${project.taskCount}")
                     ProjectDetailRow(label = "置顶状态", value = if (project.pinned) "已置顶" else "未置顶")
-                    project.createdAt?.let { ProjectDetailRow(label = "创建时间", value = it) }
-                    project.updatedAt?.let { ProjectDetailRow(label = "更新时间", value = it) }
+                    project.createdAt?.let { ProjectDetailRow(label = "创建时间", value = formatProjectTime(it)) }
+                    project.updatedAt?.let { ProjectDetailRow(label = "更新时间", value = formatProjectTime(it)) }
                 }
             }
         },
     )
+}
+
+private fun formatProjectTime(raw: String): String {
+    val millis = raw.toLongOrNull() ?: return raw
+    val localDateTime = Instant.fromEpochMilliseconds(millis).toLocalDateTime(TimeZone.currentSystemDefault())
+    return buildString {
+        append(localDateTime.year.toString().padStart(4, '0'))
+        append('-')
+        append(localDateTime.monthNumber.toString().padStart(2, '0'))
+        append('-')
+        append(localDateTime.dayOfMonth.toString().padStart(2, '0'))
+        append(' ')
+        append(localDateTime.hour.toString().padStart(2, '0'))
+        append(':')
+        append(localDateTime.minute.toString().padStart(2, '0'))
+    }
 }
 
 @Composable
