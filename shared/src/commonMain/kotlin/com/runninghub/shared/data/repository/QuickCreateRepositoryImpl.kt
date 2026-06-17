@@ -271,6 +271,18 @@ class QuickCreateRepositoryImpl(
         response.data.toDomain()
     }
 
+    override suspend fun previewVideoQuickCreationFee(
+        request: VideoGenerationRequest,
+    ): Result<QuickCreationFeePreview> = runCatching {
+        val response = quickCreateApi.previewQuickCreationFee(
+            QuickCreationV2Defaults.videoCreateRequest(request)
+        )
+        if (response.code != 0 || response.data == null) {
+            error(response.msg ?: response.message ?: "价格预览失败")
+        }
+        response.data.toDomain()
+    }
+
     private fun generateImageWithQuickCreationV2(
         request: ImageGenerationRequest,
     ): Flow<QuickCreateTaskStatus> = flow {

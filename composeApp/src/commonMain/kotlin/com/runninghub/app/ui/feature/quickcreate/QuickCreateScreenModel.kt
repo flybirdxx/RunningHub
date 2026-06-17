@@ -12,6 +12,7 @@ import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
+import com.runninghub.shared.domain.repository.VideoGenerationRequest
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.Job
@@ -127,7 +128,7 @@ class QuickCreateScreenModel(
                     },
                 )
             }
-            scheduleImageFeePreview()
+            scheduleFeePreview()
         }
     }
 
@@ -667,6 +668,7 @@ class QuickCreateScreenModel(
                     _uiState.update { state ->
                         state.applyTemplateDetail(detail)
                     }
+                    scheduleFeePreview()
                 },
                 onFailure = { error ->
                     _uiState.update {
@@ -693,22 +695,19 @@ class QuickCreateScreenModel(
                 feePreviewError = null,
             )
         }
-        if (tab == QuickCreateTab.IMAGE) {
-            scheduleImageFeePreview()
-        } else {
-            feePreviewJob?.cancel()
-        }
+        scheduleFeePreview()
         autoSaveDraft()
     }
 
     fun updateImagePrompt(prompt: String) {
         _uiState.update { it.copy(imageConfig = it.imageConfig.copy(prompt = prompt)) }
-        scheduleImageFeePreview()
+        scheduleFeePreview()
         autoSaveDraft()
     }
 
     fun updateVideoPrompt(prompt: String) {
         _uiState.update { it.copy(videoConfig = it.videoConfig.copy(prompt = prompt)) }
+        scheduleFeePreview()
         autoSaveDraft()
     }
 
@@ -745,7 +744,7 @@ class QuickCreateScreenModel(
             )
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
-        scheduleImageFeePreview()
+        scheduleFeePreview()
     }
 
     fun updateImageServiceModel(model: QuickCreationServiceModel) {
@@ -755,7 +754,7 @@ class QuickCreateScreenModel(
                 imageServiceParams = model.defaultServiceParams(),
             )
         }
-        scheduleImageFeePreview()
+        scheduleFeePreview()
     }
 
     fun updateVideoServiceModel(model: QuickCreationServiceModel) {
@@ -765,6 +764,7 @@ class QuickCreateScreenModel(
                 videoServiceParams = model.defaultServiceParams(),
             )
         }
+        scheduleFeePreview()
     }
 
     fun updateImageServiceParam(paramKey: String, value: String) {
@@ -773,7 +773,7 @@ class QuickCreateScreenModel(
         _uiState.update {
             it.copy(imageServiceParams = it.imageServiceParams + (paramKey to value))
         }
-        scheduleImageFeePreview()
+        scheduleFeePreview()
     }
 
     fun updateVideoServiceParam(paramKey: String, value: String) {
@@ -782,6 +782,7 @@ class QuickCreateScreenModel(
         _uiState.update {
             it.copy(videoServiceParams = it.videoServiceParams + (paramKey to value))
         }
+        scheduleFeePreview()
     }
 
     fun updateVideoModel(model: VideoModel) {
@@ -796,11 +797,12 @@ class QuickCreateScreenModel(
             )
             it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+        scheduleFeePreview()
     }
 
     fun updateImageAspectRatio(ratio: ImageAspectRatio) {
         _uiState.update { it.copy(imageConfig = it.imageConfig.copy(aspectRatio = ratio)) }
-        scheduleImageFeePreview()
+        scheduleFeePreview()
     }
 
     fun updateImageResolution(res: ImageResolution) {
@@ -808,7 +810,7 @@ class QuickCreateScreenModel(
             val newConfig = it.imageConfig.copy(resolution = res)
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
-        scheduleImageFeePreview()
+        scheduleFeePreview()
     }
 
     fun updateImageQuality(quality: ImageQuality) {
@@ -816,7 +818,7 @@ class QuickCreateScreenModel(
             val newConfig = it.imageConfig.copy(quality = quality)
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
-        scheduleImageFeePreview()
+        scheduleFeePreview()
     }
 
     fun updateImageCount(count: Int) {
@@ -824,16 +826,17 @@ class QuickCreateScreenModel(
             val newConfig = it.imageConfig.copy(count = count)
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
-        scheduleImageFeePreview()
+        scheduleFeePreview()
     }
 
     fun updateImageSeed(seed: Int?) {
         _uiState.update { it.copy(imageConfig = it.imageConfig.copy(seed = seed)) }
-        scheduleImageFeePreview()
+        scheduleFeePreview()
     }
 
     fun updateVideoAspectRatio(ratio: VideoAspectRatio) {
         _uiState.update { it.copy(videoConfig = it.videoConfig.copy(aspectRatio = ratio)) }
+        scheduleFeePreview()
     }
 
     fun updateVideoResolution(res: VideoResolution) {
@@ -841,6 +844,7 @@ class QuickCreateScreenModel(
             val newConfig = it.videoConfig.copy(resolution = res)
             it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+        scheduleFeePreview()
     }
 
     fun updateVideoDuration(duration: VideoDuration) {
@@ -848,6 +852,7 @@ class QuickCreateScreenModel(
             val newConfig = it.videoConfig.copy(duration = duration)
             it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+        scheduleFeePreview()
     }
 
     fun updateVideoCount(count: Int) {
@@ -855,16 +860,19 @@ class QuickCreateScreenModel(
             val newConfig = it.videoConfig.copy(count = count)
             it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+        scheduleFeePreview()
     }
 
     fun updateVideoSeed(seed: Int?) {
         _uiState.update { it.copy(videoConfig = it.videoConfig.copy(seed = seed)) }
+        scheduleFeePreview()
     }
 
     fun toggleRealisticMode() {
         _uiState.update {
             it.copy(videoConfig = it.videoConfig.copy(realisticMode = !it.videoConfig.realisticMode))
         }
+        scheduleFeePreview()
     }
 
     fun toggleGenerateAudio() {
@@ -872,6 +880,7 @@ class QuickCreateScreenModel(
             val newConfig = it.videoConfig.copy(generateAudio = !it.videoConfig.generateAudio)
             it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+        scheduleFeePreview()
     }
 
     // ── Media References ─────────────────────────────────────────────────────
@@ -998,9 +1007,7 @@ class QuickCreateScreenModel(
                         )
                     }
                 }
-                if (type == QuickCreateMediaType.IMAGE) {
-                    scheduleImageFeePreview()
-                }
+                scheduleFeePreview()
             } catch (e: Exception) {
                 debug(TAG, "uploadReference: CATCH - ${e::class.simpleName}: ${e.message}")
                 _uiState.update { state ->
@@ -1046,9 +1053,7 @@ class QuickCreateScreenModel(
                 )
             }
         }
-        if (_uiState.value.currentTab == QuickCreateTab.IMAGE) {
-            scheduleImageFeePreview()
-        }
+        scheduleFeePreview()
     }
 
     fun removeMediaReference(id: String) {
@@ -1069,6 +1074,7 @@ class QuickCreateScreenModel(
                 )
             }
         }
+        scheduleFeePreview()
     }
 
     // ── Error / Results ───────────────────────────────────────────────────────
@@ -1171,10 +1177,9 @@ class QuickCreateScreenModel(
         }
     }
 
-    private fun scheduleImageFeePreview() {
+    private fun scheduleFeePreview() {
         feePreviewJob?.cancel()
-        val request = buildImageGenerationRequest(_uiState.value, requirePrompt = true)
-        if (request == null) {
+        if (!hasFeePreviewRequest(_uiState.value)) {
             _uiState.update {
                 it.copy(
                     feePreviewLoading = false,
@@ -1182,7 +1187,7 @@ class QuickCreateScreenModel(
                     estimatedCost = if (it.currentTab == QuickCreateTab.IMAGE) {
                         it.imageConfig.estimatedCost
                     } else {
-                        it.estimatedCost
+                        it.videoConfig.estimatedCost
                     },
                 )
             }
@@ -1192,9 +1197,21 @@ class QuickCreateScreenModel(
         _uiState.update { it.copy(feePreviewLoading = true, feePreviewError = null) }
         feePreviewJob = screenModelScope.launch {
             delay(FEE_PREVIEW_DEBOUNCE_MS)
+            if (_uiState.value.currentTab == QuickCreateTab.VIDEO) {
+                val latestRequest = buildVideoGenerationRequest(_uiState.value, requirePrompt = true)
+                if (latestRequest == null) {
+                    clearFeePreviewState()
+                    return@launch
+                }
+                quickCreateRepository.previewVideoQuickCreationFee(latestRequest).fold(
+                    onSuccess = ::applyFeePreview,
+                    onFailure = ::applyFeePreviewError,
+                )
+                return@launch
+            }
             val latestRequest = buildImageGenerationRequest(_uiState.value, requirePrompt = true)
             if (latestRequest == null) {
-                _uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null) }
+                clearFeePreviewState()
                 return@launch
             }
 
@@ -1221,6 +1238,42 @@ class QuickCreateScreenModel(
                         )
                     }
                 },
+            )
+        }
+    }
+
+    private fun hasFeePreviewRequest(state: QuickCreateUiState): Boolean =
+        when (state.currentTab) {
+            QuickCreateTab.IMAGE -> buildImageGenerationRequest(state, requirePrompt = true) != null
+            QuickCreateTab.VIDEO -> buildVideoGenerationRequest(state, requirePrompt = true) != null
+        }
+
+    private fun clearFeePreviewState() {
+        _uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null) }
+    }
+
+    private fun applyFeePreview(
+        preview: com.runninghub.shared.domain.repository.QuickCreationFeePreview,
+    ) {
+        val previewCost = when {
+            preview.free -> 0.0
+            preview.requiredCashAmount > 0.0 -> preview.requiredCashAmount
+            else -> preview.requiredRhAmount
+        }
+        _uiState.update {
+            it.copy(
+                estimatedCost = previewCost,
+                feePreviewLoading = false,
+                feePreviewError = null,
+            )
+        }
+    }
+
+    private fun applyFeePreviewError(error: Throwable) {
+        _uiState.update {
+            it.copy(
+                feePreviewLoading = false,
+                feePreviewError = error.message ?: "价格预览失败",
             )
         }
     }
@@ -1256,6 +1309,53 @@ class QuickCreateScreenModel(
             ),
             quickCreationListParams = imageQuickCreationListParams(
                 model = state.selectedImageServiceModel,
+                config = config,
+            ),
+        )
+    }
+
+    private fun buildVideoGenerationRequest(
+        state: QuickCreateUiState,
+        requirePrompt: Boolean,
+    ): VideoGenerationRequest? {
+        if (state.currentTab != QuickCreateTab.VIDEO) return null
+        val config = state.videoConfig
+        val prompt = config.prompt.trim()
+        if ((requirePrompt && prompt.isEmpty()) || config.promptOverLimit) return null
+        val imageRef = config.mediaReferences
+            .filter { it.type == QuickCreateMediaType.IMAGE && it.uploadStatus == UploadStatus.DONE }
+            .firstOrNull { it.remoteUrl != null }
+        val videoRef = config.mediaReferences
+            .filter { it.type == QuickCreateMediaType.VIDEO && it.uploadStatus == UploadStatus.DONE }
+            .firstOrNull { it.remoteUrl != null }
+        val audioRef = config.mediaReferences
+            .filter { it.type == QuickCreateMediaType.AUDIO && it.uploadStatus == UploadStatus.DONE }
+            .firstOrNull { it.remoteUrl != null }
+
+        return VideoGenerationRequest(
+            prompt = prompt,
+            model = config.model.apiValue,
+            apiTier = config.model.apiTier.name,
+            aspectRatio = config.aspectRatio.apiValue,
+            duration = config.duration.seconds,
+            resolution = config.resolution.apiValue,
+            referenceImageUri = imageRef?.remoteUrl,
+            referenceVideoUri = videoRef?.remoteUrl,
+            referenceAudioUri = audioRef?.remoteUrl,
+            realistic = config.realisticMode,
+            generateAudio = config.generateAudio,
+            numVideos = config.count,
+            seed = config.seed,
+            quickCreationCategoryId = state.selectedVideoServiceModel?.categoryId,
+            quickCreationBindingId = state.selectedVideoServiceModel?.bindingId,
+            quickCreationSkuId = state.selectedVideoServiceModel?.skuId,
+            quickCreationParams = videoQuickCreationParams(
+                model = state.selectedVideoServiceModel,
+                config = config,
+                serviceParams = state.videoServiceParams,
+            ),
+            quickCreationListParams = videoQuickCreationListParams(
+                model = state.selectedVideoServiceModel,
                 config = config,
             ),
         )
@@ -1519,44 +1619,8 @@ class QuickCreateScreenModel(
             return
         }
 
-        val imageRef = config.mediaReferences
-            .filter { it.type == QuickCreateMediaType.IMAGE && it.uploadStatus == UploadStatus.DONE }
-            .firstOrNull { it.remoteUrl != null }
-        val videoRef = config.mediaReferences
-            .filter { it.type == QuickCreateMediaType.VIDEO && it.uploadStatus == UploadStatus.DONE }
-            .firstOrNull { it.remoteUrl != null }
-        val audioRef = config.mediaReferences
-            .filter { it.type == QuickCreateMediaType.AUDIO && it.uploadStatus == UploadStatus.DONE }
-            .firstOrNull { it.remoteUrl != null }
-
         quickCreateRepository.generateVideo(
-            com.runninghub.shared.domain.repository.VideoGenerationRequest(
-                prompt = prompt,
-                model = config.model.apiValue,
-                apiTier = config.model.apiTier.name,
-                aspectRatio = config.aspectRatio.apiValue,
-                duration = config.duration.seconds,
-                resolution = config.resolution.apiValue,
-                referenceImageUri = imageRef?.remoteUrl,
-                referenceVideoUri = videoRef?.remoteUrl,
-                referenceAudioUri = audioRef?.remoteUrl,
-                realistic = config.realisticMode,
-                generateAudio = config.generateAudio,
-                numVideos = config.count,
-                seed = config.seed,
-                quickCreationCategoryId = _uiState.value.selectedVideoServiceModel?.categoryId,
-                quickCreationBindingId = _uiState.value.selectedVideoServiceModel?.bindingId,
-                quickCreationSkuId = _uiState.value.selectedVideoServiceModel?.skuId,
-                quickCreationParams = videoQuickCreationParams(
-                    model = _uiState.value.selectedVideoServiceModel,
-                    config = config,
-                    serviceParams = _uiState.value.videoServiceParams,
-                ),
-                quickCreationListParams = videoQuickCreationListParams(
-                    model = _uiState.value.selectedVideoServiceModel,
-                    config = config,
-                ),
-            )
+            buildVideoGenerationRequest(_uiState.value, requirePrompt = true) ?: return
         ).collect { status ->
             handleTaskStatus(status)
         }

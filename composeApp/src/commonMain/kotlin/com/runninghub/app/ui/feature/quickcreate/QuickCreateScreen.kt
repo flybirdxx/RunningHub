@@ -1534,11 +1534,11 @@ private fun BottomPromptPanel(
                         enabled = !isTaskActive &&
                             configPrompt.isNotBlank() &&
                             !configOverLimit &&
-                            !(isImage && uiState.feePreviewLoading),
+                            !uiState.feePreviewLoading,
                         isLoading = isTaskActive,
                         cost = uiState.estimatedCost,
-                        feePreviewLoading = isImage && uiState.feePreviewLoading,
-                        feePreviewError = if (isImage) uiState.feePreviewError else null,
+                        feePreviewLoading = uiState.feePreviewLoading,
+                        feePreviewError = uiState.feePreviewError,
                         onClick = onGenerate,
                         modifier = Modifier.weight(1f),
                     )

@@ -57,6 +57,17 @@ class QuickCreateScreenModelTest {
             )
         )
         val feePreviewRequests = mutableListOf<com.runninghub.shared.domain.repository.ImageGenerationRequest>()
+        var videoFeePreviewResult: Result<QuickCreationFeePreview> = Result.success(
+            QuickCreationFeePreview(
+                passed = true,
+                free = false,
+                settlementMode = "cash_only",
+                requiredCashAmount = 9.60,
+                userCashBalance = 156.376,
+                cashCurrency = "CNY",
+            )
+        )
+        val videoFeePreviewRequests = mutableListOf<com.runninghub.shared.domain.repository.VideoGenerationRequest>()
         var lastHistoryDetailOutputId: String? = null
         val cancelledTaskIds = mutableListOf<String>()
         val requestedHistoryPages = mutableListOf<Int>()
@@ -288,6 +299,12 @@ class QuickCreateScreenModelTest {
         ): Result<QuickCreationFeePreview> {
             feePreviewRequests += request
             return feePreviewResult
+        }
+        override suspend fun previewVideoQuickCreationFee(
+            request: com.runninghub.shared.domain.repository.VideoGenerationRequest,
+        ): Result<QuickCreationFeePreview> {
+            videoFeePreviewRequests += request
+            return videoFeePreviewResult
         }
         override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String> =
             when {
@@ -749,6 +766,29 @@ class QuickCreateScreenModelTest {
         assertEquals("sku-1", repository.feePreviewRequests.single().quickCreationSkuId)
         assertEquals("green icon", repository.feePreviewRequests.single().prompt)
         assertEquals(0.76, model.uiState.value.estimatedCost)
+        assertEquals(false, model.uiState.value.feePreviewLoading)
+        assertEquals(null, model.uiState.value.feePreviewError)
+    }
+
+    @Test
+    fun `video prompt refreshes server fee preview into estimated cost`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("green icon animation")
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(1, repository.videoFeePreviewRequests.size)
+        assertEquals("VIDEO", repository.videoFeePreviewRequests.single().quickCreationCategoryId)
+        assertEquals("video-binding-1", repository.videoFeePreviewRequests.single().quickCreationBindingId)
+        assertEquals("video-sku-1", repository.videoFeePreviewRequests.single().quickCreationSkuId)
+        assertEquals("green icon animation", repository.videoFeePreviewRequests.single().prompt)
+        assertEquals(9.60, model.uiState.value.estimatedCost)
         assertEquals(false, model.uiState.value.feePreviewLoading)
         assertEquals(null, model.uiState.value.feePreviewError)
     }

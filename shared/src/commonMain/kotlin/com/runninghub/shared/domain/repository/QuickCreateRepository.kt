@@ -501,6 +501,7 @@ interface QuickCreateRepository {
     fun generateImage(request: ImageGenerationRequest): Flow<QuickCreateTaskStatus>
     fun generateVideo(request: VideoGenerationRequest): Flow<QuickCreateTaskStatus>
     suspend fun previewImageQuickCreationFee(request: ImageGenerationRequest): Result<QuickCreationFeePreview>
+    suspend fun previewVideoQuickCreationFee(request: VideoGenerationRequest): Result<QuickCreationFeePreview>
     suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String>
     suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>>
     suspend fun getInspirationTemplates(
