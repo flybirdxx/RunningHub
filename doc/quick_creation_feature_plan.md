@@ -504,6 +504,12 @@ data class QuickCreationCommitRequestDto(
 3. 支持视频/音频上传。
 4. 使用同一 `prepare/commit/list/detail` 状态机。
 
+执行进展（2026-06-18）：
+
+- 当视频请求携带服务端 `quickCreationBindingId/quickCreationSkuId` 时，repository 已复用 `fee-preview -> prepare -> commit -> list` 状态机。
+- Seedance2.0 多模态请求构造已覆盖抓包确认的 `ratio/aspectRatio`、`resolution`、`duration`、`generateAudio`、`realPersonMode`、`creationMode`、`creationSubModeId`、`creationSubModeKey` 和参考素材 URL 数组。
+- 已用 `QuickCreationV2DefaultsTest` 与 `QuickCreateRepositoryImplVideoV2Test` 覆盖请求构造、v2 路由和视频输出解析；真实 App 端视频扣费任务仍待单独授权后验证。
+
 验收：
 
 - 文生视频或多模态参考视频至少一种链路可完整跑通。

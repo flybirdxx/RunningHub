@@ -6,16 +6,17 @@
 
 ## 当前实现边界
 
-本轮已经把快捷创作从“纯旧 OpenAPI 硬编码提交”推进到“图片 G-2.0 默认链路使用 Web quick-creation v2”。当前边界如下：
+本轮已经把快捷创作从“纯旧 OpenAPI 硬编码提交”推进到“图片 G-2.0 默认链路使用 Web quick-creation v2”，并把携带服务端 quick-creation ID 的视频请求接入同一套 v2 状态机。当前边界如下：
 
 - `all-power-image-g2`：默认仍可使用抓包确认的 `bindingId=2046586338670891013`、`skuId=2046514150500524034`、`categoryId=IMAGE`。
 - `/api/qc/v2/models`：已接 DTO、mapper、repository 和 ScreenModel 状态，`IMAGE/VIDEO` 服务端模型会在页面初始化时加载。
 - 图片服务端模型：加载后默认选中首个可用模型，Tune 高级页可切换；图片 v2 提交会优先携带选中模型的 `categoryId/bindingId/skuId`。
-- 服务端字段：`fields/options/defaultValue/maxUploadCount/maxUploadSize/multipleInputs/skuInputExtraJson` 已解析到 domain model；字段默认值会初始化到 UI state，Tune 高级页可点选基础 options，也可输入文本/数值字段；图片/视频/音频上传字段会按字段类型把已上传素材 URL 写入对应服务端 `paramKey` 的数组参数；图片 v2 提交会把当前字段值写入 `params`，未知字段会被过滤；视频请求结构已携带服务端模型 ID、字段 params 和列表 params，等待后续视频 v2 提交流程消费。
+- 服务端字段：`fields/options/defaultValue/maxUploadCount/maxUploadSize/multipleInputs/skuInputExtraJson` 已解析到 domain model；字段默认值会初始化到 UI state，Tune 高级页可点选基础 options，也可输入文本/数值字段；图片/视频/音频上传字段会按字段类型把已上传素材 URL 写入对应服务端 `paramKey` 的数组参数；图片 v2 和携带服务端 ID 的视频 v2 提交会把当前字段值写入 `params`，未知字段会被过滤。
+- 视频 v2：当 `VideoGenerationRequest` 携带 `quickCreationBindingId` 和 `quickCreationSkuId` 时，repository 会走 `fee-preview -> prepare -> commit -> list`；`QuickCreationV2Defaults.videoCreateRequest` 会生成抓包确认的 Seedance2.0 多模态参数，包括 `ratio/aspectRatio`、`resolution`、`duration`、`generateAudio`、`realPersonMode`、`creationMode=multimodal`、`creationSubModeId=1`、`creationSubModeKey=MULTIMODAL_REFERENCE` 和参考素材 URL 数组。
 - 提交流程：`fee-preview -> prepare -> commit -> list`。
 - `commit` 请求体：严格使用 `prepareToken + createRequest` 嵌套结构。
 - 任务轮询：使用 `/task/quick-creation/list`，不再依赖 `/api/output/taskHistory`。
-- 其它图片模型和视频模型：暂时保留旧 `openapi/v2` 兼容逻辑。
+- 其它图片模型和未携带服务端 quick-creation ID 的视频请求：暂时保留旧 `openapi/v2` 兼容逻辑。
 - 页面结构：顶部“创作/灵感”、中间滚动区、底部固定输入区已落地；底部输入区会显示当前服务端模型摘要。
 - 灵感页：已接真实 `tags/templates` 列表和 `template/detail`；真实详情请求体为 `{"templateId":"..."}`，响应里的 `snapshot.presetParams` 会用于“制作同款”，当前可回填分类、服务端模型、prompt、比例/分辨率/时长/开关参数和远端素材。
 
@@ -37,9 +38,9 @@
 ## 后续开发顺序
 
 1. 真机验证图片 G-2.0 文生图：确认登录态、价格、扣费、任务状态和输出预览。
-2. 补齐服务端字段动态表单矩阵：当前基础 options、文本/数值字段和图片/视频/音频上传字段已能渲染或进入请求结构；后续需要覆盖条件字段和复杂 `skuInputExtraJson`，并在视频 v2 提交流程中消费已准备好的服务端字段参数；当前本地枚举仍是 fallback。
+2. 补齐服务端字段动态表单矩阵：当前基础 options、文本/数值字段和图片/视频/音频上传字段已能渲染或进入请求结构；后续需要覆盖条件字段和复杂 `skuInputExtraJson`；当前本地枚举仍是 fallback。
 3. 增强“制作同款”：当前已可回填基础参数和远端素材；后续补图片模板、复杂多输入模板、条件字段和 `skuInputExtraJson` 的完整映射。
-4. 抓包并接入 Seedance2.0 视频 v2：复用当前 `QuickCreationCreateRequestDto` 和 prepare/commit/list 状态机，并消费模板和视频请求中已准备好的服务端字段参数。
+4. 真实验证 Seedance2.0 视频 v2：基础请求构造和状态机已接入，下一步需要在用户明确授权后做 App 内真实视频扣费任务，确认价格、余额变化、任务状态和视频输出展示。此前抓包模板预估价格为 9.60 元，不在既有 0.76 元授权范围内。
 5. 做历史列表：直接消费 `/task/quick-creation/list`，详情使用 `outputId`。
 6. 再考虑项目管理接口：`project/list/create/rename/delete/pin/detail/tasks`。
 
