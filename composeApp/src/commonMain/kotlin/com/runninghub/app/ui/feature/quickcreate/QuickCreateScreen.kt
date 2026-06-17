@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
@@ -49,6 +50,7 @@ import com.runninghub.app.ui.theme.*
 import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.shared.data.local.PermissionDataStore
 import com.runninghub.shared.domain.model.Permission
+import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
@@ -353,7 +355,119 @@ private fun CreationScrollableArea(
             status = uiState.taskStatus,
             statusText = uiState.statusText,
         )
+        uiState.historyLoading || uiState.historyItems.isNotEmpty() -> HistoryArea(uiState)
         else -> EmptyArea()
+    }
+}
+
+@Composable
+private fun HistoryArea(uiState: QuickCreateUiState) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(Dimens.SpaceMD),
+        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+    ) {
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    "最近创作",
+                    color = Color.White.copy(alpha = 0.82f),
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                if (uiState.historyLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Primary300,
+                    )
+                }
+            }
+        }
+
+        items(uiState.historyItems, key = { it.taskId }) { item ->
+            HistoryItemRow(item)
+        }
+    }
+}
+
+@Composable
+private fun HistoryItemRow(item: QuickCreationHistoryItem) {
+    val output = item.outputs.firstOrNull()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = DarkSurface,
+        shape = RoundedCornerShape(Dimens.RadiusMD),
+        border = BorderStroke(1.dp, DarkOutlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(Dimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .background(DarkSurfaceVariant, RoundedCornerShape(Dimens.RadiusSM)),
+                contentAlignment = Alignment.Center,
+            ) {
+                val previewUrl = output?.thumbnailUrl ?: output?.url
+                if (previewUrl != null) {
+                    SmartAsyncImage(
+                        imageUrl = previewUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.28f),
+                    )
+                }
+                if (output?.isVideo == true) {
+                    Icon(
+                        Icons.Default.PlayCircle,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.86f),
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    item.params["prompt"] ?: item.taskId,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    listOfNotNull(item.categoryId, item.status, output?.type?.uppercase()).joinToString(" · "),
+                    color = Neutral400,
+                    fontSize = 12.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (item.cashAmount > 0.0) {
+                    Text(
+                        "${formatOneDecimal(item.cashAmount)} ${item.cashCurrency.orEmpty()}",
+                        color = Primary300,
+                        fontSize = 12.sp,
+                    )
+                }
+            }
+        }
     }
 }
 

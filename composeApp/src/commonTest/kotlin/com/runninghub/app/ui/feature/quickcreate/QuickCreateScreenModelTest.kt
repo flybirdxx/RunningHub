@@ -7,6 +7,7 @@ import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDet
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
+import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
 import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
@@ -36,6 +37,33 @@ class QuickCreateScreenModelTest {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
         var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
         var lastVideoRequest: com.runninghub.shared.domain.repository.VideoGenerationRequest? = null
+        var historyPage = QuickCreationHistoryPage(
+            page = 1,
+            size = 10,
+            total = 1,
+            items = listOf(
+                QuickCreationHistoryItem(
+                    taskId = "history-task-1",
+                    status = "SUCCESS",
+                    categoryId = "IMAGE",
+                    bindingId = "binding-1",
+                    skuId = "sku-1",
+                    params = mapOf("prompt" to "green icon"),
+                    cashAmount = 0.76,
+                    cashCurrency = "CNY",
+                    outputs = listOf(
+                        QuickCreationHistoryOutput(
+                            outputId = "output-1",
+                            url = "https://example.com/result.png",
+                            type = "png",
+                            thumbnailUrl = "https://example.com/preview.png",
+                            width = 2048,
+                            height = 1152,
+                        )
+                    ),
+                )
+            ),
+        )
         var inspirationTags = listOf(QuickCreateInspirationTag(id = "hot", name = "热门"))
         var inspirationTemplates = listOf(
             QuickCreateInspirationTemplate(
@@ -179,7 +207,7 @@ class QuickCreateScreenModelTest {
             Result.success((models + videoModels).filter { it.categoryId == categoryId })
 
         override suspend fun listQuickCreationHistory(page: Int, size: Int): Result<QuickCreationHistoryPage> =
-            Result.success(QuickCreationHistoryPage(page = page, size = size, total = 0, items = emptyList()))
+            Result.success(historyPage.copy(page = page, size = size))
 
         override suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem> =
             Result.failure(IllegalStateException("No history detail in fake repository"))
@@ -223,6 +251,15 @@ class QuickCreateScreenModelTest {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         assertEquals(QuickCreateTab.IMAGE, model.uiState.value.currentTab)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+    }
+
+    @Test
+    fun `initialization loads quick creation history`() {
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+
+        assertEquals(false, model.uiState.value.historyLoading)
+        assertEquals("history-task-1", model.uiState.value.historyItems.single().taskId)
+        assertEquals("https://example.com/result.png", model.uiState.value.historyItems.single().outputs.single().url)
     }
 
     @Test

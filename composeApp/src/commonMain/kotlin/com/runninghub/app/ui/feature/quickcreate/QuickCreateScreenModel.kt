@@ -60,6 +60,7 @@ class QuickCreateScreenModel(
 
     init {
         loadServiceModels()
+        loadQuickCreationHistory()
     }
 
     fun loadServiceModels() {
@@ -93,6 +94,26 @@ class QuickCreateScreenModel(
                         state.videoServiceParams
                     } else {
                         selectedVideo.defaultServiceParams()
+                    },
+                )
+            }
+        }
+    }
+
+    fun loadQuickCreationHistory() {
+        screenModelScope.launch {
+            _uiState.update { it.copy(historyLoading = true) }
+            val history = quickCreateRepository.listQuickCreationHistory(page = 1, size = 10)
+            _uiState.update { state ->
+                history.fold(
+                    onSuccess = { page ->
+                        state.copy(
+                            historyLoading = false,
+                            historyItems = page.items,
+                        )
+                    },
+                    onFailure = {
+                        state.copy(historyLoading = false)
                     },
                 )
             }
@@ -1016,6 +1037,7 @@ class QuickCreateScreenModel(
                             duration = item.duration,
                         )
                     }
+                    screenModelScope.launch { loadQuickCreationHistory() }
                     it.copy(
                         taskStatus = QuickCreateTaskUiStatus.SUCCESS,
                         statusText = "生成完成",
