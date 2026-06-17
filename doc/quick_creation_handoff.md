@@ -1428,3 +1428,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 后续如果草稿扩展到服务端字段参数或素材引用，也需要在 restore 后复用同一调度点刷新 fee-preview。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：草稿恢复同步当前 tab
+
+代码提交 `941c7b1 fix(quickcreate): restore draft tab before fee preview` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `restoreDraft()` 会根据草稿中的 `currentTab` 恢复当前 tab：值为 `VIDEO` 时恢复视频 tab，其余情况恢复图片 tab。
+- 这修复了“用户当前在视频 tab，恢复图片草稿后仍停留视频 tab”的状态错配。
+- tab 恢复发生在 `scheduleFeePreview()` 之前，所以 fee-preview 会按恢复后的当前 tab 构造请求体。
+- 例如恢复 `currentTab=IMAGE,imagePrompt=...` 的草稿时，只会发起图片 fee-preview，不会错误走视频 fee-preview。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.restore image draft switches back from video tab before fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测两个方向：从视频 tab 恢复图片草稿、从图片 tab 恢复视频草稿，确认顶部 tab、prompt、底部价格预览状态同步。
+- 如果后续草稿持久化扩展到模型、服务端字段或素材引用，恢复顺序仍应保持“先恢复 tab 与请求体状态，再调度 fee-preview”。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
