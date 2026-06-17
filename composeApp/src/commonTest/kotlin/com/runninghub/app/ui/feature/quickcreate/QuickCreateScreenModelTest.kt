@@ -13,6 +13,7 @@ import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
 import com.runninghub.shared.domain.repository.QuickCreationProject
 import com.runninghub.shared.domain.repository.QuickCreationProjectPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -921,6 +922,40 @@ class QuickCreateScreenModelTest {
 
         assertEquals("low quality", repository.lastImageRequest?.quickCreationParams?.get("negativePrompt"))
         assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("unexpected"))
+    }
+
+    @Test
+    fun `generate image is blocked when required service text field is too short`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "tagline",
+                        paramKey = "tagline",
+                        fieldType = "STRING",
+                        required = true,
+                        defaultValue = null,
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(title = "Tagline", minLength = 3),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.updateImageServiceParam("tagline", "ab")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("Tagline 至少 3 个字符", model.uiState.value.error)
     }
 
     @Test

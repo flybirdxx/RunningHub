@@ -91,4 +91,35 @@ class QuickCreationServiceFieldUiModelTest {
 
         assertEquals("3/5", field.quickCreationTextLimitCounter("abc"))
     }
+
+    @Test
+    fun `required text validation uses service metadata`() {
+        val field = QuickCreationServiceField(
+            fieldKey = "tagline",
+            paramKey = "tagline",
+            fieldType = "STRING",
+            required = true,
+            defaultValue = null,
+            options = emptyList(),
+            inputExtra = QuickCreationServiceFieldExtra(title = "Tagline"),
+        )
+
+        assertEquals("Tagline 不能为空", field.quickCreationTextValidationError(""))
+    }
+
+    @Test
+    fun `min length validation uses service metadata`() {
+        val field = QuickCreationServiceField(
+            fieldKey = "tagline",
+            paramKey = "tagline",
+            fieldType = "STRING",
+            required = true,
+            defaultValue = null,
+            options = emptyList(),
+            inputExtra = QuickCreationServiceFieldExtra(title = "Tagline", minLength = 3),
+        )
+
+        assertEquals("Tagline 至少 3 个字符", field.quickCreationTextValidationError("ab"))
+        assertEquals(null, field.quickCreationTextValidationError("abc"))
+    }
 }

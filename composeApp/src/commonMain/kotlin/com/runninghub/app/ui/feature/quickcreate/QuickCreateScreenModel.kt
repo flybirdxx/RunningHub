@@ -1108,6 +1108,15 @@ class QuickCreateScreenModel(
             }
             return
         }
+        validateCurrentServiceFields(_uiState.value)?.let { error ->
+            _uiState.update {
+                it.copy(
+                    taskStatus = QuickCreateTaskUiStatus.IDLE,
+                    error = error,
+                )
+            }
+            return
+        }
         generationJob?.cancel()
         generationJob = screenModelScope.launch {
             _uiState.update {
@@ -1471,6 +1480,31 @@ class QuickCreateScreenModel(
 
     private fun QuickCreationServiceModel.hasFieldParam(paramKey: String): Boolean =
         fields.any { it.paramKey == paramKey }
+
+    private fun validateCurrentServiceFields(state: QuickCreateUiState): String? =
+        when (state.currentTab) {
+            QuickCreateTab.IMAGE -> validateServiceFields(
+                model = state.selectedImageServiceModel,
+                serviceParams = state.imageServiceParams,
+            )
+            QuickCreateTab.VIDEO -> validateServiceFields(
+                model = state.selectedVideoServiceModel,
+                serviceParams = state.videoServiceParams,
+            )
+        }
+
+    private fun validateServiceFields(
+        model: QuickCreationServiceModel?,
+        serviceParams: Map<String, String>,
+    ): String? {
+        val defaults = model.defaultServiceParams()
+        return model?.fields.orEmpty()
+            .filter { it.supportsQuickCreationTextEntry() }
+            .firstNotNullOfOrNull { field ->
+                val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
+                field.quickCreationTextValidationError(value)
+            }
+    }
 
     private fun QuickCreationServiceModel?.uploadFields(): List<QuickCreationServiceField> =
         this?.fields.orEmpty().filter { it.fieldType.uppercase().contains("UPLOAD") }

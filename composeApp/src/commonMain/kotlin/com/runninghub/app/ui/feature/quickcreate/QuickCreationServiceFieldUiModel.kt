@@ -38,6 +38,19 @@ internal fun QuickCreationServiceField.quickCreationTextLimitCounter(value: Stri
     return "${value.length.coerceAtMost(maxLength)}/$maxLength"
 }
 
+internal fun QuickCreationServiceField.quickCreationTextValidationError(value: String): String? {
+    val title = quickCreationFieldTitle()
+    val trimmed = value.trim()
+    if (required && trimmed.isEmpty()) {
+        return "$title 不能为空"
+    }
+    val minLength = inputExtra?.minLength?.takeIf { it > 0 }
+    if (minLength != null && trimmed.isNotEmpty() && trimmed.length < minLength) {
+        return "$title 至少 $minLength 个字符"
+    }
+    return null
+}
+
 internal fun QuickCreationServiceField.quickCreationUploadHintParts(): List<String> =
     listOfNotNull(
         inputExtra?.acceptFormats?.takeIf { it.isNotEmpty() }?.joinToString("/"),
