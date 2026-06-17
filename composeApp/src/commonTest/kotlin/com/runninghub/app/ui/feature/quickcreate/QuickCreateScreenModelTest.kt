@@ -1298,6 +1298,7 @@ class QuickCreateScreenModelTest {
             listOf("https://example.com/second.jpg"),
             repository.lastImageRequest?.quickCreationListParams?.get("secondImages"),
         )
+        assertEquals(null, repository.lastImageRequest?.referenceImageUri)
     }
 
     @Test

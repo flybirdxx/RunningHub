@@ -1343,7 +1343,8 @@ class QuickCreateScreenModel(
         val config = state.imageConfig
         val prompt = config.prompt.trim()
         if ((requirePrompt && prompt.isEmpty()) || config.promptOverLimit) return null
-        val imageRef = config.mediaReferences
+        val globalMediaReferences = config.mediaReferences.quickCreationGlobalMediaReferences()
+        val imageRef = globalMediaReferences
             .filter { it.type == QuickCreateMediaType.IMAGE && it.uploadStatus == UploadStatus.DONE }
             .firstOrNull { it.remoteUrl != null }
 
@@ -1380,13 +1381,14 @@ class QuickCreateScreenModel(
         val config = state.videoConfig
         val prompt = config.prompt.trim()
         if ((requirePrompt && prompt.isEmpty()) || config.promptOverLimit) return null
-        val imageRef = config.mediaReferences
+        val globalMediaReferences = config.mediaReferences.quickCreationGlobalMediaReferences()
+        val imageRef = globalMediaReferences
             .filter { it.type == QuickCreateMediaType.IMAGE && it.uploadStatus == UploadStatus.DONE }
             .firstOrNull { it.remoteUrl != null }
-        val videoRef = config.mediaReferences
+        val videoRef = globalMediaReferences
             .filter { it.type == QuickCreateMediaType.VIDEO && it.uploadStatus == UploadStatus.DONE }
             .firstOrNull { it.remoteUrl != null }
-        val audioRef = config.mediaReferences
+        val audioRef = globalMediaReferences
             .filter { it.type == QuickCreateMediaType.AUDIO && it.uploadStatus == UploadStatus.DONE }
             .firstOrNull { it.remoteUrl != null }
 
