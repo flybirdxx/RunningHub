@@ -434,3 +434,24 @@ git diff --check
 下一步建议：
 - 在这个 helper 上继续补 `inputsChildList`、条件字段和字段级校验，先写单测再接 Tune UI。
 - 若要做真实设备 UI 复测，只需打开 Tune 高级页观察上传字段是否出现；不要点击会触发付费的生成按钮。
+
+## 2026-06-18 追加交接：字段 visible 边界
+
+代码提交 `526ab48 fix(quickcreate): respect service field visibility` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreationFieldDto.visible` 已解析，缺省值为 `true`。
+- `QuickCreationServiceField.visible` 会保留到 domain；不要在 mapper 阶段过滤 `visible=false` 字段，因为这类字段可能仍携带服务端提交所需默认参数。
+- Tune UI helper 会过滤 `visible=false` 字段，所以隐藏字段不展示给用户，但 `QuickCreateScreenModel.defaultServiceParams()` 仍可从所有字段读取默认值并参与请求构造。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.remote.dto.QuickCreationModelDtoTest" --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 继续补条件字段和子输入时，遵守同一原则：显示规则归 UI helper/request state，提交必需的隐藏默认值不能在 mapper 层丢弃。
+- 真实 App 复测可以只观察 Tune 高级页字段是否减少，不需要触发生成扣费。

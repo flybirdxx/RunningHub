@@ -358,3 +358,25 @@ git diff --check
 仍未完成：
 - 当前只修复字段是否可见和提示文案；真正的多输入子项 `inputsChildList`、条件字段联动和字段级校验仍需继续补。
 - 本轮未做真实生成，也没有新增扣费。
+
+## 2026-06-18 服务字段 visible 元信息接入
+
+代码提交 `526ab48 fix(quickcreate): respect service field visibility` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationFieldDto` 新增 `visible` 解析，默认 `true`，兼容旧响应和测试夹具。
+- `QuickCreationServiceField` 保留 `visible` 到 domain model；mapper 不丢弃 `visible=false` 字段，因此隐藏字段的默认值仍可由 `defaultServiceParams()` 带入提交参数，避免破坏服务端必需的隐藏参数。
+- Tune 参数区的 `isQuickCreationServiceFieldRenderable()` 会在 `visible=false` 时返回 false，只影响 UI 展示，不影响请求构造。
+- 新增 DTO、mapper、UI helper 回归测试，锁定“隐藏字段不显示，但默认值仍保留”的边界。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.remote.dto.QuickCreationModelDtoTest" --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- `visible` 只是显示层开关；条件字段、字段联动和 `inputsChildList` 子输入仍未完整动态化。
+- 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。
