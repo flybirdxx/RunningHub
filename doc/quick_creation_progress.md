@@ -1356,3 +1356,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需复测从视频 tab 恢复图片草稿、从图片 tab 恢复视频草稿两条 UI 路径，重点确认顶部 tab、底部按钮价格状态和 prompt 一致。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 坏草稿不会保留旧内存状态
+
+代码提交 `a4ba123 fix(quickcreate): clear stale invalid draft state` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `checkForDraft()` 解析持久化草稿失败时，现在会同步清掉内存里的 `draftData` 和 `hasDraft`。
+- 修复同一个 `QuickCreateScreenModel` 先加载过有效草稿、后续持久化草稿损坏时，内存仍保留旧草稿并可能被 `restoreDraft()` 恢复的问题。
+- 解析失败仍会调用 `settingsRepository.clearQuickCreateDraft()` 清理持久化坏数据。
+- 新增回归测试覆盖：先加载有效图片草稿，再把存储改成坏 JSON，重新检查后调用恢复，不应恢复旧 prompt，也不应触发 fee-preview。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.checkForDraft clears stale in memory draft when stored draft is invalid"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测损坏草稿或旧版本草稿存在时，入口 UI 不应展示可恢复旧内容；当前 `hasDraft/draftData` 仍是非响应式字段，后续若接入 UI 入口需要一起迁移到 `QuickCreateUiState`。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

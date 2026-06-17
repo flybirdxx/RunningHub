@@ -1450,3 +1450,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 如果后续草稿持久化扩展到模型、服务端字段或素材引用，恢复顺序仍应保持“先恢复 tab 与请求体状态，再调度 fee-preview”。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：坏草稿清理内存状态
+
+代码提交 `a4ba123 fix(quickcreate): clear stale invalid draft state` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `checkForDraft()` 读取到非空持久化草稿后会尝试 `parseDraftData(raw)`。
+- 解析成功时写入 `draftData` 并设置 `hasDraft=true`。
+- 解析失败时现在会同时设置 `draftData=null`、`hasDraft=false`，再调用 `settingsRepository.clearQuickCreateDraft()` 清理坏草稿。
+- 因此同一个 ScreenModel 曾经加载过有效草稿，也不会在后续遇到损坏草稿时继续保留旧内存草稿并被 `restoreDraft()` 误恢复。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.checkForDraft clears stale in memory draft when stored draft is invalid"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 如果后续把草稿恢复入口接到真实 UI，需要把 `hasDraft/draftData` 从非响应式属性迁移到 `QuickCreateUiState`，否则 UI 对草稿状态变化的感知仍可能不稳定。
+- 真机复测旧版本/损坏草稿存在时，页面不应展示可恢复入口，也不应恢复旧 prompt。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
