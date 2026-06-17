@@ -922,3 +922,25 @@ git diff --check
 - 若后续抓包发现服务端存在 `visible=false` 但必须提交默认值的内部字段，需要在 mapper 层区分“隐藏但必须提交”和“隐藏且前端不应提交”，不能再单靠 `visible` 承载两种语义。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：隐藏父字段子上传不参与提交
+
+代码提交 `891ddc6 fix(quickcreate): skip hidden parent uploads` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 顶层父字段 `visible=false` 时，其 `inputChildren` 中的上传字段不会进入 active child upload 集合。
+- 提交前上传等待、上传校验和 `quickCreationListParams` 均不会消费隐藏父字段下绑定的字段级素材。
+- 可见父字段下的 active child 上传规则保持不变，仍由 `quickCreationActiveInputChildren(serviceParams)` 和 child 自身 `visible/visibleWhen` 控制。
+- 该规则和上一轮隐藏顶层文本/上传字段过滤形成一致边界：隐藏父字段不应通过子字段间接影响提交。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.active upload param keys include visible parent and active child upload fields" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden parent child upload field media is not submitted"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+下一步建议：
+- 如后续发现隐藏父字段下有服务端强制提交的内部子字段，需要在 mapper 层显式建模该语义，不应让 UI 隐藏字段默认进入用户提交路径。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。

@@ -850,3 +850,25 @@ git diff --check
 仍未完成：
 - 字段级素材卡片的真实选择/移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 隐藏父字段子上传过滤
+
+代码提交 `891ddc6 fix(quickcreate): skip hidden parent uploads` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `activeChildUploadFields(serviceParams)` 现在只从 `visible=true` 的父字段下收集 active child 上传字段。
+- `quickCreationActiveUploadParamKeys(serviceParams)` 同步过滤隐藏父字段，提交前等待上传时不会把隐藏父字段下的子上传素材视为有效素材。
+- 隐藏父字段下的字段级上传素材不会进入 `quickCreationListParams`，也不会参与提交前上传校验或等待。
+- 新增回归测试覆盖隐藏父字段子上传 key 不进入 active 集合、隐藏父字段子上传素材不提交。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.active upload param keys include visible parent and active child upload fields" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden parent child upload field media is not submitted"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+仍未完成：
+- 字段级素材卡片的真实选择/移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
