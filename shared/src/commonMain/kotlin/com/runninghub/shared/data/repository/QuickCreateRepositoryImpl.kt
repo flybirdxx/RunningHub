@@ -1240,7 +1240,7 @@ class QuickCreateRepositoryImpl(
             if (response.code != 0) {
                 throw IllegalStateException(response.msg ?: response.message ?: "模型列表加载失败")
             }
-            QuickCreationModelMapper.flatten(categoryId, response.data.orEmpty())
+            QuickCreationModelMapper.flatten(categoryId, response.data?.categories?.get(categoryId).orEmpty())
         }
 
     override suspend fun listQuickCreationHistory(

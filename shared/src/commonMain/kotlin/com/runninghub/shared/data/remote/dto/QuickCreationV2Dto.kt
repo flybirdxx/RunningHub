@@ -33,6 +33,19 @@ data class QuickCreationModelRequestDto(
 )
 
 @Serializable
+data class QuickCreationModelCatalogDto(
+    @SerialName("categoryMeta") val categoryMeta: List<QuickCreationModelCategoryMetaDto> = emptyList(),
+    @SerialName("categories") val categories: Map<String, List<QuickCreationModelDto>> = emptyMap(),
+)
+
+@Serializable
+data class QuickCreationModelCategoryMetaDto(
+    @SerialName("key") val key: String? = null,
+    @SerialName("name") val name: String? = null,
+    @SerialName("sort") val sort: Int? = null,
+)
+
+@Serializable
 data class QuickCreationModelDto(
     @SerialName("type") val type: String? = null,
     @SerialName("categoryId") val categoryId: String? = null,
@@ -41,6 +54,7 @@ data class QuickCreationModelDto(
     @SerialName("name") val name: String? = null,
     @SerialName("nameCn") val nameCn: String? = null,
     @SerialName("nameAi") val nameAi: String? = null,
+    @SerialName("groupName") val groupName: String? = null,
     @SerialName("description") val description: String? = null,
     @SerialName("fields") val fields: List<QuickCreationFieldDto> = emptyList(),
     @SerialName("children") val children: List<QuickCreationModelDto> = emptyList(),

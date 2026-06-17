@@ -138,7 +138,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
             setBody(emptyMap<String, String>())
         }.body()
 
-    suspend fun getQuickCreationModels(categoryIds: List<String>): QuickCreationEnvelopeDto<List<QuickCreationModelDto>> =
+    suspend fun getQuickCreationModels(categoryIds: List<String>): QuickCreationEnvelopeDto<QuickCreationModelCatalogDto> =
         client.post("$BASE_URL$QC_MODELS") {
             contentType(ContentType.Application.Json)
             setBody(QuickCreationModelRequestDto(categoryIds))

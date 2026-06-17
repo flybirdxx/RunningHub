@@ -223,6 +223,71 @@ class QuickCreateRepositoryImplHistoryTest {
     }
 
     @Test
+    fun `service model list maps live category catalog`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
+        val repository = repositoryWithMock(
+            responseForPath = { path ->
+                paths += path
+                when (path) {
+                    QuickCreateApi.QC_MODELS -> """
+                        {
+                          "code": 0,
+                          "msg": "success",
+                          "data": {
+                            "categoryMeta": [
+                              { "key": "IMAGE", "name": "图片创作", "sort": 1 }
+                            ],
+                            "categories": {
+                              "IMAGE": [
+                                {
+                                  "type": "group",
+                                  "groupName": "全能图片G-2.0-官方版",
+                                  "children": [
+                                    {
+                                      "type": "model",
+                                      "bindingId": "2046586338670891013",
+                                      "skuId": "2046514150500524034",
+                                      "name": "全能图片G-2.0-文生图-官方版",
+                                      "fields": [
+                                        {
+                                          "fieldKey": "resolution",
+                                          "mappedApiParamKey": "resolution",
+                                          "fieldType": "LIST",
+                                          "defaultValue": "2k",
+                                          "options": [
+                                            { "value": "1k", "label": "1k" },
+                                            { "value": "2k", "label": "2k" }
+                                          ]
+                                        }
+                                      ]
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          }
+                        }
+                    """
+                    else -> """{"code":404,"msg":"unexpected path"}"""
+                }
+            },
+            captureBody = { bodies += it },
+        )
+
+        val models = repository.getModels("IMAGE").getOrThrow()
+
+        assertEquals(listOf(QuickCreateApi.QC_MODELS), paths)
+        assertEquals("""{"categoryIds":["IMAGE"]}""", bodies.single())
+        val model = models.single()
+        assertEquals("IMAGE", model.categoryId)
+        assertEquals("全能图片G-2.0-文生图-官方版", model.name)
+        assertEquals("全能图片G-2.0-官方版", model.groupName)
+        assertEquals("2046586338670891013", model.bindingId)
+        assertEquals("2k", model.fields.single().defaultValue)
+    }
+
+    @Test
     fun `project task list posts project id and maps history page`() = runBlocking {
         val paths = mutableListOf<String>()
         val bodies = mutableListOf<String>()

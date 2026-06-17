@@ -23,7 +23,7 @@ internal object QuickCreationModelMapper {
                 entry.children.mapNotNull { child ->
                     child.toDomain(
                         fallbackCategoryId = fallbackCategoryId,
-                        groupName = entry.nameCn ?: entry.name ?: entry.nameAi,
+                        groupName = entry.groupName ?: entry.nameCn ?: entry.name ?: entry.nameAi,
                     )
                 }
             } else {

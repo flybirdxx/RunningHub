@@ -73,4 +73,55 @@ class QuickCreationModelDtoTest {
         assertEquals("16:9", aspectRatio.defaultValue?.jsonPrimitive?.content)
         assertEquals("1:1", aspectRatio.options[1].value?.jsonPrimitive?.content)
     }
+
+    @Test
+    fun `models catalog response parses category map`() {
+        val response = json.decodeFromString<QuickCreationEnvelopeDto<QuickCreationModelCatalogDto>>(
+            """
+            {
+              "code": 0,
+              "msg": "success",
+              "data": {
+                "categoryMeta": [
+                  { "key": "IMAGE", "name": "图片创作", "sort": 1 }
+                ],
+                "categories": {
+                  "IMAGE": [
+                    {
+                      "type": "group",
+                      "groupName": "全能图片G-2.0-官方版",
+                      "children": [
+                        {
+                          "type": "model",
+                          "bindingId": "2046586338670891013",
+                          "skuId": "2046514150500524034",
+                          "name": "全能图片G-2.0-文生图-官方版",
+                          "fields": [
+                            {
+                              "fieldKey": "resolution",
+                              "mappedApiParamKey": "resolution",
+                              "fieldType": "LIST",
+                              "defaultValue": "2k",
+                              "options": [
+                                { "value": "1k", "label": "1k" },
+                                { "value": "2k", "label": "2k" }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val catalog = assertNotNull(response.data)
+        assertEquals("图片创作", catalog.categoryMeta.single().name)
+        val imageGroup = catalog.categories.getValue("IMAGE").single()
+        assertEquals("全能图片G-2.0-官方版", imageGroup.groupName)
+        assertEquals("2046586338670891013", imageGroup.children.single().bindingId)
+    }
 }
