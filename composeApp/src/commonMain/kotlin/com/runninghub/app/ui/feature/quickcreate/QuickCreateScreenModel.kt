@@ -606,9 +606,8 @@ class QuickCreateScreenModel(
         if (draft.videoPrompt.isNotEmpty()) {
             _uiState.update { it.copy(videoConfig = it.videoConfig.copy(prompt = draft.videoPrompt)) }
         }
-        if (draft.currentTab == "VIDEO") {
-            _uiState.update { it.copy(currentTab = QuickCreateTab.VIDEO) }
-        }
+        val restoredTab = if (draft.currentTab == "VIDEO") QuickCreateTab.VIDEO else QuickCreateTab.IMAGE
+        _uiState.update { it.copy(currentTab = restoredTab) }
         clearDraft()
         scheduleFeePreview()
     }

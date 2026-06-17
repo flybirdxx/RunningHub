@@ -2479,6 +2479,30 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `restore image draft switches back from video tab before fee preview`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"image draft","videoPrompt":""}""")
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), settings)
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        runCurrent()
+        model.checkForDraft()
+        runCurrent()
+        model.restoreDraft()
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(QuickCreateTab.IMAGE, model.uiState.value.currentTab)
+        assertEquals(1, repository.feePreviewRequests.size)
+        assertEquals("image draft", repository.feePreviewRequests.single().prompt)
+        assertEquals(0, repository.videoFeePreviewRequests.size)
+    }
+
+    @Test
     fun `generate without prompt shows error`() {
         runBlocking {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
