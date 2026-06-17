@@ -381,7 +381,7 @@ POST /task/quick-creation/project/tasks
 { "projectId": "..." }
 ```
 
-其中创建和详情响应按 `QuickCreationProjectDto` 映射，重命名和删除按成功/失败 envelope 处理。创作页项目条已接新建按钮，项目 chip 更多菜单已接重命名和删除；删除当前筛选项目后会切回最近创作。后续需要用非空项目真实交互抓包确认字段名、响应结构和删除语义。
+其中创建和详情响应按 `QuickCreationProjectDto` 映射，重命名和删除按成功/失败 envelope 处理。创作页项目条已接新建按钮，项目 chip 更多菜单已接详情、重命名和删除；详情弹窗展示封面、任务数、置顶状态、创建时间和更新时间；删除当前筛选项目后会切回最近创作。后续需要用非空项目真实交互抓包确认字段名、响应结构和删除语义。
 
 ### 4.10 取消任务接口
 
@@ -574,7 +574,7 @@ data class QuickCreationCommitRequestDto(
 - 项目任务已接入 `/task/quick-creation/project/tasks`，请求体暂按 `projectId/page/size` 实现并复用历史分页模型；历史区项目 chip 可筛选项目任务，也可切回“最近创作”。因为当前账号项目列表为空，尚缺非空项目真实响应校验。
 - 项目置顶已接入 `/task/quick-creation/project/pin`，请求体暂按 `projectId/pin` 实现；项目 chip 图钉可切换置顶状态，请求中显示 loading，成功后更新本地项目列表。因为当前账号项目列表为空，尚缺非空项目真实请求体和响应结构校验。
 - 项目创建、重命名和删除已接入 `/task/quick-creation/project/create|rename|delete`，请求体暂按 `name`、`projectId/name`、`projectId` 实现；历史区项目标题右侧可新建项目，项目 chip 更多菜单可重命名和删除。删除当前筛选项目后会清除筛选并回到最近创作。
-- 项目详情数据层已接入 `/task/quick-creation/project/detail`，请求体暂按 `projectId` 实现并映射为 `QuickCreationProject`；独立项目详情 UI 尚未设计。
+- 项目详情已接入 `/task/quick-creation/project/detail`，请求体暂按 `projectId` 实现并映射为 `QuickCreationProject`；项目 chip 更多菜单可打开项目详情弹窗。
 
 验收：
 
