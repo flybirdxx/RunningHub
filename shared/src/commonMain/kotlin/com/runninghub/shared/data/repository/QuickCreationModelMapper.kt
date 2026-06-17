@@ -69,6 +69,7 @@ internal object QuickCreationModelMapper {
             fieldKey = key,
             paramKey = mappedApiParamKey?.takeIf { it.isNotBlank() } ?: key,
             fieldType = fieldType ?: "UNKNOWN",
+            visible = visible,
             required = required,
             defaultValue = defaultValue?.stringValue(),
             options = options.mapNotNull { it.toDomain() },

@@ -87,6 +87,7 @@ data class QuickCreationFieldDto(
     @SerialName("maxUploadSize") val maxUploadSize: Long? = null,
     @SerialName("multipleInputs") val multipleInputs: Boolean = false,
     @SerialName("skuInputExtraJson") val skuInputExtraJson: JsonElement? = null,
+    @SerialName("visible") val visible: Boolean = true,
 )
 
 @Serializable

@@ -47,7 +47,8 @@ class QuickCreationModelDtoTest {
                           "fieldKey": "prompt",
                           "mappedApiParamKey": "prompt",
                           "fieldType": "STRING",
-                          "required": true
+                          "required": true,
+                          "visible": false
                         }
                       ]
                     }
@@ -72,6 +73,7 @@ class QuickCreationModelDtoTest {
         assertEquals("LIST", aspectRatio.fieldType)
         assertEquals("16:9", aspectRatio.defaultValue?.jsonPrimitive?.content)
         assertEquals("1:1", aspectRatio.options[1].value?.jsonPrimitive?.content)
+        assertEquals(false, model.fields[1].visible)
     }
 
     @Test

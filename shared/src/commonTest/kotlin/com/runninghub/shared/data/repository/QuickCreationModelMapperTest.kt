@@ -153,4 +153,31 @@ class QuickCreationModelMapperTest {
         assertEquals(4, extra.maxInputCount)
         assertEquals(true, extra.ignoreListValueCaseSensitive)
     }
+
+    @Test
+    fun `maps invisible service fields without dropping default values`() {
+        val models = listOf(
+            QuickCreationModelDto(
+                type = "model",
+                categoryId = "IMAGE",
+                bindingId = "binding-1",
+                skuId = "sku-1",
+                name = "model",
+                fields = listOf(
+                    QuickCreationFieldDto(
+                        fieldKey = "internalMode",
+                        mappedApiParamKey = "internalMode",
+                        fieldType = "STRING",
+                        visible = false,
+                        defaultValue = JsonPrimitive("stable"),
+                    )
+                ),
+            )
+        )
+
+        val field = QuickCreationModelMapper.flatten("IMAGE", models).single().fields.single()
+
+        assertEquals(false, field.visible)
+        assertEquals("stable", field.defaultValue)
+    }
 }

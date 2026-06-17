@@ -20,7 +20,7 @@ internal fun QuickCreationServiceField.isQuickCreationUploadField(): Boolean {
 }
 
 internal fun QuickCreationServiceField.isQuickCreationServiceFieldRenderable(): Boolean =
-    options.isNotEmpty() || supportsQuickCreationTextEntry() || isQuickCreationUploadField()
+    visible && (options.isNotEmpty() || supportsQuickCreationTextEntry() || isQuickCreationUploadField())
 
 internal fun QuickCreationServiceField.quickCreationFieldTitle(): String =
     inputExtra?.title?.takeIf { it.isNotBlank() } ?: fieldKey

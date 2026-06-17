@@ -491,6 +491,7 @@ data class QuickCreationServiceField(
     val multipleInputs: Boolean = false,
     val inputExtraJson: String? = null,
     val inputExtra: QuickCreationServiceFieldExtra? = null,
+    val visible: Boolean = true,
 )
 
 data class QuickCreationServiceFieldExtra(

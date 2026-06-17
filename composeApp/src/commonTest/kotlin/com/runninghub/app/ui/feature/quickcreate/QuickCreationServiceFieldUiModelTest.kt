@@ -45,4 +45,19 @@ class QuickCreationServiceFieldUiModelTest {
             field.quickCreationUploadHintParts(),
         )
     }
+
+    @Test
+    fun `invisible service fields are not renderable in tune panel`() {
+        val field = QuickCreationServiceField(
+            fieldKey = "internalMode",
+            paramKey = "internalMode",
+            fieldType = "STRING",
+            required = false,
+            defaultValue = "stable",
+            options = emptyList(),
+            visible = false,
+        )
+
+        assertEquals(false, field.isQuickCreationServiceFieldRenderable())
+    }
 }
