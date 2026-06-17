@@ -92,7 +92,7 @@ internal fun QuickCreationServiceModel?.quickCreationParamsWithFieldAliases(
                 putQuickCreationParamAliases(
                     fieldKey = child.fieldKey,
                     paramKey = child.paramKey,
-                    defaultValue = child.defaultValue,
+                    defaultValue = null,
                     params = params,
                 )
             }

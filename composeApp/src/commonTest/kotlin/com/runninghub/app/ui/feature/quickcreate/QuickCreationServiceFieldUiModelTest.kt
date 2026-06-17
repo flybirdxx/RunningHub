@@ -174,6 +174,56 @@ class QuickCreationServiceFieldUiModelTest {
     }
 
     @Test
+    fun `inactive child defaults do not activate sibling upload fields`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "IMAGE",
+            groupName = null,
+            bindingId = "binding-1",
+            skuId = "sku-1",
+            name = "Image model",
+            description = null,
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "creationMode",
+                    paramKey = "creationMode",
+                    fieldType = "LIST",
+                    required = false,
+                    defaultValue = "text",
+                    options = emptyList(),
+                    inputExtra = QuickCreationServiceFieldExtra(
+                        inputChildren = listOf(
+                            QuickCreationServiceFieldInputChild(
+                                fieldKey = "referenceStrength",
+                                paramKey = "referenceStrength",
+                                fieldType = "NUMBER",
+                                defaultValue = "0.65",
+                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                    fieldKey = "creationMode",
+                                    values = listOf("imageReference"),
+                                ),
+                            ),
+                            QuickCreationServiceFieldInputChild(
+                                fieldKey = "derivedImage",
+                                paramKey = "derivedImages",
+                                fieldType = "IMAGE_UPLOAD",
+                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                    fieldKey = "referenceStrength",
+                                    values = listOf("0.65"),
+                                ),
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            emptySet(),
+            model.quickCreationActiveUploadParamKeys(serviceParams = emptyMap()),
+        )
+    }
+
+    @Test
     fun `relevant media references keep global uploads and active field uploads only`() {
         val globalRef = mediaReference(id = "global", fieldParamKey = null)
         val activeFieldRef = mediaReference(id = "active", fieldParamKey = "imageUrls")
