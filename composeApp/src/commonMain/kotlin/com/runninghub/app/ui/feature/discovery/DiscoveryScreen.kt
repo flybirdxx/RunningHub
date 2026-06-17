@@ -29,6 +29,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -227,6 +228,7 @@ private fun DiscoveryContent(
         }
 
         val pullRefreshState = rememberPullToRefreshState()
+        val gridState = rememberLazyGridState()
         PullToRefreshBox(
             isRefreshing = uiState.isRefreshing,
             onRefresh = onRefresh,
@@ -234,6 +236,7 @@ private fun DiscoveryContent(
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
             LazyVerticalGrid(
+                state = gridState,
                 columns = GridCells.Adaptive(minSize = 180.dp),
                 contentPadding = PaddingValues(
                     start = padding.calculateStartPadding(LayoutDirection.Ltr),
@@ -281,7 +284,7 @@ private fun DiscoveryContent(
                         }
                     }
 
-                if (uiState.isLoadingApps) {
+                if (uiState.isLoadingApps && uiState.apps.isEmpty()) {
                     item(key = "content_loading", span = { GridItemSpan(maxLineSpan) }) {
                         LoadingIndicator(
                             modifier = Modifier.fillMaxWidth().height(300.dp)
@@ -308,13 +311,25 @@ private fun DiscoveryContent(
                     }
 
                     item(key = "load_more", span = { GridItemSpan(maxLineSpan) }) {
-                        if (uiState.hasMore && !uiState.isLoadingMore) {
+                        if (uiState.hasMore && !uiState.isLoadingMore && !uiState.isLoadingApps) {
                             LaunchedEffect(uiState.currentPage) {
                                 onLoadMore()
                             }
                         }
 
                         when {
+                            uiState.isLoadingApps -> {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = MaterialTheme.colorScheme.primary,
+                                        strokeWidth = 2.dp,
+                                    )
+                                }
+                            }
                             uiState.hasMore -> {
                                 Box(
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),

@@ -4,6 +4,7 @@ import androidx.compose.ui.graphics.Color
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
+import com.runninghub.app.ui.component.MediaType
 import com.runninghub.shared.domain.model.AppDetail
 import com.runninghub.shared.domain.model.InputNode
 import com.runninghub.shared.domain.model.TaskOutput
@@ -30,7 +31,7 @@ data class AppDetailUiState(
     val taskError: String? = null,
     val uploadingNodes: Map<String, UploadingState> = emptyMap(),
     val localUris: Map<String, String> = emptyMap(),
-    val pendingImagePick: PendingImagePick? = null,
+    val pendingMediaPick: PendingMediaPick? = null,
     val error: String? = null
 )
 
@@ -40,9 +41,11 @@ data class UploadingState(
     val isError: Boolean = false
 )
 
-data class PendingImagePick(
+data class PendingMediaPick(
     val nodeId: String,
-    val fieldName: String
+    val fieldName: String,
+    val mediaType: MediaType,
+    val requestId: Long
 )
 
 class AppDetailScreenModel(
@@ -55,6 +58,7 @@ class AppDetailScreenModel(
     val uiState: StateFlow<AppDetailUiState> = _uiState.asStateFlow()
 
     private var currentAppId: String = ""
+    private var mediaPickRequestId: Long = 0L
 
     private var onImagePicked: ((String) -> Unit)? = null
 
@@ -62,19 +66,24 @@ class AppDetailScreenModel(
         onImagePicked = cb
     }
 
-    fun setPendingImagePick(nodeId: String, fieldName: String) {
+    fun setPendingMediaPick(nodeId: String, fieldName: String, mediaType: MediaType) {
         // The actual URI will be passed via onImagePicked callback after picker returns
         // Screen holds reference to pending pick info
+        mediaPickRequestId += 1
         _uiState.update {
-            it.copy(pendingImagePick = PendingImagePick(nodeId, fieldName))
+            it.copy(pendingMediaPick = PendingMediaPick(nodeId, fieldName, mediaType, mediaPickRequestId))
         }
     }
 
-    fun onImageUriReceived(uri: String) {
-        val pending = _uiState.value.pendingImagePick ?: return
+    fun clearPendingMediaPick() {
+        _uiState.update { it.copy(pendingMediaPick = null) }
+    }
+
+    fun onMediaUriReceived(uri: String) {
+        val pending = _uiState.value.pendingMediaPick ?: return
         setLocalFileUri(pending.nodeId, uri)
-        uploadFile(pending.nodeId, pending.fieldName, uri)
-        _uiState.update { it.copy(pendingImagePick = null) }
+        uploadFile(pending.nodeId, pending.fieldName, uri, pending.mediaType)
+        _uiState.update { it.copy(pendingMediaPick = null) }
     }
 
     fun loadDetail(appId: String) {
@@ -125,7 +134,12 @@ class AppDetailScreenModel(
         }
     }
 
-    fun uploadFile(nodeId: String, fieldName: String, localUri: String) {
+    fun uploadFile(
+        nodeId: String,
+        fieldName: String,
+        localUri: String,
+        mediaType: MediaType = MediaType.IMAGE
+    ) {
         screenModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -149,14 +163,9 @@ class AppDetailScreenModel(
                         .substringAfterLast("%2F")
                         .substringAfterLast(":")
                         .take(64)
-                        .ifBlank { "upload.png" }
+                        .ifBlank { defaultFileName(mediaType) }
 
-                val mimeType = when {
-                    fileName.endsWith(".png", ignoreCase = true) -> "image/png"
-                    fileName.endsWith(".webp", ignoreCase = true) -> "image/webp"
-                    fileName.endsWith(".gif", ignoreCase = true) -> "image/gif"
-                    else -> "image/jpeg"
-                }
+                val mimeType = inferMimeType(fileName, mediaType)
 
                 _uiState.update {
                     it.copy(uploadingNodes = it.uploadingNodes + (nodeId to UploadingState(localUri = localUri, progress = 0.3f)))
@@ -182,7 +191,7 @@ class AppDetailScreenModel(
                     updateInputValue(nodeId, fieldName, returnedName)
                     _uiState.update {
                         it.copy(
-                            uploadingNodes = it.uploadingNodes + (nodeId to UploadingState(localUri = localUri, progress = 1f))
+                            uploadingNodes = it.uploadingNodes - nodeId
                         )
                     }
                 }.onFailure {
@@ -330,6 +339,33 @@ class AppDetailScreenModel(
                 taskStep = com.runninghub.app.ui.component.TaskStep.IDLE,
                 taskElapsedSeconds = 0
             )
+        }
+    }
+
+    private fun defaultFileName(mediaType: MediaType): String = when (mediaType) {
+        MediaType.IMAGE -> "upload.png"
+        MediaType.VIDEO -> "upload.mp4"
+        MediaType.AUDIO -> "upload.mp3"
+    }
+
+    private fun inferMimeType(fileName: String, mediaType: MediaType): String {
+        val lowerName = fileName.lowercase()
+        return when {
+            lowerName.endsWith(".png") -> "image/png"
+            lowerName.endsWith(".webp") -> "image/webp"
+            lowerName.endsWith(".gif") -> "image/gif"
+            lowerName.endsWith(".jpg") || lowerName.endsWith(".jpeg") -> "image/jpeg"
+            lowerName.endsWith(".mp4") -> "video/mp4"
+            lowerName.endsWith(".mov") -> "video/quicktime"
+            lowerName.endsWith(".webm") -> "video/webm"
+            lowerName.endsWith(".mp3") -> "audio/mpeg"
+            lowerName.endsWith(".m4a") -> "audio/mp4"
+            lowerName.endsWith(".wav") -> "audio/wav"
+            lowerName.endsWith(".aac") -> "audio/aac"
+            lowerName.endsWith(".ogg") -> "audio/ogg"
+            mediaType == MediaType.VIDEO -> "video/mp4"
+            mediaType == MediaType.AUDIO -> "audio/mpeg"
+            else -> "image/jpeg"
         }
     }
 

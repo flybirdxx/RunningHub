@@ -8,8 +8,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -24,6 +22,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -33,17 +32,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MenuAnchorType
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Switch
@@ -60,6 +55,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -102,6 +98,7 @@ import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.Primary500
 import com.runninghub.app.ui.theme.SuccessDark
+import com.runninghub.shared.domain.model.AppDetail
 import com.runninghub.shared.domain.model.Author
 import com.runninghub.shared.domain.model.InputNode
 import com.runninghub.shared.domain.model.Permission
@@ -131,14 +128,16 @@ data class AppDetailScreen(val appId: String) : Screen {
 
         LaunchedEffect(appId) { currentScreenModel.loadDetail(appId) }
 
-        LaunchedEffect(uiState.pendingImagePick) {
-            uiState.pendingImagePick?.let { _ ->
+        LaunchedEffect(uiState.pendingMediaPick) {
+            uiState.pendingMediaPick?.let { pending ->
+                val permission = pending.mediaType.permission()
                 controller.pickMedia(
-                    mediaPermission = Permission.MediaImages,
-                    mediaType = MediaType.IMAGE,
-                    onSuccess = { uri -> currentScreenModel.onImageUriReceived(uri) },
+                    mediaPermission = permission,
+                    mediaType = pending.mediaType,
+                    onSuccess = { uri -> currentScreenModel.onMediaUriReceived(uri) },
                     onPermissionDenied = {
-                        pendingPermission = Permission.MediaImages
+                        pendingPermission = permission
+                        currentScreenModel.clearPendingMediaPick()
                     },
                 )
             }
@@ -179,8 +178,8 @@ data class AppDetailScreen(val appId: String) : Screen {
                     onInputChanged = currentScreenModel::updateInputValue,
                     onRunTask = currentScreenModel::runTask,
                     onResetTask = currentScreenModel::resetTask,
-                    onPickImage = { nodeId, fieldName ->
-                        currentScreenModel.setPendingImagePick(nodeId, fieldName)
+                    onPickMedia = { nodeId, fieldName, mediaType ->
+                        currentScreenModel.setPendingMediaPick(nodeId, fieldName, mediaType)
                     },
                     onRemoveFile = currentScreenModel::removeLocalFile
                 )
@@ -201,14 +200,16 @@ private fun DetailContent(
     onInputChanged: (String, String, String) -> Unit,
     onRunTask: () -> Unit,
     onResetTask: () -> Unit,
-    onPickImage: (String, String) -> Unit,
+    onPickMedia: (String, String, MediaType) -> Unit,
     onRemoveFile: (String, String) -> Unit
 ) {
     val detail = uiState.detail ?: return
     val windowInfo = LocalRhWindowInfo.current
 
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBackground),
         contentAlignment = Alignment.TopCenter,
     ) {
         Box(
@@ -217,57 +218,18 @@ private fun DetailContent(
                 .widthIn(max = windowInfo.detailContentMaxWidth),
         ) {
             LazyColumn(
-                contentPadding = PaddingValues(bottom = 96.dp),
+                contentPadding = PaddingValues(bottom = 168.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-            // ── 1. Top bar (no app name, only back + actions) ──
-            item(key = "topbar") {
-                TopBar(onBack = onBack)
-            }
-
-            // ── 2. Cover carousel ──
-            if (detail.covers.isNotEmpty()) {
-                item(key = "covers") {
-                    CoverCarousel(
-                        covers = detail.covers.mapNotNull { it.url },
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            // ── 3. App info: title + tags ──
-            item(key = "info") {
-                AppInfoSection(detail = detail)
-            }
-
-            // ── 4. Stats card (standalone) ──
-            item(key = "stats") {
-                StatsCard(
-                    useCount = detail.statisticsInfo?.useCount ?: "0",
-                    successRate = detail.runningSuccessRate,
-                    avgSeconds = detail.avgRunningSeconds,
-                    modifier = Modifier.padding(horizontal = 16.dp)
+            item(key = "hero") {
+                AppDetailHero(
+                    detail = detail,
+                    onBack = onBack,
+                    onAuthorClick = { detail.owner?.id?.let(onAuthorClick) }
                 )
             }
 
-            // ── 5. Author row ──
-            item(key = "author") {
-                AuthorRow(
-                    name = detail.getDisplayName(),
-                    avatar = detail.getDisplayAvatar(),
-                    owner = detail.owner,
-                    onClick = { detail.owner?.id?.let(onAuthorClick) }
-                )
-            }
-
-            // ── 6. Description ──
-            if (!detail.description.isNullOrBlank()) {
-                item(key = "description") {
-                    DescriptionSection(detail.description!!)
-                }
-            }
-
-            // ── 7. Task progress indicator ──
+            // ── Task progress indicator ──
             if (uiState.isRunningTask || uiState.taskStep != TaskStep.IDLE) {
                 item(key = "progress") {
                     TaskProgressIndicator(
@@ -278,7 +240,7 @@ private fun DetailContent(
                 }
             }
 
-            // ── 8. Task error ──
+            // ── Task error ──
             if (uiState.taskError != null) {
                 item(key = "task_error") {
                     TaskErrorCard(
@@ -288,7 +250,7 @@ private fun DetailContent(
                 }
             }
 
-            // ── 9. Task outputs ──
+            // ── Task outputs ──
             if (uiState.taskOutputs.isNotEmpty()) {
                 item(key = "output_header") {
                     SectionHeader("生成结果")
@@ -304,7 +266,7 @@ private fun DetailContent(
                 }
             }
 
-            // ── 10. Input nodes (collapsible) ──
+            // ── Input nodes (collapsible) ──
             if (detail.inputNodes.isNotEmpty()) {
                 item(key = "input_header") {
                     SectionHeader("配置参数", modifier = Modifier.padding(top = 16.dp))
@@ -315,30 +277,13 @@ private fun DetailContent(
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         initiallyExpanded = detail.inputNodes.size <= 5
                     ) {
-                        Column {
-                            detail.inputNodes.forEachIndexed { index, node ->
-                                val nodeKey = AppDetailScreenModel.inputKey(node)
-                                val currentValue = uiState.inputValues[nodeKey] ?: node.fieldValue ?: ""
-                                InputNodeField(
-                                    node = node,
-                                    currentValue = currentValue,
-                                    localUri = uiState.localUris[node.nodeId],
-                                    uploadState = uiState.uploadingNodes[node.nodeId],
-                                    onValueChanged = { onInputChanged(node.nodeId, node.fieldName, it) },
-                                    onPickFile = { onPickImage(node.nodeId, node.fieldName) },
-                                    onRemoveFile = { onRemoveFile(node.nodeId, node.fieldName) }
-                                )
-                                if (index < detail.inputNodes.lastIndex) {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(horizontal = 16.dp)
-                                            .height(1.dp)
-                                            .background(DarkSurfaceVariant)
-                                    )
-                                }
-                            }
-                        }
+                        InputNodesContent(
+                            inputNodes = detail.inputNodes,
+                            uiState = uiState,
+                            onInputChanged = onInputChanged,
+                            onPickMedia = onPickMedia,
+                            onRemoveFile = onRemoveFile
+                        )
                     }
                 }
             }
@@ -359,6 +304,132 @@ private fun DetailContent(
 /* ═══════════════════════════════════════════════════
    Top bar (back only)
    ═══════════════════════════════════════════════════ */
+
+@Composable
+private fun AppDetailHero(
+    detail: AppDetail,
+    onBack: () -> Unit,
+    onAuthorClick: () -> Unit
+) {
+    val covers = detail.covers.mapNotNull { it.url }
+
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(modifier = Modifier.fillMaxWidth()) {
+            if (covers.isNotEmpty()) {
+                CoverCarousel(
+                    covers = covers,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(16f / 10f)
+                        .background(DarkSurfaceVariant)
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 10f)
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.52f),
+                                Color.Transparent,
+                                DarkBackground.copy(alpha = 0.92f)
+                            )
+                        )
+                    )
+            )
+
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(start = 12.dp, top = 10.dp)
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = 0.42f))
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "返回",
+                    tint = Color.White
+                )
+            }
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = detail.name ?: "未命名应用",
+                color = Color.White,
+                fontSize = 24.sp,
+                lineHeight = 30.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (detail.tags.isNotEmpty()) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    detail.tags.take(6).chunked(3).forEach { rowTags ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            rowTags.forEach { tag ->
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f, fill = false)
+                                        .widthIn(max = 128.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Primary500.copy(alpha = 0.18f))
+                                        .padding(horizontal = 10.dp, vertical = 5.dp)
+                                ) {
+                                    Text(
+                                        text = tag.name,
+                                        color = Primary300,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            StatsCard(
+                useCount = detail.statisticsInfo?.useCount ?: "0",
+                successRate = detail.runningSuccessRate,
+                avgSeconds = detail.avgRunningSeconds,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            AuthorRow(
+                name = detail.getDisplayName(),
+                avatar = detail.getDisplayAvatar(),
+                owner = detail.owner,
+                onClick = onAuthorClick,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (!detail.description.isNullOrBlank()) {
+                DescriptionSection(
+                    description = detail.description!!,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
 
 @Composable
 private fun TopBar(onBack: () -> Unit) {
@@ -433,7 +504,6 @@ private fun CoverCarousel(
    App info section (title + tags)
    ═══════════════════════════════════════════════════ */
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun AppInfoSection(detail: com.runninghub.shared.domain.model.AppDetail) {
     Column(
@@ -450,22 +520,27 @@ private fun AppInfoSection(detail: com.runninghub.shared.domain.model.AppDetail)
 
         if (detail.tags.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                detail.tags.forEach { tag ->
-                    Box(
-                        modifier = Modifier
-                            .background(DarkSurfaceVariant, RoundedCornerShape(6.dp))
-                            .padding(horizontal = 10.dp, vertical = 4.dp)
-                    ) {
-                        Text(
-                            text = tag.name,
-                            color = Primary300,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                detail.tags.chunked(3).forEach { rowTags ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowTags.forEach { tag ->
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f, fill = false)
+                                    .widthIn(max = 120.dp)
+                                    .background(DarkSurfaceVariant, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = tag.name,
+                                    color = Primary300,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -537,15 +612,16 @@ private fun AuthorRow(
     name: String,
     avatar: String?,
     owner: Author?,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(DarkSurface)
-            .clickable(onClick = onClick)
+            .then(if (owner?.id != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         SmartAsyncImage(
@@ -586,11 +662,13 @@ private fun AuthorRow(
    ═══════════════════════════════════════════════════ */
 
 @Composable
-private fun DescriptionSection(description: String) {
+private fun DescriptionSection(
+    description: String,
+    modifier: Modifier = Modifier
+) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
             .clip(RoundedCornerShape(12.dp))
             .background(DarkSurface)
             .padding(16.dp)
@@ -630,6 +708,176 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
    Input node fields
    ═══════════════════════════════════════════════════ */
 
+@Composable
+private fun InputNodesContent(
+    inputNodes: List<InputNode>,
+    uiState: AppDetailUiState,
+    onInputChanged: (String, String, String) -> Unit,
+    onPickMedia: (String, String, MediaType) -> Unit,
+    onRemoveFile: (String, String) -> Unit
+) {
+    Column {
+        var index = 0
+        while (index < inputNodes.size) {
+            val node = inputNodes[index]
+            val mediaType = node.uploadMediaType()
+            if (mediaType == MediaType.IMAGE) {
+                val imageNodes = mutableListOf<InputNode>()
+                var cursor = index
+                while (cursor < inputNodes.size && inputNodes[cursor].uploadMediaType() == MediaType.IMAGE) {
+                    imageNodes += inputNodes[cursor]
+                    cursor++
+                }
+
+                if (imageNodes.size > 1) {
+                    MultiImageUploadRow(
+                        nodes = imageNodes,
+                        uiState = uiState,
+                        onPickMedia = onPickMedia,
+                        onRemoveFile = onRemoveFile
+                    )
+                    index = cursor
+                } else {
+                    RenderInputNodeField(
+                        node = node,
+                        uiState = uiState,
+                        onInputChanged = onInputChanged,
+                        onPickMedia = onPickMedia,
+                        onRemoveFile = onRemoveFile
+                    )
+                    index++
+                }
+            } else {
+                RenderInputNodeField(
+                    node = node,
+                    uiState = uiState,
+                    onInputChanged = onInputChanged,
+                    onPickMedia = onPickMedia,
+                    onRemoveFile = onRemoveFile
+                )
+                index++
+            }
+
+            if (index < inputNodes.size) {
+                InputDivider()
+            }
+        }
+    }
+}
+
+@Composable
+private fun RenderInputNodeField(
+    node: InputNode,
+    uiState: AppDetailUiState,
+    onInputChanged: (String, String, String) -> Unit,
+    onPickMedia: (String, String, MediaType) -> Unit,
+    onRemoveFile: (String, String) -> Unit
+) {
+    val nodeKey = AppDetailScreenModel.inputKey(node)
+    val currentValue = uiState.inputValues[nodeKey] ?: node.fieldValue ?: ""
+    InputNodeField(
+        node = node,
+        currentValue = currentValue,
+        localUri = uiState.localUris[node.nodeId],
+        uploadState = uiState.uploadingNodes[node.nodeId],
+        onValueChanged = { onInputChanged(node.nodeId, node.fieldName, it) },
+        onPickFile = { onPickMedia(node.nodeId, node.fieldName, node.uploadMediaType() ?: MediaType.IMAGE) },
+        onRemoveFile = { onRemoveFile(node.nodeId, node.fieldName) }
+    )
+}
+
+@Composable
+private fun MultiImageUploadRow(
+    nodes: List<InputNode>,
+    uiState: AppDetailUiState,
+    onPickMedia: (String, String, MediaType) -> Unit,
+    onRemoveFile: (String, String) -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Text(
+            text = "上传图片",
+            color = Neutral400,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        LazyRow(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(end = 4.dp)
+        ) {
+            items(nodes, key = { it.nodeId + it.fieldName }) { node ->
+                val nodeKey = AppDetailScreenModel.inputKey(node)
+                val currentValue = uiState.inputValues[nodeKey] ?: node.fieldValue ?: ""
+                val uploadState = uiState.uploadingNodes[node.nodeId]
+                Column(modifier = Modifier.width(112.dp)) {
+                    Text(
+                        text = node.description ?: node.fieldName,
+                        color = Neutral400,
+                        fontSize = 11.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(bottom = 6.dp)
+                    )
+                    ImageUploadButton(
+                        localUri = uiState.localUris[node.nodeId] ?: currentValue.takeIf { it.startsWith("http") },
+                        remoteUrl = currentValue.takeIf { it.startsWith("http") },
+                        fileName = uiState.localUris[node.nodeId]?.substringAfterLast("/")?.substringAfterLast("%2F")
+                            ?: currentValue.takeIf { it.isNotBlank() && !it.startsWith("http") },
+                        isUploading = uploadState != null && !uploadState.isError,
+                        uploadProgress = uploadState?.progress ?: 0f,
+                        isError = uploadState?.isError == true,
+                        mediaType = MediaType.IMAGE,
+                        square = true,
+                        onPickFile = { onPickMedia(node.nodeId, node.fieldName, MediaType.IMAGE) },
+                        onRemoveFile = { onRemoveFile(node.nodeId, node.fieldName) }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InputDivider() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .height(1.dp)
+            .background(DarkSurfaceVariant)
+    )
+}
+
+private fun InputNode.uploadMediaType(): MediaType? {
+    val type = fieldType.uppercase()
+
+    val label = listOfNotNull(fieldName, nodeName, description, descriptionEn)
+        .joinToString(" ")
+        .lowercase()
+    return when {
+        type == "IMAGE" || type == "IMAGE_UPLOAD" -> MediaType.IMAGE
+        label.contains("上传视频") || label.contains("上传录像") ||
+            label.contains("upload video") || label.contains("video upload") ||
+            label.contains("video file") -> MediaType.VIDEO
+        label.contains("上传音频") || label.contains("上传音乐") ||
+            label.contains("upload audio") || label.contains("audio upload") ||
+            label.contains("audio file") -> MediaType.AUDIO
+        label.contains("上传图片") || label.contains("上传图像") ||
+            label.contains("upload image") || label.contains("image upload") -> MediaType.IMAGE
+        else -> null
+    }
+}
+
+private fun MediaType.permission(): Permission = when (this) {
+    MediaType.IMAGE -> Permission.MediaImages
+    MediaType.VIDEO -> Permission.MediaVideo
+    MediaType.AUDIO -> Permission.MediaAudio
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InputNodeField(
@@ -642,9 +890,10 @@ private fun InputNodeField(
     onRemoveFile: () -> Unit
 ) {
     val options = remember(node.fieldData) { node.getOptions() }
-    val isUploading = uploadState != null
+    val isUploading = uploadState != null && !uploadState.isError
     val uploadProgress = uploadState?.progress ?: 0f
     val isUploadError = uploadState?.isError == true
+    val mediaType = node.uploadMediaType()
 
     Column(
         modifier = Modifier
@@ -658,6 +907,22 @@ private fun InputNodeField(
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 6.dp)
         )
+
+        if (mediaType != null) {
+            ImageUploadButton(
+                localUri = localUri ?: currentValue.takeIf { it.startsWith("http") },
+                remoteUrl = currentValue.takeIf { it.startsWith("http") },
+                fileName = localUri?.substringAfterLast("/")?.substringAfterLast("%2F")
+                    ?: currentValue.takeIf { it.isNotBlank() && !it.startsWith("http") },
+                isUploading = isUploading,
+                uploadProgress = uploadProgress,
+                isError = isUploadError,
+                mediaType = mediaType,
+                onPickFile = onPickFile,
+                onRemoveFile = onRemoveFile
+            )
+            return@Column
+        }
 
         when (node.fieldType.uppercase()) {
             "LIST" -> {
@@ -675,6 +940,7 @@ private fun InputNodeField(
                     fileName = localUri?.substringAfterLast("/")?.substringAfterLast("%2F"),
                     isUploading = isUploading,
                     uploadProgress = uploadProgress,
+                    isError = isUploadError,
                     onPickFile = onPickFile,
                     onRemoveFile = onRemoveFile
                 )
@@ -800,7 +1066,6 @@ private fun DarkTextField(
 
 /* ── LIST dropdown ── */
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun ListDropdown(
     options: List<String>,
@@ -809,10 +1074,7 @@ private fun ListDropdown(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    ExposedDropdownMenuBox(
-        expanded = expanded,
-        onExpandedChange = { expanded = it }
-    ) {
+    Box {
         OutlinedTextField(
             value = currentValue,
             onValueChange = {},
@@ -821,7 +1083,11 @@ private fun ListDropdown(
                 Text("请选择", color = Neutral400.copy(alpha = 0.5f), fontSize = 14.sp)
             },
             trailingIcon = {
-                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                Text(
+                    text = if (expanded) "▲" else "▼",
+                    color = Neutral400,
+                    fontSize = 12.sp,
+                )
             },
             shape = RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
@@ -834,11 +1100,15 @@ private fun ListDropdown(
                 focusedTrailingIconColor = Neutral400,
                 unfocusedTrailingIconColor = Neutral400
             ),
-            modifier = Modifier
-                .menuAnchor(MenuAnchorType.PrimaryNotEditable)
-                .fillMaxWidth()
+            modifier = Modifier.fillMaxWidth()
         )
-        ExposedDropdownMenu(
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .clickable { expanded = true }
+        )
+        DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
             containerColor = DarkSurface
@@ -1150,7 +1420,7 @@ private fun DetailAdaptivePreview(spec: RhPreviewSpec) {
             onInputChanged = { _, _, _ -> },
             onRunTask = {},
             onResetTask = {},
-            onPickImage = { _, _ -> },
+            onPickMedia = { _, _, _ -> },
             onRemoveFile = { _, _ -> },
         )
     }

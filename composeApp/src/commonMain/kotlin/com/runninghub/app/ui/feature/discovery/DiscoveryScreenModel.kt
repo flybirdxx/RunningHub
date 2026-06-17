@@ -159,7 +159,6 @@ class DiscoveryScreenModel(
         _uiState.update {
             it.copy(
                 selectedSort = sort,
-                apps = emptyList(),
                 isLoadingApps = true,
                 currentPage = 1,
                 hasMore = true,
@@ -193,7 +192,7 @@ class DiscoveryScreenModel(
 
     fun loadMore() {
         val state = _uiState.value
-        if (state.isLoadingMore || !state.hasMore || state.isLoading || state.isRefreshing) return
+        if (state.isLoadingMore || state.isLoadingApps || !state.hasMore || state.isLoading || state.isRefreshing) return
 
         val nextPage = state.currentPage + 1
         _uiState.update { it.copy(isLoadingMore = true) }

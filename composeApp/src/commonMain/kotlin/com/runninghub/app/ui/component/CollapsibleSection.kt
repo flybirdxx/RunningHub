@@ -5,6 +5,7 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,10 +30,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.runninghub.app.ui.theme.DarkSurface
+import com.runninghub.app.ui.theme.DarkSurfaceVariant
+import com.runninghub.app.ui.theme.Neutral400
+import com.runninghub.app.ui.theme.Primary300
 
 @Composable
 fun CollapsibleSection(
@@ -53,7 +58,8 @@ fun CollapsibleSection(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(Dimens.RadiusMD))
-            .background(MaterialTheme.colorScheme.surface)
+            .background(DarkSurface)
+            .border(1.dp, DarkSurfaceVariant, RoundedCornerShape(Dimens.RadiusMD))
             .animateContentSize()
     ) {
         Row(
@@ -66,7 +72,7 @@ fun CollapsibleSection(
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = if (expanded) "收起" else "展开",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = Neutral400,
                 modifier = Modifier
                     .size(Dimens.IconSizeSM2)
                     .rotate(rotationAngle)
@@ -74,7 +80,7 @@ fun CollapsibleSection(
             Spacer(Modifier.width(Dimens.SpaceSM))
             Text(
                 text = title,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = Color.White,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
@@ -83,7 +89,7 @@ fun CollapsibleSection(
             if (!expanded) {
                 Text(
                     text = "点击展开",
-                    color = MaterialTheme.colorScheme.primary,
+                    color = Primary300,
                     fontSize = 12.sp
                 )
             }

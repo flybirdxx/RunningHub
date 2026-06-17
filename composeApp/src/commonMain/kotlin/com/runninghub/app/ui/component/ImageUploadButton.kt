@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,9 +18,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.MusicNote
+import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -35,7 +36,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.MaterialTheme
+import com.runninghub.app.ui.theme.DarkSurface
+import com.runninghub.app.ui.theme.DarkSurfaceVariant
+import com.runninghub.app.ui.theme.ErrorDark
+import com.runninghub.app.ui.theme.Neutral400
+import com.runninghub.app.ui.theme.Primary300
 
 @Composable
 fun ImageUploadButton(
@@ -44,30 +49,39 @@ fun ImageUploadButton(
     fileName: String?,
     isUploading: Boolean,
     uploadProgress: Float,
+    isError: Boolean = false,
+    mediaType: MediaType = MediaType.IMAGE,
+    square: Boolean = false,
     onPickFile: () -> Unit,
     onRemoveFile: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val displayUrl = remoteUrl ?: localUri
     val hasFile = !displayUrl.isNullOrBlank()
-    val isError = remoteUrl == null && localUri != null && !isUploading
+    val uploadLabel = when (mediaType) {
+        MediaType.IMAGE -> "上传图片"
+        MediaType.VIDEO -> "上传视频"
+        MediaType.AUDIO -> "上传音频"
+    }
+    val clickLabel = "点击$uploadLabel"
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(120.dp)
+            .then(if (square) Modifier.aspectRatio(1f) else Modifier.height(120.dp))
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(DarkSurfaceVariant.copy(alpha = 0.72f))
             .border(
                 width = 1.5.dp,
                 color = when {
-                    isError -> MaterialTheme.colorScheme.error.copy(alpha = 0.6f)
-                    hasFile -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                    else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    isError -> ErrorDark.copy(alpha = 0.6f)
+                    hasFile -> Primary300.copy(alpha = 0.5f)
+                    else -> Neutral400.copy(alpha = 0.35f)
                 },
                 shape = RoundedCornerShape(12.dp)
             )
-            .clickable(enabled = !isUploading) { onPickFile() }
+            .clickable(enabled = !isUploading) { onPickFile() },
+        contentAlignment = Alignment.Center
     ) {
         when {
             isUploading -> {
@@ -75,18 +89,18 @@ fun ImageUploadButton(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
                     modifier = Modifier
-                        .fillMaxWidth()
+                        .fillMaxSize()
                         .padding(horizontal = 24.dp)
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(32.dp),
-                        color = MaterialTheme.colorScheme.primary,
+                        color = Primary300,
                         strokeWidth = 2.5.dp
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
                         text = "上传中... ${(uploadProgress * 100).toInt()}%",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = Neutral400,
                         fontSize = 13.sp
                     )
                     Spacer(Modifier.height(8.dp))
@@ -96,23 +110,70 @@ fun ImageUploadButton(
                             .fillMaxWidth()
                             .height(3.dp)
                             .clip(RoundedCornerShape(2.dp)),
-                        color = MaterialTheme.colorScheme.primary,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        color = Primary300,
+                        trackColor = DarkSurface
+                    )
+                }
+            }
+
+            isError -> {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "上传失败",
+                        tint = ErrorDark,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = "上传失败，点击重新选择",
+                        color = ErrorDark,
+                        fontSize = 13.sp
                     )
                 }
             }
 
             hasFile -> {
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    SmartAsyncImage(
-                        imageUrl = displayUrl,
-                        contentDescription = fileName,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .aspectRatio(16f / 9f)
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.Crop
-                    )
+                Box(modifier = Modifier.fillMaxSize()) {
+                    if (mediaType == MediaType.IMAGE) {
+                        SmartAsyncImage(
+                            imageUrl = displayUrl,
+                            contentDescription = fileName,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(RoundedCornerShape(12.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp, vertical = 14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = if (mediaType == MediaType.VIDEO) Icons.Default.Videocam else Icons.Default.MusicNote,
+                                contentDescription = uploadLabel,
+                                tint = Primary300,
+                                modifier = Modifier.size(28.dp)
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = fileName ?: displayUrl.substringAfterLast("/").substringAfterLast("%2F"),
+                                color = Color.White.copy(alpha = 0.86f),
+                                fontSize = 12.sp,
+                                maxLines = if (square) 2 else 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
                     Row(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -129,7 +190,7 @@ fun ImageUploadButton(
                         ) {
                             Text(
                                 text = if (remoteUrl != null) "已上传" else "本地预览",
-                                color = if (remoteUrl != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.primary,
+                                color = Primary300,
                                 fontSize = 10.sp,
                                 fontWeight = FontWeight.Medium
                             )
@@ -167,22 +228,28 @@ fun ImageUploadButton(
             else -> {
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+                    verticalArrangement = Arrangement.Center,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 20.dp)
                 ) {
                     Icon(
-                        imageVector = if (isError) Icons.Default.Close else Icons.Default.Add,
-                        contentDescription = if (isError) "重试上传" else "上传图片",
-                        tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        imageVector = when (mediaType) {
+                            MediaType.IMAGE -> Icons.Default.Add
+                            MediaType.VIDEO -> Icons.Default.Videocam
+                            MediaType.AUDIO -> Icons.Default.MusicNote
+                        },
+                        contentDescription = uploadLabel,
+                        tint = Neutral400,
                         modifier = Modifier.size(28.dp)
                     )
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = when {
-                            isError -> "上传失败，点击重试"
-                            else -> "点击上传图片"
-                        },
-                        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 13.sp
+                        text = clickLabel,
+                        color = Neutral400,
+                        fontSize = if (square) 12.sp else 13.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
             }
