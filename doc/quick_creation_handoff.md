@@ -269,3 +269,34 @@ adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_history_deta
 
 - 用模拟器实际进入快捷创作页，输入图片 prompt，观察按钮从 `价格确认中` 切到服务端金额；这一步不需要点击生成，不会扣费。
 - 补视频 fee-preview 刷新和按钮状态。
+
+## 2026-06-18 追加交接：图片 fee-preview 按钮状态模拟器验证
+
+本轮在 `emulator-5554` 上安装当前 `composeApp-debug.apk`，保留登录态，完成了不扣费 UI 验证。
+
+验证路径：
+
+1. 启动 `com.runninghub.app/.MainActivity`。
+2. 从底部导航点击“创作”。
+3. 在图片 tab 的 prompt 输入框输入 `green%20minimal%20icon`，截图显示按钮立即变为 `价格确认中`。
+4. 等待约 4 秒，截图显示按钮变为 `生成`，没有回退到空 prompt 时的本地估算 `¥0.93`。
+5. 清空并输入 `greenicon` 复测，得到同样状态流：`价格确认中 -> 生成`。
+
+证据文件位于未跟踪目录 `output/`：
+
+- `quickcreate_fee_preview_create_initial_pulled.png`
+- `quickcreate_fee_preview_after_type_fast.png`
+- `quickcreate_fee_preview_after_wait.png`
+- `quickcreate_fee_preview_greenicon_fast.png`
+- `quickcreate_fee_preview_greenicon_wait.png`
+
+结论：
+
+- UI 已真实消费 `feePreviewLoading`，输入 prompt 后按钮会显示 `价格确认中`。
+- 本次服务端 fee-preview 结束后显示 `生成`，说明当前账号/模型/prompt 返回的是零金额或免费态；该状态没有继续展示旧本地估算价。
+- 本次没有点击“生成”，因此没有触发 `prepare/commit`，也没有产生新扣费。
+
+仍需后续覆盖：
+
+- 找到一个服务端返回非零 `requiredCashAmount` 的图片预览场景，验证真实 App UI 显示 `¥x.xx`。
+- 视频 tab 的 fee-preview 状态刷新与按钮状态仍未接入。

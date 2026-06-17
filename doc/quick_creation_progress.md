@@ -201,3 +201,35 @@
 代码提交：`29d2ee2 fix(quickcreate): show fee preview status on send button`。
 
 仍未完成：视频 tab 仍未接入服务端 fee-preview 价格刷新；真实 App UI 还需要在模拟器上观察输入 prompt 后按钮状态从“价格确认中”更新为服务端金额。
+
+## 2026-06-18 模拟器验证图片 fee-preview 按钮状态
+
+本轮使用 `emulator-5554` 对快捷创作图片 tab 做了不扣费 UI 验证：
+
+- 构建并覆盖安装 `composeApp-debug.apk`，保留登录态和本地数据。
+- 从底部导航进入“创作”页，页面符合截图结构：顶部“创作 | 灵感”，中间项目/最近创作滚动区，底部固定模型参数与 prompt 输入区。
+- 初始空 prompt 时，按钮显示本地估算 `¥0.93`。
+- 输入 `green%20minimal%20icon` 后，按钮立即显示 `价格确认中`。
+- 等待约 4 秒后，按钮变为 `生成`，没有回到旧的本地估算价。
+- 再清空并输入 `greenicon` 复测，按钮同样先显示 `价格确认中`，约 4 秒后变为 `生成`。
+- 未点击生成按钮，未触发 `prepare/commit`，不会产生新扣费。
+
+当前结论：底部按钮已经真实消费 `feePreviewLoading` 状态；本次账号/模型/prompt 的 fee-preview 最终返回零金额或免费态，因此最终按钮文案为 `生成`，没有出现 `¥0.76`。这验证了“不会把旧本地估算价伪装成最终价”，但尚未验证“服务端返回非零现金金额时按钮显示该金额”的真实 App UI 场景。
+
+证据文件保存在未跟踪目录 `output/`：
+
+- `quickcreate_fee_preview_create_initial_pulled.png`
+- `quickcreate_fee_preview_after_type_fast.png`
+- `quickcreate_fee_preview_after_wait.png`
+- `quickcreate_fee_preview_greenicon_fast.png`
+- `quickcreate_fee_preview_greenicon_wait.png`
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:assembleDebug
+adb -s emulator-5554 install -r composeApp\build\outputs\apk\debug\composeApp-debug.apk
+adb -s emulator-5554 shell am start -n com.runninghub.app/.MainActivity
+```
+
+仍未完成：真实 App UI 中非零 fee-preview 金额显示仍需要用一个服务端返回非零金额的 prompt/model 状态验证；视频 tab fee-preview 仍未接入。
