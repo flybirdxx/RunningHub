@@ -150,6 +150,12 @@ internal fun QuickCreationServiceField.quickCreationUploadHintParts(): List<Stri
         maxUploadSize?.let { "单文件 ${it / 1024 / 1024}MB" },
     )
 
+internal fun List<MediaReference>.quickCreationGlobalMediaReferences(): List<MediaReference> =
+    filter { it.fieldParamKey.isNullOrBlank() }
+
+internal fun List<MediaReference>.quickCreationFieldMediaReferences(paramKey: String): List<MediaReference> =
+    filter { it.fieldParamKey == paramKey }
+
 internal fun QuickCreationServiceField.quickCreationUploadMediaType(): QuickCreateMediaType? {
     val marker = listOfNotNull(fieldType, fieldKey, paramKey, inputExtraJson)
         .joinToString(" ")

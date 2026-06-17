@@ -284,6 +284,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             )
                         }
                     },
+                    onRemoveMedia = screenModel::removeMediaReference,
                     onImageStyleChange = { style ->
                         val styleTag = when (style) {
                             ImageStylePreset.PHOTOREAL -> "写实摄影风格, "
@@ -1466,7 +1467,8 @@ private fun BottomPromptPanel(
     val configCharCount = if (isImage) imageConfig.promptCharCount else videoConfig.promptCharCount
     val configNearLimit = if (isImage) imageConfig.promptNearLimit else videoConfig.promptNearLimit
     val configOverLimit = if (isImage) imageConfig.promptOverLimit else videoConfig.promptOverLimit
-    val configMediaRefs = if (isImage) imageConfig.mediaReferences else videoConfig.mediaReferences
+    val configMediaRefs = (if (isImage) imageConfig.mediaReferences else videoConfig.mediaReferences)
+        .quickCreationGlobalMediaReferences()
     val isTaskActive = uiState.taskStatus in listOf(
         QuickCreateTaskUiStatus.SUBMITTING,
         QuickCreateTaskUiStatus.QUEUING,

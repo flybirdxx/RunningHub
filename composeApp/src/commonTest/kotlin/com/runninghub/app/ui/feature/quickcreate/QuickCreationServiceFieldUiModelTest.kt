@@ -10,6 +10,29 @@ import kotlin.test.assertTrue
 
 class QuickCreationServiceFieldUiModelTest {
     @Test
+    fun `global media references exclude field bound uploads`() {
+        val globalRef = mediaReference(id = "global", fieldParamKey = null)
+        val fieldRef = mediaReference(id = "field", fieldParamKey = "imageUrls")
+
+        assertEquals(
+            listOf(globalRef),
+            listOf(globalRef, fieldRef).quickCreationGlobalMediaReferences(),
+        )
+    }
+
+    @Test
+    fun `field media references match only exact param key`() {
+        val imageRef = mediaReference(id = "image", fieldParamKey = "imageUrls")
+        val maskRef = mediaReference(id = "mask", fieldParamKey = "maskUrls")
+        val globalRef = mediaReference(id = "global", fieldParamKey = null)
+
+        assertEquals(
+            listOf(imageRef),
+            listOf(imageRef, maskRef, globalRef).quickCreationFieldMediaReferences("imageUrls"),
+        )
+    }
+
+    @Test
     fun `media service fields are renderable`() {
         listOf("IMAGE", "VIDEO", "AUDIO", "UPLOAD").forEach { fieldType ->
             val field = QuickCreationServiceField(
@@ -286,3 +309,19 @@ class QuickCreationServiceFieldUiModelTest {
         assertEquals(null, child.quickCreationUploadValidationError(uploadedCount = 1))
     }
 }
+
+private fun mediaReference(
+    id: String,
+    fieldParamKey: String?,
+): MediaReference =
+    MediaReference(
+        id = id,
+        type = QuickCreateMediaType.IMAGE,
+        uri = "content://$id",
+        displayName = "$id.jpg",
+        fileSizeBytes = 123,
+        fieldParamKey = fieldParamKey,
+        uploadStatus = UploadStatus.DONE,
+        uploadProgress = 1f,
+        remoteUrl = "https://example.com/$id.jpg",
+    )
