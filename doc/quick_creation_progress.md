@@ -1004,3 +1004,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真实设备上仍需复测多上传字段模型：底部全局素材不应同时填入多个字段，字段级上传应正确落到各自 `paramKey`。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 灵感模板素材保留字段绑定
+
+代码提交 `be77572 fix(quickcreate): bind template media to list params` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreateInspirationTemplateDetail.templateMediaReferences()` 现在会把 `listParams` 的 key 写入 `MediaReference.fieldParamKey`。
+- 灵感模板里的字段级素材不再被当作底部全局素材处理，能沿用字段级 `quickCreationListParams` 提交路径。
+- 修复多同类型上传字段模型下，模板 `listParams["imageUrls"]` 因全局 fallback 歧义被丢弃的问题。
+- 新增回归测试覆盖：图片模板提供 `imageUrls`，模型同时有 `imageUrls/maskUrls` 两个图片字段，生成请求只提交 `imageUrls`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template keeps list params bound to service fields"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真实设备上仍需复测灵感模板带字段素材的场景，确认 Tune 字段区域显示和最终请求体一致。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。

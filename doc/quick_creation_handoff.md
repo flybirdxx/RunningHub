@@ -1081,3 +1081,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真实设备上复测多字段模型的底部全局素材、字段级素材和 fee-preview 请求体，确认没有同 URL 多参数污染。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：灵感模板 listParams 绑定字段
+
+代码提交 `be77572 fix(quickcreate): bind template media to list params` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `templateMediaReferences()` 遍历 `QuickCreateInspirationTemplateDetail.listParams` 时，会把 map key 写入每个模板素材的 `fieldParamKey`。
+- 例如模板返回 `listParams = {"imageUrls": ["..."]}`，生成的 `MediaReference` 会绑定到 `imageUrls`，后续请求体组装进入 `quickCreationListParams["imageUrls"]`。
+- 这和用户手动字段级上传保持一致，也避免多图片字段模型下模板素材被当成全局素材后因 fallback 歧义丢失。
+- 旧的模板素材仍为 `UploadStatus.DONE` 且保留 `remoteUrl`，不需要重新上传。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template keeps list params bound to service fields"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 补视频模板字段素材回归：模板带 `referenceVideos/referenceAudios` 时，应绑定到对应字段而不是全局素材。
+- 真机复测灵感模板进入创作页后，字段级素材卡片是否显示在 Tune 对应字段区域，而不是底部全局素材区。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
