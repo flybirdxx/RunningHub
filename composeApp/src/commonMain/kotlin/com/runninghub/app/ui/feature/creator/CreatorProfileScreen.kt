@@ -336,7 +336,7 @@ private fun AppGridItem(
                     contentDescription = app.title,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(4f / 3f),
+                        .aspectRatio(3f / 4f),
                     contentScale = ContentScale.Crop
                 )
 

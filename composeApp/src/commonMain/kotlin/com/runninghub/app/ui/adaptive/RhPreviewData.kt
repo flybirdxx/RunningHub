@@ -12,6 +12,8 @@ import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
 import com.runninghub.app.ui.feature.quickcreate.UploadStatus
 import com.runninghub.app.ui.feature.discovery.DiscoveryUiState
 import com.runninghub.app.ui.feature.discovery.SortOption
+import com.runninghub.app.ui.feature.history.TaskHistoryFilter
+import com.runninghub.app.ui.feature.history.TaskHistoryUiState
 import com.runninghub.app.ui.feature.profile.ProfileUiState
 import com.runninghub.app.ui.feature.search.SearchUiState
 import com.runninghub.shared.domain.model.AppDetail
@@ -23,6 +25,8 @@ import com.runninghub.shared.domain.model.MemberInfo
 import com.runninghub.shared.domain.model.StatisticsInfo
 import com.runninghub.shared.domain.model.Tag
 import com.runninghub.shared.domain.model.TagSimple
+import com.runninghub.shared.domain.model.TaskHistoryItem
+import com.runninghub.shared.domain.model.TaskHistoryOutput
 import com.runninghub.shared.domain.model.TaskOutput
 import com.runninghub.shared.domain.model.User
 import com.runninghub.shared.domain.model.WalletInfo
@@ -285,6 +289,65 @@ internal fun previewTaskOutputs(): List<TaskOutput> = listOf(
         fileName = "result-2.png",
         fileType = "image",
         failedReason = null,
+    ),
+)
+
+internal fun previewTaskHistoryUiState(
+    filter: TaskHistoryFilter = TaskHistoryFilter.ALL,
+): TaskHistoryUiState = TaskHistoryUiState(
+    isLoading = false,
+    items = previewTaskHistoryItems(),
+    filter = filter,
+)
+
+internal fun previewTaskHistoryItems(): List<TaskHistoryItem> = listOf(
+    TaskHistoryItem(
+        taskId = "task-10001",
+        outputs = previewTaskHistoryOutputs("history-output-1"),
+        taskStatus = "completed",
+        taskCostTime = "00:00:28",
+        createTime = "2026-06-16 10:32:18",
+        taskName = "电影感人像生成工作流 - 超长标题用于小屏截断检查",
+        webappId = "webapp-1",
+    ),
+    TaskHistoryItem(
+        taskId = "task-10002",
+        outputs = emptyList(),
+        taskStatus = "failed",
+        taskCostTime = "00:00:07",
+        createTime = "2026-06-16 11:05:44",
+        taskName = "商品图高清修复",
+        webappId = "webapp-2",
+    ),
+    TaskHistoryItem(
+        taskId = "task-10003",
+        outputs = previewTaskHistoryOutputs("history-output-3"),
+        taskStatus = "running",
+        taskCostTime = null,
+        createTime = "2026-06-16 11:40:09",
+        taskName = "视频背景重构",
+        webappId = "webapp-3",
+    ),
+    TaskHistoryItem(
+        taskId = "task-10004",
+        outputs = emptyList(),
+        taskStatus = "waiting_for_gpu_capacity",
+        taskCostTime = "--",
+        createTime = "2026-06-16 12:18:27",
+        taskName = "复杂空间光影重绘与局部材质替换",
+        webappId = "webapp-4",
+    ),
+)
+
+private fun previewTaskHistoryOutputs(seed: String): List<TaskHistoryOutput> = listOf(
+    TaskHistoryOutput(
+        id = "$seed-1",
+        outputName = "result.png",
+        outputType = "image",
+        fileUrl = "https://picsum.photos/seed/$seed/1200/800",
+        filePreviewUrl = "https://picsum.photos/seed/${seed}_preview/600/400",
+        outputSize = "1200x800",
+        expireDays = "7",
     ),
 )
 

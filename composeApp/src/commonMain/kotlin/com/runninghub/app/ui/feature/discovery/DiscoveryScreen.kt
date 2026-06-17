@@ -16,15 +16,14 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -36,8 +35,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -81,6 +83,7 @@ import com.runninghub.app.ui.component.AppCard
 import com.runninghub.app.ui.component.AppSearchBar
 import com.runninghub.app.ui.component.ErrorState
 import com.runninghub.app.ui.component.LoadingIndicator
+import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
@@ -154,11 +157,6 @@ private fun DiscoveryContent(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Column {
-                    Spacer(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .windowInsetsTopHeight(WindowInsets.statusBars)
-                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -799,17 +797,16 @@ private fun AppGridCard(
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
-    val cardHeight = 160.dp
-
     Surface(
         modifier = modifier
             .fillMaxWidth()
+            .aspectRatio(3f / 4f)
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(Dimens.RadiusMD),
         color = MaterialTheme.colorScheme.surfaceVariant,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
-        Box(modifier = Modifier.fillMaxWidth().height(cardHeight)) {
+        Box(modifier = Modifier.fillMaxSize()) {
             // Cover image fills entire card
             when (app.coverMediaType) {
                 CoverMediaType.VIDEO -> {
@@ -834,7 +831,7 @@ private fun AppGridCard(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(cardHeight * 0.55f)
+                    .fillMaxHeight(0.55f)
                     .align(Alignment.BottomCenter)
                     .background(
                         Brush.verticalGradient(
@@ -843,104 +840,119 @@ private fun AppGridCard(
                     )
             )
 
-            // Top-left: title + tags
+            if (app.tags.isNotEmpty()) {
+                CardTagRow(
+                    tags = app.tags,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(start = 10.dp, top = 10.dp, end = 10.dp),
+                )
+            }
+
             Column(
                 modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(start = 10.dp, top = 10.dp, end = 40.dp),
+                    .align(Alignment.BottomStart)
+                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
             ) {
                 Text(
                     text = app.title.trim(),
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = Color.White,
-                    maxLines = 1,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (app.tags.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SmartAsyncImage(
+                        imageUrl = app.author?.avatar,
+                        contentDescription = app.author?.name,
+                        modifier = Modifier
+                            .size(16.dp)
+                            .border(1.dp, Color.White.copy(alpha = 0.7f), CircleShape),
+                        shape = CircleShape,
+                    )
                     Text(
-                        text = app.tags.take(2).joinToString(" / ") { it.name },
+                        text = app.author?.name?.takeIf { it.isNotBlank() } ?: "RunningHub",
                         style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.75f),
+                        color = Color.White.copy(alpha = 0.88f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    CardStatChip(
+                        icon = Icons.Default.Favorite,
+                        count = app.collectCount,
+                        label = "收藏",
+                    )
+                    CardStatChip(
+                        icon = Icons.Default.Person,
+                        count = app.useCount,
+                        label = "使用",
+                    )
+                    CardStatChip(
+                        icon = Icons.Default.Visibility,
+                        count = app.pv,
+                        label = "浏览",
                     )
                 }
-            }
-
-            // Bottom-left: stats
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 10.dp, bottom = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Text(
-                    text = "▷ ${formatCount(app.useCount)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.85f),
-                )
-                Text(
-                    text = "♡ ${formatCount(app.collectCount)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.85f),
-                )
-            }
-
-            // Bottom-right: play button
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(8.dp)
-                    .size(26.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.85f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("▶", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
 
 @Composable
-private fun FlowTagRow(tags: List<TagSimple>) {
-    Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-        tags.forEach { tag ->
+private fun CardTagRow(
+    tags: List<TagSimple>,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        tags.take(3).forEach { tag ->
             Text(
                 text = tag.name,
-                fontSize = 8.sp,
-                color = MaterialTheme.colorScheme.onSurface,
+                fontSize = 9.sp,
+                lineHeight = 10.sp,
+                color = Color.White,
                 maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), RoundedCornerShape(3.dp))
-                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                    .widthIn(max = 58.dp)
+                    .background(Color.White.copy(alpha = 0.24f), RoundedCornerShape(4.dp))
+                    .padding(horizontal = 5.dp, vertical = 2.dp),
             )
         }
     }
 }
 
 @Composable
-private fun StatChip(
+private fun CardStatChip(
     icon: ImageVector,
     count: String,
     modifier: Modifier = Modifier,
-    label: String = "统计",
+    label: String,
 ) {
     Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
         Icon(
             imageVector = icon,
             contentDescription = label,
-            modifier = Modifier.size(10.dp),
-            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            modifier = Modifier.size(9.dp),
+            tint = Color.White.copy(alpha = 0.82f),
         )
-        Spacer(Modifier.width(2.dp))
+        Spacer(Modifier.width(1.dp))
         Text(
             text = formatCount(count),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+            fontSize = 9.sp,
+            lineHeight = 10.sp,
+            color = Color.White.copy(alpha = 0.82f),
+            maxLines = 1,
         )
     }
 }

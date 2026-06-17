@@ -24,7 +24,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
@@ -33,14 +32,13 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import com.runninghub.app.ui.component.LoadingIndicator
+import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.previewProfileUiState
 import com.runninghub.app.ui.feature.login.LoginVoyagerScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
-import com.runninghub.app.ui.theme.WindowSizeClass
-import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.shared.domain.model.User
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -111,110 +109,108 @@ fun ProfileScreenContent(
                     state = pullToRefreshState,
                     modifier = Modifier.padding(padding).fillMaxSize(),
                 ) {
-                val sizeClass = rememberWindowSizeClass()
-                Box(
-                    modifier = Modifier
-                        .padding(padding)
-                        .fillMaxSize(),
-                    contentAlignment = Alignment.TopCenter,
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .widthIn(max = if (sizeClass >= WindowSizeClass.Medium) 600.dp else Dp.Unspecified)
-                            .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
+                    val windowInfo = LocalRhWindowInfo.current
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.TopCenter,
                     ) {
-                        ProfileHeader(user = uiState.user)
-                        Spacer(Modifier.height(16.dp))
-                        AssetsSection(user = uiState.user)
-                        Spacer(Modifier.height(16.dp))
-                        QuickActionsGrid(
-                            onApiKey = onShowApiKeyDialog,
-                            onCookie = onShowCookieDialog,
-                        )
-                        Spacer(Modifier.height(16.dp))
-                        StatsRow(user = uiState.user)
-                        Spacer(Modifier.height(16.dp))
-                        SettingsSection(onLogout = onLogout)
-                        Spacer(Modifier.height(32.dp))
+                        Column(
+                            modifier = Modifier
+                                .widthIn(max = windowInfo.formContentMaxWidth)
+                                .fillMaxSize()
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            ProfileHeader(user = uiState.user)
+                            Spacer(Modifier.height(16.dp))
+                            AssetsSection(user = uiState.user)
+                            Spacer(Modifier.height(16.dp))
+                            QuickActionsGrid(
+                                onApiKey = onShowApiKeyDialog,
+                                onCookie = onShowCookieDialog,
+                            )
+                            Spacer(Modifier.height(16.dp))
+                            StatsRow(user = uiState.user)
+                            Spacer(Modifier.height(16.dp))
+                            SettingsSection(onLogout = onLogout)
+                            Spacer(Modifier.height(32.dp))
+                        }
                     }
-                } // PullToRefreshBox
+                }
             }
         }
-    } // when
+    }
 
-        // API Key binding dialog
-        if (uiState.showApiKeyDialog) {
-            val apiKeyBuffer = remember { mutableStateOf("") }
-            AlertDialog(
-                onDismissRequest = onDismissApiKeyDialog,
-                title = { Text("绑定 API Key") },
-                text = {
-                    Column {
-                        Text(
-                            "输入来自 RunningHub 网站的 API Key，用于访问 AI 应用。",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = apiKeyBuffer.value,
-                            onValueChange = { apiKeyBuffer.value = it },
-                            label = { Text("API Key") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { onBindApiKey(apiKeyBuffer.value) }) {
-                        Text("绑定", color = MaterialTheme.colorScheme.primary)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onDismissApiKeyDialog) {
-                        Text("取消")
-                    }
-                },
-            )
-        }
+    // API Key binding dialog
+    if (uiState.showApiKeyDialog) {
+        val apiKeyBuffer = remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = onDismissApiKeyDialog,
+            title = { Text("绑定 API Key") },
+            text = {
+                Column {
+                    Text(
+                        "输入来自 RunningHub 网站的 API Key，用于访问 AI 应用。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = apiKeyBuffer.value,
+                        onValueChange = { apiKeyBuffer.value = it },
+                        label = { Text("API Key") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { onBindApiKey(apiKeyBuffer.value) }) {
+                    Text("绑定", color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissApiKeyDialog) {
+                    Text("取消")
+                }
+            },
+        )
+    }
 
-        // Cookie binding dialog
-        if (uiState.showCookieDialog) {
-            val cookieBuffer = remember { mutableStateOf("") }
-            AlertDialog(
-                onDismissRequest = onDismissCookieDialog,
-                title = { Text("绑定 Cookie") },
-                text = {
-                    Column {
-                        Text(
-                            "输入来自 RunningHub 网站的 Cookie，用于高级功能访问。",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        OutlinedTextField(
-                            value = cookieBuffer.value,
-                            onValueChange = { cookieBuffer.value = it },
-                            label = { Text("Cookie") },
-                            singleLine = false,
-                            maxLines = 3,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(onClick = { onBindCookie(cookieBuffer.value) }) {
-                        Text("绑定", color = MaterialTheme.colorScheme.primary)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onDismissCookieDialog) {
-                        Text("取消")
-                    }
-                },
-            )
-        }
+    // Cookie binding dialog
+    if (uiState.showCookieDialog) {
+        val cookieBuffer = remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = onDismissCookieDialog,
+            title = { Text("绑定 Cookie") },
+            text = {
+                Column {
+                    Text(
+                        "输入来自 RunningHub 网站的 Cookie，用于高级功能访问。",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = cookieBuffer.value,
+                        onValueChange = { cookieBuffer.value = it },
+                        label = { Text("Cookie") },
+                        singleLine = false,
+                        maxLines = 3,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { onBindCookie(cookieBuffer.value) }) {
+                    Text("绑定", color = MaterialTheme.colorScheme.primary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismissCookieDialog) {
+                    Text("取消")
+                }
+            },
+        )
     }
 }
 
@@ -306,9 +302,13 @@ private fun ProfileHeader(user: User?) {
 }
 
 @Composable
-private fun MemberBadge(memberName: String?) {
+private fun MemberBadge(
+    memberName: String?,
+    modifier: Modifier = Modifier,
+) {
     if (memberName.isNullOrEmpty()) return
     Surface(
+        modifier = modifier.widthIn(max = 240.dp),
         shape = RoundedCornerShape(12.dp),
         color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
     ) {
@@ -327,6 +327,9 @@ private fun MemberBadge(memberName: String?) {
                 text = memberName,
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.primaryContainer,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
             )
         }
     }
@@ -425,11 +428,13 @@ private fun AssetsSection(user: User?) {
                                     modifier = Modifier.size(22.dp),
                                 )
                                 Spacer(Modifier.width(8.dp))
-                                Column {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(
                                         text = user.memberInfo?.memberName ?: "会员",
                                         style = MaterialTheme.typography.titleSmall,
                                         color = RunningHubThemeExt.colors.premiumGold,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
                                     )
                                     val expiry = user.memberInfo?.memberExpiredTime?.split(" ")?.firstOrNull() ?: ""
                                     val remaining = user.memberInfo?.memberRemainingDays
@@ -443,6 +448,8 @@ private fun AssetsSection(user: User?) {
                                             text = expiryText,
                                             style = MaterialTheme.typography.labelSmall,
                                             color = Color(0xFFBFA76A),
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
                                         )
                                     }
                                 }
@@ -490,12 +497,19 @@ private fun AssetItem(
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(2.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.outline,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -515,34 +529,36 @@ private fun QuickActionsGrid(
         Column(modifier = Modifier.padding(vertical = 12.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                QuickActionItem(Icons.Default.Campaign, "网站公告")
-                QuickActionItem(Icons.Default.Folder, "作品管理")
-                QuickActionItem(Icons.Default.Api, "API 管理", onClick = onApiKey)
-                QuickActionItem(Icons.Default.Groups, "开发者社区")
+                QuickActionItem(Icons.Default.Campaign, "网站公告", modifier = Modifier.weight(1f))
+                QuickActionItem(Icons.Default.Folder, "作品管理", modifier = Modifier.weight(1f))
+                QuickActionItem(Icons.Default.Api, "API 管理", modifier = Modifier.weight(1f), onClick = onApiKey)
+                QuickActionItem(Icons.Default.Groups, "开发者社区", modifier = Modifier.weight(1f))
             }
             Spacer(Modifier.height(4.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                QuickActionItem(Icons.Default.CardMembership, "会员权益")
-                QuickActionItem(Icons.Default.Science, "创新实验")
-                QuickActionItem(Icons.Default.PrivacyTip, "隐私政策")
-                QuickActionItem(Icons.Default.History, "历史记录")
+                QuickActionItem(Icons.Default.CardMembership, "会员权益", modifier = Modifier.weight(1f))
+                QuickActionItem(Icons.Default.Science, "创新实验", modifier = Modifier.weight(1f))
+                QuickActionItem(Icons.Default.PrivacyTip, "隐私政策", modifier = Modifier.weight(1f))
+                QuickActionItem(Icons.Default.History, "历史记录", modifier = Modifier.weight(1f))
             }
         }
     }
 }
 
 @Composable
-private fun QuickActionItem(icon: ImageVector, label: String, onClick: () -> Unit = {}) {
+private fun QuickActionItem(
+    icon: ImageVector,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit = {},
+) {
     Column(
-        modifier = Modifier
-            .width(80.dp)
+        modifier = modifier
             .clickable(onClick = onClick)
-            .padding(vertical = 12.dp),
+            .padding(horizontal = 4.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
@@ -556,8 +572,10 @@ private fun QuickActionItem(icon: ImageVector, label: String, onClick: () -> Uni
             text = label,
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -575,29 +593,43 @@ private fun StatsRow(user: User?) {
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            StatItem(label = "获赞", value = formatNumber(user?.likeCount ?: "0"))
-            StatItem(label = "收藏", value = formatNumber(user?.collectCount ?: "0"))
-            StatItem(label = "关注", value = formatNumber(user?.followCount ?: "0"))
-            StatItem(label = "粉丝", value = formatNumber(user?.fanCount ?: "0"))
+            StatItem(label = "获赞", value = formatNumber(user?.likeCount ?: "0"), modifier = Modifier.weight(1f))
+            StatItem(label = "收藏", value = formatNumber(user?.collectCount ?: "0"), modifier = Modifier.weight(1f))
+            StatItem(label = "关注", value = formatNumber(user?.followCount ?: "0"), modifier = Modifier.weight(1f))
+            StatItem(label = "粉丝", value = formatNumber(user?.fanCount ?: "0"), modifier = Modifier.weight(1f))
         }
     }
 }
 
 @Composable
-private fun StatItem(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StatItem(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.padding(horizontal = 2.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text(
             text = value,
             style = MaterialTheme.typography.headlineSmall,
             color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
         Spacer(Modifier.height(2.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.outline,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -669,6 +701,8 @@ private fun SettingsMenuItem(
             style = MaterialTheme.typography.bodyLarge,
             color = titleColor,
             modifier = Modifier.weight(1f),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Icon(
             Icons.Default.ChevronRight,

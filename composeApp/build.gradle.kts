@@ -63,6 +63,7 @@ kotlin {
             implementation(libs.activity.compose)
             implementation(libs.filepicker)
             implementation(libs.kotlinx.serialization.json)
+            implementation("org.jetbrains.compose.ui:ui-tooling-preview:$composeMultiplatformVersion")
         }
 
         commonTest.dependencies {

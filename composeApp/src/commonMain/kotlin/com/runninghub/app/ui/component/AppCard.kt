@@ -36,7 +36,7 @@ fun AppCard(
                 contentDescription = title,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
+                    .aspectRatio(3f / 4f)
             )
 
             Column(modifier = Modifier.padding(Dimens.SpaceMD)) {
