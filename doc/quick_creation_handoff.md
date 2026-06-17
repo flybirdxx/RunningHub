@@ -300,3 +300,31 @@ adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_history_deta
 
 - 找到一个服务端返回非零 `requiredCashAmount` 的图片预览场景，验证真实 App UI 显示 `¥x.xx`。
 - 视频 tab 的 fee-preview 状态刷新与按钮状态仍未接入。
+
+## 2026-06-18 追加交接：视频 fee-preview 刷新与按钮状态
+
+代码提交 `374995b fix(quickcreate): refresh video price from fee preview` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+
+- `QuickCreateRepository.previewVideoQuickCreationFee(VideoGenerationRequest)` 已公开，内部用 `QuickCreationV2Defaults.videoCreateRequest(request)` 构造 v2 `createRequest`，只调用 `/task/quick-creation/fee-preview`，不触发 `prepare/commit`。
+- `QuickCreateScreenModel` 的价格刷新已从图片专用扩展为当前 tab 通用。视频 prompt、服务端视频模型、服务端字段、视频模型、比例、分辨率、时长、数量、seed、真实模式、生成音频、素材上传完成和素材移除都会触发 500ms debounce 后的服务端价格预览。
+- 视频 fee-preview 和视频正式提交共用 `buildVideoGenerationRequest`，服务端模型 ID、字段 params、素材 list params、参考图/视频/音频 URL、`realistic/generateAudio` 等参数保持一致。
+- 底部生成按钮在图片和视频 tab 都消费 `feePreviewLoading/feePreviewError`。视频价格确认期间按钮会显示 `价格确认中` 并临时禁用；预览失败时显示 `价格待确认`。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.video prompt refreshes server fee preview into estimated cost"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreateRepositoryImplFeePreviewTest"
+.\gradlew.bat :composeApp:testDebugUnitTest
+.\gradlew.bat :shared:testDebugUnitTest
+git diff --check
+```
+
+仍需后续覆盖：
+
+- 在真实 App UI 中切换到视频 tab，输入 prompt，观察按钮从 `价格确认中` 切到服务端金额或 `生成`；这一步只做 fee-preview，不需要扣费。
+- 如果要点击视频 `生成` 验证完整 `prepare/commit/list/detail` 链路，需要用户重新授权。此前抓包模板的 Seedance2.0 视频预览金额约 `9.60 CNY`，不在既有 `0.76 CNY` 授权范围内。
+- 继续保留工作区边界：不要把既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动或未跟踪 `output/` 证据目录混入后续提交。
