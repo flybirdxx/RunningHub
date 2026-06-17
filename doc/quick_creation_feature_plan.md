@@ -369,6 +369,22 @@ POST /task/quick-creation/project/tasks
 
 本次账号项目列表为空。项目功能放到二期。
 
+### 4.10 取消任务接口
+
+2026-06-18 通过 Chrome DevTools 搜索当前 RunningHub Web 快捷创作页已加载前端包确认：
+
+```text
+POST /task/quick-creation/cancel
+```
+
+Web 端请求体为：
+
+```json
+{"taskId":"encodeURIComponent(String(taskId))"}
+```
+
+移动端应只对非终态历史任务展示取消入口；取消成功后刷新 quick-creation 历史列表。
+
 ## 5. 技术方案
 
 ### 5.1 数据层
@@ -539,12 +555,12 @@ data class QuickCreationCommitRequestDto(
 - `QuickCreateRepository` 已新增历史分页和详情方法，数据源使用 `/task/quick-creation/list` 与 `/task/quick-creation/detail`。
 - domain 历史模型已覆盖任务状态、分类、模型 ID、扣费金额、`apiRequestParams` 标量参数、输出 URL/预览图/尺寸/过期信息。
 - 已用 `QuickCreateRepositoryImplHistoryTest` 覆盖历史分页映射和按 `outputId` 获取详情。
-- 创作页已在中间内容区展示最近创作，生成成功后刷新历史；列表底部可加载更多历史页并去重追加；非终态历史任务会每 5 秒刷新当前已加载范围；点击历史项会按 `outputId` 加载详情并展示详情弹窗；取消任务仍待接入。
+- 创作页已在中间内容区展示最近创作，生成成功后刷新历史；列表底部可加载更多历史页并去重追加；非终态历史任务会每 5 秒刷新当前已加载范围，并支持调用 `/task/quick-creation/cancel` 取消后刷新；点击历史项会按 `outputId` 加载详情并展示详情弹窗。
 
 验收：
 
 - 历史列表能展示运行中和成功任务。
-- 运行中任务刷新后能继续轮询。
+- 运行中任务刷新后能继续轮询，非终态任务可发起取消。
 
 ## 7. 风险和注意事项
 
@@ -577,4 +593,4 @@ data class QuickCreationCommitRequestDto(
 - 图片图生图的真实 `prepare/commit` 请求体。
 - Seedance2.0 视频提交的真实 `prepare/commit` 请求体。
 - 上传接口在 Web 快捷创作 v2 中的真实路径、响应结构和鉴权方式。
-- 任务失败、取消任务、余额不足、敏感词拦截的响应结构。
+- 任务失败、余额不足、敏感词拦截的响应结构；取消接口路径已确认，但仍需要真机验证具体失败响应。
