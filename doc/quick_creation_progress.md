@@ -572,3 +572,28 @@ git diff --check
 - 上传类子输入的 required/maxInputCount 校验还没有接入提交前防线。
 - 视频高级参数区仍未复用图片端的服务端模型字段 UI。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费；视频真实端到端仍需要新的明确扣费授权。
+
+## 2026-06-18 子上传字段映射与提交前校验
+
+代码提交 `0a27fe4 fix(quickcreate): validate child upload fields` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationServiceFieldInputChild` 新增 `maxInputCount`，mapper 会从子输入对象或子输入内嵌 `skuInputExtraJson.maxInputCount` 解析该限制。
+- `QuickCreationServiceFieldUiModel.kt` 新增子上传字段校验 helper，支持 active child upload 的 required 非空和 `maxInputCount` 最大数量校验。
+- `QuickCreateScreenModel` 的 `quickCreationListParams` 现在会把当前激活的子上传字段写入请求列表参数；字段媒体类型按子字段 `fieldType/fieldKey/paramKey` 中的 IMAGE/VIDEO/AUDIO 标记识别。
+- 提交前上传校验现在会先校验顶层上传字段，再校验当前激活的子上传字段；未激活子上传字段不会阻断生成。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest.maps service field input child list metadata"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.required child upload validation uses child metadata" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.child upload max count validation uses child metadata" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image maps uploaded images to active child upload field" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when active required child image field has no upload"
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 当前子上传字段仍复用页面已有素材入口，尚未区分“顶层上传”和“某个子字段专属上传入口”；复杂模型如果需要多个独立上传槽，仍需继续扩展 UI 状态结构。
+- 视频高级参数区仍未复用图片端服务端模型字段 UI。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。

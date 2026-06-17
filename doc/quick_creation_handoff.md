@@ -649,3 +649,33 @@ git diff --check
 - 抽取图片端服务端字段渲染区，让视频高级参数区也能展示服务端模型字段和子输入。
 - 继续避免触发真实生成或视频扣费；完整视频 `prepare/commit/list/detail` 仍需要用户重新给出明确扣费授权。
 - 后续提交仍不要纳入既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪的 `output/` 证据目录。
+
+## 2026-06-18 追加交接：子上传字段映射与校验
+
+代码提交 `0a27fe4 fix(quickcreate): validate child upload fields` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 子输入 domain 已保留 `maxInputCount`；`QuickCreationModelMapper` 会从子输入对象自身或其内嵌 `skuInputExtraJson` 读取。
+- `QuickCreationServiceFieldInputChild.quickCreationUploadValidationError(uploadedCount)` 会校验 required 和 `maxInputCount`。
+- `QuickCreateScreenModel.quickCreationListParams()` 会同时输出顶层上传字段和当前激活的子上传字段。子上传字段媒体类型按 `fieldType/fieldKey/paramKey` 里的 IMAGE/VIDEO/AUDIO 判断；图片 tab 的泛型 `UPLOAD` 子字段仍可回退到 IMAGE。
+- `validateServiceUploads()` 会先校验顶层上传字段，再校验 active child upload；带 `visibleWhen` 且未激活的子上传字段不会阻断生成。
+
+重要边界：
+- 当前实现仍复用页面现有素材列表作为上传来源，所以适合“一个模型字段消费当前参考图/视频/音频”的场景。
+- 尚未支持每个子上传字段拥有独立素材槽。如果真实服务端模型同时存在多个独立图片子槽，后续需要扩展 UI state，让素材和 `paramKey` 绑定，而不是仅按媒体类型分组。
+- 本轮没有触发真实 `prepare/commit`，也没有新增扣费。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest.maps service field input child list metadata"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.required child upload validation uses child metadata" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.child upload max count validation uses child metadata" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image maps uploaded images to active child upload field" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when active required child image field has no upload"
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 把图片端 `ServiceFieldOptionsContent` 抽成 image/video 共用，让视频高级参数区也能展示服务端模型字段和子输入。
+- 如果抓包发现同一模型有多个独立上传子槽，先调整 `MediaReference` 或新增绑定结构，再把 Tune UI 的上传入口按 `paramKey` 分流。
+- 继续不要把既有 `AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录混入后续提交。
