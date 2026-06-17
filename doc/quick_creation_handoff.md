@@ -1199,3 +1199,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 补视频模板 `referenceVideos/referenceAudios` 的字段级正向回归，作为交接里提到的显式覆盖。
 - 真机复测条件字段切换后，模板素材卡片显示、删除和最终请求体是否跟当前 active 字段一致。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：模板 listParams key 别名映射
+
+代码提交 `0cc985d fix(quickcreate): map template field keys to upload params` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `templateMediaReferences()` 现在接收 active/declared 上传字段别名表，而不是单纯的 `paramKey` 集合。
+- 每个上传字段会注册两个别名：`fieldKey -> paramKey` 和 `paramKey -> paramKey`；子上传字段同样处理。
+- 模板 detail 如果返回 `listParams` key 为 `fieldKey`，客户端会把素材绑定到 canonical `paramKey`，请求体不会出现 fieldKey 版本的错误字段名。
+- declared-but-inactive 判断也走别名表；所以 inactive child 如果以 `fieldKey` 出现在模板 listParams 中，也会被丢弃而不是回退到全局素材。
+- 未声明 key 仍保持全局素材，用于兼容 legacy 参考图/视频/音频字段。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration video template maps list param field key to upload param key"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 补 active child 模板素材正向回归：模板 params 激活 child upload，`listParams` 用 child 的 `fieldKey` 或 `paramKey` 都应进入 canonical child `paramKey`。
+- 真机复测真实模板返回字段 key 形式，重点确认 UI 字段槽位、删除和 prepare 请求体字段名。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

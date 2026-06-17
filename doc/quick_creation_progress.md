@@ -1113,3 +1113,24 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真机仍需复测带条件子上传字段的灵感模板：切换父字段后，素材是否只在 active child 区域显示和提交。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 模板 listParams 支持 fieldKey 映射到 paramKey
+
+代码提交 `0cc985d fix(quickcreate): map template field keys to upload params` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 模板素材匹配上传字段时，不再只按 `paramKey` 精确匹配；现在为当前模型的上传字段建立别名表：`fieldKey -> paramKey` 和 `paramKey -> paramKey`。
+- active 上传字段命中任一别名时，`MediaReference.fieldParamKey` 写入 canonical `paramKey`，后续请求体仍按服务端要求的 `quickCreationListParams[paramKey]` 提交。
+- declared 但 inactive 的上传字段也使用同一类别名表判断，避免 `fieldKey` 形式绕过 inactive child 丢弃规则。
+- 新增回归测试覆盖视频模板 `listParams["referenceVideo"]`，当前模型字段为 `fieldKey=referenceVideo,paramKey=referenceVideos` 时，生成请求进入 `quickCreationListParams["referenceVideos"]`，且不进入 legacy `referenceVideoUri`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration video template maps list param field key to upload param key"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测服务端模板实际返回 `fieldKey` 或 `paramKey` 两种 key 时，Tune 字段卡片显示和最终请求体是否一致。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
