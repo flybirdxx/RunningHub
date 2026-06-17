@@ -17,7 +17,7 @@
 - `commit` 请求体：严格使用 `prepareToken + createRequest` 嵌套结构。
 - 任务轮询：使用 `/task/quick-creation/list`，不再依赖 `/api/output/taskHistory`。
 - 历史/详情数据层：`QuickCreateRepository` 已公开 `listQuickCreationHistory(page,size)` 和 `getQuickCreationHistoryDetail(outputId)`；domain 模型会保留任务状态、分类、模型 ID、扣费金额、`apiRequestParams` 标量参数、输出 URL/预览图/尺寸/过期信息。详情请求按抓包结论使用 `outputId`。
-- 历史 UI：`QuickCreateScreenModel` 初始化会加载最近 10 条 quick-creation 历史，生成成功后会刷新历史；创作页中间区域在没有当前任务/结果时展示最近创作，支持图片/视频预览、状态、分类和扣费金额摘要。
+- 历史 UI：`QuickCreateScreenModel` 初始化会加载最近 10 条 quick-creation 历史，生成成功后会刷新历史；创作页中间区域在没有当前任务/结果时展示最近创作，支持图片/视频预览、状态、分类和扣费金额摘要；点击历史项会按 `outputId` 加载详情并展示详情弹窗。
 - 其它图片模型和未携带服务端 quick-creation ID 的视频请求：暂时保留旧 `openapi/v2` 兼容逻辑。
 - 页面结构：顶部“创作/灵感”、中间滚动区、底部固定输入区已落地；底部输入区会显示当前服务端模型摘要。
 - 灵感页：已接真实 `tags/templates` 列表和 `template/detail`；真实详情请求体为 `{"templateId":"..."}`，响应里的 `snapshot.presetParams` 会用于“制作同款”，当前可回填分类、服务端模型、prompt、比例/分辨率/时长/开关参数和远端素材。
@@ -43,7 +43,7 @@
 2. 补齐服务端字段动态表单矩阵：当前基础 options、文本/数值字段和图片/视频/音频上传字段已能渲染或进入请求结构；后续需要覆盖条件字段和复杂 `skuInputExtraJson`；当前本地枚举仍是 fallback。
 3. 增强“制作同款”：当前已可回填基础参数和远端素材；后续补图片模板、复杂多输入模板、条件字段和 `skuInputExtraJson` 的完整映射。
 4. 真实验证 Seedance2.0 视频 v2：基础请求构造和状态机已接入，下一步需要在用户明确授权后做 App 内真实视频扣费任务，确认价格、余额变化、任务状态和视频输出展示。此前抓包模板预估价格为 9.60 元，不在既有 0.76 元授权范围内。
-5. 增强历史 UI：当前已展示最近创作，下一步补详情入口、分页加载、运行中任务刷新和取消任务。
+5. 增强历史 UI：当前已展示最近创作并支持详情弹窗，下一步补分页加载、运行中任务刷新和取消任务。
 6. 再考虑项目管理接口：`project/list/create/rename/delete/pin/detail/tasks`。
 
 ## 验证命令
