@@ -17,7 +17,7 @@
 - 任务轮询：使用 `/task/quick-creation/list`，不再依赖 `/api/output/taskHistory`。
 - 其它图片模型和视频模型：暂时保留旧 `openapi/v2` 兼容逻辑。
 - 页面结构：顶部“创作/灵感”、中间滚动区、底部固定输入区已落地；底部输入区会显示当前服务端模型摘要。
-- 灵感页：已接真实 `tags/templates` 列表；模板详情和“制作同款”尚未接入。
+- 灵感页：已接真实 `tags/templates` 列表和 `template/detail`；真实详情请求体为 `{"templateId":"..."}`，响应里的 `snapshot.presetParams` 会用于“制作同款”，当前可回填分类、服务端模型、prompt、比例/分辨率/时长/开关参数和远端素材。
 
 ## 关键文件
 
@@ -38,8 +38,8 @@
 
 1. 真机验证图片 G-2.0 文生图：确认登录态、价格、扣费、任务状态和输出预览。
 2. 补齐服务端字段动态表单矩阵：当前基础 options、文本/数值字段和图片/视频/音频上传字段已能渲染或进入请求结构；后续需要覆盖条件字段和复杂 `skuInputExtraJson`，并在视频 v2 提交流程中消费已准备好的服务端字段参数；当前本地枚举仍是 fallback。
-3. 接入模板详情：`/task/quick-creation/inspiration/template/detail`，实现“制作同款”到当前模型和字段的映射。
-4. 抓包并接入 Seedance2.0 视频 v2：复用当前 `QuickCreationCreateRequestDto` 和 prepare/commit/list 状态机。
+3. 增强“制作同款”：当前已可回填基础参数和远端素材；后续补图片模板、复杂多输入模板、条件字段和 `skuInputExtraJson` 的完整映射。
+4. 抓包并接入 Seedance2.0 视频 v2：复用当前 `QuickCreationCreateRequestDto` 和 prepare/commit/list 状态机，并消费模板和视频请求中已准备好的服务端字段参数。
 5. 做历史列表：直接消费 `/task/quick-creation/list`，详情使用 `outputId`。
 6. 再考虑项目管理接口：`project/list/create/rename/delete/pin/detail/tasks`。
 

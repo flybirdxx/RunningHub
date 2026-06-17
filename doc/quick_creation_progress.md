@@ -11,7 +11,7 @@
 | Phase 0 | v2 契约落地 | 已完成 | 100% | 已补 `prepare/commit/list/detail` 等 DTO，并用抓包样例做序列化/反序列化测试。 |
 | Phase 1 | 图片 G-2.0 MVP | 部分完成 | 70% | 默认 `all-power-image-g2` 已切到 Web v2 的 `fee-preview -> prepare -> commit -> list`；图片提交会优先携带当前服务端模型的 `categoryId/bindingId/skuId`；真实端到端扣费生成尚未在 App 内复测。 |
 | Phase 2 | 页面结构重构 | 部分完成 | 80% | 页面已调整为顶部“创作/灵感”、中间滚动内容、底部固定输入面板；底部输入区已显示服务端模型摘要，Tune 高级页可切换服务端图片模型。 |
-| Phase 3 | 灵感接口接入 | 部分完成 | 65% | 已接 tags/templates 列表，UI 使用真实 state 渲染；模板详情和“制作同款”尚未接入。 |
+| Phase 3 | 灵感接口接入 | 部分完成 | 82% | 已接 tags/templates 列表和真实 template/detail；UI 使用真实 state 渲染，点击模板可“制作同款”并回填分类、服务端模型、prompt、基础参数和远端素材。 |
 | Phase 3A | 服务端模型字段接入 | 部分完成 | 78% | 已接 `/api/qc/v2/models` DTO、mapper、repository 和 ScreenModel 状态；服务端 `defaultValue/options` 会初始化字段值，Tune 高级页可选择基础 options，文本/数值字段可输入，图片/视频/音频上传字段会按服务端字段映射已上传素材 URL 列表；图片 v2 提交会把字段值写入 `params`，视频请求结构已携带服务端模型 ID 和字段参数。 |
 | Phase 4 | 视频 v2 链路 | 未完成 | 10% | 旧视频链路保留，尚未切到 quick-creation v2。 |
 | Phase 5 | 历史/项目 | 未完成 | 10% | `list/detail` DTO 已可解析，尚未做历史页面和项目管理交互。 |
@@ -31,10 +31,11 @@
 | 网络 | `SharedModule.kt` | RunningHub 请求补 `user-language: zh_CN`，并在存在 Cookie 时自动携带。 |
 | UI | `QuickCreateUiState.kt` / `QuickCreateScreenModel.kt` | 新增 `QuickCreateMode` 和 `switchMode`。 |
 | UI | `QuickCreateScreen.kt` | 改为顶部模式切换、中间内容区、底部固定输入区；灵感页使用真实 tags/templates state 渲染。 |
-| 灵感 | `QuickCreateRepository.kt` / `QuickCreateRepositoryImpl.kt` / `QuickCreateScreenModel.kt` | 接入真实 tags/templates 数据并替换灵感区占位内容。 |
+| 灵感 | `QuickCreateRepository.kt` / `QuickCreateRepositoryImpl.kt` / `QuickCreateScreenModel.kt` | 接入真实 tags/templates/template detail 数据并替换灵感区占位内容；`template/detail` 请求体为 `{"templateId":"..."}`，响应中的 `snapshot.presetParams` 会映射到制作同款状态。 |
 | 服务端模型 | `QuickCreationModelMapper.kt` / `QuickCreateRepositoryImpl.kt` / `QuickCreateScreenModel.kt` | 加载 IMAGE/VIDEO 服务端模型，默认选中首个可用模型，并在图片 v2 提交中使用选中模型的 `categoryId/bindingId/skuId`。 |
 | 服务端字段 | `QuickCreateScreenModel.kt` / `QuickCreationV2Defaults.kt` / `QuickCreationModelMapper.kt` | 服务端字段默认值进入 UI state，用户更新后的字段值覆盖默认值，未知字段会被过滤；上传限制、multipleInputs 和 `skuInputExtraJson` 已保留到 domain model；图片/视频/音频上传字段会按字段类型把已上传素材 URL 写入对应服务端 `paramKey` 的数组参数。 |
 | UI | `QuickCreateScreen.kt` / `TuneBottomSheet.kt` | 底部输入区展示当前服务端模型摘要，Tune 高级页展示并切换服务端图片模型，基础 options 字段可点选，文本/数值字段可输入，上传字段显示服务端限制摘要，保留本地模型作为兼容 fallback。 |
+| UI | `QuickCreateScreen.kt` | 灵感模板卡片已接入“制作同款”，点击后加载模板详情并切回创作页。 |
 
 ## 已验证
 
@@ -50,6 +51,6 @@
 | --- | --- | --- |
 | App 内尚未实测 v2 真实扣费生成 | 不能宣称图片 MVP 端到端完成 | 用已登录账号在真机/模拟器提交一次低成本图片任务，确认余额、任务结果和输出展示。 |
 | 服务端字段尚未完全覆盖所有 fieldType | 基础 options、文本/数值字段和图片/视频/音频上传字段已进入请求结构，但条件字段和复杂 `skuInputExtraJson` 仍未完整动态化；视频仍未切到 v2 提交流程 | 下一步覆盖条件字段和复杂 `skuInputExtraJson`，并在视频 v2 接入时消费当前已携带的服务端模型 ID、字段 params 和列表 params。 |
-| 模板详情和制作同款未接 | 只能浏览模板列表，不能一键复用模板参数 | 接 `/task/quick-creation/inspiration/template/detail` 并映射到当前模型字段。 |
+| 模板详情和制作同款仍需增强 | 已能按真实 `template/detail` 回填分类、服务端模型、prompt、基础参数和远端素材，但复杂模板字段和后续视频 v2 提交消费仍需继续验证 | 继续补图片模板、复杂多输入模板和视频 v2 提交流程的端到端测试。 |
 | 视频仍走旧 `openapi/v2` | 与 Web v2 不一致 | 抓 Seedance2.0 v2 请求后复用同一 prepare/commit/list 状态机。 |
 | `AuthRepositoryImpl.kt` 有既有未提交修改 | 本轮未审查，可能影响登录态 | 后续提交时不要误包含，除非确认是本任务需要。 |

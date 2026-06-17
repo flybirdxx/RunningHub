@@ -341,9 +341,17 @@ body: { "page": 1, "size": 20 }
 
 ```text
 POST /task/quick-creation/inspiration/template/detail
+body: { "templateId": "2066785582547582978" }
 ```
 
-后续开发时需要补抓模板详情请求体和响应。移动端“制作同款”应依赖模板详情填充模型、字段和默认参数，而不是只用列表字段。
+2026-06-18 已补抓模板详情。响应关键字段：
+
+- 顶层：`templateId`、`nameCn/nameAi`、`coverUrl`、`categoryId`、`videoUrl`。
+- 模型：`bindingId`、`skuId`、`bindingCnName/bindingAiName`。
+- 参数：`snapshot.presetParams`，包含 `prompt/promptAi`、`ratio/aspectRatio`、`resolution`、`duration/videoDuration`、`generateAudio`、`realPersonMode`、`imageUrls` 等。
+- 兜底：`apiRequestParamsRaw` 是 JSON 字符串，可在 `snapshot.presetParams` 缺失时二次解析。
+
+移动端“制作同款”应依赖模板详情填充模型、字段和默认参数，而不是只用列表字段。
 
 ### 4.9 项目接口
 
@@ -553,9 +561,7 @@ data class QuickCreationCommitRequestDto(
 
 后续开发前建议再补抓以下接口：
 
-- `/task/quick-creation/inspiration/template/detail` 的请求体和完整响应。
 - 图片图生图的真实 `prepare/commit` 请求体。
 - Seedance2.0 视频提交的真实 `prepare/commit` 请求体。
 - 上传接口在 Web 快捷创作 v2 中的真实路径、响应结构和鉴权方式。
 - 任务失败、取消任务、余额不足、敏感词拦截的响应结构。
-
