@@ -1335,6 +1335,72 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `hidden required service upload field does not block image generation`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "hiddenImage",
+                        paramKey = "hiddenImages",
+                        fieldType = "IMAGE",
+                        required = true,
+                        defaultValue = null,
+                        options = emptyList(),
+                        visible = false,
+                        inputExtra = QuickCreationServiceFieldExtra(title = "Hidden image"),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("prompt", repository.lastImageRequest?.prompt)
+        assertEquals(null, model.uiState.value.error)
+    }
+
+    @Test
+    fun `hidden service upload field media is not submitted`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "hiddenImage",
+                        paramKey = "hiddenImages",
+                        fieldType = "IMAGE",
+                        required = false,
+                        defaultValue = null,
+                        options = emptyList(),
+                        visible = false,
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReferenceForField("content://image/hidden", "hiddenImages")
+        advanceUntilIdle()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest?.quickCreationListParams?.get("hiddenImages"))
+    }
+
+    @Test
     fun `generate image is blocked when active required child image field has no upload`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

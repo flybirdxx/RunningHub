@@ -1631,7 +1631,7 @@ class QuickCreateScreenModel(
     }
 
     private fun QuickCreationServiceModel?.uploadFields(): List<QuickCreationServiceField> =
-        this?.fields.orEmpty().filter { it.isQuickCreationUploadField() }
+        this?.fields.orEmpty().filter { it.isQuickCreationServiceFieldRenderable() && it.isQuickCreationUploadField() }
 
     private fun QuickCreationServiceModel?.activeChildUploadFields(
         serviceParams: Map<String, String>,
