@@ -1497,6 +1497,49 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `hidden parent child upload field media is not submitted`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "hiddenMode",
+                        paramKey = "hiddenMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "imageReference",
+                        options = emptyList(),
+                        visible = false,
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "hiddenChildImage",
+                                    paramKey = "hiddenChildImages",
+                                    fieldType = "IMAGE",
+                                    maxInputCount = 1,
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReferenceForField("content://image/hidden-child", "hiddenChildImages")
+        advanceUntilIdle()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest?.quickCreationListParams?.get("hiddenChildImages"))
+    }
+
+    @Test
     fun `generate image is blocked when active required child image field has no upload`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

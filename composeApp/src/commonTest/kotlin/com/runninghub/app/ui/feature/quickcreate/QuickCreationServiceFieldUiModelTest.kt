@@ -92,6 +92,24 @@ class QuickCreationServiceFieldUiModelTest {
                         ),
                     ),
                 ),
+                QuickCreationServiceField(
+                    fieldKey = "hiddenMode",
+                    paramKey = "hiddenMode",
+                    fieldType = "LIST",
+                    required = false,
+                    defaultValue = "imageReference",
+                    options = emptyList(),
+                    visible = false,
+                    inputExtra = QuickCreationServiceFieldExtra(
+                        inputChildren = listOf(
+                            QuickCreationServiceFieldInputChild(
+                                fieldKey = "hiddenParentImage",
+                                paramKey = "hiddenParentImages",
+                                fieldType = "IMAGE_UPLOAD",
+                            ),
+                        ),
+                    ),
+                ),
             ),
         )
 

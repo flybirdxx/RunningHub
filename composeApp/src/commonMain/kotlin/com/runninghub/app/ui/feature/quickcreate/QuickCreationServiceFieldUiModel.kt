@@ -161,6 +161,7 @@ internal fun QuickCreationServiceModel?.quickCreationActiveUploadParamKeys(
     serviceParams: Map<String, String>,
 ): Set<String> =
     this?.fields.orEmpty()
+        .filter { it.visible }
         .flatMap { field ->
             buildList {
                 if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {

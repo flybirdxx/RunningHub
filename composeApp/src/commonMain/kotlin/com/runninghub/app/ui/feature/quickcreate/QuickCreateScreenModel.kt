@@ -1640,6 +1640,7 @@ class QuickCreateScreenModel(
         serviceParams: Map<String, String>,
     ): List<QuickCreationServiceFieldInputChild> =
         this?.fields.orEmpty()
+            .filter { it.visible }
             .flatMap { field -> field.quickCreationActiveInputChildren(serviceParams) }
             .filter { it.isQuickCreationUploadField() }
 
