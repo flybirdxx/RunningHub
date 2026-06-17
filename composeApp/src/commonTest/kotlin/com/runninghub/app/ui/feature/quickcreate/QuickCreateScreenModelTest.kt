@@ -11,7 +11,6 @@ import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -33,6 +32,7 @@ class QuickCreateScreenModelTest {
     class FakeQuickCreateRepository : QuickCreateRepository {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
         var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
+        var lastVideoRequest: com.runninghub.shared.domain.repository.VideoGenerationRequest? = null
         var inspirationTags = listOf(QuickCreateInspirationTag(id = "hot", name = "热门"))
         var inspirationTemplates = listOf(
             QuickCreateInspirationTemplate(
@@ -43,6 +43,44 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
                 tagHot = true,
                 tagNew = false,
+            )
+        )
+        var videoModels = listOf(
+            QuickCreationServiceModel(
+                categoryId = "VIDEO",
+                groupName = "视频生成",
+                bindingId = "video-binding-1",
+                skuId = "video-sku-1",
+                name = "Seedance2.0",
+                description = "服务端视频模型",
+                fields = listOf(
+                    QuickCreationServiceField(
+                        fieldKey = "style",
+                        paramKey = "style",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "cinematic",
+                        options = emptyList(),
+                    ),
+                    QuickCreationServiceField(
+                        fieldKey = "referenceVideo",
+                        paramKey = "referenceVideos",
+                        fieldType = "VIDEO_UPLOAD",
+                        required = false,
+                        defaultValue = null,
+                        options = emptyList(),
+                        maxUploadCount = 1,
+                    ),
+                    QuickCreationServiceField(
+                        fieldKey = "referenceAudio",
+                        paramKey = "referenceAudios",
+                        fieldType = "AUDIO_UPLOAD",
+                        required = false,
+                        defaultValue = null,
+                        options = emptyList(),
+                        maxUploadCount = 1,
+                    ),
+                ),
             )
         )
         var models = listOf(
@@ -94,8 +132,16 @@ class QuickCreateScreenModelTest {
             lastImageRequest = request
             return flowOf(QuickCreateTaskStatus.Queuing("task-1"))
         }
-        override fun generateVideo(request: com.runninghub.shared.domain.repository.VideoGenerationRequest): Flow<QuickCreateTaskStatus> = emptyFlow()
-        override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String) = uploadResult
+        override fun generateVideo(request: com.runninghub.shared.domain.repository.VideoGenerationRequest): Flow<QuickCreateTaskStatus> {
+            lastVideoRequest = request
+            return flowOf(QuickCreateTaskStatus.Queuing("video-task-1"))
+        }
+        override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String> =
+            when {
+                mimeType.startsWith("video") -> Result.success("https://example.com/video.mp4")
+                mimeType.startsWith("audio") -> Result.success("https://example.com/audio.mp3")
+                else -> uploadResult
+            }
         override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> = Result.success(inspirationTags)
         override suspend fun getInspirationTemplates(
             page: Int,
@@ -103,7 +149,7 @@ class QuickCreateScreenModelTest {
             tagId: String?,
         ): Result<List<QuickCreateInspirationTemplate>> = Result.success(inspirationTemplates)
         override suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>> =
-            Result.success(models.filter { it.categoryId == categoryId })
+            Result.success((models + videoModels).filter { it.categoryId == categoryId })
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -266,6 +312,42 @@ class QuickCreateScreenModelTest {
             assertEquals(
                 listOf("https://example.com/file.jpg"),
                 repository.lastImageRequest?.quickCreationListParams?.get("referenceImages"),
+            )
+        }
+    }
+
+    @Test
+    fun `generate video maps uploaded video and audio to service upload fields`() {
+        runBlocking {
+            val repository = FakeQuickCreateRepository()
+            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+            model.switchTab(QuickCreateTab.VIDEO)
+            model.updateVideoPrompt("video prompt")
+            model.pickVideoReference("content://video/1")
+            model.pickAudioReference("content://audio/1")
+            repeat(20) {
+                val doneCount = model.uiState.value.videoConfig.mediaReferences.count {
+                    it.uploadStatus == UploadStatus.DONE
+                }
+                if (doneCount == 2) {
+                    return@repeat
+                }
+                delay(10)
+            }
+            model.generate()
+
+            assertEquals("VIDEO", repository.lastVideoRequest?.quickCreationCategoryId)
+            assertEquals("video-binding-1", repository.lastVideoRequest?.quickCreationBindingId)
+            assertEquals("video-sku-1", repository.lastVideoRequest?.quickCreationSkuId)
+            assertEquals("cinematic", repository.lastVideoRequest?.quickCreationParams?.get("style"))
+            assertEquals(
+                listOf("https://example.com/video.mp4"),
+                repository.lastVideoRequest?.quickCreationListParams?.get("referenceVideos"),
+            )
+            assertEquals(
+                listOf("https://example.com/audio.mp3"),
+                repository.lastVideoRequest?.quickCreationListParams?.get("referenceAudios"),
             )
         }
     }

@@ -331,6 +331,11 @@ data class VideoGenerationRequest(
     val negativePrompt: String? = null,
     val style: String = "general",
     val promptExtend: Boolean = true,
+    val quickCreationCategoryId: String? = null,
+    val quickCreationBindingId: String? = null,
+    val quickCreationSkuId: String? = null,
+    val quickCreationParams: Map<String, String> = emptyMap(),
+    val quickCreationListParams: Map<String, List<String>> = emptyMap(),
 )
 
 sealed class QuickCreateTaskStatus {

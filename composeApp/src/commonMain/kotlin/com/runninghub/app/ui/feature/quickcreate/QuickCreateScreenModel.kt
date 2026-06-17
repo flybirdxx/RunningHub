@@ -5,6 +5,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -683,17 +684,65 @@ class QuickCreateScreenModel(
     private fun imageQuickCreationListParams(
         model: QuickCreationServiceModel?,
         config: ImageConfig,
+    ): Map<String, List<String>> =
+        quickCreationListParams(
+            model = model,
+            mediaReferences = config.mediaReferences,
+            fallbackMediaType = QuickCreateMediaType.IMAGE,
+        )
+
+    private fun videoQuickCreationParams(
+        model: QuickCreationServiceModel?,
+        config: VideoConfig,
+        serviceParams: Map<String, String>,
+    ): Map<String, String> =
+        buildMap {
+            putAll(model.defaultServiceParams())
+            putAll(
+                serviceParams
+                    .filterKeys { key -> model?.hasFieldParam(key) == true }
+                    .filterValues { it.isNotBlank() }
+            )
+
+            put("aspectRatio", config.aspectRatio.apiValue)
+            put("resolution", config.resolution.apiValue)
+            put("duration", config.duration.seconds.toString())
+        }
+
+    private fun videoQuickCreationListParams(
+        model: QuickCreationServiceModel?,
+        config: VideoConfig,
+    ): Map<String, List<String>> =
+        quickCreationListParams(
+            model = model,
+            mediaReferences = config.mediaReferences,
+            fallbackMediaType = null,
+        )
+
+    private fun quickCreationListParams(
+        model: QuickCreationServiceModel?,
+        mediaReferences: List<MediaReference>,
+        fallbackMediaType: QuickCreateMediaType?,
     ): Map<String, List<String>> {
-        val imageUrls = config.mediaReferences
-            .filter { it.type == QuickCreateMediaType.IMAGE && it.uploadStatus == UploadStatus.DONE }
-            .mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
-        if (imageUrls.isEmpty()) return emptyMap()
+        val urlsByType = mediaReferences
+            .filter { it.uploadStatus == UploadStatus.DONE }
+            .groupBy { it.type }
+            .mapValues { (_, refs) ->
+                refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
+            }
 
         return model.uploadFields()
-            .associate { field ->
-                val maxCount = field.maxUploadCount ?: imageUrls.size
-                field.paramKey to imageUrls.take(maxCount)
+            .mapNotNull { field ->
+                val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@mapNotNull null
+                val urls = urlsByType[mediaType].orEmpty()
+                if (urls.isEmpty()) {
+                    null
+                } else {
+                    val maxCount = field.maxUploadCount ?: urls.size
+                    field.paramKey to urls.take(maxCount)
+                }
             }
+            .toMap()
     }
 
     private fun QuickCreationServiceModel?.defaultServiceParams(): Map<String, String> =
@@ -707,8 +756,20 @@ class QuickCreateScreenModel(
     private fun QuickCreationServiceModel.hasFieldParam(paramKey: String): Boolean =
         fields.any { it.paramKey == paramKey }
 
-    private fun QuickCreationServiceModel?.uploadFields(): List<com.runninghub.shared.domain.repository.QuickCreationServiceField> =
+    private fun QuickCreationServiceModel?.uploadFields(): List<QuickCreationServiceField> =
         this?.fields.orEmpty().filter { it.fieldType.uppercase().contains("UPLOAD") }
+
+    private fun QuickCreationServiceField.uploadMediaType(): QuickCreateMediaType? {
+        val marker = listOfNotNull(fieldType, fieldKey, paramKey, inputExtraJson)
+            .joinToString(" ")
+            .uppercase()
+        return when {
+            marker.contains("AUDIO") -> QuickCreateMediaType.AUDIO
+            marker.contains("VIDEO") -> QuickCreateMediaType.VIDEO
+            marker.contains("IMAGE") || marker.contains("PHOTO") || marker.contains("IMG") -> QuickCreateMediaType.IMAGE
+            else -> null
+        }
+    }
 
     private fun QuickCreationServiceModel.matchesServiceIdentity(other: QuickCreationServiceModel?): Boolean =
         other != null && bindingId == other.bindingId && skuId == other.skuId
@@ -754,6 +815,18 @@ class QuickCreateScreenModel(
                 generateAudio = config.generateAudio,
                 numVideos = config.count,
                 seed = config.seed,
+                quickCreationCategoryId = _uiState.value.selectedVideoServiceModel?.categoryId,
+                quickCreationBindingId = _uiState.value.selectedVideoServiceModel?.bindingId,
+                quickCreationSkuId = _uiState.value.selectedVideoServiceModel?.skuId,
+                quickCreationParams = videoQuickCreationParams(
+                    model = _uiState.value.selectedVideoServiceModel,
+                    config = config,
+                    serviceParams = _uiState.value.videoServiceParams,
+                ),
+                quickCreationListParams = videoQuickCreationListParams(
+                    model = _uiState.value.selectedVideoServiceModel,
+                    config = config,
+                ),
             )
         ).collect { status ->
             handleTaskStatus(status)
