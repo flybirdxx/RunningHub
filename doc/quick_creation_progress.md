@@ -597,3 +597,25 @@ git diff --check
 - 当前子上传字段仍复用页面已有素材入口，尚未区分“顶层上传”和“某个子字段专属上传入口”；复杂模型如果需要多个独立上传槽，仍需继续扩展 UI 状态结构。
 - 视频高级参数区仍未复用图片端服务端模型字段 UI。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 隐藏子字段参数提交过滤
+
+代码提交 `954e2f8 fix(quickcreate): skip inactive child params` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreateScreenModel` 的正式 `quickCreationParams` 组装不再使用“所有声明过的子字段”作为白名单，而是改为“顶层字段 + 当前激活子字段”。
+- 当用户曾经填写过条件子字段，随后父字段切换导致该子字段隐藏时，隐藏子字段的旧值不会再进入图片或视频正式提交参数。
+- 保留 `updateImageServiceParam/updateVideoServiceParam` 对声明子字段的写入能力，避免 Tune UI 或模板回填阶段因为字段暂未激活而丢失用户输入；过滤只发生在正式请求组装阶段。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.inactive child service field value is not submitted"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 视频高级参数区仍未复用图片端服务端模型字段 UI。
+- 多个独立上传子槽仍需要后续扩展素材与 `paramKey` 的绑定结构。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。

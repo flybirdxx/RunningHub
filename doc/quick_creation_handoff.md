@@ -679,3 +679,26 @@ git diff --check
 - 把图片端 `ServiceFieldOptionsContent` 抽成 image/video 共用，让视频高级参数区也能展示服务端模型字段和子输入。
 - 如果抓包发现同一模型有多个独立上传子槽，先调整 `MediaReference` 或新增绑定结构，再把 Tune UI 的上传入口按 `paramKey` 分流。
 - 继续不要把既有 `AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录混入后续提交。
+
+## 2026-06-18 追加交接：隐藏子字段不再提交
+
+代码提交 `954e2f8 fix(quickcreate): skip inactive child params` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `updateImageServiceParam()` 和 `updateVideoServiceParam()` 仍允许写入模型声明过的子字段，方便 Tune UI、模板回填或父字段切换后保留临时输入。
+- 正式组装 `quickCreationParams` 时会调用 `activeServiceParamKeys(serviceParams)`，只允许顶层字段和当前 `quickCreationActiveInputChildren(serviceParams)` 返回的子字段进入请求。
+- 这意味着用户填写过某个条件子字段后，如果父字段切换导致该子字段隐藏，旧值不会再带入 `generateImage/generateVideo` 的正式参数。
+- 该规则同时作用于图片和视频的 `quickCreationParams`；列表型上传参数已经在上一轮通过 `activeChildUploadFields()` 按激活子上传字段过滤。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.inactive child service field value is not submitted"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 继续抽取服务端字段 UI，让视频 Tune 高级参数区也能消费同一套动态字段与子字段能力。
+- 如果后续决定在父字段切换时主动清理隐藏子字段 UI state，需要同步评估模板回填和用户切回父选项时是否应保留历史输入。
+- 继续不要触发真实生成或视频扣费；完整视频 `prepare/commit` 仍需要新的明确授权。
