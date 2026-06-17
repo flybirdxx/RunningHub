@@ -828,3 +828,25 @@ git diff --check
 仍未完成：
 - 字段级素材卡片的真实选择/移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 隐藏顶层文本字段过滤
+
+代码提交 `51710bf fix(quickcreate): skip hidden text fields` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `defaultServiceParams()` 现在只读取 `visible=true` 的顶层服务端字段默认值，隐藏字段默认值不会被静默带入正式请求。
+- `activeServiceParamKeys(serviceParams)` 现在只允许 `visible=true` 的顶层字段及其 active child 进入提交白名单。
+- `validateServiceFields()` 现在只校验 `visible=true` 的顶层文本字段；隐藏 required 文本字段不会误阻断生成。
+- 新增三个回归测试覆盖隐藏 required 文本字段不阻断、隐藏手填值不提交、隐藏默认值不提交。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden required service text field does not block image generation" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service text field value is not submitted" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service text field default value is not submitted"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+仍未完成：
+- 字段级素材卡片的真实选择/移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。

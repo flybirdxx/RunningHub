@@ -900,3 +900,25 @@ git diff --check
 - 后续如果发现隐藏顶层文本字段也会进入 `quickCreationParams`，应按同样原则收紧 `activeServiceParamKeys()` 和顶层文本校验，只让可渲染顶层字段或 active child 字段提交。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：隐藏顶层文本字段不参与提交
+
+代码提交 `51710bf fix(quickcreate): skip hidden text fields` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 顶层服务端字段的默认参数、提交白名单、提交前文本校验现在都按 `visible=true` 过滤。
+- `visible=false` 的顶层文本字段即使有 `required=true`，也不会阻断生成。
+- `visible=false` 的顶层文本字段即使被模板或旧 UI state 写入 `serviceParams`，也不会进入 `quickCreationParams`。
+- 可见但不一定可渲染的服务端字段仍可提交默认值；这保留了现有 LIST 字段默认值行为，避免误删服务端需要的可见默认参数。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden required service text field does not block image generation" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service text field value is not submitted" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service text field default value is not submitted"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+下一步建议：
+- 若后续抓包发现服务端存在 `visible=false` 但必须提交默认值的内部字段，需要在 mapper 层区分“隐藏但必须提交”和“隐藏且前端不应提交”，不能再单靠 `visible` 承载两种语义。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
