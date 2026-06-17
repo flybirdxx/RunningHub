@@ -1794,6 +1794,7 @@ class QuickCreateScreenModel(
                     uri = url,
                     displayName = url.substringAfterLast('/').ifBlank { "${mediaType.name.lowercase()}_$index" },
                     fileSizeBytes = 0L,
+                    fieldParamKey = key,
                     uploadStatus = UploadStatus.DONE,
                     uploadProgress = 1f,
                     remoteUrl = url,
