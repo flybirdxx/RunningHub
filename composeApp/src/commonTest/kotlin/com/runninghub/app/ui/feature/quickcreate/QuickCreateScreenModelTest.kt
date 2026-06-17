@@ -6,6 +6,8 @@ import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
+import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
@@ -175,6 +177,12 @@ class QuickCreateScreenModelTest {
         ): Result<QuickCreateInspirationTemplateDetail> = Result.success(templateDetail.copy(templateId = templateId))
         override suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>> =
             Result.success((models + videoModels).filter { it.categoryId == categoryId })
+
+        override suspend fun listQuickCreationHistory(page: Int, size: Int): Result<QuickCreationHistoryPage> =
+            Result.success(QuickCreationHistoryPage(page = page, size = size, total = 0, items = emptyList()))
+
+        override suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem> =
+            Result.failure(IllegalStateException("No history detail in fake repository"))
     }
 
     class FakeMediaResolver : MediaResolver {

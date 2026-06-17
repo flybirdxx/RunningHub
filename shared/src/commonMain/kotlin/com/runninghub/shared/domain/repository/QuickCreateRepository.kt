@@ -356,6 +356,45 @@ data class QuickCreateResultItem(
     val duration: Int? = null,
 )
 
+data class QuickCreationHistoryPage(
+    val page: Int,
+    val size: Int,
+    val total: Int,
+    val items: List<QuickCreationHistoryItem>,
+)
+
+data class QuickCreationHistoryItem(
+    val taskId: String,
+    val status: String,
+    val categoryId: String? = null,
+    val bindingId: String? = null,
+    val skuId: String? = null,
+    val taskType: String? = null,
+    val taskCostTime: String? = null,
+    val params: Map<String, String> = emptyMap(),
+    val cashAmount: Double = 0.0,
+    val cashCurrency: String? = null,
+    val outputs: List<QuickCreationHistoryOutput> = emptyList(),
+)
+
+data class QuickCreationHistoryOutput(
+    val outputId: String,
+    val url: String,
+    val type: String,
+    val thumbnailUrl: String? = null,
+    val width: Int? = null,
+    val height: Int? = null,
+    val outputName: String? = null,
+    val expireTime: String? = null,
+    val expireDays: String? = null,
+) {
+    val isImage: Boolean
+        get() = type.lowercase() in setOf("png", "jpg", "jpeg", "webp", "image")
+
+    val isVideo: Boolean
+        get() = type.lowercase() in setOf("mp4", "webm", "mov", "video")
+}
+
 data class QuickCreateInspirationTag(
     val id: String,
     val name: String,
@@ -424,4 +463,6 @@ interface QuickCreateRepository {
     ): Result<List<QuickCreateInspirationTemplate>>
     suspend fun getInspirationTemplateDetail(templateId: String): Result<QuickCreateInspirationTemplateDetail>
     suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>>
+    suspend fun listQuickCreationHistory(page: Int = 1, size: Int = 10): Result<QuickCreationHistoryPage>
+    suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem>
 }

@@ -10,6 +10,9 @@ import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDet
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateResultItem
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
+import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
+import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
 import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.VideoGenerationRequest
 import com.runninghub.shared.domain.repository.VideoModel
@@ -84,6 +87,56 @@ private fun parseJsonObjectOrNull(raw: String?): JsonObject? =
         ?.let { value ->
             runCatching { quickCreationParamJson.decodeFromString<JsonObject>(value) }.getOrNull()
         }
+
+private fun QuickCreationTaskPageDto.toHistoryPage(): QuickCreationHistoryPage =
+    QuickCreationHistoryPage(
+        page = page,
+        size = size,
+        total = total,
+        items = list.map { it.toHistoryItem() },
+    )
+
+private fun QuickCreationTaskRecordDto.toHistoryItem(): QuickCreationHistoryItem {
+    val params = parseJsonObjectOrNull(apiRequestParams)
+        ?.mapNotNull { (key, value) ->
+            val scalar = value.asParamString()?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+            key to scalar
+        }
+        ?.toMap()
+        .orEmpty()
+
+    return QuickCreationHistoryItem(
+        taskId = taskId,
+        status = taskStatus,
+        categoryId = bindingCategoryId,
+        bindingId = bindingId,
+        skuId = skuId,
+        taskType = taskType,
+        taskCostTime = taskCostTime,
+        params = params,
+        cashAmount = prepayRecord?.cashAmount ?: 0.0,
+        cashCurrency = prepayRecord?.cashCurrency,
+        outputs = outputList.map { it.toHistoryOutput() },
+    )
+}
+
+private fun QuickCreationOutputDto.toHistoryOutput(): QuickCreationHistoryOutput {
+    val sizeParts = outputSize
+        ?.split("x", "X")
+        ?.takeIf { it.size == 2 }
+
+    return QuickCreationHistoryOutput(
+        outputId = id,
+        url = fileUrl,
+        type = outputType ?: inferResultType(fileUrl),
+        thumbnailUrl = filePreviewUrl,
+        width = sizeParts?.getOrNull(0)?.toIntOrNull(),
+        height = sizeParts?.getOrNull(1)?.toIntOrNull(),
+        outputName = outputName,
+        expireTime = expireTime,
+        expireDays = expireDays,
+    )
+}
 
 private fun pollTaskStatus(
     api: QuickCreateApi,
@@ -1151,5 +1204,25 @@ class QuickCreateRepositoryImpl(
                 throw IllegalStateException(response.msg ?: response.message ?: "模型列表加载失败")
             }
             QuickCreationModelMapper.flatten(categoryId, response.data.orEmpty())
+        }
+
+    override suspend fun listQuickCreationHistory(
+        page: Int,
+        size: Int,
+    ): Result<QuickCreationHistoryPage> = runCatching {
+        val response = quickCreateApi.listQuickCreationTasks(page = page, size = size)
+        if (response.code != 0 || response.data == null) {
+            throw IllegalStateException(response.msg ?: response.message ?: "History load failed")
+        }
+        response.data.toHistoryPage()
+    }
+
+    override suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem> =
+        runCatching {
+            val response = quickCreateApi.getQuickCreationTaskDetail(outputId)
+            if (response.code != 0 || response.data == null) {
+                throw IllegalStateException(response.msg ?: response.message ?: "History detail load failed")
+            }
+            response.data.toHistoryItem()
         }
 }
