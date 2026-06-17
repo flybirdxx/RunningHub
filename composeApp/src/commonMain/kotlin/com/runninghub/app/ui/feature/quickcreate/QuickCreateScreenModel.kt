@@ -888,20 +888,39 @@ class QuickCreateScreenModel(
 
     fun pickImageReference(uriString: String) {
         if (uriString.isBlank()) return
-        addMediaReference(uriString, QuickCreateMediaType.IMAGE)
+        addMediaReference(uriString, QuickCreateMediaType.IMAGE, fieldParamKey = null)
     }
 
     fun pickVideoReference(uriString: String) {
         if (uriString.isBlank()) return
-        addMediaReference(uriString, QuickCreateMediaType.VIDEO)
+        addMediaReference(uriString, QuickCreateMediaType.VIDEO, fieldParamKey = null)
     }
 
     fun pickAudioReference(uriString: String) {
         if (uriString.isBlank()) return
-        addMediaReference(uriString, QuickCreateMediaType.AUDIO)
+        addMediaReference(uriString, QuickCreateMediaType.AUDIO, fieldParamKey = null)
     }
 
-    private fun addMediaReference(uriString: String, type: QuickCreateMediaType) {
+    fun pickImageReferenceForField(uriString: String, fieldParamKey: String) {
+        if (uriString.isBlank() || fieldParamKey.isBlank()) return
+        addMediaReference(uriString, QuickCreateMediaType.IMAGE, fieldParamKey = fieldParamKey)
+    }
+
+    fun pickVideoReferenceForField(uriString: String, fieldParamKey: String) {
+        if (uriString.isBlank() || fieldParamKey.isBlank()) return
+        addMediaReference(uriString, QuickCreateMediaType.VIDEO, fieldParamKey = fieldParamKey)
+    }
+
+    fun pickAudioReferenceForField(uriString: String, fieldParamKey: String) {
+        if (uriString.isBlank() || fieldParamKey.isBlank()) return
+        addMediaReference(uriString, QuickCreateMediaType.AUDIO, fieldParamKey = fieldParamKey)
+    }
+
+    private fun addMediaReference(
+        uriString: String,
+        type: QuickCreateMediaType,
+        fieldParamKey: String?,
+    ) {
         val TAG = "QCScreenModel"
         val now = Clock.System.now().toEpochMilliseconds()
         val id = "${type.name}_$now"
@@ -916,6 +935,7 @@ class QuickCreateScreenModel(
             uri = uriString,
             displayName = fileName,
             fileSizeBytes = fileSize,
+            fieldParamKey = fieldParamKey,
             uploadStatus = UploadStatus.UPLOADING,
             uploadProgress = 0f,
         )
@@ -1468,7 +1488,15 @@ class QuickCreateScreenModel(
     ): Map<String, List<String>> {
         val urlsByType = mediaReferences
             .filter { it.uploadStatus == UploadStatus.DONE }
+            .filter { it.fieldParamKey.isNullOrBlank() }
             .groupBy { it.type }
+            .mapValues { (_, refs) ->
+                refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
+            }
+        val urlsByField = mediaReferences
+            .filter { it.uploadStatus == UploadStatus.DONE }
+            .filter { !it.fieldParamKey.isNullOrBlank() }
+            .groupBy { it.fieldParamKey.orEmpty() }
             .mapValues { (_, refs) ->
                 refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
             }
@@ -1476,7 +1504,7 @@ class QuickCreateScreenModel(
         return buildMap {
             model.uploadFields().forEach { field ->
                 val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@forEach
-                val urls = urlsByType[mediaType].orEmpty()
+                val urls = urlsByField[field.paramKey].orEmpty().ifEmpty { urlsByType[mediaType].orEmpty() }
                 if (urls.isNotEmpty()) {
                     val maxCount = field.maxUploadCount ?: urls.size
                     put(field.paramKey, urls.take(maxCount))
@@ -1484,7 +1512,7 @@ class QuickCreateScreenModel(
             }
             model.activeChildUploadFields(serviceParams).forEach { child ->
                 val mediaType = child.uploadMediaType() ?: fallbackMediaType ?: return@forEach
-                val urls = urlsByType[mediaType].orEmpty()
+                val urls = urlsByField[child.paramKey].orEmpty().ifEmpty { urlsByType[mediaType].orEmpty() }
                 if (urls.isNotEmpty()) {
                     val maxCount = child.maxInputCount ?: urls.size
                     put(child.paramKey, urls.take(maxCount))
@@ -1572,21 +1600,33 @@ class QuickCreateScreenModel(
     ): String? {
         val urlsByType = mediaReferences
             .filter { it.uploadStatus == UploadStatus.DONE }
+            .filter { it.fieldParamKey.isNullOrBlank() }
             .groupBy { it.type }
+            .mapValues { (_, refs) ->
+                refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
+            }
+        val urlsByField = mediaReferences
+            .filter { it.uploadStatus == UploadStatus.DONE }
+            .filter { !it.fieldParamKey.isNullOrBlank() }
+            .groupBy { it.fieldParamKey.orEmpty() }
             .mapValues { (_, refs) ->
                 refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
             }
         model.uploadFields()
             .firstNotNullOfOrNull { field ->
                 val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@firstNotNullOfOrNull null
-                val uploadedCount = urlsByType[mediaType].orEmpty().size
+                val uploadedCount = urlsByField[field.paramKey].orEmpty()
+                    .ifEmpty { urlsByType[mediaType].orEmpty() }
+                    .size
                 field.quickCreationUploadValidationError(uploadedCount)
             }
             ?.let { return it }
         return model.activeChildUploadFields(serviceParams)
             .firstNotNullOfOrNull { child ->
                 val mediaType = child.uploadMediaType() ?: fallbackMediaType ?: return@firstNotNullOfOrNull null
-                val uploadedCount = urlsByType[mediaType].orEmpty().size
+                val uploadedCount = urlsByField[child.paramKey].orEmpty()
+                    .ifEmpty { urlsByType[mediaType].orEmpty() }
+                    .size
                 child.quickCreationUploadValidationError(uploadedCount)
             }
     }
@@ -1602,27 +1642,11 @@ class QuickCreateScreenModel(
             .filter { it.isQuickCreationUploadField() }
 
     private fun QuickCreationServiceField.uploadMediaType(): QuickCreateMediaType? {
-        val marker = listOfNotNull(fieldType, fieldKey, paramKey, inputExtraJson)
-            .joinToString(" ")
-            .uppercase()
-        return when {
-            marker.contains("AUDIO") -> QuickCreateMediaType.AUDIO
-            marker.contains("VIDEO") -> QuickCreateMediaType.VIDEO
-            marker.contains("IMAGE") || marker.contains("PHOTO") || marker.contains("IMG") -> QuickCreateMediaType.IMAGE
-            else -> null
-        }
+        return quickCreationUploadMediaType()
     }
 
     private fun QuickCreationServiceFieldInputChild.uploadMediaType(): QuickCreateMediaType? {
-        val marker = listOf(fieldType, fieldKey, paramKey)
-            .joinToString(" ")
-            .uppercase()
-        return when {
-            marker.contains("AUDIO") -> QuickCreateMediaType.AUDIO
-            marker.contains("VIDEO") -> QuickCreateMediaType.VIDEO
-            marker.contains("IMAGE") || marker.contains("PHOTO") || marker.contains("IMG") -> QuickCreateMediaType.IMAGE
-            else -> null
-        }
+        return quickCreationUploadMediaType()
     }
 
     private fun QuickCreationServiceModel.matchesServiceIdentity(other: QuickCreationServiceModel?): Boolean =

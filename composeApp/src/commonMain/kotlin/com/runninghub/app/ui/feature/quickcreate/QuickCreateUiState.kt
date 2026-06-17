@@ -29,6 +29,7 @@ data class MediaReference(
     val uri: String,
     val displayName: String,
     val fileSizeBytes: Long,
+    val fieldParamKey: String? = null,
     val durationSeconds: Int? = null,
     val uploadStatus: UploadStatus = UploadStatus.UPLOADING,
     val uploadProgress: Float = 0f,

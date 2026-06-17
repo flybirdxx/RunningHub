@@ -1242,6 +1242,65 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image maps field bound images to matching child upload fields`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "imageReference",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "firstImage",
+                                    paramKey = "firstImages",
+                                    fieldType = "IMAGE",
+                                    maxInputCount = 1,
+                                ),
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "secondImage",
+                                    paramKey = "secondImages",
+                                    fieldType = "IMAGE",
+                                    maxInputCount = 1,
+                                ),
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val mediaResolver = FakeMediaResolver()
+        val model = QuickCreateScreenModel(repository, mediaResolver, FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReferenceForField("content://image/first", "firstImages")
+        advanceUntilIdle()
+        repository.uploadResult = Result.success("https://example.com/second.jpg")
+        model.pickImageReferenceForField("content://image/second", "secondImages")
+        advanceUntilIdle()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(
+            listOf("https://example.com/file.jpg"),
+            repository.lastImageRequest?.quickCreationListParams?.get("firstImages"),
+        )
+        assertEquals(
+            listOf("https://example.com/second.jpg"),
+            repository.lastImageRequest?.quickCreationListParams?.get("secondImages"),
+        )
+    }
+
+    @Test
     fun `generate image is blocked when required service image field has no upload`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

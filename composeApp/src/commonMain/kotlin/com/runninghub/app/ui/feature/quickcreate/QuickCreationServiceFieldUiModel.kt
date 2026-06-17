@@ -149,3 +149,25 @@ internal fun QuickCreationServiceField.quickCreationUploadHintParts(): List<Stri
         (inputExtra?.maxInputCount ?: maxUploadCount)?.let { "最多 $it 个文件" },
         maxUploadSize?.let { "单文件 ${it / 1024 / 1024}MB" },
     )
+
+internal fun QuickCreationServiceField.quickCreationUploadMediaType(): QuickCreateMediaType? {
+    val marker = listOfNotNull(fieldType, fieldKey, paramKey, inputExtraJson)
+        .joinToString(" ")
+        .uppercase()
+    return marker.quickCreationUploadMediaTypeFromMarker()
+}
+
+internal fun QuickCreationServiceFieldInputChild.quickCreationUploadMediaType(): QuickCreateMediaType? {
+    val marker = listOf(fieldType, fieldKey, paramKey)
+        .joinToString(" ")
+        .uppercase()
+    return marker.quickCreationUploadMediaTypeFromMarker()
+}
+
+private fun String.quickCreationUploadMediaTypeFromMarker(): QuickCreateMediaType? =
+    when {
+        contains("AUDIO") -> QuickCreateMediaType.AUDIO
+        contains("VIDEO") -> QuickCreateMediaType.VIDEO
+        contains("IMAGE") || contains("PHOTO") || contains("IMG") -> QuickCreateMediaType.IMAGE
+        else -> null
+    }

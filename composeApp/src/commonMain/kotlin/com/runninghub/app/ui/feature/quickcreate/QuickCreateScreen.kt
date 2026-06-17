@@ -256,6 +256,34 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     onVideoCountChange = { count -> screenModel.updateVideoCount(count.count) },
                     onImageSeedChange = screenModel::updateImageSeed,
                     onVideoSeedChange = screenModel::updateVideoSeed,
+                    onServiceUploadFieldClick = { mediaType, fieldParamKey ->
+                        when (mediaType) {
+                            QuickCreateMediaType.IMAGE -> controller.pickMedia(
+                                mediaPermission = Permission.MediaImages,
+                                mediaType = MediaType.IMAGE,
+                                onSuccess = { uriString ->
+                                    currentScreenModel.pickImageReferenceForField(uriString, fieldParamKey)
+                                },
+                                onPermissionDenied = { pendingPermission = Permission.MediaImages },
+                            )
+                            QuickCreateMediaType.VIDEO -> controller.pickMedia(
+                                mediaPermission = Permission.MediaVideo,
+                                mediaType = MediaType.VIDEO,
+                                onSuccess = { uriString ->
+                                    currentScreenModel.pickVideoReferenceForField(uriString, fieldParamKey)
+                                },
+                                onPermissionDenied = { pendingPermission = Permission.MediaVideo },
+                            )
+                            QuickCreateMediaType.AUDIO -> controller.pickMedia(
+                                mediaPermission = Permission.MediaAudio,
+                                mediaType = MediaType.AUDIO,
+                                onSuccess = { uriString ->
+                                    currentScreenModel.pickAudioReferenceForField(uriString, fieldParamKey)
+                                },
+                                onPermissionDenied = { pendingPermission = Permission.MediaAudio },
+                            )
+                        }
+                    },
                     onImageStyleChange = { style ->
                         val styleTag = when (style) {
                             ImageStylePreset.PHOTOREAL -> "写实摄影风格, "

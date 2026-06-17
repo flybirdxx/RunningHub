@@ -88,6 +88,7 @@ fun TuneBottomSheet(
     onImageStyleChange: (ImageStylePreset) -> Unit,
     onImageSeedChange: (Int?) -> Unit = {},
     onVideoSeedChange: (Int?) -> Unit = {},
+    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit = { _, _ -> },
     modifier: Modifier = Modifier,
 ) {
     var selectedTab by remember { mutableStateOf(TuneTab.STYLE) }
@@ -244,10 +245,12 @@ fun TuneBottomSheet(
                                     selectedServiceModel = uiState.selectedImageServiceModel,
                                     serviceModelsLoading = uiState.serviceModelsLoading,
                                     serviceParams = uiState.imageServiceParams,
+                                    mediaReferences = uiState.imageConfig.mediaReferences,
                                     seed = uiState.imageConfig.seed,
                                     onSelect = onImageModelSelected,
                                     onServiceModelSelect = onImageServiceModelSelected,
                                     onServiceParamChange = onImageServiceParamChange,
+                                    onServiceUploadFieldClick = onServiceUploadFieldClick,
                                     onSeedChange = onImageSeedChange,
                                 )
                             } else {
@@ -256,12 +259,14 @@ fun TuneBottomSheet(
                                     selectedServiceModel = uiState.selectedVideoServiceModel,
                                     serviceModelsLoading = uiState.serviceModelsLoading,
                                     serviceParams = uiState.videoServiceParams,
+                                    mediaReferences = uiState.videoConfig.mediaReferences,
                                     realistic = uiState.videoConfig.realisticMode,
                                     generateAudio = uiState.videoConfig.generateAudio,
                                     duration = uiState.videoConfig.duration,
                                     seed = uiState.videoConfig.seed,
                                     onServiceModelSelect = onVideoServiceModelSelected,
                                     onServiceParamChange = onVideoServiceParamChange,
+                                    onServiceUploadFieldClick = onServiceUploadFieldClick,
                                     onRealisticToggle = onToggleRealistic,
                                     onAudioToggle = onToggleAudio,
                                     onDurationChange = onVideoDurationChange,
@@ -605,10 +610,12 @@ private fun ImageAdvancedContent(
     selectedServiceModel: QuickCreationServiceModel?,
     serviceModelsLoading: Boolean,
     serviceParams: Map<String, String>,
+    mediaReferences: List<MediaReference>,
     seed: Int?,
     onSelect: (ImageModel) -> Unit,
     onServiceModelSelect: (QuickCreationServiceModel) -> Unit,
     onServiceParamChange: (String, String) -> Unit,
+    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
     onSeedChange: (Int?) -> Unit,
 ) {
     Column(
@@ -632,7 +639,9 @@ private fun ImageAdvancedContent(
                 ServiceFieldOptionsContent(
                     fields = fields,
                     params = serviceParams,
+                    mediaReferences = mediaReferences,
                     onParamChange = onServiceParamChange,
+                    onUploadFieldClick = onServiceUploadFieldClick,
                 )
                 Spacer(Modifier.height(Dimens.SpaceXL))
             }
@@ -830,7 +839,9 @@ private fun QuickCreationServiceModel.quickCreationServiceModelSubtitle(): Strin
 private fun ServiceFieldOptionsContent(
     fields: List<QuickCreationServiceField>,
     params: Map<String, String>,
+    mediaReferences: List<MediaReference>,
     onParamChange: (String, String) -> Unit,
+    onUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
         Text(
@@ -911,21 +922,98 @@ private fun ServiceFieldOptionsContent(
                         )
                     }
                 } else if (field.isQuickCreationUploadField()) {
-                    Text(
-                        text = field.quickCreationUploadHintParts()
-                            .joinToString(" · ")
-                            .ifBlank { "上传参数由素材入口处理" },
-                        fontSize = 11.sp,
-                        color = Neutral500,
+                    ServiceUploadFieldPicker(
+                        paramKey = field.paramKey,
+                        mediaType = field.quickCreationUploadMediaType(),
+                        hint = field.quickCreationUploadHintParts().joinToString(" · "),
+                        mediaReferences = mediaReferences,
+                        onUploadFieldClick = onUploadFieldClick,
                     )
                 }
                 field.quickCreationActiveInputChildren(params).forEach { child ->
                     ServiceChildFieldInput(
                         child = child,
                         params = params,
+                        mediaReferences = mediaReferences,
                         onParamChange = onParamChange,
+                        onUploadFieldClick = onUploadFieldClick,
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServiceUploadFieldPicker(
+    paramKey: String,
+    mediaType: QuickCreateMediaType?,
+    hint: String,
+    mediaReferences: List<MediaReference>,
+    onUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
+) {
+    val fieldRefs = mediaReferences.filter { it.fieldParamKey == paramKey }
+    val doneCount = fieldRefs.count { it.uploadStatus == UploadStatus.DONE }
+    val uploadingCount = fieldRefs.count {
+        it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING
+    }
+    val label = when (mediaType) {
+        QuickCreateMediaType.IMAGE -> "选择图片"
+        QuickCreateMediaType.VIDEO -> "选择视频"
+        QuickCreateMediaType.AUDIO -> "选择音频"
+        null -> "选择素材"
+    }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = listOfNotNull(
+                    hint.takeIf { it.isNotBlank() },
+                    doneCount.takeIf { it > 0 }?.let { "已上传 $it" },
+                    uploadingCount.takeIf { it > 0 }?.let { "上传中 $it" },
+                ).joinToString(" · ").ifBlank { "为该字段选择专属素材" },
+                fontSize = 11.sp,
+                color = Neutral500,
+            )
+        }
+        Surface(
+            enabled = mediaType != null,
+            shape = RoundedCornerShape(Dimens.RadiusSM),
+            color = if (doneCount > 0) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
+            border = BorderStroke(
+                1.dp,
+                if (doneCount > 0) Primary300.copy(alpha = 0.4f) else DarkOutlineVariant,
+            ),
+            onClick = {
+                val resolvedType = mediaType ?: return@Surface
+                onUploadFieldClick(resolvedType, paramKey)
+            },
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 7.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    imageVector = when (mediaType) {
+                        QuickCreateMediaType.IMAGE -> Icons.Default.Image
+                        QuickCreateMediaType.VIDEO -> Icons.Default.Videocam
+                        QuickCreateMediaType.AUDIO -> Icons.Default.MusicNote
+                        null -> Icons.Default.Upload
+                    },
+                    contentDescription = null,
+                    tint = if (doneCount > 0) Primary300 else Neutral400,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text = label,
+                    fontSize = 12.sp,
+                    color = if (doneCount > 0) Primary300 else Neutral300,
+                    fontWeight = if (doneCount > 0) FontWeight.Medium else FontWeight.Normal,
+                )
             }
         }
     }
@@ -935,7 +1023,9 @@ private fun ServiceFieldOptionsContent(
 private fun ServiceChildFieldInput(
     child: QuickCreationServiceFieldInputChild,
     params: Map<String, String>,
+    mediaReferences: List<MediaReference>,
     onParamChange: (String, String) -> Unit,
+    onUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
 ) {
     Column(
         modifier = Modifier.padding(start = Dimens.SpaceMD),
@@ -1011,10 +1101,12 @@ private fun ServiceChildFieldInput(
                 )
             }
         } else if (child.isQuickCreationUploadField()) {
-            Text(
-                text = "上传参数由素材入口处理",
-                fontSize = 11.sp,
-                color = Neutral500,
+            ServiceUploadFieldPicker(
+                paramKey = child.paramKey,
+                mediaType = child.quickCreationUploadMediaType(),
+                hint = "",
+                mediaReferences = mediaReferences,
+                onUploadFieldClick = onUploadFieldClick,
             )
         }
     }
@@ -1060,12 +1152,14 @@ private fun VideoAdvancedContent(
     selectedServiceModel: QuickCreationServiceModel?,
     serviceModelsLoading: Boolean,
     serviceParams: Map<String, String>,
+    mediaReferences: List<MediaReference>,
     realistic: Boolean,
     generateAudio: Boolean,
     duration: VideoDuration,
     seed: Int?,
     onServiceModelSelect: (QuickCreationServiceModel) -> Unit,
     onServiceParamChange: (String, String) -> Unit,
+    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
     onRealisticToggle: () -> Unit,
     onAudioToggle: () -> Unit,
     onDurationChange: (VideoDuration) -> Unit,
@@ -1092,7 +1186,9 @@ private fun VideoAdvancedContent(
                 ServiceFieldOptionsContent(
                     fields = fields,
                     params = serviceParams,
+                    mediaReferences = mediaReferences,
                     onParamChange = onServiceParamChange,
+                    onUploadFieldClick = onServiceUploadFieldClick,
                 )
                 Spacer(Modifier.height(Dimens.SpaceXL))
             }
