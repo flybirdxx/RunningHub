@@ -1245,3 +1245,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机需复测复杂 inputChildren 链：child 默认值、child visibleWhen、上传 child 同时存在时，Tune 显示和 prepare 请求体是否只跟随当前 active 字段。
 - 如果真实服务端存在“active child 的默认值继续激活另一个 child”的链式条件，当前 `defaultServiceParams(activeParams)` 可以提交已 active child 默认值，但还需要用真实模型确认是否存在更深层级联。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 stale inactive child 参数不再污染 visibleWhen
+
+代码提交 `37338bf fix(quickcreate): ignore stale inactive child params` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `quickCreationParamsWithFieldAliases()` 现在返回的是条件判断视图，不再原样透传所有 `params`。
+- 条件视图先加入可见顶层字段的显式值或默认值，再通过固定点方式逐轮加入当前 active child 的显式值或默认值。
+- 之前用户在 child active 时填过的参数，如果父字段切换后该 child 已 inactive，则该 stale child 值不会再被 sibling `visibleWhen` 读取。
+- 保留链式 active child 能力：只有 child 当前 active 且有值时，才会继续影响依赖它的 sibling 条件。
+- 新增回归测试覆盖：`creationMode=text` 时，即使 `serviceParams` 里残留 `referenceStrength=0.65`，依赖该值的 `derivedImages` 上传 child 也不会变 active。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.inactive child explicit values do not activate sibling upload fields"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModelTest.kt
+```
+
+仍未完成：
+- 真机需复测切换父字段后，之前填过的 child 文本/上传素材不会在 UI、fee-preview 或 prepare 请求体里继续影响 inactive 分支。
+- 如果真实模型存在多层 sibling 条件链，需要用真实字段确认固定点收敛后的 active child 展示顺序和请求体符合后端预期。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。

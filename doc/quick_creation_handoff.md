@@ -1339,3 +1339,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测带复杂 `visibleWhen` 的模板，确认 inactive 素材字段不会显示、不会触发校验、不会进入 `quickCreationListParams`。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：stale inactive child 参数过滤
+
+代码提交 `37338bf fix(quickcreate): ignore stale inactive child params` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `quickCreationParamsWithFieldAliases(params)` 不再是原始 params 的简单别名扩展，而是专门用于条件判断和 UI active 计算的 filtered params 视图。
+- 顶层可见字段会纳入视图，使用显式值优先、非空默认值兜底。
+- input child 只有在当前视图下被判定 active 后，才会把自身显式值或非空默认值加入视图。
+- 通过固定点循环支持 active child 值继续激活 sibling child；但 inactive child 的 stale 显式值不会进入视图。
+- 这条规则同时影响 Tune UI 渲染、active 参数过滤、上传字段归属、模板素材 active alias 和校验路径，因为这些入口都复用该条件视图。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.inactive child explicit values do not activate sibling upload fields"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModelTest.kt
+```
+
+下一步建议：
+- 继续审查切换父字段时是否需要主动清理 inactive child 的媒体引用；当前请求体会过滤 inactive 字段，但 UI 状态仍保留引用以便用户切回。
+- 真机复测复杂 `visibleWhen` 模型：先激活并填写 child，再切回父字段默认分支，确认 sibling 上传字段不显示、不校验、不提交。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
