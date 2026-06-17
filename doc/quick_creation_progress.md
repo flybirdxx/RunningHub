@@ -1048,3 +1048,24 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真实设备上仍需复测多字段灵感模板：同类型多个模板素材卡片是否能在 Tune 对应字段区域独立显示、删除和提交。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 灵感模板素材 id 规整碰撞收口
+
+代码提交 `e1d611d fix(quickcreate): prevent sanitized template media id collisions` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `templateMediaReferences()` 现在把 `listParams` 字段顺序写入模板素材 id，格式包含 `templateId + fieldIndex + sanitizedKey + mediaType + itemIndex`。
+- 即使服务端字段 key 例如 `image-urls` 与 `image_urls` 在 ASCII 规整后都变成 `image_urls`，同一模板内的素材 id 仍保持唯一。
+- 字段级绑定不变：`MediaReference.fieldParamKey` 仍保留服务端原始 key，请求体继续按原始 `paramKey` 进入 `quickCreationListParams`。
+- 新增回归测试覆盖规整后 key 碰撞的场景，避免后续 UI key、删除、状态更新依赖 id 时再次出现歧义。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template keeps media ids unique when field keys sanitize equally"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测服务端真实模板字段 key 中包含符号、下划线或非 ASCII 字符时，Tune 字段卡片显示、删除和最终请求体是否保持一致。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。

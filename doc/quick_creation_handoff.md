@@ -1128,3 +1128,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 若后续发现服务端字段 key 含非 ASCII 且不同 key 规整后相同，需要在 id 里追加 map 顺序或 key hash；当前单测覆盖的是常见 API key 场景。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：模板素材 id 规整碰撞规则
+
+代码提交 `e1d611d fix(quickcreate): prevent sanitized template media id collisions` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 模板素材 id 现在包含 `fieldIndex`，所以同一模板里两个字段 key 即使规整为相同字符串，也不会生成重复 id。
+- `fieldIndex` 来自 `listParams.entries.flatMapIndexed` 的遍历顺序；它只用于客户端内部素材 id，不参与请求体字段名。
+- `fieldParamKey` 继续保留原始服务端 key，例如 `image-urls` 不会被改写成 `image_urls`，最终提交仍按原 key 分组。
+- 这个规则补上了上一轮交接里“规整后相同 key 需要追加顺序或 hash”的风险点，目前选择顺序索引，改动最小且不引入额外 hash 工具。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template keeps media ids unique when field keys sanitize equally"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 如果未来服务端 `listParams` 顺序不稳定但需要跨刷新保留同一素材 id，可再把原始 key 的稳定 hash 加入 id；当前实现已满足单次模板应用内唯一性。
+- 继续补视频模板字段级素材回归：`referenceVideos`、`referenceAudios` 应绑定到对应字段，而不是底部全局素材。
+- 真机复测字段 key 含特殊字符的模板，重点看删除目标和最终请求体是否使用原始 `paramKey`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
