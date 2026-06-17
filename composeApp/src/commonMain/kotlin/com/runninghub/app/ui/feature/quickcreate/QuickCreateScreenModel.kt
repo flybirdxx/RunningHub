@@ -1453,7 +1453,7 @@ class QuickCreateScreenModel(
         serviceParams: Map<String, String>,
     ): Map<String, String> =
         buildMap {
-            putAll(model.defaultServiceParams())
+            putAll(model.defaultServiceParams(serviceParams))
             putAll(
                 serviceParams
                     .filterKeys { key -> key in model.activeServiceParamKeys(serviceParams) }
@@ -1483,7 +1483,7 @@ class QuickCreateScreenModel(
         serviceParams: Map<String, String>,
     ): Map<String, String> =
         buildMap {
-            putAll(model.defaultServiceParams())
+            putAll(model.defaultServiceParams(serviceParams))
             putAll(
                 serviceParams
                     .filterKeys { key -> key in model.activeServiceParamKeys(serviceParams) }
@@ -1553,14 +1553,30 @@ class QuickCreateScreenModel(
         }
     }
 
-    private fun QuickCreationServiceModel?.defaultServiceParams(): Map<String, String> =
-        this?.fields.orEmpty()
+    private fun QuickCreationServiceModel?.defaultServiceParams(
+        activeParams: Map<String, String> = emptyMap(),
+    ): Map<String, String> {
+        val visibleFields = this?.fields.orEmpty()
             .filter { it.visible }
+        val topLevelDefaults = visibleFields
             .mapNotNull { field ->
                 val value = field.defaultValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
                 field.paramKey to value
             }
             .toMap()
+        val aliasedDefaults = quickCreationParamsWithFieldAliases(topLevelDefaults + activeParams)
+        return buildMap {
+            putAll(topLevelDefaults)
+            visibleFields.forEach { field ->
+                field.quickCreationActiveInputChildren(aliasedDefaults)
+                    .mapNotNull { child ->
+                        val value = child.defaultValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                        child.paramKey to value
+                    }
+                    .forEach { (paramKey, value) -> put(paramKey, value) }
+            }
+        }
+    }
 
     private fun QuickCreationServiceModel.hasFieldParam(paramKey: String): Boolean =
         fields.any { field ->
@@ -1596,7 +1612,7 @@ class QuickCreateScreenModel(
         model: QuickCreationServiceModel?,
         serviceParams: Map<String, String>,
     ): String? {
-        val defaults = model.defaultServiceParams()
+        val defaults = model.defaultServiceParams(serviceParams)
         val aliasedParams = model.quickCreationParamsWithFieldAliases(serviceParams)
         return model?.fields.orEmpty()
             .filter { it.visible }
@@ -1740,7 +1756,7 @@ class QuickCreateScreenModel(
     ): QuickCreateUiState {
         val selectedModel = serviceImageModels.matchTemplateModel(detail) ?: selectedImageServiceModel
         val templateParams = selectedModel.canonicalTemplateParams(detail.params)
-        val serviceParams = selectedModel.defaultServiceParams() + templateParams
+        val serviceParams = selectedModel.defaultServiceParams(templateParams) + templateParams
         val nextConfig = imageConfig.copy(
             prompt = detail.prompt ?: imageConfig.prompt,
             aspectRatio = detail.params.templateImageAspectRatio() ?: imageConfig.aspectRatio,
@@ -1767,7 +1783,7 @@ class QuickCreateScreenModel(
     ): QuickCreateUiState {
         val selectedModel = serviceVideoModels.matchTemplateModel(detail) ?: selectedVideoServiceModel
         val templateParams = selectedModel.canonicalTemplateParams(detail.params)
-        val serviceParams = selectedModel.defaultServiceParams() + templateParams
+        val serviceParams = selectedModel.defaultServiceParams(templateParams) + templateParams
         val nextConfig = videoConfig.copy(
             prompt = detail.prompt ?: videoConfig.prompt,
             aspectRatio = detail.params.templateVideoAspectRatio() ?: videoConfig.aspectRatio,
