@@ -1317,3 +1317,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测模板激活 child 后的 Tune 默认值显示和 fee-preview 请求体。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：inactive child 默认值不参与条件判断
+
+代码提交 `55190bc fix(quickcreate): avoid inactive child default activation` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `quickCreationParamsWithFieldAliases(params)` 仍会为顶层字段使用非空默认值建立 `fieldKey/paramKey` 别名，用于父字段默认选项驱动 child 显示。
+- 对 input child，则只在 `params` 已包含该 child 的 `fieldKey` 或 `paramKey` 时建立别名，不再直接读取 child.defaultValue。
+- active child 默认值提交不依赖 alias helper 注入；由 `defaultServiceParams(activeParams)` 在确认 child active 后补齐。
+- 因此 inactive child 的默认值不会影响 sibling `visibleWhen`，但已经 active 的 child 默认值仍会进入 UI 状态和最终 `quickCreationParams`。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.inactive child defaults do not activate sibling upload fields"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModelTest.kt
+```
+
+下一步建议：
+- 审查是否需要固定点方式补齐多级 active child 默认值：只有真实模型存在 child 默认值激活另一个 child 时再扩展，避免现在过度推断协议。
+- 真机复测带复杂 `visibleWhen` 的模板，确认 inactive 素材字段不会显示、不会触发校验、不会进入 `quickCreationListParams`。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

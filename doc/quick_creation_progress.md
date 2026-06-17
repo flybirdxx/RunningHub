@@ -1223,3 +1223,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机需复测真实服务模型里带默认值的 child 参数，例如参考强度、权重、开关等，确认用户不手动修改时 prepare 请求体仍包含服务端期望的默认值。
 - 仍需抓真实模板里“模板 params 激活 child”的返回，核对 Tune UI 默认显示、fee-preview 请求体和最终 prepare 请求体一致。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 inactive child 默认值不再污染 visibleWhen
+
+代码提交 `55190bc fix(quickcreate): avoid inactive child default activation` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `quickCreationParamsWithFieldAliases()` 不再为 input child 无条件注入 `defaultValue`；child 只有在 `params` 已显式包含 `fieldKey` 或 `paramKey` 时才建立别名。
+- 这避免了 inactive child 的默认值被 sibling 的 `visibleWhen.fieldKey` 读到，从而误激活另一个 child 上传字段。
+- active child 默认值提交仍由 `QuickCreateScreenModel.defaultServiceParams(activeParams)` 负责，保持上一轮“active child 默认参数进入请求体”的行为。
+- 新增回归测试覆盖：`referenceStrength` child 因父字段默认 `text` 未激活时，其默认值 `0.65` 不会让依赖 `referenceStrength=0.65` 的 `derivedImages` 上传 child 变 active。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.inactive child defaults do not activate sibling upload fields"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModelTest.kt
+```
+
+仍未完成：
+- 真机需复测复杂 inputChildren 链：child 默认值、child visibleWhen、上传 child 同时存在时，Tune 显示和 prepare 请求体是否只跟随当前 active 字段。
+- 如果真实服务端存在“active child 的默认值继续激活另一个 child”的链式条件，当前 `defaultServiceParams(activeParams)` 可以提交已 active child 默认值，但还需要用真实模型确认是否存在更深层级联。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
