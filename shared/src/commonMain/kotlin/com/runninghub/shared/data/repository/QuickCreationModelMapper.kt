@@ -170,6 +170,8 @@ internal object QuickCreationModelMapper {
             title = stringValue("title") ?: childExtra?.stringValue("title") ?: stringValue("label") ?: stringValue("name"),
             paramDescription = stringValue("paramDesc") ?: childExtra?.stringValue("paramDesc"),
             placeholder = stringValue("placeholder") ?: childExtra?.stringValue("placeholder"),
+            maxLength = intValue("maxLength") ?: childExtra?.intValue("maxLength"),
+            minLength = intValue("minLength") ?: childExtra?.intValue("minLength"),
             options = optionsValue(),
             visibleWhen = visibleWhen(),
         )

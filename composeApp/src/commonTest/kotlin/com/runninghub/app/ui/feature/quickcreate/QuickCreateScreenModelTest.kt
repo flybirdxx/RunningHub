@@ -15,6 +15,7 @@ import com.runninghub.shared.domain.repository.QuickCreationProjectPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -997,6 +998,99 @@ class QuickCreateScreenModelTest {
         assertEquals(null, repository.lastImageRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertEquals("Tagline 至少 3 个字符", model.uiState.value.error)
+    }
+
+    @Test
+    fun `generate image is blocked when active required child text field is empty`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "imageReference",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "referenceStrength",
+                                    paramKey = "referenceStrength",
+                                    fieldType = "NUMBER",
+                                    required = true,
+                                    title = "Reference strength",
+                                    visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                        fieldKey = "creationMode",
+                                        values = listOf("imageReference"),
+                                    ),
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("Reference strength 不能为空", model.uiState.value.error)
+    }
+
+    @Test
+    fun `inactive required child text field does not block image generation`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "text",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "referenceStrength",
+                                    paramKey = "referenceStrength",
+                                    fieldType = "NUMBER",
+                                    required = true,
+                                    title = "Reference strength",
+                                    visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                        fieldKey = "creationMode",
+                                        values = listOf("imageReference"),
+                                    ),
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("text", repository.lastImageRequest?.quickCreationParams?.get("creationMode"))
+        assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("referenceStrength"))
     }
 
     @Test

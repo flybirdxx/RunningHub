@@ -96,6 +96,19 @@ internal fun QuickCreationServiceField.quickCreationTextValidationError(value: S
     return null
 }
 
+internal fun QuickCreationServiceFieldInputChild.quickCreationTextValidationError(value: String): String? {
+    val title = quickCreationFieldTitle()
+    val trimmed = value.trim()
+    if (required && trimmed.isEmpty()) {
+        return "$title 不能为空"
+    }
+    val minLength = minLength?.takeIf { it > 0 }
+    if (minLength != null && trimmed.isNotEmpty() && trimmed.length < minLength) {
+        return "$title 至少 $minLength 个字符"
+    }
+    return null
+}
+
 internal fun QuickCreationServiceField.quickCreationUploadValidationError(uploadedCount: Int): String? {
     val title = quickCreationFieldTitle()
     if (required && uploadedCount <= 0) {

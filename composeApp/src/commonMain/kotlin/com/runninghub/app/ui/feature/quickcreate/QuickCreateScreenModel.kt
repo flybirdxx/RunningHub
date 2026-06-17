@@ -1511,10 +1511,17 @@ class QuickCreateScreenModel(
     ): String? {
         val defaults = model.defaultServiceParams()
         return model?.fields.orEmpty()
-            .filter { it.supportsQuickCreationTextEntry() }
             .firstNotNullOfOrNull { field ->
-                val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
-                field.quickCreationTextValidationError(value)
+                if (field.supportsQuickCreationTextEntry()) {
+                    val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
+                    field.quickCreationTextValidationError(value)?.let { return@firstNotNullOfOrNull it }
+                }
+                field.quickCreationActiveInputChildren(serviceParams)
+                    .filter { it.supportsQuickCreationTextEntry() }
+                    .firstNotNullOfOrNull { child ->
+                        val value = serviceParams[child.paramKey] ?: child.defaultValue.orEmpty()
+                        child.quickCreationTextValidationError(value)
+                    }
             }
     }
 

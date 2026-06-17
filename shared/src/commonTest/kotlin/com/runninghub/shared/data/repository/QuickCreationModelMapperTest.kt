@@ -211,6 +211,8 @@ class QuickCreationModelMapperTest {
                                   "title": "Reference strength",
                                   "paramDesc": "Controls how strongly the uploaded image is followed",
                                   "placeholder": "0.0-1.0",
+                                  "maxLength": 4,
+                                  "minLength": 3,
                                   "options": [
                                     {"label": "Low", "value": "0.35"},
                                     {"label": "High", "value": "0.85"}
@@ -247,6 +249,8 @@ class QuickCreationModelMapperTest {
         assertEquals("Reference strength", child.title)
         assertEquals("Controls how strongly the uploaded image is followed", child.paramDescription)
         assertEquals("0.0-1.0", child.placeholder)
+        assertEquals(4, child.maxLength)
+        assertEquals(3, child.minLength)
         assertEquals("Low", child.options.first().label)
         assertEquals("0.85", child.options.last().value)
         assertEquals("creationMode", child.visibleWhen?.fieldKey)

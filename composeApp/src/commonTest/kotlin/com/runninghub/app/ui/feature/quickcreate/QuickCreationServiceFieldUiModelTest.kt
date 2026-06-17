@@ -197,4 +197,33 @@ class QuickCreationServiceFieldUiModelTest {
                 .map { it.paramKey },
         )
     }
+
+    @Test
+    fun `required child text validation uses child metadata`() {
+        val child = QuickCreationServiceFieldInputChild(
+            fieldKey = "referenceStrength",
+            paramKey = "referenceStrength",
+            fieldType = "NUMBER",
+            required = true,
+            title = "Reference strength",
+        )
+
+        assertEquals("Reference strength 不能为空", child.quickCreationTextValidationError(""))
+        assertEquals(null, child.quickCreationTextValidationError("0.65"))
+    }
+
+    @Test
+    fun `child min length validation uses child metadata`() {
+        val child = QuickCreationServiceFieldInputChild(
+            fieldKey = "subPrompt",
+            paramKey = "subPrompt",
+            fieldType = "STRING",
+            required = true,
+            title = "Sub prompt",
+            minLength = 3,
+        )
+
+        assertEquals("Sub prompt 至少 3 个字符", child.quickCreationTextValidationError("ab"))
+        assertEquals(null, child.quickCreationTextValidationError("abc"))
+    }
 }
