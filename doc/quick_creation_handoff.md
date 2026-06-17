@@ -1406,3 +1406,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 继续审查模板 detail 的 unknown `listParams` key 是否存在“字段声明缺失但后端仍要求字段级提交”的例外；当前规则会把未声明 key 当 legacy 全局素材处理。
 - 完整视频扣费链路本轮未复测；本轮没有点击真实生成、没有新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：恢复草稿触发价格预览
+
+代码提交 `1814fc7 fix(quickcreate): refresh fee preview after draft restore` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `restoreDraft()` 会先恢复 `imagePrompt`、`videoPrompt` 和 `currentTab`，再清除持久化草稿。
+- 清除草稿后会调用 `scheduleFeePreview()`，让恢复后的当前 tab 请求体重新进入服务端 fee-preview debounce 流程。
+- 如果恢复后的当前 tab 没有有效 prompt，`scheduleFeePreview()` 会沿用既有逻辑清空预览状态，不会发起无效请求。
+- 这避免用户恢复草稿后底部按钮价格停留在旧状态，尤其是从空输入或另一个 tab 恢复到已有 prompt 时。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.restore draft refreshes fee preview for restored image prompt"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测恢复视频草稿：当前 tab 为视频且存在 videoPrompt 时，按钮应先进入价格确认中，再更新为服务端金额或明确失败态。
+- 后续如果草稿扩展到服务端字段参数或素材引用，也需要在 restore 后复用同一调度点刷新 fee-preview。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

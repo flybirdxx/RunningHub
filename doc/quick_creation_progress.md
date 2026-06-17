@@ -1312,3 +1312,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需复测通用 `listParams` key 绑定到视频/音频字段时，Tune 字段素材卡片、删除动作和最终 `quickCreationListParams` 是否都按服务字段媒体类型展示和提交。
 - 完整视频 `prepare/commit/list/detail` 扣费链路本轮未触发；本轮没有点击真实生成、没有新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 草稿恢复后刷新 fee-preview
+
+代码提交 `1814fc7 fix(quickcreate): refresh fee preview after draft restore` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `restoreDraft()` 在恢复图片/视频 prompt 和当前 tab 后会重新调用 `scheduleFeePreview()`。
+- 这样用户从草稿恢复上次输入后，底部价格会按恢复后的请求体重新走服务端 fee-preview，而不是停留在旧 tab 或空 prompt 的本地估算状态。
+- `scheduleFeePreview()` 仍保留原有防线：没有有效 prompt 时不会发请求，只会清理价格预览状态。
+- 新增回归测试覆盖：保存图片草稿、加载并恢复后等待 debounce，应发起一次图片 fee-preview，请求 prompt 为草稿内容。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.restore draft refreshes fee preview for restored image prompt"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测恢复视频草稿后的按钮状态，确认从“价格确认中”更新为服务端金额或明确失败态。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
