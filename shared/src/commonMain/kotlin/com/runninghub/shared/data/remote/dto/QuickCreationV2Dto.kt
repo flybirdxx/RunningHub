@@ -176,6 +176,11 @@ data class QuickCreationTaskDetailRequestDto(
 )
 
 @Serializable
+data class QuickCreationTaskCancelRequestDto(
+    @SerialName("taskId") val taskId: String,
+)
+
+@Serializable
 data class QuickCreationInspirationTemplatePageRequestDto(
     @SerialName("page") val page: Int = 1,
     @SerialName("size") val size: Int = 20,

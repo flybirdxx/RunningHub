@@ -1225,4 +1225,12 @@ class QuickCreateRepositoryImpl(
             }
             response.data.toHistoryItem()
         }
+
+    override suspend fun cancelQuickCreationTask(taskId: String): Result<Unit> =
+        runCatching {
+            val response = quickCreateApi.cancelQuickCreationTask(taskId)
+            if (response.code != 0) {
+                throw IllegalStateException(response.msg ?: response.message ?: "Task cancel failed")
+            }
+        }
 }

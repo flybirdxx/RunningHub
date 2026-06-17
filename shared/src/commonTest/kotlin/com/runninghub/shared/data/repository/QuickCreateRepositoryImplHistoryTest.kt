@@ -141,8 +141,38 @@ class QuickCreateRepositoryImplHistoryTest {
         assertTrue(output.isVideo)
     }
 
+    @Test
+    fun `cancel history task posts encoded task id`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
+        val repository = repositoryWithMock(
+            responseForPath = { path ->
+                paths += path
+                when (path) {
+                    QuickCreateApi.QC_TASK_CANCEL -> """{"code":0,"msg":"success","data":true}"""
+                    else -> """{"code":404,"msg":"unexpected path"}"""
+                }
+            },
+            captureBody = { bodies += it },
+        )
+
+        val result = repository.cancelQuickCreationTask("task id/1").getOrThrow()
+
+        assertEquals(Unit, result)
+        assertEquals(listOf(QuickCreateApi.QC_TASK_CANCEL), paths)
+        assertEquals("""{"taskId":"task%20id%2F1"}""", bodies.single())
+    }
+
     private fun repositoryWithMock(responseForPath: (String) -> String): QuickCreateRepositoryImpl {
+        return repositoryWithMock(responseForPath = responseForPath, captureBody = {})
+    }
+
+    private fun repositoryWithMock(
+        responseForPath: (String) -> String,
+        captureBody: (String) -> Unit,
+    ): QuickCreateRepositoryImpl {
         val engine = MockEngine { request ->
+            captureBody(request.body.toRequestBodyText())
             respond(
                 content = responseForPath(request.url.encodedPath).trimIndent(),
                 headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
@@ -158,6 +188,13 @@ class QuickCreateRepositoryImplHistoryTest {
             settingsRepository = FakeSettingsRepository(),
         )
     }
+
+    private fun Any.toRequestBodyText(): String =
+        when (this) {
+            is io.ktor.http.content.OutgoingContent.ByteArrayContent -> bytes().decodeToString()
+            is io.ktor.http.content.TextContent -> text
+            else -> toString()
+        }
 
     private class FakeSettingsRepository : SettingsRepository {
         override suspend fun getApiKey(): String? = null

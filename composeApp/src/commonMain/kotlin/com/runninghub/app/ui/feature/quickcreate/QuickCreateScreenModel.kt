@@ -205,6 +205,34 @@ class QuickCreateScreenModel(
                 historyItems = page.items,
             )
         }
+        updateHistoryRefreshJob(page.items)
+    }
+
+    fun cancelHistoryTask(taskId: String) {
+        if (taskId.isBlank() || taskId in _uiState.value.historyCancellingTaskIds) return
+
+        screenModelScope.launch {
+            _uiState.update { state ->
+                state.copy(historyCancellingTaskIds = state.historyCancellingTaskIds + taskId)
+            }
+            val result = quickCreateRepository.cancelQuickCreationTask(taskId)
+            result.fold(
+                onSuccess = {
+                    refreshLoadedQuickCreationHistory()
+                    _uiState.update { state ->
+                        state.copy(historyCancellingTaskIds = state.historyCancellingTaskIds - taskId)
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            historyCancellingTaskIds = state.historyCancellingTaskIds - taskId,
+                            error = error.message ?: "取消任务失败",
+                        )
+                    }
+                },
+            )
+        }
     }
 
     fun selectHistoryOutput(outputId: String) {

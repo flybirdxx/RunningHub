@@ -465,4 +465,5 @@ interface QuickCreateRepository {
     suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>>
     suspend fun listQuickCreationHistory(page: Int = 1, size: Int = 10): Result<QuickCreationHistoryPage>
     suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem>
+    suspend fun cancelQuickCreationTask(taskId: String): Result<Unit>
 }

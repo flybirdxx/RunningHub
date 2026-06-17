@@ -354,6 +354,7 @@ data class QuickCreateUiState(
     val historyTotal: Int = 0,
     val historyHasMore: Boolean = false,
     val historyItems: List<QuickCreationHistoryItem> = emptyList(),
+    val historyCancellingTaskIds: Set<String> = emptySet(),
     val historyDetailLoading: Boolean = false,
     val selectedHistoryDetail: QuickCreationHistoryItem? = null,
     val serviceModelsLoading: Boolean = false,

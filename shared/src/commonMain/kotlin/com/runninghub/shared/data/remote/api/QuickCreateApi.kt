@@ -7,6 +7,7 @@ import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 
 private fun debug(tag: String, msg: String) {
     println("[$tag] $msg")
@@ -31,6 +32,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         const val QC_COMMIT = "/task/quick-creation/commit"
         const val QC_TASK_LIST = "/task/quick-creation/list"
         const val QC_TASK_DETAIL = "/task/quick-creation/detail"
+        const val QC_TASK_CANCEL = "/task/quick-creation/cancel"
         const val QC_INSPIRATION_TAGS = "/task/quick-creation/inspiration/tags"
         const val QC_INSPIRATION_TEMPLATES = "/task/quick-creation/inspiration/templates"
         const val QC_INSPIRATION_TEMPLATE_DETAIL = "/task/quick-creation/inspiration/template/detail"
@@ -180,6 +182,14 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         client.post("$BASE_URL$QC_TASK_DETAIL") {
             contentType(ContentType.Application.Json)
             setBody(QuickCreationTaskDetailRequestDto(outputId))
+        }.body()
+
+    suspend fun cancelQuickCreationTask(
+        taskId: String,
+    ): QuickCreationEnvelopeDto<JsonElement> =
+        client.post("$BASE_URL$QC_TASK_CANCEL") {
+            contentType(ContentType.Application.Json)
+            setBody(QuickCreationTaskCancelRequestDto(taskId.encodeURLParameter()))
         }.body()
 
     suspend fun getQuickCreationInspirationTags(): QuickCreationEnvelopeDto<List<QuickCreationCategoryDto>> =

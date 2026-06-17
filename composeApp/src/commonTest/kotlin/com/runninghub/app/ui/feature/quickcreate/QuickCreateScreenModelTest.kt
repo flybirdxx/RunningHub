@@ -44,6 +44,7 @@ class QuickCreateScreenModelTest {
         var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
         var lastVideoRequest: com.runninghub.shared.domain.repository.VideoGenerationRequest? = null
         var lastHistoryDetailOutputId: String? = null
+        val cancelledTaskIds = mutableListOf<String>()
         val requestedHistoryPages = mutableListOf<Int>()
         var historyPage = QuickCreationHistoryPage(
             page = 1,
@@ -243,6 +244,11 @@ class QuickCreateScreenModelTest {
             Result.success(historyDetail).also {
                 lastHistoryDetailOutputId = outputId
             }
+
+        override suspend fun cancelQuickCreationTask(taskId: String): Result<Unit> =
+            Result.success(Unit).also {
+                cancelledTaskIds += taskId
+            }
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -403,6 +409,35 @@ class QuickCreateScreenModelTest {
 
         assertEquals(listOf(1, 1), repository.requestedHistoryPages)
         assertEquals("SUCCESS", model.uiState.value.historyItems.single().status)
+    }
+
+    @Test
+    fun `cancelling history task calls repository and refreshes history`() {
+        val repository = FakeQuickCreateRepository().apply {
+            var requestCount = 0
+            overrideHistoryList = { page, size ->
+                requestCount += 1
+                QuickCreationHistoryPage(
+                    page = page,
+                    size = size,
+                    total = 1,
+                    items = listOf(
+                        QuickCreationHistoryItem(
+                            taskId = "history-task-1",
+                            status = if (requestCount == 1) "PREPAID" else "CANCELED",
+                        )
+                    ),
+                )
+            }
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.cancelHistoryTask("history-task-1")
+
+        assertEquals(listOf("history-task-1"), repository.cancelledTaskIds)
+        assertEquals(listOf(1, 1), repository.requestedHistoryPages)
+        assertEquals("CANCELED", model.uiState.value.historyItems.single().status)
+        assertEquals(false, model.uiState.value.historyCancellingTaskIds.contains("history-task-1"))
     }
 
     @Test

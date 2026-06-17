@@ -112,6 +112,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             onClearResults = screenModel::clearResults,
                             onHistoryItemSelected = screenModel::selectHistoryOutput,
                             onLoadMoreHistory = screenModel::loadMoreQuickCreationHistory,
+                            onCancelHistoryTask = screenModel::cancelHistoryTask,
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(
                             uiState = uiState,
@@ -358,6 +359,7 @@ private fun CreationScrollableArea(
     onClearResults: () -> Unit,
     onHistoryItemSelected: (String) -> Unit,
     onLoadMoreHistory: () -> Unit,
+    onCancelHistoryTask: (String) -> Unit,
 ) {
     when {
         uiState.results.isNotEmpty() -> ResultArea(
@@ -372,6 +374,7 @@ private fun CreationScrollableArea(
             uiState = uiState,
             onHistoryItemSelected = onHistoryItemSelected,
             onLoadMoreHistory = onLoadMoreHistory,
+            onCancelHistoryTask = onCancelHistoryTask,
         )
         else -> EmptyArea()
     }
@@ -382,6 +385,7 @@ private fun HistoryArea(
     uiState: QuickCreateUiState,
     onHistoryItemSelected: (String) -> Unit,
     onLoadMoreHistory: () -> Unit,
+    onCancelHistoryTask: (String) -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -413,8 +417,12 @@ private fun HistoryArea(
         items(uiState.historyItems, key = { it.taskId }) { item ->
             HistoryItemRow(
                 item = item,
+                isCancelling = item.taskId in uiState.historyCancellingTaskIds,
                 onClick = {
                     item.outputs.firstOrNull()?.outputId?.let(onHistoryItemSelected)
+                },
+                onCancel = {
+                    onCancelHistoryTask(item.taskId)
                 },
             )
         }
@@ -446,7 +454,9 @@ private fun HistoryArea(
 @Composable
 private fun HistoryItemRow(
     item: QuickCreationHistoryItem,
+    isCancelling: Boolean,
     onClick: () -> Unit,
+    onCancel: () -> Unit,
 ) {
     val output = item.outputs.firstOrNull()
     Surface(
@@ -519,10 +529,36 @@ private fun HistoryItemRow(
                         fontSize = 12.sp,
                     )
                 }
+                if (item.isCancelableQuickCreationTask) {
+                    TextButton(
+                        onClick = onCancel,
+                        enabled = !isCancelling,
+                        contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp),
+                    ) {
+                        if (isCancelling) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(12.dp),
+                                strokeWidth = 1.5.dp,
+                                color = Primary300,
+                            )
+                            Spacer(Modifier.width(Dimens.SpaceXS))
+                        }
+                        Text(
+                            text = if (isCancelling) "取消中" else "取消任务",
+                            color = Primary300,
+                            fontSize = 12.sp,
+                        )
+                    }
+                }
             }
         }
     }
 }
+
+private val terminalQuickCreationHistoryStatuses = setOf("SUCCESS", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED")
+
+private val QuickCreationHistoryItem.isCancelableQuickCreationTask: Boolean
+    get() = status.isNotBlank() && status.uppercase() !in terminalQuickCreationHistoryStatuses
 
 @Composable
 private fun HistoryDetailDialog(
@@ -1277,6 +1313,7 @@ private fun QuickCreatePreviewContent(
                             onClearResults = {},
                             onHistoryItemSelected = {},
                             onLoadMoreHistory = {},
+                            onCancelHistoryTask = {},
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(uiState = uiState, onApplyTemplate = {})
                     }
