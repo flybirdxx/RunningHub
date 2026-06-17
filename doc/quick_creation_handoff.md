@@ -20,6 +20,7 @@
 - 项目列表：已公开 `listQuickCreationProjects(page,size)`，使用 `/task/quick-creation/project/list`，请求体为 `{"page":1,"size":20}`，响应按 `records/size/current/total/pages/hasNext/hasPrevious/nextCursor` 映射为 domain 分页模型；`QuickCreateScreenModel` 初始化会加载项目列表，历史区顶部会展示项目横向列表。当前账号抓包返回空列表。
 - 项目任务：已公开 `listQuickCreationProjectTasks(projectId,page,size)`，使用 `/task/quick-creation/project/tasks`。Chrome DevTools 观察到空项目状态下 Web 请求体为 `{"page":1,"size":10}` 且服务端返回 `code=301,msg=不能为null`，前端包只确认端点函数 `quickCreationProjectTasksApi`；移动端暂按 `projectId/page/size` 请求体实现并复用历史分页模型。创作页项目横向条已可点击，选中项目后中间列表切到项目内任务，点击“最近创作”可清除筛选。后续拿到非空项目真实响应后需要校正请求体字段或响应结构。
 - 项目置顶：已公开 `pinQuickCreationProject(projectId,pinned)`，使用 `/task/quick-creation/project/pin`。前端 bundle 确认了 `quickCreationProjectPinApi` 端点，项目列表 DTO 已确认存在 `pin/pinned` 字段；移动端暂按 `{"projectId":"...","pin":true|false}` 请求体实现。项目 chip 上的图钉可切换置顶/取消置顶，请求中显示小 loading，成功后更新本地项目 state。该请求体字段仍需用非空项目的真实交互抓包确认。
+- 项目创建/重命名/删除/详情：已公开 `createQuickCreationProject(name)`、`renameQuickCreationProject(projectId,name)`、`deleteQuickCreationProject(projectId)` 和 `getQuickCreationProjectDetail(projectId)`，分别使用 `/task/quick-creation/project/create|rename|delete|detail`。前端 bundle 只确认端点函数存在，移动端暂按 `name`、`projectId/name`、`projectId` 请求体实现；创建和详情响应按 `QuickCreationProjectDto` 映射，重命名和删除按成功 envelope 处理。历史区项目标题右侧可新建项目，项目 chip 更多菜单可重命名和删除；删除当前筛选项目后会回到最近创作。项目详情目前只有数据层，独立详情 UI 尚未设计。
 - 历史 UI：`QuickCreateScreenModel` 初始化会加载最近 10 条 quick-creation 历史，生成成功后会刷新历史；创作页中间区域在没有当前任务/结果时展示最近创作，支持图片/视频预览、状态、分类和扣费金额摘要；列表底部可加载更多历史页并去重追加；当历史项状态不是 `SUCCESS/FAILED/ERROR/CANCELED` 等终态时，会每 5 秒刷新当前已加载范围，并显示取消入口；点击项目筛选时同一列表会加载项目内任务；点击历史项会按 `outputId` 加载详情并展示详情弹窗。
 - 其它图片模型和未携带服务端 quick-creation ID 的视频请求：暂时保留旧 `openapi/v2` 兼容逻辑。
 - 页面结构：按移动端截图理解为顶部轻量标题/模式区，中间大面积可滚动 RecyclerView 内容区，底部固定模型参数和提示词输入区；当前已落地顶部“创作/灵感”、中间滚动区、底部固定输入区，底部输入区会显示当前服务端模型摘要。
@@ -47,7 +48,7 @@
 3. 增强“制作同款”：当前已可回填基础参数和远端素材；后续补图片模板、复杂多输入模板、条件字段和 `skuInputExtraJson` 的完整映射。
 4. 真实验证 Seedance2.0 视频 v2：基础请求构造和状态机已接入，下一步需要在用户明确授权后做 App 内真实视频扣费任务，确认价格、余额变化、任务状态和视频输出展示。此前抓包模板预估价格为 9.60 元，不在既有 0.76 元授权范围内。
 5. 增强历史 UI：当前已展示最近创作，支持加载更多、非终态任务定时刷新、取消任务和详情弹窗；下一步做 App 内真实取消失败/成功响应验证。
-6. 补项目管理动作：`project/list`、`project/tasks` 和 `project/pin` 已进入 ScreenModel/历史区 UI；下一步接 `project/create/rename/delete/detail` 管理动作，并用非空项目抓包校正项目任务结构和置顶请求体字段。
+6. 补项目详情 UI 与真实校验：`project/list`、`project/tasks`、`project/pin`、`project/create/rename/delete` 已进入 ScreenModel/历史区 UI，`project/detail` 已进入数据层；下一步补独立项目详情 UI，并用非空项目抓包校正项目任务结构和项目管理请求体字段。
 
 ## 验证命令
 
