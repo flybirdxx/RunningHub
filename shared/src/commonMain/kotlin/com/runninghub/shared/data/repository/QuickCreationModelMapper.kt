@@ -6,11 +6,14 @@ import com.runninghub.shared.data.remote.dto.QuickCreationModelDto
 import com.runninghub.shared.data.remote.dto.QuickCreationPricingDto
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldOption
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.QuickCreationServicePricing
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -117,6 +120,7 @@ internal object QuickCreationModelMapper {
             minLength = extra.intValue("minLength"),
             maxInputCount = extra.intValue("maxInpuNum") ?: extra.intValue("maxInputNum"),
             ignoreListValueCaseSensitive = extra.booleanValue("ignoreListValueCaseSensitive") ?: false,
+            inputChildren = extra.inputChildren(),
         )
         return parsed.takeIf {
             listOfNotNull(
@@ -130,8 +134,73 @@ internal object QuickCreationModelMapper {
                 it.maxLength != null ||
                 it.minLength != null ||
                 it.maxInputCount != null ||
-                it.ignoreListValueCaseSensitive
+                it.ignoreListValueCaseSensitive ||
+                it.inputChildren.isNotEmpty()
         }
+    }
+
+    private fun JsonObject.inputChildren(): List<QuickCreationServiceFieldInputChild> {
+        val children = this["inputsChildList"]
+            ?: this["inputChildList"]
+            ?: this["children"]
+            ?: return emptyList()
+        val array = children as? JsonArray
+            ?: children.stringValue()
+                ?.let { value -> runCatching { inputExtraJson.parseToJsonElement(value) }.getOrNull() as? JsonArray }
+            ?: return emptyList()
+        return array.mapNotNull { (it as? JsonObject)?.toInputChild() }
+    }
+
+    private fun JsonObject.toInputChild(): QuickCreationServiceFieldInputChild? {
+        val key = stringValue("fieldKey")
+            ?: stringValue("key")
+            ?: stringValue("paramKey")
+            ?: stringValue("mappedApiParamKey")
+            ?: return null
+        val childExtra = this["skuInputExtraJson"]
+            ?.stringValue()
+            ?.let { value -> runCatching { inputExtraJson.parseToJsonElement(value) }.getOrNull() as? JsonObject }
+        return QuickCreationServiceFieldInputChild(
+            fieldKey = key,
+            paramKey = stringValue("mappedApiParamKey") ?: stringValue("paramKey") ?: key,
+            fieldType = stringValue("fieldType") ?: stringValue("type") ?: stringValue("inputType") ?: "UNKNOWN",
+            required = booleanValue("required") ?: false,
+            visible = booleanValue("visible") ?: true,
+            defaultValue = this["defaultValue"]?.stringValue(),
+            title = stringValue("title") ?: childExtra?.stringValue("title") ?: stringValue("label") ?: stringValue("name"),
+            paramDescription = stringValue("paramDesc") ?: childExtra?.stringValue("paramDesc"),
+            placeholder = stringValue("placeholder") ?: childExtra?.stringValue("placeholder"),
+            options = optionsValue(),
+            visibleWhen = visibleWhen(),
+        )
+    }
+
+    private fun JsonObject.optionsValue(): List<QuickCreationServiceFieldOption> {
+        val options = this["options"] as? JsonArray ?: return emptyList()
+        return options.mapNotNull { option ->
+            val optionObject = option as? JsonObject
+            val value = optionObject?.get("value")?.stringValue() ?: option.stringValue() ?: return@mapNotNull null
+            QuickCreationServiceFieldOption(
+                label = optionObject?.stringValue("label")
+                    ?: optionObject?.stringValue("name")
+                    ?: optionObject?.stringValue("title")
+                    ?: value,
+                value = value,
+            )
+        }
+    }
+
+    private fun JsonObject.visibleWhen(): QuickCreationServiceFieldVisibilityCondition? {
+        val condition = (this["showWhen"] ?: this["visibleWhen"] ?: this["dependsOn"]) as? JsonObject
+            ?: return null
+        val fieldKey = condition.stringValue("fieldKey")
+            ?: condition.stringValue("key")
+            ?: condition.stringValue("paramKey")
+            ?: return null
+        val values = condition["values"]?.stringList()
+            ?: condition["value"]?.stringList()
+            ?: emptyList()
+        return QuickCreationServiceFieldVisibilityCondition(fieldKey = fieldKey, values = values)
     }
 
     private fun JsonObject.acceptFormats(): List<String> {
@@ -161,6 +230,16 @@ internal object QuickCreationModelMapper {
             "false" -> false
             else -> null
         }
+
+    private fun JsonElement.stringList(): List<String> {
+        val array = this as? JsonArray
+            ?: stringValue()
+                ?.let { value -> runCatching { inputExtraJson.parseToJsonElement(value) }.getOrNull() as? JsonArray }
+        if (array != null) {
+            return array.mapNotNull { it.stringValue()?.takeIf(String::isNotBlank) }
+        }
+        return listOfNotNull(stringValue()?.takeIf(String::isNotBlank))
+    }
 }
 
 private fun kotlinx.serialization.json.JsonElement.stringValue(): String? {

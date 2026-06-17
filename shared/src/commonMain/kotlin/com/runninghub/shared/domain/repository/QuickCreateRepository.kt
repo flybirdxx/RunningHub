@@ -505,6 +505,26 @@ data class QuickCreationServiceFieldExtra(
     val minLength: Int? = null,
     val maxInputCount: Int? = null,
     val ignoreListValueCaseSensitive: Boolean = false,
+    val inputChildren: List<QuickCreationServiceFieldInputChild> = emptyList(),
+)
+
+data class QuickCreationServiceFieldInputChild(
+    val fieldKey: String,
+    val paramKey: String,
+    val fieldType: String,
+    val required: Boolean = false,
+    val visible: Boolean = true,
+    val defaultValue: String? = null,
+    val title: String? = null,
+    val paramDescription: String? = null,
+    val placeholder: String? = null,
+    val options: List<QuickCreationServiceFieldOption> = emptyList(),
+    val visibleWhen: QuickCreationServiceFieldVisibilityCondition? = null,
+)
+
+data class QuickCreationServiceFieldVisibilityCondition(
+    val fieldKey: String,
+    val values: List<String>,
 )
 
 data class QuickCreationServiceFieldOption(

@@ -180,4 +180,76 @@ class QuickCreationModelMapperTest {
         assertEquals(false, field.visible)
         assertEquals("stable", field.defaultValue)
     }
+
+    @Test
+    fun `maps service field input child list metadata`() {
+        val models = listOf(
+            QuickCreationModelDto(
+                type = "model",
+                categoryId = "VIDEO",
+                bindingId = "binding-1",
+                skuId = "sku-1",
+                name = "model",
+                fields = listOf(
+                    QuickCreationFieldDto(
+                        fieldKey = "creationMode",
+                        mappedApiParamKey = "creationMode",
+                        fieldType = "LIST",
+                        required = true,
+                        skuInputExtraJson = JsonPrimitive(
+                            """
+                            {
+                              "title": "Creation mode",
+                              "inputsChildList": [
+                                {
+                                  "fieldKey": "referenceStrength",
+                                  "mappedApiParamKey": "referenceStrength",
+                                  "fieldType": "NUMBER",
+                                  "required": true,
+                                  "visible": true,
+                                  "defaultValue": "0.65",
+                                  "title": "Reference strength",
+                                  "paramDesc": "Controls how strongly the uploaded image is followed",
+                                  "placeholder": "0.0-1.0",
+                                  "options": [
+                                    {"label": "Low", "value": "0.35"},
+                                    {"label": "High", "value": "0.85"}
+                                  ],
+                                  "showWhen": {
+                                    "fieldKey": "creationMode",
+                                    "values": ["imageReference"]
+                                  }
+                                }
+                              ]
+                            }
+                            """.trimIndent()
+                        ),
+                    )
+                ),
+            )
+        )
+
+        val extra = assertNotNull(
+            QuickCreationModelMapper.flatten("VIDEO", models)
+                .single()
+                .fields
+                .single()
+                .inputExtra
+        )
+        val child = extra.inputChildren.single()
+
+        assertEquals("referenceStrength", child.fieldKey)
+        assertEquals("referenceStrength", child.paramKey)
+        assertEquals("NUMBER", child.fieldType)
+        assertEquals(true, child.required)
+        assertEquals(true, child.visible)
+        assertEquals("0.65", child.defaultValue)
+        assertEquals("Reference strength", child.title)
+        assertEquals("Controls how strongly the uploaded image is followed", child.paramDescription)
+        assertEquals("0.0-1.0", child.placeholder)
+        assertEquals("Low", child.options.first().label)
+        assertEquals("0.85", child.options.last().value)
+        assertEquals("creationMode", child.visibleWhen?.fieldKey)
+        assertEquals(listOf("imageReference"), child.visibleWhen?.values)
+    }
 }
