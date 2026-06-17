@@ -702,3 +702,26 @@ git diff --check
 - 继续抽取服务端字段 UI，让视频 Tune 高级参数区也能消费同一套动态字段与子字段能力。
 - 如果后续决定在父字段切换时主动清理隐藏子字段 UI state，需要同步评估模板回填和用户切回父选项时是否应保留历史输入。
 - 继续不要触发真实生成或视频扣费；完整视频 `prepare/commit` 仍需要新的明确授权。
+
+## 2026-06-18 追加交接：视频 Tune 服务端字段 UI
+
+代码提交 `aea0b07 fix(quickcreate): show video service fields in tune panel` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `TuneBottomSheet` 现在有 `onVideoServiceModelSelected` 和 `onVideoServiceParamChange`，调用点在 `QuickCreateScreen` 中分别接到 `QuickCreateScreenModel.updateVideoServiceModel()` 和 `updateVideoServiceParam()`。
+- 视频高级参数区会展示视频服务端模型列表、当前选中模型、模型字段数量，并可切换选中模型。
+- 当选中视频服务端模型包含可渲染字段时，视频高级参数区会复用 `ServiceFieldOptionsContent` 展示 options、文本/数字输入、上传字段提示和 active child input。
+- 视频高级参数区已改为 vertical scroll，服务端字段较多时仍能滚动访问原有真人模式、生成音频、时长和 Seed 控件。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:compileDebugKotlinAndroid
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 在模拟器或真机打开视频 tab 的 Tune 高级参数区，确认视频服务端模型列表和动态字段真实可见且不遮挡底部输入区。
+- 继续把服务端模型列表 UI 从图片/视频重复代码中抽成共用 Composable，降低后续维护成本。
+- 继续不要触发真实视频生成或扣费；完整视频 `prepare/commit` 仍需要新的明确授权。

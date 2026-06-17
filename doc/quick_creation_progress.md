@@ -619,3 +619,25 @@ git diff --check
 - 视频高级参数区仍未复用图片端服务端模型字段 UI。
 - 多个独立上传子槽仍需要后续扩展素材与 `paramKey` 的绑定结构。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 视频 Tune 服务端字段渲染
+
+代码提交 `aea0b07 fix(quickcreate): show video service fields in tune panel` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `TuneBottomSheet` 新增视频服务端模型选择和服务端参数变更回调，并在 `QuickCreateScreen` 中接入 `updateVideoServiceModel/updateVideoServiceParam`。
+- 视频高级参数区现在会展示 `serviceVideoModels`、当前选中的 `selectedVideoServiceModel`，并复用已有 `ServiceFieldOptionsContent` 渲染服务端字段、子输入、文本长度限制和上传提示。
+- 视频高级参数区改为可滚动，避免服务端字段、子输入和原有真人模式/生成音频/时长/Seed 控件同时出现时被底部裁切。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:compileDebugKotlinAndroid
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 本轮只完成 UI 接线和编译/单测验证，尚未在真实设备上打开视频 Tune 高级参数区做视觉截图复测。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
+- 多个独立上传子槽仍需要后续扩展素材与 `paramKey` 的绑定结构。
