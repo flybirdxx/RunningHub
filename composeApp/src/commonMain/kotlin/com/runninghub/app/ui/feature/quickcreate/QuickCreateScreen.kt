@@ -1531,9 +1531,14 @@ private fun BottomPromptPanel(
                     }
 
                     SendButton(
-                        enabled = !isTaskActive && configPrompt.isNotBlank() && !configOverLimit,
+                        enabled = !isTaskActive &&
+                            configPrompt.isNotBlank() &&
+                            !configOverLimit &&
+                            !(isImage && uiState.feePreviewLoading),
                         isLoading = isTaskActive,
                         cost = uiState.estimatedCost,
+                        feePreviewLoading = isImage && uiState.feePreviewLoading,
+                        feePreviewError = if (isImage) uiState.feePreviewError else null,
                         onClick = onGenerate,
                         modifier = Modifier.weight(1f),
                     )
@@ -1723,6 +1728,8 @@ private fun SendButton(
     enabled: Boolean,
     isLoading: Boolean,
     cost: Double,
+    feePreviewLoading: Boolean,
+    feePreviewError: String?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1761,12 +1768,18 @@ private fun SendButton(
                     )
                 }
                 Spacer(Modifier.width(6.dp))
-                if (cost > 0) {
+                val sendLabel = quickCreateSendButtonLabel(
+                    cost = cost,
+                    feePreviewLoading = feePreviewLoading,
+                    feePreviewError = feePreviewError,
+                )
+                if (sendLabel.isNotBlank()) {
                     Text(
-                        "¥${formatCashAmount(cost)}",
-                        fontSize = 12.sp,
+                        sendLabel,
+                        fontSize = if (cost > 0 || feePreviewLoading || feePreviewError != null) 12.sp else 14.sp,
                         fontWeight = FontWeight.SemiBold,
-                        color = if (enabled) Primary300 else Neutral500,
+                        color = if (enabled) Color.White else Neutral500,
+                        maxLines = 1,
                     )
                 } else {
                     Text(
