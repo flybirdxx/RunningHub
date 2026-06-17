@@ -614,89 +614,12 @@ private fun ImageAdvancedContent(
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()),
     ) {
-        Text(
-            text = "服务端模型",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Primary300,
-            modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+        ServiceModelPickerContent(
+            serviceModels = serviceModels,
+            selectedServiceModel = selectedServiceModel,
+            serviceModelsLoading = serviceModelsLoading,
+            onServiceModelSelect = onServiceModelSelect,
         )
-        when {
-            serviceModelsLoading -> {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = Dimens.SpaceSM),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = Primary300,
-                        strokeWidth = 2.dp,
-                    )
-                    Text("正在加载模型", fontSize = 12.sp, color = Neutral400)
-                }
-            }
-            serviceModels.isEmpty() -> {
-                Text(
-                    text = "暂未获取到服务端模型，继续使用本地默认配置",
-                    fontSize = 12.sp,
-                    color = Neutral500,
-                    modifier = Modifier.padding(bottom = Dimens.SpaceSM),
-                )
-            }
-            else -> {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
-                    serviceModels.forEach { model ->
-                        val isSelected = selectedServiceModel != null &&
-                            model.bindingId == selectedServiceModel.bindingId &&
-                            model.skuId == selectedServiceModel.skuId
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(Dimens.RadiusSM),
-                            color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
-                            border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
-                            onClick = { onServiceModelSelect(model) },
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(Dimens.SpaceMD),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = model.name,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                                        color = if (isSelected) Primary300 else Neutral200,
-                                    )
-                                    if (!model.groupName.isNullOrBlank() || model.fields.isNotEmpty()) {
-                                        Text(
-                                            text = listOfNotNull(
-                                                model.groupName,
-                                                "${model.fields.size} 个参数",
-                                            ).joinToString(" · "),
-                                            fontSize = 11.sp,
-                                            color = Neutral500,
-                                        )
-                                    }
-                                }
-                                if (isSelected) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = Primary300,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         Spacer(Modifier.height(Dimens.SpaceXL))
 
@@ -762,6 +685,146 @@ private fun ImageAdvancedContent(
         SeedInput(seed = seed, onSeedChange = onSeedChange)
     }
 }
+
+@Composable
+private fun ServiceModelPickerContent(
+    serviceModels: List<QuickCreationServiceModel>,
+    selectedServiceModel: QuickCreationServiceModel?,
+    serviceModelsLoading: Boolean,
+    onServiceModelSelect: (QuickCreationServiceModel) -> Unit,
+) {
+    Text(
+        text = "服务端模型",
+        fontSize = 12.sp,
+        fontWeight = FontWeight.SemiBold,
+        color = Primary300,
+        modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+    )
+    when {
+        serviceModelsLoading -> {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = Dimens.SpaceSM),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            ) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    color = Primary300,
+                    strokeWidth = 2.dp,
+                )
+                Text("正在加载模型", fontSize = 12.sp, color = Neutral400)
+            }
+        }
+        serviceModels.isEmpty() -> {
+            Text(
+                text = "暂未获取到服务端模型，继续使用本地默认配置",
+                fontSize = 12.sp,
+                color = Neutral500,
+                modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+            )
+        }
+        else -> {
+            var expanded by remember(serviceModels, selectedServiceModel) { mutableStateOf(false) }
+            val selected = selectedServiceModel
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Dimens.RadiusSM),
+                    color = DarkSurfaceVariant,
+                    border = BorderStroke(1.dp, Primary300),
+                    onClick = { expanded = true },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(Dimens.SpaceMD),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = selected?.name ?: "请选择服务端模型",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = Primary300,
+                            )
+                            selected?.quickCreationServiceModelSubtitle()?.takeIf { it.isNotBlank() }?.let { subtitle ->
+                                Text(
+                                    text = subtitle,
+                                    fontSize = 11.sp,
+                                    color = Neutral500,
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                            contentDescription = null,
+                            tint = Neutral300,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 320.dp)
+                        .background(DarkSurface),
+                ) {
+                    serviceModels.forEach { model ->
+                        val isSelected = model.isSameQuickCreationServiceModel(selectedServiceModel)
+                        DropdownMenuItem(
+                            text = {
+                                Column {
+                                    Text(
+                                        text = model.name,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                        color = if (isSelected) Primary300 else Neutral200,
+                                    )
+                                    model.quickCreationServiceModelSubtitle().takeIf { it.isNotBlank() }?.let { subtitle ->
+                                        Text(
+                                            text = subtitle,
+                                            fontSize = 11.sp,
+                                            color = Neutral500,
+                                        )
+                                    }
+                                }
+                            },
+                            trailingIcon = {
+                                if (isSelected) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Primary300,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            },
+                            onClick = {
+                                expanded = false
+                                onServiceModelSelect(model)
+                            },
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun QuickCreationServiceModel.isSameQuickCreationServiceModel(
+    other: QuickCreationServiceModel?,
+): Boolean = other != null && bindingId == other.bindingId && skuId == other.skuId
+
+private fun QuickCreationServiceModel.quickCreationServiceModelSubtitle(): String =
+    listOfNotNull(
+        groupName?.takeIf { it.isNotBlank() },
+        "${fields.size} 个参数",
+    ).joinToString(" · ")
 
 @Composable
 private fun ServiceFieldOptionsContent(
@@ -1011,89 +1074,12 @@ private fun VideoAdvancedContent(
     Column(
         modifier = Modifier.verticalScroll(rememberScrollState()),
     ) {
-        Text(
-            text = "\u670d\u52a1\u7aef\u6a21\u578b",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Primary300,
-            modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+        ServiceModelPickerContent(
+            serviceModels = serviceModels,
+            selectedServiceModel = selectedServiceModel,
+            serviceModelsLoading = serviceModelsLoading,
+            onServiceModelSelect = onServiceModelSelect,
         )
-        when {
-            serviceModelsLoading -> {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = Dimens.SpaceSM),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        color = Primary300,
-                        strokeWidth = 2.dp,
-                    )
-                    Text("\u6b63\u5728\u52a0\u8f7d\u6a21\u578b", fontSize = 12.sp, color = Neutral400)
-                }
-            }
-            serviceModels.isEmpty() -> {
-                Text(
-                    text = "\u6682\u672a\u83b7\u53d6\u5230\u670d\u52a1\u7aef\u6a21\u578b\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u9ed8\u8ba4\u914d\u7f6e",
-                    fontSize = 12.sp,
-                    color = Neutral500,
-                    modifier = Modifier.padding(bottom = Dimens.SpaceSM),
-                )
-            }
-            else -> {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
-                    serviceModels.forEach { model ->
-                        val isSelected = selectedServiceModel != null &&
-                            model.bindingId == selectedServiceModel.bindingId &&
-                            model.skuId == selectedServiceModel.skuId
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(Dimens.RadiusSM),
-                            color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
-                            border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
-                            onClick = { onServiceModelSelect(model) },
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(Dimens.SpaceMD),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = model.name,
-                                        fontSize = 13.sp,
-                                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                                        color = if (isSelected) Primary300 else Neutral200,
-                                    )
-                                    if (!model.groupName.isNullOrBlank() || model.fields.isNotEmpty()) {
-                                        Text(
-                                            text = listOfNotNull(
-                                                model.groupName,
-                                                "${model.fields.size} \u4e2a\u53c2\u6570",
-                                            ).joinToString(" \u00b7 "),
-                                            fontSize = 11.sp,
-                                            color = Neutral500,
-                                        )
-                                    }
-                                }
-                                if (isSelected) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = Primary300,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
 
         Spacer(Modifier.height(Dimens.SpaceXL))
 
