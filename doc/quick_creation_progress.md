@@ -916,3 +916,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 字段级素材选择/移除的真实设备端到端流程仍需在可控测试素材或真机相册环境中复测。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 上传未完成媒体不刷新费用预览
+
+代码提交 `bb9e8af fix(quickcreate): wait for uploaded media before fee refresh` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 媒体相关 fee-preview 调度现在要求素材同时满足“属于当前相关素材”和“已上传完成且存在非空 `remoteUrl`”。
+- 全局素材或字段级素材在 `UPLOADING/PROCESSING` 阶段不会刷新费用预览，避免请求体尚未包含素材 URL 时重复发起同一份 fee-preview。
+- `removeMediaReference()` 也按移除前素材是否真正影响请求体判断；移除尚未上传完成的素材不会触发无效预览。
+- 测试仓库新增 `uploadDelayMillis`，用于稳定模拟上传耗时并覆盖“上传中不刷新”的红灯场景。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.uploading global image media does not refresh image fee preview before remote url exists"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真实设备上仍需复测全局/字段级素材的上传中、上传完成、移除状态与 fee-preview 网络请求是否一致。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
