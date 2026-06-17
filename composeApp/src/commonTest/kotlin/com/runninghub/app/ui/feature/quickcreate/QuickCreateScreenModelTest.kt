@@ -1504,6 +1504,56 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `removing image template media does not remove video template media with same template id`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            templateDetail = QuickCreateInspirationTemplateDetail(
+                templateId = "shared-template",
+                title = "Image template",
+                categoryId = "IMAGE",
+                bindingId = "binding-1",
+                skuId = "sku-1",
+                prompt = "image prompt",
+                params = emptyMap(),
+                listParams = mapOf("sharedImage" to listOf("https://example.com/image-ref.png")),
+                coverUrl = "https://example.com/image-cover.png",
+                videoUrl = null,
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.applyInspirationTemplate("shared-template")
+        runCurrent()
+        val imageMediaId = model.uiState.value.imageConfig.mediaReferences.single().id
+
+        repository.templateDetail = QuickCreateInspirationTemplateDetail(
+            templateId = "shared-template",
+            title = "Video template",
+            categoryId = "VIDEO",
+            bindingId = "video-binding-1",
+            skuId = "video-sku-1",
+            prompt = "video prompt",
+            params = emptyMap(),
+            listParams = mapOf("sharedImage" to listOf("https://example.com/video-ref.png")),
+            coverUrl = "https://example.com/video-cover.png",
+            videoUrl = "https://example.com/video-preview.mp4",
+        )
+        model.applyInspirationTemplate("shared-template")
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.IMAGE)
+        model.removeMediaReference(imageMediaId)
+
+        assertEquals(emptyList(), model.uiState.value.imageConfig.mediaReferences)
+        assertEquals(
+            listOf("https://example.com/video-ref.png"),
+            model.uiState.value.videoConfig.mediaReferences.mapNotNull { it.remoteUrl },
+        )
+    }
+
+    @Test
     fun `generate image maps uploaded images to service image field`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

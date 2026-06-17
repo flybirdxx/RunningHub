@@ -931,8 +931,8 @@ class QuickCreateScreenModel(
     ) {
         val TAG = "QCScreenModel"
         val now = Clock.System.now().toEpochMilliseconds()
-        val id = "${type.name}_$now"
         val targetTab = _uiState.value.currentTab
+        val id = "${targetTab.name}_${type.name}_$now"
         debug(TAG, "addMediaReference: uri=$uriString type=$type")
         val fileName = mediaResolver.getDisplayName(uriString) ?: "${type.name.lowercase()}_$now"
         val fileSize = mediaResolver.getFileSizeBytes(uriString)
@@ -1828,7 +1828,7 @@ class QuickCreateScreenModel(
             }
             values.mapIndexed { index, url ->
                 MediaReference(
-                    id = "template_${templateId}_${fieldIndex}_${key.templateReferenceIdPart()}_${mediaType.name}_$index",
+                    id = "template_${categoryId.templateCategoryIdPart()}_${templateId}_${fieldIndex}_${key.templateReferenceIdPart()}_${mediaType.name}_$index",
                     type = mediaType,
                     uri = url,
                     displayName = url.substringAfterLast('/').ifBlank { "${mediaType.name.lowercase()}_$index" },
@@ -1918,6 +1918,9 @@ class QuickCreateScreenModel(
                 else -> '_'
             }
         }.joinToString("").ifBlank { "field" }
+
+    private fun String?.templateCategoryIdPart(): String =
+        this?.templateReferenceIdPart() ?: "unknown"
 
     private fun String.templateMediaType(): QuickCreateMediaType {
         val marker = uppercase()
