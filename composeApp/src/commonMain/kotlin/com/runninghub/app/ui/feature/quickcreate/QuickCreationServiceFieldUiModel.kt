@@ -2,6 +2,7 @@ package com.runninghub.app.ui.feature.quickcreate
 
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
+import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 
 internal fun QuickCreationServiceField.supportsQuickCreationTextEntry(): Boolean {
     val type = fieldType.uppercase()
@@ -155,6 +156,31 @@ internal fun List<MediaReference>.quickCreationGlobalMediaReferences(): List<Med
 
 internal fun List<MediaReference>.quickCreationFieldMediaReferences(paramKey: String): List<MediaReference> =
     filter { it.fieldParamKey == paramKey }
+
+internal fun QuickCreationServiceModel?.quickCreationActiveUploadParamKeys(
+    serviceParams: Map<String, String>,
+): Set<String> =
+    this?.fields.orEmpty()
+        .flatMap { field ->
+            buildList {
+                if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {
+                    add(field.paramKey)
+                }
+                addAll(
+                    field.quickCreationActiveInputChildren(serviceParams)
+                        .filter { it.isQuickCreationUploadField() }
+                        .map { it.paramKey }
+                )
+            }
+        }
+        .toSet()
+
+internal fun List<MediaReference>.quickCreationRelevantMediaReferences(
+    activeFieldParamKeys: Set<String>,
+): List<MediaReference> =
+    filter { reference ->
+        reference.fieldParamKey.isNullOrBlank() || reference.fieldParamKey in activeFieldParamKeys
+    }
 
 internal fun QuickCreationServiceField.quickCreationUploadMediaType(): QuickCreateMediaType? {
     val marker = listOfNotNull(fieldType, fieldKey, paramKey, inputExtraJson)

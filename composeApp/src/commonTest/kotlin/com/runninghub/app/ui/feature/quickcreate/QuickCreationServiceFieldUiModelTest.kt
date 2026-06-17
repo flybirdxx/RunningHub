@@ -4,6 +4,7 @@ import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
+import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -29,6 +30,91 @@ class QuickCreationServiceFieldUiModelTest {
         assertEquals(
             listOf(imageRef),
             listOf(imageRef, maskRef, globalRef).quickCreationFieldMediaReferences("imageUrls"),
+        )
+    }
+
+    @Test
+    fun `active upload param keys include visible parent and active child upload fields`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "IMAGE",
+            groupName = null,
+            bindingId = "binding-1",
+            skuId = "sku-1",
+            name = "Image model",
+            description = null,
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "referenceImage",
+                    paramKey = "referenceImages",
+                    fieldType = "IMAGE_UPLOAD",
+                    required = false,
+                    defaultValue = null,
+                    options = emptyList(),
+                ),
+                QuickCreationServiceField(
+                    fieldKey = "hiddenImage",
+                    paramKey = "hiddenImages",
+                    fieldType = "IMAGE_UPLOAD",
+                    required = false,
+                    defaultValue = null,
+                    options = emptyList(),
+                    visible = false,
+                ),
+                QuickCreationServiceField(
+                    fieldKey = "creationMode",
+                    paramKey = "creationMode",
+                    fieldType = "LIST",
+                    required = true,
+                    defaultValue = "text",
+                    options = emptyList(),
+                    inputExtra = QuickCreationServiceFieldExtra(
+                        inputChildren = listOf(
+                            QuickCreationServiceFieldInputChild(
+                                fieldKey = "alwaysImage",
+                                paramKey = "alwaysImages",
+                                fieldType = "IMAGE_UPLOAD",
+                            ),
+                            QuickCreationServiceFieldInputChild(
+                                fieldKey = "maskImage",
+                                paramKey = "maskImages",
+                                fieldType = "IMAGE_UPLOAD",
+                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                    fieldKey = "creationMode",
+                                    values = listOf("withMask"),
+                                ),
+                            ),
+                            QuickCreationServiceFieldInputChild(
+                                fieldKey = "hiddenChildImage",
+                                paramKey = "hiddenChildImages",
+                                fieldType = "IMAGE_UPLOAD",
+                                visible = false,
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(
+            setOf("referenceImages", "alwaysImages"),
+            model.quickCreationActiveUploadParamKeys(serviceParams = emptyMap()),
+        )
+        assertEquals(
+            setOf("referenceImages", "alwaysImages", "maskImages"),
+            model.quickCreationActiveUploadParamKeys(serviceParams = mapOf("creationMode" to "withMask")),
+        )
+    }
+
+    @Test
+    fun `relevant media references keep global uploads and active field uploads only`() {
+        val globalRef = mediaReference(id = "global", fieldParamKey = null)
+        val activeFieldRef = mediaReference(id = "active", fieldParamKey = "imageUrls")
+        val inactiveFieldRef = mediaReference(id = "inactive", fieldParamKey = "maskUrls")
+
+        assertEquals(
+            listOf(globalRef, activeFieldRef),
+            listOf(globalRef, activeFieldRef, inactiveFieldRef)
+                .quickCreationRelevantMediaReferences(activeFieldParamKeys = setOf("imageUrls")),
         )
     }
 

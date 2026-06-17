@@ -1173,11 +1173,7 @@ class QuickCreateScreenModel(
     }
 
     private suspend fun awaitPendingUploads() {
-        val mediaRefs = if (_uiState.value.currentTab == QuickCreateTab.IMAGE) {
-            _uiState.value.imageConfig.mediaReferences
-        } else {
-            _uiState.value.videoConfig.mediaReferences
-        }
+        val mediaRefs = _uiState.value.currentRelevantMediaReferences()
         val pending = mediaRefs.filter { it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING }
         if (pending.isEmpty()) return
 
@@ -1189,12 +1185,7 @@ class QuickCreateScreenModel(
             delay(500)
             waited++
             val stillPending = _uiState.value.let { state ->
-                val refs = if (state.currentTab == QuickCreateTab.IMAGE) {
-                    state.imageConfig.mediaReferences
-                } else {
-                    state.videoConfig.mediaReferences
-                }
-                refs.filter {
+                state.currentRelevantMediaReferences().filter {
                     it.id in pendingIds &&
                         (it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING)
                 }
@@ -1205,17 +1196,23 @@ class QuickCreateScreenModel(
         }
 
         val failed = _uiState.value.let { state ->
-            val refs = if (state.currentTab == QuickCreateTab.IMAGE) {
-                state.imageConfig.mediaReferences
-            } else {
-                state.videoConfig.mediaReferences
-            }
-            refs.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
+            state.currentRelevantMediaReferences()
+                .filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
         }
         if (failed.isNotEmpty()) {
             throw IllegalStateException("素材上传失败: ${failed.joinToString { it.displayName }}")
         }
     }
+
+    private fun QuickCreateUiState.currentRelevantMediaReferences(): List<MediaReference> =
+        when (currentTab) {
+            QuickCreateTab.IMAGE -> imageConfig.mediaReferences.quickCreationRelevantMediaReferences(
+                activeFieldParamKeys = selectedImageServiceModel.quickCreationActiveUploadParamKeys(imageServiceParams),
+            )
+            QuickCreateTab.VIDEO -> videoConfig.mediaReferences.quickCreationRelevantMediaReferences(
+                activeFieldParamKeys = selectedVideoServiceModel.quickCreationActiveUploadParamKeys(videoServiceParams),
+            )
+        }
 
     private suspend fun generateImage() {
         val config = _uiState.value.imageConfig
