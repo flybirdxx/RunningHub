@@ -568,3 +568,30 @@ git diff --check
 - 再接 `TuneBottomSheet`：渲染当前父字段激活的 `inputChildren`，并把子字段值写回 `serviceParams`，参数 key 使用子字段 `paramKey`。
 - 最后补 `QuickCreateScreenModel` 提交前校验和请求构造测试，确保子字段只在可见/激活时进入正式 params。
 - 继续不要触发真实生成；视频完整 `prepare/commit` 仍需新的明确扣费授权。
+
+## 2026-06-18 追加交接：激活子输入渲染与透传
+
+代码提交 `ab64160 fix(quickcreate): render active service child fields` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreationServiceFieldUiModel.quickCreationActiveInputChildren(params)` 是当前子输入显示规则入口。
+- 无 `visibleWhen` 的子输入默认跟随父字段显示；有 `visibleWhen` 的子输入会按 `params` 中的父字段值或父字段默认值判断是否激活。
+- `TuneBottomSheet` 的图片高级参数区会在父字段下缩进展示激活子输入。子输入当前支持三类基础形态：options、文本/数值输入、上传提示。
+- 子输入写回 `serviceParams` 时使用自身 `paramKey`；`QuickCreateScreenModel.hasFieldParam()` 已允许子输入 `paramKey` 进入 `quickCreationParams`。
+- 这解决了“metadata 已解析但 Tune 不能填、填了也提交不出去”的第一层问题。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.active child inputs follow parent selection metadata"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image submits declared child service field values"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 子输入校验仍要补：文本 required/minLength/maxLength、上传 required/maxInputCount、以及“未激活子输入不应触发校验”。
+- 当前子输入值只要 paramKey 属于模型子字段就允许提交；后续可以把 `hasFieldParam()` 收紧为“当前激活的字段白名单”，但需要同时处理 fee-preview 和模板回填。
+- 视频高级参数区仍未渲染服务端模型字段；要继续把图片端的服务端参数区抽成 image/video 共用。
+- 继续不要触发真实生成或视频扣费；完整视频 `prepare/commit` 仍需新的明确授权。

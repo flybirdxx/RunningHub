@@ -494,3 +494,29 @@ git diff --check
 - 子输入 metadata 目前已进入 domain，但 Tune UI 尚未渲染 `inputChildren`，正式请求构造也尚未消费子字段值。
 - 条件联动目前只保留简单 `visibleWhen` metadata，尚未在 UI 中按父字段值动态显示/隐藏。
 - 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。
+
+## 2026-06-18 激活子输入 Tune 渲染和提交参数透传
+
+代码提交 `ab64160 fix(quickcreate): render active service child fields` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationServiceFieldUiModel.kt` 新增子输入 helper，支持判断 `QuickCreationServiceFieldInputChild` 是否可渲染、标题/占位符回退，以及按父字段当前值筛选激活子输入。
+- `quickCreationActiveInputChildren(params)` 支持无条件子输入默认跟随父字段显示；带 `visibleWhen` 的子输入会按 `params` 或父字段默认值判断是否显示。
+- `TuneBottomSheet` 服务端参数区现在会在父字段下缩进渲染当前激活的子输入；子输入支持 options、文本/数值输入和上传提示。
+- `QuickCreateScreenModel.hasFieldParam()` 已把子输入 `paramKey` 纳入服务端参数白名单；用户在 Tune 中填写的子字段值不会再被正式提交参数过滤掉。
+- 新增 helper 和 ScreenModel 回归测试，覆盖父字段激活条件和子字段值进入 `quickCreationParams`。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.active child inputs follow parent selection metadata"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image submits declared child service field values"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 子输入 required/minLength/maxLength/maxInputCount 的字段级校验还没有完整接入提交前防线。
+- 当前 Tune UI 只在图片高级参数区渲染服务端模型和子输入；视频高级参数区仍需单独接服务端模型参数 UI。
+- 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。
