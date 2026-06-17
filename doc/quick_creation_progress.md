@@ -701,3 +701,35 @@ UI 复测结果：
 仍未完成：
 - 多个独立上传子槽仍需要后续扩展素材与 `paramKey` 的绑定结构。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
+
+## 2026-06-18 字段级上传素材绑定
+
+代码提交 `76b6de3 fix(quickcreate): bind uploads to service fields` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `MediaReference` 新增 `fieldParamKey`，可以区分全局参考素材和某个服务端字段/子字段的专属素材。
+- `QuickCreateScreenModel` 新增 `pickImageReferenceForField/pickVideoReferenceForField/pickAudioReferenceForField`，系统 picker 返回的 URI 可绑定到指定 `paramKey`。
+- `quickCreationListParams` 组装时优先使用匹配字段 `paramKey` 的素材；如果没有字段级素材，继续兼容旧的全局素材入口。
+- 上传校验同样优先按字段 `paramKey` 计数，避免多个同媒体类型子槽互相借用素材数量。
+- `QuickCreationServiceFieldUiModel` 抽出服务端上传字段的媒体类型识别 helper，供 ScreenModel 和 Tune UI 共用。
+- Tune 高级参数区的服务端上传字段现在显示专属上传按钮和字段级上传计数，点击后按 IMAGE/VIDEO/AUDIO 打开对应系统 picker，并把结果绑定回字段 `paramKey`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image maps field bound images to matching child upload fields"
+.\gradlew.bat :composeApp:compileDebugKotlinAndroid
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:assembleDebug
+git diff --check
+```
+
+UI 复测结果：
+- 安装最新 APK 到 `emulator-5554` 后进入 `创作 -> 图片 -> 创作调优 -> 高级`。
+- 切换服务端模型为 `全能图片G-2.0-图生图-官方版`，滚动到 `imageUrls` 字段，UI 树显示 `参考图片（1-4张）`、上传限制提示和 `选择图片` 专属按钮。
+- 证据文件保存在 `output/quickcreate_field_upload_image_i2i.xml`、`output/quickcreate_field_upload_image_i2i_scrolled.xml`、`output/quickcreate_field_upload_image_i2i_scrolled.png`，不纳入 Git。
+- 本轮没有点击真实生成，没有触发新的 `prepare/commit`，也没有新增扣费。
+
+仍未完成：
+- 真实多独立上传槽模型还需要在后续有明确样例或授权时做完整端到端验证。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。

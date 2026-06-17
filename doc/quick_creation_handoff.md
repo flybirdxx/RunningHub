@@ -770,3 +770,33 @@ git diff --check
 - 继续处理“多个独立上传子槽”问题：如果一个模型同时要求多个图片/视频/音频上传字段，应建立素材列表与字段 `paramKey` 的绑定结构，而不是只按媒体类型复用全局素材。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：字段级上传素材绑定
+
+代码提交 `76b6de3 fix(quickcreate): bind uploads to service fields` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `MediaReference.fieldParamKey` 表示素材是否绑定到某个服务端上传字段；为空时仍是底部全局参考素材。
+- `pickImageReferenceForField/pickVideoReferenceForField/pickAudioReferenceForField` 用于字段级上传入口，旧的 `pickImageReference/pickVideoReference/pickAudioReference` 保持兼容。
+- 请求组装 `quickCreationListParams` 时，字段级素材优先；没有字段级素材时才回退到同媒体类型的全局素材。
+- 校验上传数量时也按字段级素材优先计数，避免两个图片子字段因为共享全局图片而误判通过。
+- Tune 高级参数区现在会为上传字段显示专属选择按钮，例如图生图模型的 `imageUrls` 字段下显示 `选择图片`。
+
+测试覆盖：
+- 新增 `generate image maps field bound images to matching child upload fields`，覆盖两个 active child image 字段分别提交不同 URL。
+- 已跑完整快捷创作 ScreenModel 和字段 helper 测试：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+```
+
+真实 UI 复测：
+- `.\gradlew.bat :composeApp:assembleDebug` 后安装到 `emulator-5554`。
+- 路径：`创作 -> 图片 -> 创作调优 -> 高级 -> 全能图片G-2.0-图生图-官方版`。
+- UI 树 `output/quickcreate_field_upload_image_i2i_scrolled.xml` 确认 `imageUrls` 字段显示 `参考图片（1-4张）`、限制提示和 `选择图片`。
+- 截图证据为 `output/quickcreate_field_upload_image_i2i_scrolled.png`；`output/` 仍保持未跟踪。
+
+下一步建议：
+- 找一个真实同时包含多个独立上传字段的模型做端到端 UI 验证，确认每个字段按钮都能选素材并在请求体中分别落到各自 `paramKey`。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
