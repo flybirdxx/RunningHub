@@ -345,6 +345,8 @@ data class QuickCreateUiState(
     val results: List<QuickCreateResultUi> = emptyList(),
     val error: String? = null,
     val estimatedCost: Double = 0.0,
+    val feePreviewLoading: Boolean = false,
+    val feePreviewError: String? = null,
     val tuneSheetVisible: Boolean = false,
     val inspirationLoading: Boolean = false,
     val inspirationTags: List<QuickCreateInspirationTag> = emptyList(),

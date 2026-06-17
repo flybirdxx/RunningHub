@@ -3,6 +3,7 @@ package com.runninghub.app.ui.feature.quickcreate
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
+import com.runninghub.shared.domain.repository.ImageGenerationRequest
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
@@ -22,15 +23,17 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 
 private fun debug(tag: String, msg: String) {
     println("[$tag] $msg")
 }
 
-@Serializable
 data class DraftData(
     val currentTab: String = "IMAGE",
     val imagePrompt: String = "",
@@ -39,10 +42,27 @@ data class DraftData(
 
 private val draftJson = Json { encodeDefaults = true }
 private const val HISTORY_REFRESH_INTERVAL_MS = 5_000L
+private const val FEE_PREVIEW_DEBOUNCE_MS = 500L
 private const val PROJECT_CREATE_MUTATION_ID = "__create_project__"
 private val terminalHistoryStatuses = setOf("SUCCESS", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED")
 private val QuickCreationHistoryItem.needsHistoryRefresh: Boolean
     get() = status.isNotBlank() && status.uppercase() !in terminalHistoryStatuses
+
+private fun DraftData.toJsonString(): String =
+    buildJsonObject {
+        put("currentTab", currentTab)
+        put("imagePrompt", imagePrompt)
+        put("videoPrompt", videoPrompt)
+    }.toString()
+
+private fun parseDraftData(raw: String): DraftData {
+    val json = draftJson.parseToJsonElement(raw).jsonObject
+    return DraftData(
+        currentTab = json["currentTab"]?.jsonPrimitive?.contentOrNull ?: "IMAGE",
+        imagePrompt = json["imagePrompt"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+        videoPrompt = json["videoPrompt"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+    )
+}
 
 class QuickCreateScreenModel(
     private val quickCreateRepository: QuickCreateRepository,
@@ -57,6 +77,7 @@ class QuickCreateScreenModel(
     private val uploadJobs = mutableMapOf<String, Job>()
     private var draftSaveJob: Job? = null
     private var historyRefreshJob: Job? = null
+    private var feePreviewJob: Job? = null
 
     /** Check if a draft exists and returns its content.
      *  TODO: These properties are non-reactive and currently have no UI consumers.
@@ -106,6 +127,7 @@ class QuickCreateScreenModel(
                     },
                 )
             }
+            scheduleImageFeePreview()
         }
     }
 
@@ -564,7 +586,7 @@ class QuickCreateScreenModel(
             val raw = settingsRepository.getQuickCreateDraft()
             if (!raw.isNullOrEmpty()) {
                 try {
-                    val draft = draftJson.decodeFromString<DraftData>(raw)
+                    val draft = parseDraftData(raw)
                     draftData = draft
                     hasDraft = true
                 } catch (_: Exception) {
@@ -663,12 +685,25 @@ class QuickCreateScreenModel(
             QuickCreateTab.IMAGE -> _uiState.value.imageConfig.estimatedCost
             QuickCreateTab.VIDEO -> _uiState.value.videoConfig.estimatedCost
         }
-        _uiState.update { it.copy(currentTab = tab, estimatedCost = cost) }
+        _uiState.update {
+            it.copy(
+                currentTab = tab,
+                estimatedCost = cost,
+                feePreviewLoading = false,
+                feePreviewError = null,
+            )
+        }
+        if (tab == QuickCreateTab.IMAGE) {
+            scheduleImageFeePreview()
+        } else {
+            feePreviewJob?.cancel()
+        }
         autoSaveDraft()
     }
 
     fun updateImagePrompt(prompt: String) {
         _uiState.update { it.copy(imageConfig = it.imageConfig.copy(prompt = prompt)) }
+        scheduleImageFeePreview()
         autoSaveDraft()
     }
 
@@ -688,7 +723,7 @@ class QuickCreateScreenModel(
                 imagePrompt = state.imageConfig.prompt,
                 videoPrompt = state.videoConfig.prompt,
             )
-            settingsRepository.saveQuickCreateDraft(draftJson.encodeToString(draft))
+            settingsRepository.saveQuickCreateDraft(draft.toJsonString())
         }
     }
 
@@ -710,6 +745,7 @@ class QuickCreateScreenModel(
             )
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+        scheduleImageFeePreview()
     }
 
     fun updateImageServiceModel(model: QuickCreationServiceModel) {
@@ -719,6 +755,7 @@ class QuickCreateScreenModel(
                 imageServiceParams = model.defaultServiceParams(),
             )
         }
+        scheduleImageFeePreview()
     }
 
     fun updateVideoServiceModel(model: QuickCreationServiceModel) {
@@ -736,6 +773,7 @@ class QuickCreateScreenModel(
         _uiState.update {
             it.copy(imageServiceParams = it.imageServiceParams + (paramKey to value))
         }
+        scheduleImageFeePreview()
     }
 
     fun updateVideoServiceParam(paramKey: String, value: String) {
@@ -762,6 +800,7 @@ class QuickCreateScreenModel(
 
     fun updateImageAspectRatio(ratio: ImageAspectRatio) {
         _uiState.update { it.copy(imageConfig = it.imageConfig.copy(aspectRatio = ratio)) }
+        scheduleImageFeePreview()
     }
 
     fun updateImageResolution(res: ImageResolution) {
@@ -769,6 +808,7 @@ class QuickCreateScreenModel(
             val newConfig = it.imageConfig.copy(resolution = res)
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+        scheduleImageFeePreview()
     }
 
     fun updateImageQuality(quality: ImageQuality) {
@@ -776,6 +816,7 @@ class QuickCreateScreenModel(
             val newConfig = it.imageConfig.copy(quality = quality)
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+        scheduleImageFeePreview()
     }
 
     fun updateImageCount(count: Int) {
@@ -783,10 +824,12 @@ class QuickCreateScreenModel(
             val newConfig = it.imageConfig.copy(count = count)
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
         }
+        scheduleImageFeePreview()
     }
 
     fun updateImageSeed(seed: Int?) {
         _uiState.update { it.copy(imageConfig = it.imageConfig.copy(seed = seed)) }
+        scheduleImageFeePreview()
     }
 
     fun updateVideoAspectRatio(ratio: VideoAspectRatio) {
@@ -955,6 +998,9 @@ class QuickCreateScreenModel(
                         )
                     }
                 }
+                if (type == QuickCreateMediaType.IMAGE) {
+                    scheduleImageFeePreview()
+                }
             } catch (e: Exception) {
                 debug(TAG, "uploadReference: CATCH - ${e::class.simpleName}: ${e.message}")
                 _uiState.update { state ->
@@ -999,6 +1045,9 @@ class QuickCreateScreenModel(
                     )
                 )
             }
+        }
+        if (_uiState.value.currentTab == QuickCreateTab.IMAGE) {
+            scheduleImageFeePreview()
         }
     }
 
@@ -1115,36 +1164,101 @@ class QuickCreateScreenModel(
             return
         }
 
+        quickCreateRepository.generateImage(
+            buildImageGenerationRequest(_uiState.value, requirePrompt = true) ?: return
+        ).collect { status ->
+            handleTaskStatus(status)
+        }
+    }
+
+    private fun scheduleImageFeePreview() {
+        feePreviewJob?.cancel()
+        val request = buildImageGenerationRequest(_uiState.value, requirePrompt = true)
+        if (request == null) {
+            _uiState.update {
+                it.copy(
+                    feePreviewLoading = false,
+                    feePreviewError = null,
+                    estimatedCost = if (it.currentTab == QuickCreateTab.IMAGE) {
+                        it.imageConfig.estimatedCost
+                    } else {
+                        it.estimatedCost
+                    },
+                )
+            }
+            return
+        }
+
+        _uiState.update { it.copy(feePreviewLoading = true, feePreviewError = null) }
+        feePreviewJob = screenModelScope.launch {
+            delay(FEE_PREVIEW_DEBOUNCE_MS)
+            val latestRequest = buildImageGenerationRequest(_uiState.value, requirePrompt = true)
+            if (latestRequest == null) {
+                _uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null) }
+                return@launch
+            }
+
+            quickCreateRepository.previewImageQuickCreationFee(latestRequest).fold(
+                onSuccess = { preview ->
+                    val previewCost = when {
+                        preview.free -> 0.0
+                        preview.requiredCashAmount > 0.0 -> preview.requiredCashAmount
+                        else -> preview.requiredRhAmount
+                    }
+                    _uiState.update {
+                        it.copy(
+                            estimatedCost = previewCost,
+                            feePreviewLoading = false,
+                            feePreviewError = null,
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update {
+                        it.copy(
+                            feePreviewLoading = false,
+                            feePreviewError = error.message ?: "价格预览失败",
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    private fun buildImageGenerationRequest(
+        state: QuickCreateUiState,
+        requirePrompt: Boolean,
+    ): ImageGenerationRequest? {
+        if (state.currentTab != QuickCreateTab.IMAGE) return null
+        val config = state.imageConfig
+        val prompt = config.prompt.trim()
+        if ((requirePrompt && prompt.isEmpty()) || config.promptOverLimit) return null
         val imageRef = config.mediaReferences
             .filter { it.type == QuickCreateMediaType.IMAGE && it.uploadStatus == UploadStatus.DONE }
             .firstOrNull { it.remoteUrl != null }
 
-        quickCreateRepository.generateImage(
-            com.runninghub.shared.domain.repository.ImageGenerationRequest(
-                prompt = prompt,
-                model = config.model.apiValue,
-                aspectRatio = config.aspectRatio.apiValue,
-                resolution = config.resolution.apiValue,
-                quality = config.quality.apiValue,
-                referenceImageUri = imageRef?.remoteUrl,
-                numImages = config.count,
-                seed = config.seed,
-                quickCreationCategoryId = _uiState.value.selectedImageServiceModel?.categoryId,
-                quickCreationBindingId = _uiState.value.selectedImageServiceModel?.bindingId,
-                quickCreationSkuId = _uiState.value.selectedImageServiceModel?.skuId,
-                quickCreationParams = imageQuickCreationParams(
-                    model = _uiState.value.selectedImageServiceModel,
-                    config = config,
-                    serviceParams = _uiState.value.imageServiceParams,
-                ),
-                quickCreationListParams = imageQuickCreationListParams(
-                    model = _uiState.value.selectedImageServiceModel,
-                    config = config,
-                ),
-            )
-        ).collect { status ->
-            handleTaskStatus(status)
-        }
+        return ImageGenerationRequest(
+            prompt = prompt,
+            model = config.model.apiValue,
+            aspectRatio = config.aspectRatio.apiValue,
+            resolution = config.resolution.apiValue,
+            quality = config.quality.apiValue,
+            referenceImageUri = imageRef?.remoteUrl,
+            numImages = config.count,
+            seed = config.seed,
+            quickCreationCategoryId = state.selectedImageServiceModel?.categoryId,
+            quickCreationBindingId = state.selectedImageServiceModel?.bindingId,
+            quickCreationSkuId = state.selectedImageServiceModel?.skuId,
+            quickCreationParams = imageQuickCreationParams(
+                model = state.selectedImageServiceModel,
+                config = config,
+                serviceParams = state.imageServiceParams,
+            ),
+            quickCreationListParams = imageQuickCreationListParams(
+                model = state.selectedImageServiceModel,
+                config = config,
+            ),
+        )
     }
 
     private fun imageQuickCreationParams(

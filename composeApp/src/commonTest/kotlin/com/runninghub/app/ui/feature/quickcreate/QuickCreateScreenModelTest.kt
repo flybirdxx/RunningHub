@@ -46,6 +46,17 @@ class QuickCreateScreenModelTest {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
         var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
         var lastVideoRequest: com.runninghub.shared.domain.repository.VideoGenerationRequest? = null
+        var feePreviewResult: Result<QuickCreationFeePreview> = Result.success(
+            QuickCreationFeePreview(
+                passed = true,
+                free = false,
+                settlementMode = "cash_only",
+                requiredCashAmount = 0.76,
+                userCashBalance = 156.376,
+                cashCurrency = "CNY",
+            )
+        )
+        val feePreviewRequests = mutableListOf<com.runninghub.shared.domain.repository.ImageGenerationRequest>()
         var lastHistoryDetailOutputId: String? = null
         val cancelledTaskIds = mutableListOf<String>()
         val requestedHistoryPages = mutableListOf<Int>()
@@ -274,16 +285,10 @@ class QuickCreateScreenModelTest {
         }
         override suspend fun previewImageQuickCreationFee(
             request: com.runninghub.shared.domain.repository.ImageGenerationRequest,
-        ): Result<QuickCreationFeePreview> = Result.success(
-            QuickCreationFeePreview(
-                passed = true,
-                free = false,
-                settlementMode = "cash_only",
-                requiredCashAmount = 0.76,
-                userCashBalance = 156.376,
-                cashCurrency = "CNY",
-            )
-        )
+        ): Result<QuickCreationFeePreview> {
+            feePreviewRequests += request
+            return feePreviewResult
+        }
         override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String> =
             when {
                 mimeType.startsWith("video") -> Result.success("https://example.com/video.mp4")
@@ -724,6 +729,28 @@ class QuickCreateScreenModelTest {
             assertEquals("photoreal", repository.lastImageRequest?.quickCreationParams?.get("style"))
             assertEquals("16:9", repository.lastImageRequest?.quickCreationParams?.get("aspectRatio"))
         }
+    }
+
+    @Test
+    fun `image prompt refreshes server fee preview into estimated cost`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(1, repository.feePreviewRequests.size)
+        assertEquals("IMAGE", repository.feePreviewRequests.single().quickCreationCategoryId)
+        assertEquals("binding-1", repository.feePreviewRequests.single().quickCreationBindingId)
+        assertEquals("sku-1", repository.feePreviewRequests.single().quickCreationSkuId)
+        assertEquals("green icon", repository.feePreviewRequests.single().prompt)
+        assertEquals(0.76, model.uiState.value.estimatedCost)
+        assertEquals(false, model.uiState.value.feePreviewLoading)
+        assertEquals(null, model.uiState.value.feePreviewError)
     }
 
     @Test
