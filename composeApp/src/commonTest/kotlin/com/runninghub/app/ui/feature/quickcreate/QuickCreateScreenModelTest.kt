@@ -49,6 +49,7 @@ class QuickCreateScreenModelTest {
         val cancelledTaskIds = mutableListOf<String>()
         val requestedHistoryPages = mutableListOf<Int>()
         val requestedProjectPages = mutableListOf<Int>()
+        val requestedProjectTaskPages = mutableListOf<Pair<String, Int>>()
         var historyPage = QuickCreationHistoryPage(
             page = 1,
             size = 10,
@@ -77,6 +78,26 @@ class QuickCreateScreenModelTest {
             ),
         )
         var historyPages: Map<Int, QuickCreationHistoryPage>? = null
+        var projectTaskPage = QuickCreationHistoryPage(
+            page = 1,
+            size = 10,
+            total = 1,
+            items = listOf(
+                QuickCreationHistoryItem(
+                    taskId = "project-task-1",
+                    status = "SUCCESS",
+                    categoryId = "IMAGE",
+                    params = mapOf("prompt" to "project prompt"),
+                    outputs = listOf(
+                        QuickCreationHistoryOutput(
+                            outputId = "project-output-1",
+                            url = "https://example.com/project-result.png",
+                            type = "png",
+                        )
+                    ),
+                )
+            ),
+        )
         var projectPage = QuickCreationProjectPage(
             page = 1,
             size = 20,
@@ -280,7 +301,9 @@ class QuickCreateScreenModelTest {
             page: Int,
             size: Int,
         ): Result<QuickCreationHistoryPage> =
-            Result.success(historyPage.copy(page = page, size = size))
+            Result.success(projectTaskPage.copy(page = page, size = size)).also {
+                requestedProjectTaskPages += projectId to page
+            }
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -343,6 +366,33 @@ class QuickCreateScreenModelTest {
         assertEquals("世界杯广告", model.uiState.value.projects.single().name)
         assertEquals(true, model.uiState.value.projects.single().pinned)
         assertEquals(false, model.uiState.value.projectsHasMore)
+    }
+
+    @Test
+    fun `selecting project loads project tasks into history area`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.selectProject("project-1")
+
+        assertEquals(listOf("project-1" to 1), repository.requestedProjectTaskPages)
+        assertEquals("project-1", model.uiState.value.selectedProjectId)
+        assertEquals(false, model.uiState.value.projectTasksLoading)
+        assertEquals("project-task-1", model.uiState.value.historyItems.single().taskId)
+        assertEquals(false, model.uiState.value.historyHasMore)
+    }
+
+    @Test
+    fun `clearing selected project reloads recent history`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        model.selectProject("project-1")
+
+        model.clearSelectedProject()
+
+        assertEquals(null, model.uiState.value.selectedProjectId)
+        assertEquals(listOf(1, 1), repository.requestedHistoryPages)
+        assertEquals("history-task-1", model.uiState.value.historyItems.single().taskId)
     }
 
     @Test

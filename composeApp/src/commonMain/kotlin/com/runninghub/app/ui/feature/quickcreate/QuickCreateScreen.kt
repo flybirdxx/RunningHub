@@ -114,6 +114,8 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             onHistoryItemSelected = screenModel::selectHistoryOutput,
                             onLoadMoreHistory = screenModel::loadMoreQuickCreationHistory,
                             onCancelHistoryTask = screenModel::cancelHistoryTask,
+                            onProjectSelected = screenModel::selectProject,
+                            onClearSelectedProject = screenModel::clearSelectedProject,
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(
                             uiState = uiState,
@@ -361,6 +363,8 @@ private fun CreationScrollableArea(
     onHistoryItemSelected: (String) -> Unit,
     onLoadMoreHistory: () -> Unit,
     onCancelHistoryTask: (String) -> Unit,
+    onProjectSelected: (String) -> Unit,
+    onClearSelectedProject: () -> Unit,
 ) {
     when {
         uiState.results.isNotEmpty() -> ResultArea(
@@ -371,11 +375,13 @@ private fun CreationScrollableArea(
             status = uiState.taskStatus,
             statusText = uiState.statusText,
         )
-        uiState.historyLoading || uiState.historyItems.isNotEmpty() -> HistoryArea(
+        uiState.historyLoading || uiState.projectTasksLoading || uiState.historyItems.isNotEmpty() -> HistoryArea(
             uiState = uiState,
             onHistoryItemSelected = onHistoryItemSelected,
             onLoadMoreHistory = onLoadMoreHistory,
             onCancelHistoryTask = onCancelHistoryTask,
+            onProjectSelected = onProjectSelected,
+            onClearSelectedProject = onClearSelectedProject,
         )
         else -> EmptyArea()
     }
@@ -387,7 +393,10 @@ private fun HistoryArea(
     onHistoryItemSelected: (String) -> Unit,
     onLoadMoreHistory: () -> Unit,
     onCancelHistoryTask: (String) -> Unit,
+    onProjectSelected: (String) -> Unit,
+    onClearSelectedProject: () -> Unit,
 ) {
+    val selectedProject = uiState.projects.firstOrNull { it.projectId == uiState.selectedProjectId }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(Dimens.SpaceMD),
@@ -398,6 +407,9 @@ private fun HistoryArea(
                 ProjectStrip(
                     projects = uiState.projects,
                     isLoading = uiState.projectsLoading,
+                    selectedProjectId = uiState.selectedProjectId,
+                    onProjectSelected = onProjectSelected,
+                    onClearSelectedProject = onClearSelectedProject,
                 )
                 Spacer(Modifier.height(Dimens.SpaceSM))
             }
@@ -407,12 +419,12 @@ private fun HistoryArea(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "最近创作",
+                    selectedProject?.name ?: "最近创作",
                     color = Color.White.copy(alpha = 0.82f),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
-                if (uiState.historyLoading) {
+                if (uiState.historyLoading || uiState.projectTasksLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         strokeWidth = 2.dp,
@@ -463,6 +475,9 @@ private fun HistoryArea(
 private fun ProjectStrip(
     projects: List<QuickCreationProject>,
     isLoading: Boolean,
+    selectedProjectId: String?,
+    onProjectSelected: (String) -> Unit,
+    onClearSelectedProject: () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXS)) {
         Row(
@@ -490,19 +505,73 @@ private fun ProjectStrip(
                 .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
         ) {
+            RecentProjectChip(
+                selected = selectedProjectId == null,
+                onClick = onClearSelectedProject,
+            )
             projects.forEach { project ->
-                ProjectChip(project)
+                ProjectChip(
+                    project = project,
+                    selected = project.projectId == selectedProjectId,
+                    onClick = { onProjectSelected(project.projectId) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun ProjectChip(project: QuickCreationProject) {
+private fun RecentProjectChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
     Surface(
-        color = DarkSurface,
+        onClick = onClick,
+        color = if (selected) Primary300.copy(alpha = 0.16f) else DarkSurface,
         shape = RoundedCornerShape(Dimens.RadiusMD),
-        border = BorderStroke(1.dp, if (project.pinned) Primary300.copy(alpha = 0.65f) else DarkOutlineVariant),
+        border = BorderStroke(1.dp, if (selected) Primary300.copy(alpha = 0.65f) else DarkOutlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = Dimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXS),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                Icons.Default.History,
+                contentDescription = null,
+                tint = if (selected) Primary300 else Neutral400,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(
+                "最近创作",
+                color = if (selected) Primary300 else Color.White.copy(alpha = 0.9f),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProjectChip(
+    project: QuickCreationProject,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        color = if (selected) Primary300.copy(alpha = 0.16f) else DarkSurface,
+        shape = RoundedCornerShape(Dimens.RadiusMD),
+        border = BorderStroke(
+            1.dp,
+            when {
+                selected -> Primary300.copy(alpha = 0.75f)
+                project.pinned -> Primary300.copy(alpha = 0.65f)
+                else -> DarkOutlineVariant
+            },
+        ),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = Dimens.SpaceSM),
@@ -520,7 +589,7 @@ private fun ProjectChip(project: QuickCreationProject) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
                     project.name,
-                    color = Color.White.copy(alpha = 0.9f),
+                    color = if (selected) Primary300 else Color.White.copy(alpha = 0.9f),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                     maxLines = 1,
@@ -1399,6 +1468,8 @@ private fun QuickCreatePreviewContent(
                             onHistoryItemSelected = {},
                             onLoadMoreHistory = {},
                             onCancelHistoryTask = {},
+                            onProjectSelected = {},
+                            onClearSelectedProject = {},
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(uiState = uiState, onApplyTemplate = {})
                     }

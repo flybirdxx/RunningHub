@@ -161,7 +161,16 @@ class QuickCreateScreenModel(
         screenModelScope.launch {
             val nextPage = _uiState.value.historyPage + 1
             _uiState.update { it.copy(historyLoadingMore = true) }
-            val history = quickCreateRepository.listQuickCreationHistory(page = nextPage, size = 10)
+            val selectedProjectId = _uiState.value.selectedProjectId
+            val history = if (selectedProjectId.isNullOrBlank()) {
+                quickCreateRepository.listQuickCreationHistory(page = nextPage, size = 10)
+            } else {
+                quickCreateRepository.listQuickCreationProjectTasks(
+                    projectId = selectedProjectId,
+                    page = nextPage,
+                    size = 10,
+                )
+            }
             history.fold(
                 onSuccess = { page ->
                     var mergedItems: List<QuickCreationHistoryItem> = emptyList()
@@ -190,6 +199,66 @@ class QuickCreateScreenModel(
         }
     }
 
+    fun selectProject(projectId: String) {
+        if (projectId.isBlank() || _uiState.value.selectedProjectId == projectId) return
+
+        screenModelScope.launch {
+            _uiState.update {
+                it.copy(
+                    selectedProjectId = projectId,
+                    projectTasksLoading = true,
+                    historyItems = emptyList(),
+                    historyPage = 0,
+                    historyTotal = 0,
+                    historyHasMore = false,
+                    error = null,
+                )
+            }
+            val tasks = quickCreateRepository.listQuickCreationProjectTasks(
+                projectId = projectId,
+                page = 1,
+                size = 10,
+            )
+            tasks.fold(
+                onSuccess = { page ->
+                    _uiState.update { state ->
+                        state.copy(
+                            projectTasksLoading = false,
+                            historyPage = page.page,
+                            historyTotal = page.total,
+                            historyHasMore = page.items.size < page.total,
+                            historyItems = page.items,
+                        )
+                    }
+                    updateHistoryRefreshJob(page.items)
+                },
+                onFailure = { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            projectTasksLoading = false,
+                            error = error.message ?: "椤圭洰浠诲姟鍔犺浇澶辫触",
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    fun clearSelectedProject() {
+        if (_uiState.value.selectedProjectId == null) return
+        _uiState.update {
+            it.copy(
+                selectedProjectId = null,
+                projectTasksLoading = false,
+                historyItems = emptyList(),
+                historyPage = 0,
+                historyTotal = 0,
+                historyHasMore = false,
+            )
+        }
+        loadQuickCreationHistory()
+    }
+
     private fun updateHistoryRefreshJob(items: List<QuickCreationHistoryItem>) {
         if (items.none { it.needsHistoryRefresh }) {
             historyRefreshJob?.cancel()
@@ -209,7 +278,16 @@ class QuickCreateScreenModel(
 
     private suspend fun refreshLoadedQuickCreationHistory() {
         val size = maxOf(10, _uiState.value.historyItems.size)
-        val history = quickCreateRepository.listQuickCreationHistory(page = 1, size = size)
+        val selectedProjectId = _uiState.value.selectedProjectId
+        val history = if (selectedProjectId.isNullOrBlank()) {
+            quickCreateRepository.listQuickCreationHistory(page = 1, size = size)
+        } else {
+            quickCreateRepository.listQuickCreationProjectTasks(
+                projectId = selectedProjectId,
+                page = 1,
+                size = size,
+            )
+        }
         history.fold(
             onSuccess = { page -> applyHistoryRefreshPage(page) },
             onFailure = { error ->
