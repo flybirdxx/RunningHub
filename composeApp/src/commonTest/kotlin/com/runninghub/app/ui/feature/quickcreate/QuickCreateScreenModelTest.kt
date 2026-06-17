@@ -2034,6 +2034,42 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `apply inspiration video template infers generic list param media type from service field`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            videoModels = listOf(
+                videoModels.single().copy(
+                    fields = listOf(
+                        QuickCreationServiceField(
+                            fieldKey = "reference",
+                            paramKey = "referenceVideos",
+                            fieldType = "VIDEO_UPLOAD",
+                            required = false,
+                            defaultValue = null,
+                            options = emptyList(),
+                            maxUploadCount = 1,
+                        ),
+                    ),
+                ),
+            )
+            templateDetail = templateDetail.copy(
+                listParams = mapOf("reference" to listOf("https://example.com/template-reference.mp4")),
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchMode(QuickCreateMode.INSPIRATION)
+        model.applyInspirationTemplate("tpl-video")
+        runCurrent()
+
+        val reference = model.uiState.value.videoConfig.mediaReferences.single()
+        assertEquals(QuickCreateMediaType.VIDEO, reference.type)
+        assertEquals("referenceVideos", reference.fieldParamKey)
+    }
+
+    @Test
     fun `apply inspiration image template keeps list params bound to service fields`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

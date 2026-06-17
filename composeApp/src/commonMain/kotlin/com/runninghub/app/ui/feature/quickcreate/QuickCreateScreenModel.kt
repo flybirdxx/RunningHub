@@ -1816,13 +1816,14 @@ class QuickCreateScreenModel(
         }
 
     private fun QuickCreateInspirationTemplateDetail.templateMediaReferences(
-        activeFieldParamAliases: Map<String, String>,
+        activeFieldParamAliases: Map<String, QuickCreationUploadFieldAlias>,
         declaredFieldParamAliases: Map<String, String>,
     ): List<MediaReference> =
         listParams.entries.flatMapIndexed { fieldIndex, (key, values) ->
-            val mediaType = key.templateMediaType()
+            val activeFieldAlias = activeFieldParamAliases[key]
+            val mediaType = activeFieldAlias?.mediaType ?: key.templateMediaType()
             val fieldParamKey = when {
-                key in activeFieldParamAliases -> activeFieldParamAliases[key]
+                activeFieldAlias != null -> activeFieldAlias.paramKey
                 key in declaredFieldParamAliases -> return@flatMapIndexed emptyList()
                 else -> null
             }
@@ -1843,18 +1844,28 @@ class QuickCreateScreenModel(
 
     private fun QuickCreationServiceModel?.quickCreationActiveUploadParamAliases(
         serviceParams: Map<String, String>,
-    ): Map<String, String> {
+    ): Map<String, QuickCreationUploadFieldAlias> {
         val aliasedParams = quickCreationParamsWithFieldAliases(serviceParams)
         return buildMap {
             this@quickCreationActiveUploadParamAliases?.fields.orEmpty()
                 .filter { it.visible }
                 .forEach { field ->
                     if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {
-                        putUploadAliases(field.fieldKey, field.paramKey)
+                        putActiveUploadAliases(
+                            fieldKey = field.fieldKey,
+                            paramKey = field.paramKey,
+                            mediaType = field.quickCreationUploadMediaType(),
+                        )
                     }
                     field.quickCreationActiveInputChildren(aliasedParams)
                         .filter { it.isQuickCreationUploadField() }
-                        .forEach { child -> putUploadAliases(child.fieldKey, child.paramKey) }
+                        .forEach { child ->
+                            putActiveUploadAliases(
+                                fieldKey = child.fieldKey,
+                                paramKey = child.paramKey,
+                                mediaType = child.quickCreationUploadMediaType(),
+                            )
+                        }
                 }
         }
     }
@@ -1865,15 +1876,30 @@ class QuickCreateScreenModel(
                 .filter { it.visible }
                 .forEach { field ->
                     if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {
-                        putUploadAliases(field.fieldKey, field.paramKey)
+                        putDeclaredUploadAliases(field.fieldKey, field.paramKey)
                     }
                     field.inputExtra?.inputChildren.orEmpty()
                         .filter { it.isQuickCreationServiceFieldRenderable() && it.isQuickCreationUploadField() }
-                        .forEach { child -> putUploadAliases(child.fieldKey, child.paramKey) }
+                        .forEach { child -> putDeclaredUploadAliases(child.fieldKey, child.paramKey) }
                 }
         }
 
-    private fun MutableMap<String, String>.putUploadAliases(fieldKey: String, paramKey: String) {
+    private data class QuickCreationUploadFieldAlias(
+        val paramKey: String,
+        val mediaType: QuickCreateMediaType?,
+    )
+
+    private fun MutableMap<String, QuickCreationUploadFieldAlias>.putActiveUploadAliases(
+        fieldKey: String,
+        paramKey: String,
+        mediaType: QuickCreateMediaType?,
+    ) {
+        val alias = QuickCreationUploadFieldAlias(paramKey = paramKey, mediaType = mediaType)
+        if (fieldKey.isNotBlank()) put(fieldKey, alias)
+        if (paramKey.isNotBlank()) put(paramKey, alias)
+    }
+
+    private fun MutableMap<String, String>.putDeclaredUploadAliases(fieldKey: String, paramKey: String) {
         if (fieldKey.isNotBlank()) put(fieldKey, paramKey)
         if (paramKey.isNotBlank()) put(paramKey, paramKey)
     }
