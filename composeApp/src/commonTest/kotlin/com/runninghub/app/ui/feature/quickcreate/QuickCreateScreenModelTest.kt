@@ -1356,6 +1356,32 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `image upload completion updates image config after switching to video tab`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            uploadDelayMillis = 1_000L
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReference("content://image/1")
+        model.switchTab(QuickCreateTab.VIDEO)
+        advanceUntilIdle()
+        model.switchTab(QuickCreateTab.IMAGE)
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(
+            listOf("https://example.com/file.jpg"),
+            repository.lastImageRequest?.quickCreationListParams?.get("referenceImages"),
+        )
+    }
+
+    @Test
     fun `generate image maps uploaded images to service image field`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

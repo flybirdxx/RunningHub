@@ -932,6 +932,7 @@ class QuickCreateScreenModel(
         val TAG = "QCScreenModel"
         val now = Clock.System.now().toEpochMilliseconds()
         val id = "${type.name}_$now"
+        val targetTab = _uiState.value.currentTab
         debug(TAG, "addMediaReference: uri=$uriString type=$type")
         val fileName = mediaResolver.getDisplayName(uriString) ?: "${type.name.lowercase()}_$now"
         val fileSize = mediaResolver.getFileSizeBytes(uriString)
@@ -948,7 +949,7 @@ class QuickCreateScreenModel(
             uploadProgress = 0f,
         )
         _uiState.update { state ->
-            if (state.currentTab == QuickCreateTab.IMAGE) {
+            if (targetTab == QuickCreateTab.IMAGE) {
                 state.copy(
                     imageConfig = state.imageConfig.copy(
                         mediaReferences = state.imageConfig.mediaReferences + newRef
@@ -963,10 +964,16 @@ class QuickCreateScreenModel(
             }
         }
 
-        uploadReference(id, uriString, type, fileName)
+        uploadReference(id, uriString, type, fileName, targetTab)
     }
 
-    private fun uploadReference(id: String, uriString: String, type: QuickCreateMediaType, fileName: String) {
+    private fun uploadReference(
+        id: String,
+        uriString: String,
+        type: QuickCreateMediaType,
+        fileName: String,
+        targetTab: QuickCreateTab,
+    ) {
         val TAG = "QCScreenModel"
         debug(TAG, "uploadReference: START")
         debug(TAG, "  id       = $id")
@@ -988,13 +995,13 @@ class QuickCreateScreenModel(
             val actualFileName = "${type.name.lowercase()}_${Clock.System.now().toEpochMilliseconds()}.$ext"
 
             try {
-                updateReferenceStatus(id, UploadStatus.UPLOADING, 0.1f)
+                updateReferenceStatus(id, UploadStatus.UPLOADING, 0.1f, targetTab)
                 debug(TAG, "uploadReference: reading bytes from URI...")
                 val bytes = withContext(Dispatchers.IO) {
                     mediaResolver.readBytes(uriString)
                 }
                 debug(TAG, "uploadReference: read ${bytes.size} bytes")
-                updateReferenceStatus(id, UploadStatus.UPLOADING, 0.7f)
+                updateReferenceStatus(id, UploadStatus.UPLOADING, 0.7f, targetTab)
 
                 debug(TAG, "uploadReference: calling repository.uploadMedia...")
                 val remoteUrl = quickCreateRepository.uploadMedia(
@@ -1007,10 +1014,10 @@ class QuickCreateScreenModel(
                 }
 
                 debug(TAG, "uploadReference: SUCCESS, remoteUrl = $remoteUrl")
-                updateReferenceStatus(id, UploadStatus.PROCESSING, 0.85f)
+                updateReferenceStatus(id, UploadStatus.PROCESSING, 0.85f, targetTab)
 
                 _uiState.update { state ->
-                    if (state.currentTab == QuickCreateTab.IMAGE) {
+                    if (targetTab == QuickCreateTab.IMAGE) {
                         state.copy(
                             imageConfig = state.imageConfig.copy(
                                 mediaReferences = state.imageConfig.mediaReferences.map { ref ->
@@ -1040,7 +1047,7 @@ class QuickCreateScreenModel(
             } catch (e: Exception) {
                 debug(TAG, "uploadReference: CATCH - ${e::class.simpleName}: ${e.message}")
                 _uiState.update { state ->
-                    if (state.currentTab == QuickCreateTab.IMAGE) {
+                    if (targetTab == QuickCreateTab.IMAGE) {
                         state.copy(
                             imageConfig = state.imageConfig.copy(
                                 mediaReferences = state.imageConfig.mediaReferences.map { ref ->
@@ -1071,9 +1078,14 @@ class QuickCreateScreenModel(
     private fun MediaReference.affectsFeePreviewRequest(): Boolean =
         uploadStatus == UploadStatus.DONE && !remoteUrl.isNullOrBlank()
 
-    private fun updateReferenceStatus(id: String, status: UploadStatus, progress: Float) {
+    private fun updateReferenceStatus(
+        id: String,
+        status: UploadStatus,
+        progress: Float,
+        targetTab: QuickCreateTab,
+    ) {
         _uiState.update { state ->
-            if (state.currentTab == QuickCreateTab.IMAGE) {
+            if (targetTab == QuickCreateTab.IMAGE) {
                 state.copy(
                     imageConfig = state.imageConfig.copy(
                         mediaReferences = state.imageConfig.mediaReferences.map { ref ->
