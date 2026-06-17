@@ -549,3 +549,26 @@ git diff --check
 - 上传类子输入 required/maxInputCount 仍未接入提交前防线。
 - 当前 Tune UI 仍只在图片高级参数区渲染服务端模型和子输入；视频高级参数区仍需单独接服务端模型参数 UI。
 - 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。
+
+## 2026-06-18 子输入 maxLength 截断与计数
+
+代码提交 `ef7eab1 fix(quickcreate): enforce child text max length` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationServiceFieldInputChild` 现在复用与顶层文本字段一致的输入长度处理方式：当子输入携带 `maxLength` 时，Tune 子输入文本框会先截断到最大长度，再写回 `serviceParams`。
+- 子输入文本框会在输入框下方展示 `当前长度/最大长度` 计数，避免用户在复杂 `inputsChildList` 字段里输入超过服务端限制的参数。
+- 新增 UI helper 回归测试，覆盖子输入截断和计数器行为。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.child text input is constrained by max length metadata" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.child text limit counter uses max length metadata"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 上传类子输入的 required/maxInputCount 校验还没有接入提交前防线。
+- 视频高级参数区仍未复用图片端的服务端模型字段 UI。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费；视频真实端到端仍需要新的明确扣费授权。

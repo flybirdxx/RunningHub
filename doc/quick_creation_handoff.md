@@ -624,3 +624,28 @@ git diff --check
 - 给上传类子输入补 required/maxInputCount 校验；需要确认子输入上传如何映射到当前素材入口，避免和顶层上传字段重复计数。
 - 视频高级参数区仍未复用服务端模型字段 UI，下一步可以先抽 `ServiceFieldOptionsContent` 为 image/video 共用。
 - 继续不要触发真实生成或视频扣费；完整视频 `prepare/commit` 仍需新的明确授权。
+
+## 2026-06-18 追加交接：子输入 maxLength 截断与计数
+
+代码提交 `ef7eab1 fix(quickcreate): enforce child text max length` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreationServiceFieldInputChild.constrainQuickCreationTextInput(value)` 会读取子输入自身的 `maxLength`，当限制存在且非负时截断输入。
+- `QuickCreationServiceFieldInputChild.quickCreationTextLimitCounter(value)` 会返回 `当前长度/最大长度`，Tune 子输入文本框已展示该计数。
+- `TuneBottomSheet.ServiceChildFieldInput` 写回子输入文本参数前会先应用截断结果，因此进入 `serviceParams` 和后续 `quickCreationParams` 的值不会超过当前已解析的子字段长度限制。
+- 这一步只处理文本/数字类子输入，不改变顶层字段、上传字段、主 prompt 输入框或真实生成链路。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.child text input is constrained by max length metadata" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.child text limit counter uses max length metadata"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 继续补上传类子输入 required/maxInputCount 校验；需要先确认子输入上传入口如何和当前素材列表关联，避免把顶层素材数量误算到子字段上。
+- 抽取图片端服务端字段渲染区，让视频高级参数区也能展示服务端模型字段和子输入。
+- 继续避免触发真实生成或视频扣费；完整视频 `prepare/commit/list/detail` 仍需要用户重新给出明确扣费授权。
+- 后续提交仍不要纳入既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪的 `output/` 证据目录。
