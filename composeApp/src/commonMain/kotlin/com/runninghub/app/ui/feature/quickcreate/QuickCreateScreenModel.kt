@@ -1741,8 +1741,8 @@ class QuickCreateScreenModel(
             resolution = detail.params.templateImageResolution() ?: imageConfig.resolution,
             quality = detail.params.templateImageQuality() ?: imageConfig.quality,
             mediaReferences = detail.templateMediaReferences(
-                activeFieldParamKeys = selectedModel.quickCreationActiveUploadParamKeys(serviceParams),
-                declaredFieldParamKeys = selectedModel.quickCreationDeclaredUploadParamKeys(),
+                activeFieldParamAliases = selectedModel.quickCreationActiveUploadParamAliases(serviceParams),
+                declaredFieldParamAliases = selectedModel.quickCreationDeclaredUploadParamAliases(),
             ),
         )
         return copy(
@@ -1769,8 +1769,8 @@ class QuickCreateScreenModel(
             generateAudio = detail.params.templateBoolean("generateAudio") ?: videoConfig.generateAudio,
             realisticMode = detail.params.templateBoolean("realPersonMode") ?: videoConfig.realisticMode,
             mediaReferences = detail.templateMediaReferences(
-                activeFieldParamKeys = selectedModel.quickCreationActiveUploadParamKeys(serviceParams),
-                declaredFieldParamKeys = selectedModel.quickCreationDeclaredUploadParamKeys(),
+                activeFieldParamAliases = selectedModel.quickCreationActiveUploadParamAliases(serviceParams),
+                declaredFieldParamAliases = selectedModel.quickCreationDeclaredUploadParamAliases(),
             ),
         )
         return copy(
@@ -1793,14 +1793,14 @@ class QuickCreateScreenModel(
         }
 
     private fun QuickCreateInspirationTemplateDetail.templateMediaReferences(
-        activeFieldParamKeys: Set<String>,
-        declaredFieldParamKeys: Set<String>,
+        activeFieldParamAliases: Map<String, String>,
+        declaredFieldParamAliases: Map<String, String>,
     ): List<MediaReference> =
         listParams.entries.flatMapIndexed { fieldIndex, (key, values) ->
             val mediaType = key.templateMediaType()
             val fieldParamKey = when {
-                key in activeFieldParamKeys -> key
-                key in declaredFieldParamKeys -> return@flatMapIndexed emptyList()
+                key in activeFieldParamAliases -> activeFieldParamAliases[key]
+                key in declaredFieldParamAliases -> return@flatMapIndexed emptyList()
                 else -> null
             }
             values.mapIndexed { index, url ->
@@ -1818,22 +1818,40 @@ class QuickCreateScreenModel(
             }
         }
 
-    private fun QuickCreationServiceModel?.quickCreationDeclaredUploadParamKeys(): Set<String> =
-        this?.fields.orEmpty()
-            .filter { it.visible }
-            .flatMap { field ->
-                buildList {
+    private fun QuickCreationServiceModel?.quickCreationActiveUploadParamAliases(
+        serviceParams: Map<String, String>,
+    ): Map<String, String> =
+        buildMap {
+            this@quickCreationActiveUploadParamAliases?.fields.orEmpty()
+                .filter { it.visible }
+                .forEach { field ->
                     if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {
-                        add(field.paramKey)
+                        putUploadAliases(field.fieldKey, field.paramKey)
                     }
-                    addAll(
-                        field.inputExtra?.inputChildren.orEmpty()
-                            .filter { it.isQuickCreationServiceFieldRenderable() && it.isQuickCreationUploadField() }
-                            .map { it.paramKey }
-                    )
+                    field.quickCreationActiveInputChildren(serviceParams)
+                        .filter { it.isQuickCreationUploadField() }
+                        .forEach { child -> putUploadAliases(child.fieldKey, child.paramKey) }
                 }
-            }
-            .toSet()
+        }
+
+    private fun QuickCreationServiceModel?.quickCreationDeclaredUploadParamAliases(): Map<String, String> =
+        buildMap {
+            this@quickCreationDeclaredUploadParamAliases?.fields.orEmpty()
+                .filter { it.visible }
+                .forEach { field ->
+                    if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {
+                        putUploadAliases(field.fieldKey, field.paramKey)
+                    }
+                    field.inputExtra?.inputChildren.orEmpty()
+                        .filter { it.isQuickCreationServiceFieldRenderable() && it.isQuickCreationUploadField() }
+                        .forEach { child -> putUploadAliases(child.fieldKey, child.paramKey) }
+                }
+        }
+
+    private fun MutableMap<String, String>.putUploadAliases(fieldKey: String, paramKey: String) {
+        if (fieldKey.isNotBlank()) put(fieldKey, paramKey)
+        if (paramKey.isNotBlank()) put(paramKey, paramKey)
+    }
 
     private fun String.templateReferenceIdPart(): String =
         map { char ->

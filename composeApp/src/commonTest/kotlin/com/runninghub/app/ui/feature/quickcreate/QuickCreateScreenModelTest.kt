@@ -1855,6 +1855,33 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `apply inspiration video template maps list param field key to upload param key`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            templateDetail = templateDetail.copy(
+                listParams = mapOf("referenceVideo" to listOf("https://example.com/template-video.mp4")),
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchMode(QuickCreateMode.INSPIRATION)
+        model.applyInspirationTemplate("tpl-video")
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(
+            listOf("https://example.com/template-video.mp4"),
+            repository.lastVideoRequest?.quickCreationListParams?.get("referenceVideos"),
+        )
+        assertEquals(null, repository.lastVideoRequest?.referenceVideoUri)
+    }
+
+    @Test
     fun `apply inspiration image template keeps list params bound to service fields`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
