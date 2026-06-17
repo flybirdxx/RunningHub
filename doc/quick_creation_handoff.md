@@ -725,3 +725,25 @@ git diff --check
 - 在模拟器或真机打开视频 tab 的 Tune 高级参数区，确认视频服务端模型列表和动态字段真实可见且不遮挡底部输入区。
 - 继续把服务端模型列表 UI 从图片/视频重复代码中抽成共用 Composable，降低后续维护成本。
 - 继续不要触发真实视频生成或扣费；完整视频 `prepare/commit` 仍需要新的明确授权。
+
+## 2026-06-18 追加交接：视频 Tune 高级参数 UI 复测
+
+本轮基于最新 debug APK 在 `emulator-5554` 做了真实 UI 复测，未触发生成和扣费。
+
+复测路径：
+- 构建并安装 `composeApp/build/outputs/apk/debug/composeApp-debug.apk`。
+- 启动 `com.runninghub.app/.MainActivity`。
+- 进入底部 `创作` tab，切换到视频 tab，默认视频模型显示 `Seedance2.0`，价格区显示 `¥6.00`。
+- 点击视频模型行打开 `创作调优`，进入 `高级` tab。
+- 高级页先展示视频 `服务端模型` 列表，包含 `Seedance2.0`、`Seedance2.0-首尾帧`、`Seedance2.0-Fast`、`全能视频X 1.5-图生视频-官方版`、`可灵...`、`PixVerse...`、`Vidu...` 等多屏模型。
+- 在高级页继续向下滚动到底部后，字段区可见，UI 树确认出现 `是否返回视频尾帧图片`、`是（支持真人模式）`、`否`，同时原有视频高级项 `真人模式`、`生成音频`、`时长`、`Seed（留空为随机）` 仍可访问。
+
+证据文件：
+- `output/quickcreate_video_tune_advanced.xml`
+- `output/quickcreate_video_tune_advanced_scrolled_10.xml`
+- `output/quickcreate_video_tune_advanced_fields.png`
+
+后续注意：
+- 服务端模型列表过长，当前虽然可滚动到字段和原有视频高级项，但用户要找字段成本较高；建议下一步优化服务模型选择控件。
+- 继续不要把既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录混入提交。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权扣费后，才能继续真实 `prepare/commit/list/detail`。

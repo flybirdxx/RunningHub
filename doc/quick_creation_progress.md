@@ -641,3 +641,30 @@ git diff --check
 - 本轮只完成 UI 接线和编译/单测验证，尚未在真实设备上打开视频 Tune 高级参数区做视觉截图复测。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
 - 多个独立上传子槽仍需要后续扩展素材与 `paramKey` 的绑定结构。
+
+## 2026-06-18 视频 Tune 高级参数真实 UI 复测
+
+本记录补充 `aea0b07 fix(quickcreate): show video service fields in tune panel` 的模拟器视觉复测结果。
+
+已完成：
+- 使用最新 `composeApp-debug.apk` 安装并启动 `emulator-5554`，进入底部 `创作` tab，再切到视频模型 `Seedance2.0`。
+- 打开 `创作调优` 弹层并切换到 `高级` 页，真实 UI 树显示 `服务端模型`、`Seedance2.0`、`Seedance2.0-首尾帧`、`Seedance2.0-Fast` 等视频服务端模型。
+- 在高级页内连续滚动后，确认服务模型列表底部可以访问字段区，UI 树显示 `是否返回视频尾帧图片`、`是（支持真人模式）`、`否`、`真人模式`、`生成音频`、`时长`、`5秒`、`10秒`、`Seed（留空为随机）`。
+- 保存证据文件到本地 `output/`：`quickcreate_video_tune_advanced.xml`、`quickcreate_video_tune_advanced_scrolled_10.xml`、`quickcreate_video_tune_advanced_fields.png`。`output/` 仍为未跟踪证据目录，不纳入提交。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:assembleDebug
+adb -s emulator-5554 install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk
+adb -s emulator-5554 shell am start -n com.runninghub.app/.MainActivity
+adb -s emulator-5554 exec-out uiautomator dump /dev/tty > output\quickcreate_video_tune_advanced.xml
+adb -s emulator-5554 exec-out uiautomator dump /dev/tty > output\quickcreate_video_tune_advanced_scrolled_10.xml
+adb -s emulator-5554 shell screencap -p /sdcard/quickcreate_video_tune_advanced_fields.png
+adb -s emulator-5554 pull /sdcard/quickcreate_video_tune_advanced_fields.png output\quickcreate_video_tune_advanced_fields.png
+```
+
+仍未完成：
+- 高级页服务端模型列表较长，字段区需要向下滚动多屏才能看到；后续可考虑将服务模型选择器收敛为下拉/横向选择/折叠区，降低查找字段成本。
+- 本轮只做 UI 打开、滚动和字段可见性复测，没有点击真实生成，没有触发新的 `prepare/commit`，也没有新增扣费。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
