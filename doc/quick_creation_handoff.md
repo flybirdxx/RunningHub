@@ -1223,3 +1223,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测真实模板返回字段 key 形式，重点确认 UI 字段槽位、删除和 prepare 请求体字段名。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：模板 params fieldKey 归一化
+
+代码提交 `e2cf988 fix(quickcreate): map template params to service param keys` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `applyImageTemplateDetail()` / `applyVideoTemplateDetail()` 不再直接使用 `detail.params` 覆盖服务字段默认值。
+- 现在先调用 `selectedModel.canonicalTemplateParams(detail.params)`，把已知服务字段的 `fieldKey` 映射到 canonical `paramKey`。
+- `serviceParams = defaultServiceParams() + templateParams`，所以模板 fieldKey 值可以正确覆盖默认 paramKey 值。
+- active child 上传字段计算、最终 `quickCreationParams`、字段级 `quickCreationListParams` 都基于 canonical `paramKey`。
+- 未知 key 保留原样，继续服务于模板样式、比例、分辨率等非服务字段解析。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template maps param field key before resolving active child upload media"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 补视频模板 `referenceAudios` 正向回归，确认 fieldKey/paramKey 两种 key 都能进入 canonical audio 参数。
+- 继续审查模板 `params` 里 unknown key 是否会进入 `quickCreationParams`；如果真实接口要求只提交服务字段，需要把非服务模板配置和服务字段参数进一步拆开。
+- 真机复测带条件 child upload 的灵感模板：父字段由模板 params 激活后，素材卡片应出现在对应 child 槽位，并按 canonical `paramKey` 提交。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

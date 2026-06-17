@@ -1134,3 +1134,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真机仍需复测服务端模板实际返回 `fieldKey` 或 `paramKey` 两种 key 时，Tune 字段卡片显示和最终请求体是否一致。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 模板 params 支持 fieldKey 归一化
+
+代码提交 `e2cf988 fix(quickcreate): map template params to service param keys` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 应用灵感模板时，`detail.params` 会先通过当前服务模型的字段别名表归一化：`fieldKey -> paramKey`，`paramKey -> paramKey`。
+- 归一化后的 `templateParams` 再覆盖默认字段值，避免父字段默认值压过模板返回的 fieldKey 值。
+- active child 计算现在基于 canonical `serviceParams`，模板用父字段 fieldKey 激活 child upload 时，child 素材可以正确进入 canonical child `paramKey`。
+- 未知 params key 仍保留原样，不影响 `ratio/aspectRatio/resolution/duration` 等非服务字段解析。
+- 新增回归测试覆盖：父字段 `fieldKey=mode,paramKey=creationMode`，模板 `params["mode"]="imageReference"` 且 `listParams["childImage"]` 时，请求体进入 `quickCreationParams["creationMode"]` 和 `quickCreationListParams["childImages"]`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template maps param field key before resolving active child upload media"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测模板 params/listParams 混用 fieldKey 与 paramKey 的真实返回，确认 Tune 展示和最终请求体字段名一致。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
