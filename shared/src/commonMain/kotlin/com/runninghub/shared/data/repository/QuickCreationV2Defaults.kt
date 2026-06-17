@@ -18,6 +18,12 @@ internal object QuickCreationV2Defaults {
                     put(key, JsonPrimitive(value))
                 }
             }
+            request.quickCreationListParams.forEach { (key, values) ->
+                val cleanedValues = values.filter { it.isNotBlank() }
+                if (key.isNotBlank() && cleanedValues.isNotEmpty()) {
+                    put(key, JsonArray(cleanedValues.map { JsonPrimitive(it) }))
+                }
+            }
 
             put("prompt", JsonPrimitive(request.prompt))
             put("aspectRatio", JsonPrimitive(request.aspectRatio))
@@ -25,7 +31,7 @@ internal object QuickCreationV2Defaults {
             put("quality", JsonPrimitive(request.quality))
 
             val imageUrl = request.referenceImageUri?.takeIf { it.isNotBlank() }
-            if (imageUrl != null) {
+            if (imageUrl != null && !containsKey("imageUrls")) {
                 put("imageUrls", JsonArray(listOf(JsonPrimitive(imageUrl))))
             }
         }

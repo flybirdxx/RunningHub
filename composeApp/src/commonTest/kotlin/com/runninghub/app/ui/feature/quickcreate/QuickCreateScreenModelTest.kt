@@ -9,6 +9,7 @@ import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flowOf
@@ -76,6 +77,15 @@ class QuickCreateScreenModelTest {
                         required = false,
                         defaultValue = null,
                         options = emptyList(),
+                    ),
+                    QuickCreationServiceField(
+                        fieldKey = "referenceImage",
+                        paramKey = "referenceImages",
+                        fieldType = "UPLOAD",
+                        required = false,
+                        defaultValue = null,
+                        options = emptyList(),
+                        maxUploadCount = 1,
                     ),
                 ),
             )
@@ -234,6 +244,29 @@ class QuickCreateScreenModelTest {
 
             assertEquals("low quality", repository.lastImageRequest?.quickCreationParams?.get("negativePrompt"))
             assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("unexpected"))
+        }
+    }
+
+    @Test
+    fun `generate image maps uploaded images to service upload field`() {
+        runBlocking {
+            val repository = FakeQuickCreateRepository()
+            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+            model.updateImagePrompt("prompt")
+            model.pickImageReference("content://image/1")
+            repeat(20) {
+                if (model.uiState.value.imageConfig.mediaReferences.any { it.uploadStatus == UploadStatus.DONE }) {
+                    return@repeat
+                }
+                delay(10)
+            }
+            model.generate()
+
+            assertEquals(
+                listOf("https://example.com/file.jpg"),
+                repository.lastImageRequest?.quickCreationListParams?.get("referenceImages"),
+            )
         }
     }
 

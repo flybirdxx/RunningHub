@@ -581,7 +581,7 @@ class QuickCreateScreenModel(
         } else {
             _uiState.value.videoConfig.mediaReferences
         }
-        val pending = mediaRefs.filter { it.uploadStatus == UploadStatus.UPLOADING }
+        val pending = mediaRefs.filter { it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING }
         if (pending.isEmpty()) return
 
         _uiState.update { it.copy(statusText = "正在上传素材(${pending.size})...") }
@@ -597,7 +597,10 @@ class QuickCreateScreenModel(
                 } else {
                     state.videoConfig.mediaReferences
                 }
-                refs.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.UPLOADING }
+                refs.filter {
+                    it.id in pendingIds &&
+                        (it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING)
+                }
                     .map { it.id }
                     .toSet()
             }
@@ -649,6 +652,10 @@ class QuickCreateScreenModel(
                     config = config,
                     serviceParams = _uiState.value.imageServiceParams,
                 ),
+                quickCreationListParams = imageQuickCreationListParams(
+                    model = _uiState.value.selectedImageServiceModel,
+                    config = config,
+                ),
             )
         ).collect { status ->
             handleTaskStatus(status)
@@ -673,6 +680,22 @@ class QuickCreateScreenModel(
             put("quality", config.quality.apiValue)
         }
 
+    private fun imageQuickCreationListParams(
+        model: QuickCreationServiceModel?,
+        config: ImageConfig,
+    ): Map<String, List<String>> {
+        val imageUrls = config.mediaReferences
+            .filter { it.type == QuickCreateMediaType.IMAGE && it.uploadStatus == UploadStatus.DONE }
+            .mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
+        if (imageUrls.isEmpty()) return emptyMap()
+
+        return model.uploadFields()
+            .associate { field ->
+                val maxCount = field.maxUploadCount ?: imageUrls.size
+                field.paramKey to imageUrls.take(maxCount)
+            }
+    }
+
     private fun QuickCreationServiceModel?.defaultServiceParams(): Map<String, String> =
         this?.fields.orEmpty()
             .mapNotNull { field ->
@@ -683,6 +706,9 @@ class QuickCreateScreenModel(
 
     private fun QuickCreationServiceModel.hasFieldParam(paramKey: String): Boolean =
         fields.any { it.paramKey == paramKey }
+
+    private fun QuickCreationServiceModel?.uploadFields(): List<com.runninghub.shared.domain.repository.QuickCreationServiceField> =
+        this?.fields.orEmpty().filter { it.fieldType.uppercase().contains("UPLOAD") }
 
     private fun QuickCreationServiceModel.matchesServiceIdentity(other: QuickCreationServiceModel?): Boolean =
         other != null && bindingId == other.bindingId && skuId == other.skuId

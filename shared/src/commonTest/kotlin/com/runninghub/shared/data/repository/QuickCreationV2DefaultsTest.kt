@@ -2,6 +2,7 @@ package com.runninghub.shared.data.repository
 
 import com.runninghub.shared.domain.repository.ImageGenerationRequest
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -68,5 +69,25 @@ class QuickCreationV2DefaultsTest {
         assertEquals(JsonPrimitive("2k"), request.params["resolution"])
         assertEquals(JsonPrimitive("medium"), request.params["quality"])
         assertEquals(JsonPrimitive("photoreal"), request.params["style"])
+    }
+
+    @Test
+    fun `service list params are merged as json arrays`() {
+        val request = QuickCreationV2Defaults.imageG2CreateRequest(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "all-power-image-g2",
+                quickCreationListParams = mapOf(
+                    "referenceImages" to listOf(
+                        "https://example.com/a.png",
+                        "https://example.com/b.png",
+                    ),
+                ),
+            )
+        )
+
+        val values = request.params["referenceImages"] as kotlinx.serialization.json.JsonArray
+        assertEquals("https://example.com/a.png", values[0].jsonPrimitive.content)
+        assertEquals("https://example.com/b.png", values[1].jsonPrimitive.content)
     }
 }
