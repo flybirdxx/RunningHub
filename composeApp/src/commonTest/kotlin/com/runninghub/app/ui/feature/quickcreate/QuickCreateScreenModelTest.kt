@@ -817,6 +817,40 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `hidden service upload field media does not refresh image fee preview`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "hiddenImage",
+                        paramKey = "hiddenImages",
+                        fieldType = "IMAGE",
+                        required = false,
+                        defaultValue = null,
+                        options = emptyList(),
+                        visible = false,
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(1, repository.feePreviewRequests.size)
+
+        model.pickImageReferenceForField("content://image/hidden", "hiddenImages")
+        advanceUntilIdle()
+
+        assertEquals(1, repository.feePreviewRequests.size)
+    }
+
+    @Test
     fun `video prompt refreshes server fee preview into estimated cost`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
