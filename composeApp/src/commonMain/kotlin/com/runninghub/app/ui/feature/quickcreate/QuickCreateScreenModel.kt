@@ -1409,7 +1409,7 @@ class QuickCreateScreenModel(
             putAll(model.defaultServiceParams())
             putAll(
                 serviceParams
-                    .filterKeys { key -> model?.hasFieldParam(key) == true }
+                    .filterKeys { key -> key in model.activeServiceParamKeys(serviceParams) }
                     .filterValues { it.isNotBlank() }
             )
 
@@ -1439,7 +1439,7 @@ class QuickCreateScreenModel(
             putAll(model.defaultServiceParams())
             putAll(
                 serviceParams
-                    .filterKeys { key -> model?.hasFieldParam(key) == true }
+                    .filterKeys { key -> key in model.activeServiceParamKeys(serviceParams) }
                     .filterValues { it.isNotBlank() }
             )
 
@@ -1506,6 +1506,15 @@ class QuickCreateScreenModel(
             field.paramKey == paramKey ||
                 field.inputExtra?.inputChildren.orEmpty().any { child -> child.paramKey == paramKey }
         }
+
+    private fun QuickCreationServiceModel?.activeServiceParamKeys(
+        serviceParams: Map<String, String>,
+    ): Set<String> =
+        this?.fields.orEmpty()
+            .flatMap { field ->
+                listOf(field.paramKey) + field.quickCreationActiveInputChildren(serviceParams).map { it.paramKey }
+            }
+            .toSet()
 
     private fun validateCurrentServiceFields(state: QuickCreateUiState): String? =
         when (state.currentTab) {
