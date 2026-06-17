@@ -539,7 +539,7 @@ data class QuickCreationCommitRequestDto(
 - `QuickCreateRepository` 已新增历史分页和详情方法，数据源使用 `/task/quick-creation/list` 与 `/task/quick-creation/detail`。
 - domain 历史模型已覆盖任务状态、分类、模型 ID、扣费金额、`apiRequestParams` 标量参数、输出 URL/预览图/尺寸/过期信息。
 - 已用 `QuickCreateRepositoryImplHistoryTest` 覆盖历史分页映射和按 `outputId` 获取详情。
-- 创作页已在中间内容区展示最近创作，生成成功后刷新历史；列表底部可加载更多历史页并去重追加；点击历史项会按 `outputId` 加载详情并展示详情弹窗；运行中刷新和取消任务仍待接入。
+- 创作页已在中间内容区展示最近创作，生成成功后刷新历史；列表底部可加载更多历史页并去重追加；非终态历史任务会每 5 秒刷新当前已加载范围；点击历史项会按 `outputId` 加载详情并展示详情弹窗；取消任务仍待接入。
 
 验收：
 
