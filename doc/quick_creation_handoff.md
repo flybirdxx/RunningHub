@@ -413,3 +413,24 @@ git diff --check
 - UI 侧可以把 `QuickCreationServiceFieldExtra.maxLength/minLength/maxInputCount` 接入输入限制和上传数量提示，但要注意不要和顶层 `maxUploadCount/maxUploadSize/multipleInputs` 冲突。
 - 若后续要验证真实视频生成，必须先取得新的明确扣费授权；当前只允许做不触发 `prepare/commit` 的 fee-preview、列表和 UI 验证。
 - 继续不要把既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录混入提交。
+
+## 2026-06-18 追加交接：媒体字段 Tune 渲染
+
+代码提交 `98d7e90 fix(quickcreate): render media service fields in tune panel` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModel.kt` 集中承载服务端字段 UI helper。
+- `IMAGE/VIDEO/AUDIO/UPLOAD` 都会被识别为上传类字段；因此真实模型里的 `imageUrls/referenceVideo/referenceAudio` 等字段可以进入 Tune 高级参数区。
+- 上传提示会优先显示 `skuInputExtraJson` 解析出的 `acceptFormats` 和 `maxInputCount`，再使用顶层上传限制。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 在这个 helper 上继续补 `inputsChildList`、条件字段和字段级校验，先写单测再接 Tune UI。
+- 若要做真实设备 UI 复测，只需打开 Tune 高级页观察上传字段是否出现；不要点击会触发付费的生成按钮。

@@ -337,3 +337,24 @@ git diff --check
 - 条件字段、字段联动、`inputsChildList` 等复杂 `skuInputExtraJson` 结构尚未渲染为完整动态表单。
 - 本轮没有点击真实“生成”，没有触发新的 `prepare/commit`，也没有产生新扣费。
 - `AuthRepositoryImpl.kt` 仍是既有未提交改动，`output/` 仍是未跟踪证据目录，本轮代码和文档提交均不纳入它们。
+
+## 2026-06-18 媒体字段高级参数渲染修复
+
+代码提交 `98d7e90 fix(quickcreate): render media service fields in tune panel` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 抽出 `QuickCreationServiceFieldUiModel.kt`，把服务端字段的文本输入、上传字段、标题、占位符、上传提示和可渲染判断集中为可单测 helper。
+- 修复 Tune 高级参数区只识别 `UPLOAD` 的问题；真实服务端常见的 `fieldType=IMAGE/VIDEO/AUDIO` 现在也会作为上传类字段渲染，不再被 `.filter { ... }` 过滤掉。
+- 上传提示优先使用 `inputExtra.acceptFormats` 和 `inputExtra.maxInputCount`，再回退到顶层 `maxUploadCount/maxUploadSize`，避免图生图字段把服务端“参考图片 1-4 张”的限制显示成更宽泛的顶层数量。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 当前只修复字段是否可见和提示文案；真正的多输入子项 `inputsChildList`、条件字段联动和字段级校验仍需继续补。
+- 本轮未做真实生成，也没有新增扣费。
