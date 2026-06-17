@@ -831,3 +831,28 @@ git diff --check
 - 在具备可控素材的设备上实际为字段上传一张图片，确认素材卡片出现在字段区域且可删除，同时底部全局参考区不显示该字段素材。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：字段级素材不污染 legacy reference
+
+代码提交 `00616cc fix(quickcreate): keep field uploads out of legacy refs` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 字段级素材仍按 `fieldParamKey` 写入 `quickCreationListParams`。
+- 旧的 `referenceImageUri/referenceVideoUri/referenceAudioUri` 只消费底部全局参考素材。
+- 因此图生图等服务端字段上传不会再把同一个 URL 同时提交到 `imageUrls` 和 `referenceImageUri`。
+- fee-preview 和正式生成都复用 `buildImageGenerationRequest/buildVideoGenerationRequest`，所以二者参数口径一致。
+
+验证记录：
+- 先给字段级双图片测试补红灯断言：字段素材不能填充 `referenceImageUri`。
+- 修复后已跑：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image maps field bound images to matching child upload fields"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+下一步建议：
+- 在可控素材设备上做一次真实字段级上传，检查字段卡片、底部全局卡片、fee-preview 请求体和正式提交请求体四者一致。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。

@@ -763,3 +763,25 @@ UI 复测结果：
 仍未完成：
 - 字段级素材卡片的真实移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
+
+## 2026-06-18 字段级素材不再污染旧参考字段
+
+代码提交 `00616cc fix(quickcreate): keep field uploads out of legacy refs` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `buildImageGenerationRequest()` 现在只用全局素材填充旧的 `referenceImageUri`。
+- `buildVideoGenerationRequest()` 现在只用全局素材填充旧的 `referenceImageUri/referenceVideoUri/referenceAudioUri`。
+- 字段级素材继续只进入 `quickCreationListParams`，不会同时作为 legacy reference URI 重复提交。
+- 在字段级双图片上传回归测试中新增断言：只有 `firstImages/secondImages` 列表参数有 URL，`referenceImageUri` 必须为 `null`。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image maps field bound images to matching child upload fields"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+仍未完成：
+- 字段级素材卡片的真实移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
