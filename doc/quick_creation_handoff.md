@@ -475,3 +475,24 @@ git diff --check
 下一步建议：
 - `minLength` 仍未做提交前校验；后续可在同一个 helper 上补 `isTooShort` 或错误文案，再由 Tune UI 和 `generate()` 防线共同消费。
 - 继续补 `inputsChildList` 和条件联动时，优先扩展 `QuickCreationServiceFieldUiModelTest`，再接 Compose UI。
+
+## 2026-06-18 追加交接：文本字段提交前校验
+
+代码提交 `5164dc9 fix(quickcreate): validate service text fields before submit` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreationServiceFieldUiModel.quickCreationTextValidationError()` 已覆盖 required 非空和 `inputExtra.minLength`。
+- `QuickCreateScreenModel.generate()` 会在进入正式提交协程前校验当前 tab 的服务端文本字段；失败时设置 `taskStatus=IDLE` 和字段错误，不调用 repository 的正式生成方法。
+- 校验会用用户填写的 `serviceParams`，并回退服务端字段默认值；不要在 mapper 层过滤隐藏默认字段。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when required service text field is too short"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- 用相同模式补上传字段 required/maxInputCount 校验，尤其是图生图、视频参考图/视频/音频字段。
+- 再继续处理 `inputsChildList` 和条件联动；这两项需要先扩展字段 metadata/domain，再接 Tune UI。

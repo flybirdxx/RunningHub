@@ -402,3 +402,25 @@ git diff --check
 - `minLength` 当前只保留在 domain 中，尚未用于提交前校验或错误提示。
 - 条件字段、字段联动和 `inputsChildList` 子输入仍未完整动态化。
 - 本轮未触发真实生成或扣费。
+
+## 2026-06-18 文本字段 required/minLength 提交前校验
+
+代码提交 `5164dc9 fix(quickcreate): validate service text fields before submit` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationServiceFieldUiModel.kt` 新增 `quickCreationTextValidationError()`，对服务端文本字段执行 `required` 非空和 `inputExtra.minLength` 最小长度校验。
+- `QuickCreateScreenModel.generate()` 在 fee-preview 状态检查之后、正式提交协程启动之前校验当前 tab 的服务端文本字段；校验失败时回到 `IDLE` 并展示字段级错误，不调用 `generateImage/generateVideo`。
+- 校验使用 `serviceParams` 覆盖值并回退 `defaultServiceParams()`，因此隐藏字段默认值仍可通过校验，用户输入不足会被本地拦截。
+- 新增 helper 和 ScreenModel 回归测试，覆盖 required/minLength 错误文案和“参数不足不提交正式生成请求”。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when required service text field is too short"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 上传字段 required/maxInputCount、列表字段条件联动和 `inputsChildList` 子输入仍未完整校验。
+- 本轮未触发真实生成或扣费。
