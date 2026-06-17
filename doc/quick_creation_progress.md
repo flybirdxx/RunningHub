@@ -806,3 +806,25 @@ git diff --check
 仍未完成：
 - 字段级素材卡片的真实移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
+
+## 2026-06-18 隐藏顶层上传字段过滤
+
+代码提交 `5c8a039 fix(quickcreate): skip hidden upload fields` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreateScreenModel.uploadFields()` 现在只返回可渲染且属于上传类型的顶层服务端字段。
+- `visible=false` 的顶层上传字段不再参与 `quickCreationListParams` 组装，字段级绑定到隐藏字段的素材不会被提交。
+- `visible=false` 且 required 的顶层上传字段不再参与提交前上传校验，避免服务端隐藏字段误阻断图片生成。
+- 新增两个回归测试覆盖隐藏必填上传字段不阻断生成、隐藏上传字段素材不提交。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden required service upload field does not block image generation" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media is not submitted"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+仍未完成：
+- 字段级素材卡片的真实选择/移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。

@@ -878,3 +878,25 @@ git diff --check
 - 在可控素材设备上实际上传一张字段级图片，切换父字段使该上传字段隐藏，再确认生成按钮不会被隐藏字段上传状态卡住。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：隐藏顶层上传字段不参与提交
+
+代码提交 `5c8a039 fix(quickcreate): skip hidden upload fields` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreateScreenModel.uploadFields()` 已收紧为 `isQuickCreationServiceFieldRenderable() && isQuickCreationUploadField()`。
+- 顶层服务端上传字段如果 `visible=false`，Tune UI 不渲染它，提交前上传校验也不再要求它，即使该字段 marked required。
+- 绑定到隐藏顶层上传字段 `paramKey` 的字段级素材不会进入 `quickCreationListParams`。
+- active child 上传字段逻辑不变，仍由 `quickCreationActiveInputChildren(serviceParams)` 控制。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden required service upload field does not block image generation" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media is not submitted"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check
+```
+
+下一步建议：
+- 后续如果发现隐藏顶层文本字段也会进入 `quickCreationParams`，应按同样原则收紧 `activeServiceParamKeys()` 和顶层文本校验，只让可渲染顶层字段或 active child 字段提交。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
