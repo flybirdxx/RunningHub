@@ -247,6 +247,7 @@ class QuickCreateScreenModel(
 
     fun updateImageServiceParam(paramKey: String, value: String) {
         if (paramKey.isBlank()) return
+        if (_uiState.value.selectedImageServiceModel?.hasFieldParam(paramKey) != true) return
         _uiState.update {
             it.copy(imageServiceParams = it.imageServiceParams + (paramKey to value))
         }
@@ -254,6 +255,7 @@ class QuickCreateScreenModel(
 
     fun updateVideoServiceParam(paramKey: String, value: String) {
         if (paramKey.isBlank()) return
+        if (_uiState.value.selectedVideoServiceModel?.hasFieldParam(paramKey) != true) return
         _uiState.update {
             it.copy(videoServiceParams = it.videoServiceParams + (paramKey to value))
         }
@@ -660,7 +662,11 @@ class QuickCreateScreenModel(
     ): Map<String, String> =
         buildMap {
             putAll(model.defaultServiceParams())
-            putAll(serviceParams.filterValues { it.isNotBlank() })
+            putAll(
+                serviceParams
+                    .filterKeys { key -> model?.hasFieldParam(key) == true }
+                    .filterValues { it.isNotBlank() }
+            )
 
             put("aspectRatio", config.aspectRatio.apiValue)
             put("resolution", config.resolution.apiValue)
@@ -674,6 +680,9 @@ class QuickCreateScreenModel(
                 field.paramKey to value
             }
             .toMap()
+
+    private fun QuickCreationServiceModel.hasFieldParam(paramKey: String): Boolean =
+        fields.any { it.paramKey == paramKey }
 
     private fun QuickCreationServiceModel.matchesServiceIdentity(other: QuickCreationServiceModel?): Boolean =
         other != null && bindingId == other.bindingId && skuId == other.skuId

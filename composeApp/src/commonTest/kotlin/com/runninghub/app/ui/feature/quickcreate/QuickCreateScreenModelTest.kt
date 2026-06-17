@@ -69,6 +69,14 @@ class QuickCreateScreenModelTest {
                         defaultValue = "1:1",
                         options = emptyList(),
                     ),
+                    QuickCreationServiceField(
+                        fieldKey = "negativePrompt",
+                        paramKey = "negativePrompt",
+                        fieldType = "STRING",
+                        required = false,
+                        defaultValue = null,
+                        options = emptyList(),
+                    ),
                 ),
             )
         )
@@ -210,6 +218,22 @@ class QuickCreateScreenModelTest {
             model.generate()
 
             assertEquals("anime", repository.lastImageRequest?.quickCreationParams?.get("style"))
+        }
+    }
+
+    @Test
+    fun `generate image only submits declared service field values`() {
+        runBlocking {
+            val repository = FakeQuickCreateRepository()
+            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+            model.updateImagePrompt("prompt")
+            model.updateImageServiceParam("negativePrompt", "low quality")
+            model.updateImageServiceParam("unexpected", "value")
+            model.generate()
+
+            assertEquals("low quality", repository.lastImageRequest?.quickCreationParams?.get("negativePrompt"))
+            assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("unexpected"))
         }
     }
 

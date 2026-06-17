@@ -32,6 +32,16 @@ class QuickCreationModelMapperTest {
                                 options = listOf(
                                     QuickCreationFieldOptionDto(label = "16:9", value = JsonPrimitive("16:9")),
                                 ),
+                            ),
+                            QuickCreationFieldDto(
+                                fieldKey = "image",
+                                mappedApiParamKey = "imageUrls",
+                                fieldType = "UPLOAD",
+                                required = false,
+                                maxUploadCount = 2,
+                                maxUploadSize = 10485760,
+                                multipleInputs = true,
+                                skuInputExtraJson = JsonPrimitive("""{"accept":"image/*"}"""),
                             )
                         ),
                     )
@@ -48,7 +58,15 @@ class QuickCreationModelMapperTest {
         assertEquals("binding-1", model.bindingId)
         assertEquals("sku-1", model.skuId)
         assertEquals("全能图片G-2.0-官方版", model.name)
-        assertEquals("aspectRatio", model.fields.single().paramKey)
-        assertEquals("16:9", model.fields.single().options.single().value)
+        val aspectRatio = model.fields.first()
+        assertEquals("aspectRatio", aspectRatio.paramKey)
+        assertEquals("16:9", aspectRatio.options.single().value)
+
+        val imageField = model.fields[1]
+        assertEquals("imageUrls", imageField.paramKey)
+        assertEquals(2, imageField.maxUploadCount)
+        assertEquals(10485760, imageField.maxUploadSize)
+        assertEquals(true, imageField.multipleInputs)
+        assertEquals("""{"accept":"image/*"}""", imageField.inputExtraJson)
     }
 }

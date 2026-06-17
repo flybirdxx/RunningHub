@@ -58,6 +58,10 @@ internal object QuickCreationModelMapper {
             required = required,
             defaultValue = defaultValue?.stringValue(),
             options = options.mapNotNull { it.toDomain() },
+            maxUploadCount = maxUploadCount,
+            maxUploadSize = maxUploadSize,
+            multipleInputs = multipleInputs,
+            inputExtraJson = skuInputExtraJson?.stringValue(),
         )
     }
 

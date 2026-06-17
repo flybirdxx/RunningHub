@@ -694,7 +694,7 @@ private fun ImageAdvancedContent(
         selectedServiceModel
             ?.fields
             .orEmpty()
-            .filter { it.options.isNotEmpty() }
+            .filter { it.isServiceFieldRenderable() }
             .takeIf { it.isNotEmpty() }
             ?.let { fields ->
                 ServiceFieldOptionsContent(
@@ -774,33 +774,80 @@ private fun ServiceFieldOptionsContent(
                     fontSize = 12.sp,
                     color = Neutral300,
                 )
-                Row(
-                    modifier = Modifier.horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
-                ) {
-                    field.options.forEach { option ->
-                        val selectedValue = params[field.paramKey] ?: field.defaultValue
-                        val isSelected = selectedValue == option.value
-                        Surface(
-                            shape = RoundedCornerShape(Dimens.RadiusSM),
-                            color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
-                            border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
-                            onClick = { onParamChange(field.paramKey, option.value) },
-                        ) {
-                            Text(
-                                text = option.label,
-                                modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 7.dp),
-                                fontSize = 12.sp,
-                                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                                color = if (isSelected) Primary300 else Neutral200,
-                            )
+                if (field.options.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+                    ) {
+                        field.options.forEach { option ->
+                            val selectedValue = params[field.paramKey] ?: field.defaultValue
+                            val isSelected = selectedValue == option.value
+                            Surface(
+                                shape = RoundedCornerShape(Dimens.RadiusSM),
+                                color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
+                                border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
+                                onClick = { onParamChange(field.paramKey, option.value) },
+                            ) {
+                                Text(
+                                    text = option.label,
+                                    modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 7.dp),
+                                    fontSize = 12.sp,
+                                    fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                    color = if (isSelected) Primary300 else Neutral200,
+                                )
+                            }
                         }
                     }
+                } else if (field.supportsTextEntry()) {
+                    var text by remember(field.paramKey, params[field.paramKey]) {
+                        mutableStateOf(params[field.paramKey] ?: field.defaultValue.orEmpty())
+                    }
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { value ->
+                            text = value
+                            onParamChange(field.paramKey, value)
+                        },
+                        singleLine = true,
+                        placeholder = { Text(field.paramKey, color = Neutral500, fontSize = 12.sp) },
+                        shape = RoundedCornerShape(Dimens.RadiusSM),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = Color.White,
+                            unfocusedTextColor = Color.White,
+                            cursorColor = Primary300,
+                            focusedBorderColor = Primary300,
+                            unfocusedBorderColor = DarkSurfaceVariant,
+                            focusedContainerColor = DarkSurfaceVariant,
+                            unfocusedContainerColor = DarkSurfaceVariant,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else if (field.fieldType.uppercase().contains("UPLOAD")) {
+                    Text(
+                        text = listOfNotNull(
+                            field.maxUploadCount?.let { "最多 $it 个文件" },
+                            field.maxUploadSize?.let { "单文件 ${it / 1024 / 1024}MB" },
+                        ).joinToString(" · ").ifBlank { "上传参数由素材入口处理" },
+                        fontSize = 11.sp,
+                        color = Neutral500,
+                    )
                 }
             }
         }
     }
 }
+
+private fun QuickCreationServiceField.supportsTextEntry(): Boolean {
+    val type = fieldType.uppercase()
+    return type.contains("STRING") ||
+        type.contains("TEXT") ||
+        type.contains("NUMBER") ||
+        type.contains("INTEGER") ||
+        type.contains("FLOAT")
+}
+
+private fun QuickCreationServiceField.isServiceFieldRenderable(): Boolean =
+    options.isNotEmpty() || supportsTextEntry() || fieldType.uppercase().contains("UPLOAD")
 
 @Composable
 private fun SeedInput(seed: Int?, onSeedChange: (Int?) -> Unit) {
