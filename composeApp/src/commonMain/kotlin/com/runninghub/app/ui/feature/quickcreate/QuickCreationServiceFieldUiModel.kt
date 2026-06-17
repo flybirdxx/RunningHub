@@ -77,10 +77,9 @@ internal fun QuickCreationServiceField.quickCreationActiveInputChildren(
 internal fun QuickCreationServiceModel?.quickCreationParamsWithFieldAliases(
     params: Map<String, String>,
 ): Map<String, String> {
-    val fields = this?.fields.orEmpty()
+    val fields = this?.fields.orEmpty().filter { it.visible }
     if (fields.isEmpty()) return params
-    return buildMap {
-        putAll(params)
+    return buildMap<String, String> {
         fields.forEach { field ->
             putQuickCreationParamAliases(
                 fieldKey = field.fieldKey,
@@ -88,15 +87,26 @@ internal fun QuickCreationServiceModel?.quickCreationParamsWithFieldAliases(
                 defaultValue = field.defaultValue,
                 params = params,
             )
-            field.inputExtra?.inputChildren.orEmpty().forEach { child ->
-                putQuickCreationParamAliases(
-                    fieldKey = child.fieldKey,
-                    paramKey = child.paramKey,
-                    defaultValue = null,
-                    params = params,
-                )
-            }
         }
+        var changed: Boolean
+        do {
+            changed = false
+            val snapshot = toMap()
+            fields.forEach { field ->
+                field.quickCreationActiveInputChildren(snapshot).forEach { child ->
+                    val beforeSize = size
+                    putQuickCreationParamAliases(
+                        fieldKey = child.fieldKey,
+                        paramKey = child.paramKey,
+                        defaultValue = child.defaultValue,
+                        params = params,
+                    )
+                    if (size != beforeSize) {
+                        changed = true
+                    }
+                }
+            }
+        } while (changed)
     }
 }
 
