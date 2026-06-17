@@ -170,3 +170,24 @@ adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_history_deta
 ```
 
 代码提交：`363048f fix(quickcreate): format send button cost as cash`。
+
+## 2026-06-18 追加交接：服务端模型 pricing 元数据
+
+真实 `/api/qc/v2/models` 模型响应里的每个可提交 model 会带 `pricing` 对象。此前移动端只保留字段定义和模型 ID，没有把 `pricing` 带入 domain；这会阻断后续把生成按钮价格改为服务端驱动。
+
+已落地：
+
+- DTO：`QuickCreationPricingDto`
+- Domain：`QuickCreationServicePricing`
+- Mapper：`QuickCreationModelMapper` 已映射 `pricingMode/settlementMode/paidPriceKind/discountPercent/isFree/freeRemaining/isTimeFree/promoType`，并用 raw JSON 字符串保留 `flatPrice/dimensionPricing`。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.remote.dto.QuickCreationModelDtoTest" --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :shared:testDebugUnitTest
+```
+
+代码提交：`be11bf9 fix(quickcreate): keep service model pricing metadata`。
+
+后续建议：在 repository 增加只做 `fee-preview` 的公开方法，ScreenModel 根据当前模型、prompt、字段参数和上传 URL 组装 createRequest 后刷新价格，并对输入变化做 debounce；刷新失败时不要允许用户误以为本地估算价就是最终扣费价。

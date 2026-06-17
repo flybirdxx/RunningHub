@@ -110,3 +110,25 @@
 ```
 
 代码提交：`363048f fix(quickcreate): format send button cost as cash`。
+
+## 2026-06-18 服务端模型 pricing 元数据保留
+
+审计发现 `/api/qc/v2/models` 真实响应中的 `pricing` 元数据此前没有进入 DTO/domain，导致后续无法基于服务端模型的计费模式做更准确的价格展示或实时 `fee-preview` UI。真实响应字段包括 `pricingMode`、`settlementMode`、`paidPriceKind`、`flatPrice`、`dimensionPricing`、`discountPercent`、`isFree`、`freeRemaining`、`isTimeFree` 和 `promoType`。
+
+本轮已完成：
+
+- `QuickCreationModelDto` 新增 `pricing: QuickCreationPricingDto?`。
+- `QuickCreationServiceModel` 新增 `pricing: QuickCreationServicePricing?`。
+- `QuickCreationModelMapper` 将服务端 pricing 元数据映射到 domain，并保留 `flatPrice/dimensionPricing` 原始 JSON 字符串。
+- 新增/补充 DTO 与 mapper 单测，锁定 pricing 解析和映射。
+
+已验证：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.remote.dto.QuickCreationModelDtoTest" --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :shared:testDebugUnitTest
+```
+
+代码提交：`be11bf9 fix(quickcreate): keep service model pricing metadata`。
+
+仍未完成：底部生成按钮的价格来源仍是当前 UI 配置的本地 `estimatedCost`；完整改为服务端实时价格需要新增 repository 级 `fee-preview` 方法、ScreenModel 价格刷新状态和请求节流。
