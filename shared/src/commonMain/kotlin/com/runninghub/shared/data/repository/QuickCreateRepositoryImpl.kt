@@ -194,6 +194,43 @@ class QuickCreateRepositoryImpl(
         pollQuickCreationTaskStatus(quickCreateApi, taskId).collect { emit(it) }
     }
 
+    private fun generateVideoWithQuickCreationV2(
+        request: VideoGenerationRequest,
+    ): Flow<QuickCreateTaskStatus> = flow {
+        val createRequest = QuickCreationV2Defaults.videoCreateRequest(request)
+
+        val feePreview = quickCreateApi.previewQuickCreationFee(createRequest)
+        if (feePreview.code != 0) {
+            emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: "Fee preview failed"))
+            return@flow
+        }
+        val fee = feePreview.data
+        if (fee != null && (!fee.passed || fee.insufficientType != null)) {
+            emit(QuickCreateTaskStatus.Error("Insufficient balance or fee preview not passed"))
+            return@flow
+        }
+
+        val prepare = quickCreateApi.prepareQuickCreation(createRequest)
+        if (prepare.code != 0 || prepare.data == null) {
+            emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: "Prepare failed"))
+            return@flow
+        }
+
+        val commit = quickCreateApi.commitQuickCreation(
+            QuickCreationCommitRequestDto(
+                prepareToken = prepare.data.prepareToken,
+                createRequest = createRequest,
+            )
+        )
+        if (commit.code != 0 || commit.data == null) {
+            emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: "Commit failed"))
+            return@flow
+        }
+
+        val taskId = commit.data.taskId
+        emit(QuickCreateTaskStatus.Queuing(taskId))
+        pollQuickCreationTaskStatus(quickCreateApi, taskId).collect { emit(it) }
+    }
     // ── 图片创作 ───────────────────────────────────────
 
     override fun generateImage(request: ImageGenerationRequest): Flow<QuickCreateTaskStatus> = flow {
@@ -443,6 +480,14 @@ class QuickCreateRepositoryImpl(
         emit(QuickCreateTaskStatus.Submitting)
 
         try {
+            if (
+                !request.quickCreationBindingId.isNullOrBlank() &&
+                !request.quickCreationSkuId.isNullOrBlank()
+            ) {
+                generateVideoWithQuickCreationV2(request).collect { emit(it) }
+                return@flow
+            }
+
             val hasImageRef = !request.referenceImageUri.isNullOrBlank()
             val refImageUrl = request.referenceImageUri ?: ""  // validated non-null reference, replaces all !! usage
             val hasFirstFrame = !request.firstFrameImageUri.isNullOrBlank()
