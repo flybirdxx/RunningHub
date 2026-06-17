@@ -28,6 +28,16 @@ internal fun QuickCreationServiceField.quickCreationFieldTitle(): String =
 internal fun QuickCreationServiceField.quickCreationInputPlaceholder(): String =
     inputExtra?.placeholder?.takeIf { it.isNotBlank() } ?: paramKey
 
+internal fun QuickCreationServiceField.constrainQuickCreationTextInput(value: String): String {
+    val maxLength = inputExtra?.maxLength?.takeIf { it >= 0 } ?: return value
+    return value.take(maxLength)
+}
+
+internal fun QuickCreationServiceField.quickCreationTextLimitCounter(value: String): String? {
+    val maxLength = inputExtra?.maxLength?.takeIf { it >= 0 } ?: return null
+    return "${value.length.coerceAtMost(maxLength)}/$maxLength"
+}
+
 internal fun QuickCreationServiceField.quickCreationUploadHintParts(): List<String> =
     listOfNotNull(
         inputExtra?.acceptFormats?.takeIf { it.isNotEmpty() }?.joinToString("/"),

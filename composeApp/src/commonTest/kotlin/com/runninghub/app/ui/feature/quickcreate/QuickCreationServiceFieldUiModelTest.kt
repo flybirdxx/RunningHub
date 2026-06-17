@@ -60,4 +60,35 @@ class QuickCreationServiceFieldUiModelTest {
 
         assertEquals(false, field.isQuickCreationServiceFieldRenderable())
     }
+
+    @Test
+    fun `text input is constrained by max length metadata`() {
+        val field = QuickCreationServiceField(
+            fieldKey = "prompt",
+            paramKey = "prompt",
+            fieldType = "STRING",
+            required = true,
+            defaultValue = null,
+            options = emptyList(),
+            inputExtra = QuickCreationServiceFieldExtra(maxLength = 5),
+        )
+
+        assertEquals("abcde", field.constrainQuickCreationTextInput("abcdefg"))
+        assertEquals("abc", field.constrainQuickCreationTextInput("abc"))
+    }
+
+    @Test
+    fun `text limit counter uses max length metadata`() {
+        val field = QuickCreationServiceField(
+            fieldKey = "prompt",
+            paramKey = "prompt",
+            fieldType = "STRING",
+            required = true,
+            defaultValue = null,
+            options = emptyList(),
+            inputExtra = QuickCreationServiceFieldExtra(maxLength = 5),
+        )
+
+        assertEquals("3/5", field.quickCreationTextLimitCounter("abc"))
+    }
 }

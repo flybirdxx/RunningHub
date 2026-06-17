@@ -812,8 +812,9 @@ private fun ServiceFieldOptionsContent(
                     OutlinedTextField(
                         value = text,
                         onValueChange = { value ->
-                            text = value
-                            onParamChange(field.paramKey, value)
+                            val constrained = field.constrainQuickCreationTextInput(value)
+                            text = constrained
+                            onParamChange(field.paramKey, constrained)
                         },
                         singleLine = true,
                         placeholder = { Text(field.quickCreationInputPlaceholder(), color = Neutral500, fontSize = 12.sp) },
@@ -829,6 +830,14 @@ private fun ServiceFieldOptionsContent(
                         ),
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    field.quickCreationTextLimitCounter(text)?.let { counter ->
+                        Text(
+                            text = counter,
+                            fontSize = 10.sp,
+                            color = Neutral500,
+                            modifier = Modifier.align(Alignment.End),
+                        )
+                    }
                 } else if (field.isQuickCreationUploadField()) {
                     Text(
                         text = field.quickCreationUploadHintParts()
