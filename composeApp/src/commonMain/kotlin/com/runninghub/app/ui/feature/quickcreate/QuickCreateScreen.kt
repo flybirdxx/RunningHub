@@ -111,6 +111,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             uiState = uiState,
                             onClearResults = screenModel::clearResults,
                             onHistoryItemSelected = screenModel::selectHistoryOutput,
+                            onLoadMoreHistory = screenModel::loadMoreQuickCreationHistory,
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(
                             uiState = uiState,
@@ -356,6 +357,7 @@ private fun CreationScrollableArea(
     uiState: QuickCreateUiState,
     onClearResults: () -> Unit,
     onHistoryItemSelected: (String) -> Unit,
+    onLoadMoreHistory: () -> Unit,
 ) {
     when {
         uiState.results.isNotEmpty() -> ResultArea(
@@ -369,6 +371,7 @@ private fun CreationScrollableArea(
         uiState.historyLoading || uiState.historyItems.isNotEmpty() -> HistoryArea(
             uiState = uiState,
             onHistoryItemSelected = onHistoryItemSelected,
+            onLoadMoreHistory = onLoadMoreHistory,
         )
         else -> EmptyArea()
     }
@@ -378,6 +381,7 @@ private fun CreationScrollableArea(
 private fun HistoryArea(
     uiState: QuickCreateUiState,
     onHistoryItemSelected: (String) -> Unit,
+    onLoadMoreHistory: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -413,6 +417,28 @@ private fun HistoryArea(
                     item.outputs.firstOrNull()?.outputId?.let(onHistoryItemSelected)
                 },
             )
+        }
+
+        if (uiState.historyHasMore) {
+            item {
+                OutlinedButton(
+                    onClick = onLoadMoreHistory,
+                    enabled = !uiState.historyLoadingMore,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Dimens.RadiusMD),
+                    border = BorderStroke(1.dp, DarkOutlineVariant),
+                ) {
+                    if (uiState.historyLoadingMore) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Primary300,
+                        )
+                        Spacer(Modifier.width(Dimens.SpaceSM))
+                    }
+                    Text("加载更多")
+                }
+            }
         }
     }
 }
@@ -1250,6 +1276,7 @@ private fun QuickCreatePreviewContent(
                             uiState = uiState,
                             onClearResults = {},
                             onHistoryItemSelected = {},
+                            onLoadMoreHistory = {},
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(uiState = uiState, onApplyTemplate = {})
                     }

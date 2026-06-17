@@ -109,11 +109,46 @@ class QuickCreateScreenModel(
                     onSuccess = { page ->
                         state.copy(
                             historyLoading = false,
+                            historyPage = page.page,
+                            historyTotal = page.total,
+                            historyHasMore = page.items.size < page.total,
                             historyItems = page.items,
                         )
                     },
                     onFailure = {
                         state.copy(historyLoading = false)
+                    },
+                )
+            }
+        }
+    }
+
+    fun loadMoreQuickCreationHistory() {
+        val state = _uiState.value
+        if (state.historyLoading || state.historyLoadingMore || !state.historyHasMore) return
+
+        screenModelScope.launch {
+            val nextPage = _uiState.value.historyPage + 1
+            _uiState.update { it.copy(historyLoadingMore = true) }
+            val history = quickCreateRepository.listQuickCreationHistory(page = nextPage, size = 10)
+            _uiState.update { current ->
+                history.fold(
+                    onSuccess = { page ->
+                        val merged = (current.historyItems + page.items)
+                            .distinctBy { it.taskId }
+                        current.copy(
+                            historyLoadingMore = false,
+                            historyPage = page.page,
+                            historyTotal = page.total,
+                            historyHasMore = merged.size < page.total,
+                            historyItems = merged,
+                        )
+                    },
+                    onFailure = { error ->
+                        current.copy(
+                            historyLoadingMore = false,
+                            error = error.message ?: "历史加载失败",
+                        )
                     },
                 )
             }

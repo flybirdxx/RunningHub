@@ -38,6 +38,7 @@ class QuickCreateScreenModelTest {
         var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
         var lastVideoRequest: com.runninghub.shared.domain.repository.VideoGenerationRequest? = null
         var lastHistoryDetailOutputId: String? = null
+        val requestedHistoryPages = mutableListOf<Int>()
         var historyPage = QuickCreationHistoryPage(
             page = 1,
             size = 10,
@@ -65,6 +66,7 @@ class QuickCreateScreenModelTest {
                 )
             ),
         )
+        var historyPages: Map<Int, QuickCreationHistoryPage>? = null
         var historyDetail = QuickCreationHistoryItem(
             taskId = "history-task-detail",
             status = "SUCCESS",
@@ -223,7 +225,11 @@ class QuickCreateScreenModelTest {
             Result.success((models + videoModels).filter { it.categoryId == categoryId })
 
         override suspend fun listQuickCreationHistory(page: Int, size: Int): Result<QuickCreationHistoryPage> =
-            Result.success(historyPage.copy(page = page, size = size))
+            Result.success(
+                (historyPages?.get(page) ?: historyPage).copy(page = page, size = size)
+            ).also {
+                requestedHistoryPages += page
+            }
 
         override suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem> =
             Result.success(historyDetail).also {
@@ -291,6 +297,58 @@ class QuickCreateScreenModelTest {
         assertEquals(false, model.uiState.value.historyDetailLoading)
         assertEquals("history-task-detail", model.uiState.value.selectedHistoryDetail?.taskId)
         assertEquals("https://example.com/detail.png", model.uiState.value.selectedHistoryDetail?.outputs?.single()?.url)
+    }
+
+    @Test
+    fun `loading more history appends next page`() {
+        val repository = FakeQuickCreateRepository().apply {
+            historyPages = mapOf(
+                1 to QuickCreationHistoryPage(
+                    page = 1,
+                    size = 1,
+                    total = 2,
+                    items = listOf(
+                        QuickCreationHistoryItem(
+                            taskId = "history-task-1",
+                            status = "SUCCESS",
+                            outputs = listOf(
+                                QuickCreationHistoryOutput(
+                                    outputId = "output-1",
+                                    url = "https://example.com/one.png",
+                                    type = "png",
+                                )
+                            ),
+                        )
+                    ),
+                ),
+                2 to QuickCreationHistoryPage(
+                    page = 2,
+                    size = 1,
+                    total = 2,
+                    items = listOf(
+                        QuickCreationHistoryItem(
+                            taskId = "history-task-2",
+                            status = "SUCCESS",
+                            outputs = listOf(
+                                QuickCreationHistoryOutput(
+                                    outputId = "output-2",
+                                    url = "https://example.com/two.png",
+                                    type = "png",
+                                )
+                            ),
+                        )
+                    ),
+                ),
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.loadMoreQuickCreationHistory()
+
+        assertEquals(listOf(1, 2), repository.requestedHistoryPages)
+        assertEquals(listOf("history-task-1", "history-task-2"), model.uiState.value.historyItems.map { it.taskId })
+        assertEquals(false, model.uiState.value.historyHasMore)
+        assertEquals(false, model.uiState.value.historyLoadingMore)
     }
 
     @Test
