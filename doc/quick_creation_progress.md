@@ -283,3 +283,33 @@ git diff --check
 - 真机/模拟器还需要复测图片和视频 tab 在真实 UI 中的“价格确认中/价格待确认”禁提交体验。
 - 本轮没有点击“生成”，没有触发新的 `prepare/commit`，也没有发生扣费。
 - `AuthRepositoryImpl.kt` 和 `output/` 仍保持未纳入提交状态。
+
+## 2026-06-18 模拟器复测 fee-preview 禁提交边界
+
+本轮在 `emulator-5554` 上安装最新 `composeApp-debug.apk`，保留登录态，做了不扣费 UI 复测。验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:assembleDebug
+adb -s emulator-5554 install -r composeApp\build\outputs\apk\debug\composeApp-debug.apk
+adb -s emulator-5554 shell am start -n com.runninghub.app/.MainActivity
+```
+
+验证结果：
+- 图片 tab 初始按钮仍显示本地估算 `¥0.93`；输入 `guardimage` 后，最终按钮回到 `生成`，点击按钮只出现 `余额不足或价格预览未通过`，没有出现新任务提交、排队或运行状态。
+- 图片侧本次点击发生在 fee-preview 未通过/余额不足状态下，未触发新的 `prepare/commit` 扣费任务；最近创作列表仍只显示既有 `IMAGE · SUCCESS · PNG · 0.76 CNY` 历史项。
+- 视频 tab 能加载真实服务端模型 `Seedance2.0 · 12 个参数`；输入 `guardvideo` 后最终按钮显示 `¥6.00`。本轮没有点击视频生成按钮，因此没有触发视频扣费。
+- 未能稳定截获视频按钮的瞬时 `价格确认中` 文案；当前证据证明视频 tab 真实模型、prompt 输入和非零价格显示可达，但不证明视频 loading 文案在真实 UI 中可见。
+
+证据文件保存在未跟踪目录 `output/`：
+- `quickcreate_submit_guard_create_initial.xml/png`
+- `quickcreate_submit_guard_image_loading.xml/png`
+- `quickcreate_submit_guard_image_after_tap.xml/png`
+- `quickcreate_submit_guard_image_after_wait.xml/png`
+- `quickcreate_submit_guard_video_initial.xml/png`
+- `quickcreate_submit_guard_video_fast.xml/png`
+- `quickcreate_submit_guard_video_wait.xml/png`
+
+仍未完成：
+- 视频真实生成的 `prepare/commit/list/detail` 端到端链路仍未验证；需要用户重新授权扣费后才能点击生成。
+- 视频 `价格确认中` 的瞬时 UI 文案还缺少稳定截图证据。
+- `AuthRepositoryImpl.kt` 和 `output/` 仍保持未纳入提交状态。

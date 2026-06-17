@@ -354,3 +354,38 @@ git diff --check
 - 在模拟器上复测图片和视频 tab：输入 prompt 后立刻尝试点击生成，应只看到价格确认状态，不应触发任务提交。
 - 如果后续要验证真实 `prepare/commit` 扣费链路，仍需要新的明确扣费授权。
 - 继续避免把既有 `AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 目录混入提交。
+
+## 2026-06-18 追加交接：模拟器不扣费复测
+
+本轮没有代码改动，只在 `emulator-5554` 上安装最新 debug 包并复测快捷创作 UI。
+
+已执行：
+
+```powershell
+.\gradlew.bat :composeApp:assembleDebug
+adb -s emulator-5554 install -r composeApp\build\outputs\apk\debug\composeApp-debug.apk
+adb -s emulator-5554 shell am start -n com.runninghub.app/.MainActivity
+```
+
+验证结论：
+
+- 创作页可正常打开，保留登录态，最近创作仍展示既有成功图片任务 `IMAGE · SUCCESS · PNG · 0.76 CNY`。
+- 图片 tab 输入 `guardimage` 后，按钮最终显示 `生成`；点击后只出现 `余额不足或价格预览未通过`，没有进入任务提交、排队或运行态，未产生新扣费。
+- 视频 tab 加载真实服务端模型 `Seedance2.0 · 12 个参数`；输入 `guardvideo` 后按钮显示 `¥6.00`，证明视频 tab 可到达非零价格展示状态。
+- 本轮没有点击视频 `生成`，没有触发视频 `prepare/commit`。
+
+证据文件位于未跟踪目录 `output/`：
+
+- `quickcreate_submit_guard_create_initial.xml/png`
+- `quickcreate_submit_guard_image_loading.xml/png`
+- `quickcreate_submit_guard_image_after_tap.xml/png`
+- `quickcreate_submit_guard_image_after_wait.xml/png`
+- `quickcreate_submit_guard_video_initial.xml/png`
+- `quickcreate_submit_guard_video_fast.xml/png`
+- `quickcreate_submit_guard_video_wait.xml/png`
+
+后续注意：
+
+- 视频 `价格确认中` 文案是瞬时状态，本轮没有稳定截获；若要补强证据，可以通过更慢网络或测试开关注入延迟。
+- 视频真实生成仍需要新的明确扣费授权。当前不要为了验证而点击 `¥6.00` 的生成按钮。
+- `AuthRepositoryImpl.kt` 和 `output/` 仍不要纳入后续提交，除非确认属于当前任务。
