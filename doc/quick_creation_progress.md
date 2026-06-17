@@ -894,3 +894,25 @@ git diff --check
 仍未完成：
 - 字段级素材卡片的真实选择/移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 隐藏字段媒体不刷新费用预览
+
+代码提交 `0c8136e fix(quickcreate): skip fee refresh for hidden media` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `uploadReference()` 上传完成后不再无条件调用 `scheduleFeePreview()`，而是先确认该媒体仍属于当前正式请求会消费的相关素材。
+- `updateReferenceStatus()` 上传进度变化同样复用相关素材判断，隐藏字段或非活跃字段绑定的媒体不会额外触发 fee-preview。
+- `removeMediaReference()` 会在移除前判断被删媒体是否属于当前相关素材；只有全局素材或活跃字段素材被移除时才刷新预估费用。
+- 新增回归测试覆盖：prompt 已经完成一次图片 fee-preview 后，给 `visible=false` 的上传字段选择媒体，不应再次请求图片 fee-preview。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh image fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 字段级素材选择/移除的真实设备端到端流程仍需在可控测试素材或真机相册环境中复测。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。

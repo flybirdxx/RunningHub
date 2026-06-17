@@ -966,3 +966,26 @@ git diff --check
 - 如后续发现 active 子字段被动失活但没有父字段变更事件，需要检查 Tune UI 是否总是通过父字段更新触发调度。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：隐藏字段媒体不触发 fee preview
+
+代码提交 `0c8136e fix(quickcreate): skip fee refresh for hidden media` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 媒体上传状态变更、上传完成、移除媒体时，只有当前正式请求会消费的媒体才会触发费用预览刷新。
+- 判断来源复用 `currentRelevantMediaReferences()`：底部全局素材始终相关；字段级素材只有绑定到当前 active 上传字段 `paramKey` 时才相关。
+- 隐藏顶层上传字段、隐藏父字段下的子上传字段、当前未激活条件下的子上传字段，即使保留在 UI state 中，也不会因为上传进度或上传完成额外发起 fee-preview。
+- 正式请求体过滤规则没有变化；这次只收紧 fee-preview 调度条件，避免同一有效请求被隐藏素材重复刷新价格。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh image fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 可以继续补“隐藏/非活跃字段媒体移除不刷新 fee-preview”的显式测试；当前实现已按移除前相关性判断，但还没有单独回归用例。
+- 真实设备上仍建议复测字段级媒体的选择、上传中、上传完成、移除四个 UI 状态，确认底部全局素材区和 Tune 字段素材区显示一致。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
