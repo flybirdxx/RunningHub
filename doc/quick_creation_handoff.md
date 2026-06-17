@@ -8,12 +8,15 @@
 
 本轮已经把快捷创作从“纯旧 OpenAPI 硬编码提交”推进到“图片 G-2.0 默认链路使用 Web quick-creation v2”。当前边界如下：
 
-- `all-power-image-g2`：使用抓包确认的 `bindingId=2046586338670891013`、`skuId=2046514150500524034`、`categoryId=IMAGE`。
+- `all-power-image-g2`：默认仍可使用抓包确认的 `bindingId=2046586338670891013`、`skuId=2046514150500524034`、`categoryId=IMAGE`。
+- `/api/qc/v2/models`：已接 DTO、mapper、repository 和 ScreenModel 状态，`IMAGE/VIDEO` 服务端模型会在页面初始化时加载。
+- 图片服务端模型：加载后默认选中首个可用模型，Tune 高级页可切换；图片 v2 提交会优先携带选中模型的 `categoryId/bindingId/skuId`。
+- 服务端字段：`fields/options/defaultValue` 已解析到 domain model，但 UI 动态字段表单尚未完全替换本地枚举控件。
 - 提交流程：`fee-preview -> prepare -> commit -> list`。
 - `commit` 请求体：严格使用 `prepareToken + createRequest` 嵌套结构。
 - 任务轮询：使用 `/task/quick-creation/list`，不再依赖 `/api/output/taskHistory`。
 - 其它图片模型和视频模型：暂时保留旧 `openapi/v2` 兼容逻辑。
-- 页面结构：顶部“创作/灵感”、中间滚动区、底部固定输入区已落地。
+- 页面结构：顶部“创作/灵感”、中间滚动区、底部固定输入区已落地；底部输入区会显示当前服务端模型摘要。
 - 灵感页：已接真实 `tags/templates` 列表；模板详情和“制作同款”尚未接入。
 
 ## 关键文件
@@ -22,6 +25,7 @@
 - `shared/src/commonMain/kotlin/com/runninghub/shared/data/remote/api/QuickCreateApi.kt`
 - `shared/src/commonMain/kotlin/com/runninghub/shared/domain/repository/QuickCreateRepository.kt`
 - `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/QuickCreationV2Defaults.kt`
+- `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/QuickCreationModelMapper.kt`
 - `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/QuickCreateRepositoryImpl.kt`
 - `shared/src/commonMain/kotlin/com/runninghub/shared/di/SharedModule.kt`
 - `composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreen.kt`
@@ -33,7 +37,7 @@
 ## 后续开发顺序
 
 1. 真机验证图片 G-2.0 文生图：确认登录态、价格、扣费、任务状态和输出预览。
-2. 接入 `/api/qc/v2/models`：替换本地图片模型枚举的参数来源，先保留 UI 枚举作为 fallback。
+2. 完成服务端字段动态表单：基于 `/api/qc/v2/models` 的 `fields/options/defaultValue` 渲染比例、分辨率、质量、上传素材等控件，并统一写入提交 params；当前本地枚举仍是 fallback。
 3. 接入模板详情：`/task/quick-creation/inspiration/template/detail`，实现“制作同款”到当前模型和字段的映射。
 4. 抓包并接入 Seedance2.0 视频 v2：复用当前 `QuickCreationCreateRequestDto` 和 prepare/commit/list 状态机。
 5. 做历史列表：直接消费 `/task/quick-creation/list`，详情使用 `outputId`。
