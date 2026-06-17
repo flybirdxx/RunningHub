@@ -308,6 +308,7 @@ data class ImageGenerationRequest(
     val quickCreationCategoryId: String? = null,
     val quickCreationBindingId: String? = null,
     val quickCreationSkuId: String? = null,
+    val quickCreationParams: Map<String, String> = emptyMap(),
 )
 
 data class VideoGenerationRequest(

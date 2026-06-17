@@ -5,6 +5,7 @@ import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -51,7 +52,24 @@ class QuickCreateScreenModelTest {
                 skuId = "sku-1",
                 name = "全能图片G-2.0-官方版",
                 description = "服务端模型",
-                fields = emptyList(),
+                fields = listOf(
+                    QuickCreationServiceField(
+                        fieldKey = "style",
+                        paramKey = "style",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "photoreal",
+                        options = emptyList(),
+                    ),
+                    QuickCreationServiceField(
+                        fieldKey = "aspectRatio",
+                        paramKey = "aspectRatio",
+                        fieldType = "LIST",
+                        required = true,
+                        defaultValue = "1:1",
+                        options = emptyList(),
+                    ),
+                ),
             )
         )
         override fun generateImage(request: com.runninghub.shared.domain.repository.ImageGenerationRequest): Flow<QuickCreateTaskStatus> {
@@ -148,6 +166,7 @@ class QuickCreateScreenModelTest {
 
         assertEquals("全能图片G-2.0-官方版", model.uiState.value.serviceImageModels.single().name)
         assertEquals("binding-1", model.uiState.value.selectedImageServiceModel?.bindingId)
+        assertEquals("photoreal", model.uiState.value.imageServiceParams["style"])
         assertEquals(false, model.uiState.value.serviceModelsLoading)
     }
 
@@ -163,6 +182,34 @@ class QuickCreateScreenModelTest {
             assertEquals("IMAGE", repository.lastImageRequest?.quickCreationCategoryId)
             assertEquals("binding-1", repository.lastImageRequest?.quickCreationBindingId)
             assertEquals("sku-1", repository.lastImageRequest?.quickCreationSkuId)
+        }
+    }
+
+    @Test
+    fun `generate image uses selected service model field defaults`() {
+        runBlocking {
+            val repository = FakeQuickCreateRepository()
+            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+            model.updateImagePrompt("prompt")
+            model.generate()
+
+            assertEquals("photoreal", repository.lastImageRequest?.quickCreationParams?.get("style"))
+            assertEquals("16:9", repository.lastImageRequest?.quickCreationParams?.get("aspectRatio"))
+        }
+    }
+
+    @Test
+    fun `generate image uses updated service field values`() {
+        runBlocking {
+            val repository = FakeQuickCreateRepository()
+            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+            model.updateImagePrompt("prompt")
+            model.updateImageServiceParam("style", "anime")
+            model.generate()
+
+            assertEquals("anime", repository.lastImageRequest?.quickCreationParams?.get("style"))
         }
     }
 

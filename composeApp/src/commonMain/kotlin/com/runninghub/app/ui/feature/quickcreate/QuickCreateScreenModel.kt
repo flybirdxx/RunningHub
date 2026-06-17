@@ -5,6 +5,7 @@ import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -69,16 +70,28 @@ class QuickCreateScreenModel(
             _uiState.update { state ->
                 val images = imageModels.getOrElse { emptyList() }
                 val videos = videoModels.getOrElse { emptyList() }
+                val selectedImage = state.selectedImageServiceModel
+                    ?.takeIf { selected -> images.any { it.matchesServiceIdentity(selected) } }
+                    ?: images.firstOrNull()
+                val selectedVideo = state.selectedVideoServiceModel
+                    ?.takeIf { selected -> videos.any { it.matchesServiceIdentity(selected) } }
+                    ?: videos.firstOrNull()
                 state.copy(
                     serviceModelsLoading = false,
                     serviceImageModels = images,
                     serviceVideoModels = videos,
-                    selectedImageServiceModel = state.selectedImageServiceModel
-                        ?.takeIf { selected -> images.any { it.bindingId == selected.bindingId && it.skuId == selected.skuId } }
-                        ?: images.firstOrNull(),
-                    selectedVideoServiceModel = state.selectedVideoServiceModel
-                        ?.takeIf { selected -> videos.any { it.bindingId == selected.bindingId && it.skuId == selected.skuId } }
-                        ?: videos.firstOrNull(),
+                    selectedImageServiceModel = selectedImage,
+                    selectedVideoServiceModel = selectedVideo,
+                    imageServiceParams = if (hasSameServiceIdentity(selectedImage, state.selectedImageServiceModel)) {
+                        state.imageServiceParams
+                    } else {
+                        selectedImage.defaultServiceParams()
+                    },
+                    videoServiceParams = if (hasSameServiceIdentity(selectedVideo, state.selectedVideoServiceModel)) {
+                        state.videoServiceParams
+                    } else {
+                        selectedVideo.defaultServiceParams()
+                    },
                 )
             }
         }
@@ -214,12 +227,36 @@ class QuickCreateScreenModel(
         }
     }
 
-    fun updateImageServiceModel(model: com.runninghub.shared.domain.repository.QuickCreationServiceModel) {
-        _uiState.update { it.copy(selectedImageServiceModel = model) }
+    fun updateImageServiceModel(model: QuickCreationServiceModel) {
+        _uiState.update {
+            it.copy(
+                selectedImageServiceModel = model,
+                imageServiceParams = model.defaultServiceParams(),
+            )
+        }
     }
 
-    fun updateVideoServiceModel(model: com.runninghub.shared.domain.repository.QuickCreationServiceModel) {
-        _uiState.update { it.copy(selectedVideoServiceModel = model) }
+    fun updateVideoServiceModel(model: QuickCreationServiceModel) {
+        _uiState.update {
+            it.copy(
+                selectedVideoServiceModel = model,
+                videoServiceParams = model.defaultServiceParams(),
+            )
+        }
+    }
+
+    fun updateImageServiceParam(paramKey: String, value: String) {
+        if (paramKey.isBlank()) return
+        _uiState.update {
+            it.copy(imageServiceParams = it.imageServiceParams + (paramKey to value))
+        }
+    }
+
+    fun updateVideoServiceParam(paramKey: String, value: String) {
+        if (paramKey.isBlank()) return
+        _uiState.update {
+            it.copy(videoServiceParams = it.videoServiceParams + (paramKey to value))
+        }
     }
 
     fun updateVideoModel(model: VideoModel) {
@@ -605,11 +642,47 @@ class QuickCreateScreenModel(
                 quickCreationCategoryId = _uiState.value.selectedImageServiceModel?.categoryId,
                 quickCreationBindingId = _uiState.value.selectedImageServiceModel?.bindingId,
                 quickCreationSkuId = _uiState.value.selectedImageServiceModel?.skuId,
+                quickCreationParams = imageQuickCreationParams(
+                    model = _uiState.value.selectedImageServiceModel,
+                    config = config,
+                    serviceParams = _uiState.value.imageServiceParams,
+                ),
             )
         ).collect { status ->
             handleTaskStatus(status)
         }
     }
+
+    private fun imageQuickCreationParams(
+        model: QuickCreationServiceModel?,
+        config: ImageConfig,
+        serviceParams: Map<String, String>,
+    ): Map<String, String> =
+        buildMap {
+            putAll(model.defaultServiceParams())
+            putAll(serviceParams.filterValues { it.isNotBlank() })
+
+            put("aspectRatio", config.aspectRatio.apiValue)
+            put("resolution", config.resolution.apiValue)
+            put("quality", config.quality.apiValue)
+        }
+
+    private fun QuickCreationServiceModel?.defaultServiceParams(): Map<String, String> =
+        this?.fields.orEmpty()
+            .mapNotNull { field ->
+                val value = field.defaultValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
+                field.paramKey to value
+            }
+            .toMap()
+
+    private fun QuickCreationServiceModel.matchesServiceIdentity(other: QuickCreationServiceModel?): Boolean =
+        other != null && bindingId == other.bindingId && skuId == other.skuId
+
+    private fun hasSameServiceIdentity(
+        first: QuickCreationServiceModel?,
+        second: QuickCreationServiceModel?,
+    ): Boolean =
+        first != null && first.matchesServiceIdentity(second)
 
     private suspend fun generateVideo() {
         val config = _uiState.value.videoConfig

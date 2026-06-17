@@ -45,4 +45,28 @@ class QuickCreationV2DefaultsTest {
             request.imageUrls()
         )
     }
+
+    @Test
+    fun `service params are merged into image v2 request`() {
+        val request = QuickCreationV2Defaults.imageG2CreateRequest(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "all-power-image-g2",
+                aspectRatio = "16:9",
+                resolution = "2k",
+                quality = "medium",
+                quickCreationParams = mapOf(
+                    "aspectRatio" to "1:1",
+                    "resolution" to "4k",
+                    "style" to "photoreal",
+                ),
+            )
+        )
+
+        assertEquals(JsonPrimitive("green icon"), request.params["prompt"])
+        assertEquals(JsonPrimitive("16:9"), request.params["aspectRatio"])
+        assertEquals(JsonPrimitive("2k"), request.params["resolution"])
+        assertEquals(JsonPrimitive("medium"), request.params["quality"])
+        assertEquals(JsonPrimitive("photoreal"), request.params["style"])
+    }
 }

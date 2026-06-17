@@ -13,6 +13,12 @@ internal object QuickCreationV2Defaults {
 
     fun imageG2CreateRequest(request: ImageGenerationRequest): QuickCreationCreateRequestDto {
         val params = buildMap {
+            request.quickCreationParams.forEach { (key, value) ->
+                if (key.isNotBlank() && value.isNotBlank()) {
+                    put(key, JsonPrimitive(value))
+                }
+            }
+
             put("prompt", JsonPrimitive(request.prompt))
             put("aspectRatio", JsonPrimitive(request.aspectRatio))
             put("resolution", JsonPrimitive(request.resolution))

@@ -352,6 +352,8 @@ data class QuickCreateUiState(
     val serviceVideoModels: List<QuickCreationServiceModel> = emptyList(),
     val selectedImageServiceModel: QuickCreationServiceModel? = null,
     val selectedVideoServiceModel: QuickCreationServiceModel? = null,
+    val imageServiceParams: Map<String, String> = emptyMap(),
+    val videoServiceParams: Map<String, String> = emptyMap(),
 ) {
     val showCreationInput: Boolean
         get() = currentMode == QuickCreateMode.CREATION

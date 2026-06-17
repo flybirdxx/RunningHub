@@ -3,6 +3,7 @@ package com.runninghub.app.ui.feature.quickcreate
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -20,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.theme.*
+import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 
 enum class TuneTab(val label: String) {
@@ -68,6 +70,7 @@ fun TuneBottomSheet(
     onDismiss: () -> Unit,
     onImageModelSelected: (ImageModel) -> Unit,
     onImageServiceModelSelected: (QuickCreationServiceModel) -> Unit,
+    onImageServiceParamChange: (String, String) -> Unit,
     onVideoModelSelected: (VideoModel) -> Unit,
     onImageRatioChange: (ImageAspectRatio) -> Unit,
     onImageResChange: (ImageResolution) -> Unit,
@@ -237,9 +240,11 @@ fun TuneBottomSheet(
                                     serviceModels = uiState.serviceImageModels,
                                     selectedServiceModel = uiState.selectedImageServiceModel,
                                     serviceModelsLoading = uiState.serviceModelsLoading,
+                                    serviceParams = uiState.imageServiceParams,
                                     seed = uiState.imageConfig.seed,
                                     onSelect = onImageModelSelected,
                                     onServiceModelSelect = onImageServiceModelSelected,
+                                    onServiceParamChange = onImageServiceParamChange,
                                     onSeedChange = onImageSeedChange,
                                 )
                             } else {
@@ -590,9 +595,11 @@ private fun ImageAdvancedContent(
     serviceModels: List<QuickCreationServiceModel>,
     selectedServiceModel: QuickCreationServiceModel?,
     serviceModelsLoading: Boolean,
+    serviceParams: Map<String, String>,
     seed: Int?,
     onSelect: (ImageModel) -> Unit,
     onServiceModelSelect: (QuickCreationServiceModel) -> Unit,
+    onServiceParamChange: (String, String) -> Unit,
     onSeedChange: (Int?) -> Unit,
 ) {
     Column(
@@ -684,6 +691,20 @@ private fun ImageAdvancedContent(
 
         Spacer(Modifier.height(Dimens.SpaceXL))
 
+        selectedServiceModel
+            ?.fields
+            .orEmpty()
+            .filter { it.options.isNotEmpty() }
+            .takeIf { it.isNotEmpty() }
+            ?.let { fields ->
+                ServiceFieldOptionsContent(
+                    fields = fields,
+                    params = serviceParams,
+                    onParamChange = onServiceParamChange,
+                )
+                Spacer(Modifier.height(Dimens.SpaceXL))
+            }
+
         Text(
             text = "本地兼容模型",
             fontSize = 12.sp,
@@ -730,6 +751,54 @@ private fun ImageAdvancedContent(
         Spacer(Modifier.height(Dimens.SpaceXL))
 
         SeedInput(seed = seed, onSeedChange = onSeedChange)
+    }
+}
+
+@Composable
+private fun ServiceFieldOptionsContent(
+    fields: List<QuickCreationServiceField>,
+    params: Map<String, String>,
+    onParamChange: (String, String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
+        Text(
+            text = "服务端参数",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Primary300,
+        )
+        fields.forEach { field ->
+            Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
+                Text(
+                    text = field.fieldKey,
+                    fontSize = 12.sp,
+                    color = Neutral300,
+                )
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+                ) {
+                    field.options.forEach { option ->
+                        val selectedValue = params[field.paramKey] ?: field.defaultValue
+                        val isSelected = selectedValue == option.value
+                        Surface(
+                            shape = RoundedCornerShape(Dimens.RadiusSM),
+                            color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
+                            border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
+                            onClick = { onParamChange(field.paramKey, option.value) },
+                        ) {
+                            Text(
+                                text = option.label,
+                                modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 7.dp),
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                color = if (isSelected) Primary300 else Neutral200,
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

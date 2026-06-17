@@ -200,6 +200,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     onImageServiceModelSelected = {
                         screenModel.updateImageServiceModel(it)
                     },
+                    onImageServiceParamChange = screenModel::updateImageServiceParam,
                     onVideoModelSelected = {
                         screenModel.updateVideoModel(it)
                     },
