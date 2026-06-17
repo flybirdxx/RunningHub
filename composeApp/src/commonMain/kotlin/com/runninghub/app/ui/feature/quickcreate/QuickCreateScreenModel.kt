@@ -1063,10 +1063,13 @@ class QuickCreateScreenModel(
     }
 
     private fun scheduleFeePreviewForMediaReference(id: String) {
-        if (_uiState.value.currentRelevantMediaReferences().any { it.id == id }) {
+        if (_uiState.value.currentRelevantMediaReferences().any { it.id == id && it.affectsFeePreviewRequest() }) {
             scheduleFeePreview()
         }
     }
+
+    private fun MediaReference.affectsFeePreviewRequest(): Boolean =
+        uploadStatus == UploadStatus.DONE && !remoteUrl.isNullOrBlank()
 
     private fun updateReferenceStatus(id: String, status: UploadStatus, progress: Float) {
         _uiState.update { state ->
@@ -1092,7 +1095,8 @@ class QuickCreateScreenModel(
     }
 
     fun removeMediaReference(id: String) {
-        val shouldRefreshFeePreview = _uiState.value.currentRelevantMediaReferences().any { it.id == id }
+        val shouldRefreshFeePreview = _uiState.value.currentRelevantMediaReferences()
+            .any { it.id == id && it.affectsFeePreviewRequest() }
         uploadJobs[id]?.cancel()
         uploadJobs.remove(id)
         _uiState.update { state ->

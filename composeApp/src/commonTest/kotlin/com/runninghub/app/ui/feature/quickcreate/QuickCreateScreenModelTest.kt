@@ -20,6 +20,7 @@ import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
@@ -47,6 +48,7 @@ class QuickCreateScreenModelTest {
 
     class FakeQuickCreateRepository : QuickCreateRepository {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
+        var uploadDelayMillis: Long = 0L
         var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
         var lastVideoRequest: com.runninghub.shared.domain.repository.VideoGenerationRequest? = null
         var feePreviewResult: Result<QuickCreationFeePreview> = Result.success(
@@ -309,12 +311,16 @@ class QuickCreateScreenModelTest {
             videoFeePreviewRequests += request
             return videoFeePreviewResult
         }
-        override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String> =
-            when {
+        override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String> {
+            if (uploadDelayMillis > 0L) {
+                delay(uploadDelayMillis)
+            }
+            return when {
                 mimeType.startsWith("video") -> Result.success("https://example.com/video.mp4")
                 mimeType.startsWith("audio") -> Result.success("https://example.com/audio.mp3")
                 else -> uploadResult
             }
+        }
         override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> = Result.success(inspirationTags)
         override suspend fun getInspirationTemplates(
             page: Int,
@@ -846,6 +852,30 @@ class QuickCreateScreenModelTest {
 
         model.pickImageReferenceForField("content://image/hidden", "hiddenImages")
         advanceUntilIdle()
+
+        assertEquals(1, repository.feePreviewRequests.size)
+    }
+
+    @Test
+    fun `uploading global image media does not refresh image fee preview before remote url exists`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            uploadDelayMillis = 1_000L
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(1, repository.feePreviewRequests.size)
+        assertEquals(null, repository.feePreviewRequests.single().referenceImageUri)
+
+        model.pickImageReference("content://image/global")
+        advanceTimeBy(500)
+        runCurrent()
 
         assertEquals(1, repository.feePreviewRequests.size)
     }
