@@ -380,3 +380,25 @@ git diff --check
 仍未完成：
 - `visible` 只是显示层开关；条件字段、字段联动和 `inputsChildList` 子输入仍未完整动态化。
 - 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。
+
+## 2026-06-18 文本字段 maxLength 接入 Tune 输入
+
+代码提交 `4047fbf fix(quickcreate): enforce service text field length` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationServiceFieldUiModel.kt` 新增 `constrainQuickCreationTextInput()` 和 `quickCreationTextLimitCounter()`，消费已解析的 `QuickCreationServiceFieldExtra.maxLength`。
+- Tune 高级参数区的文本/数值字段输入会先按服务端 `maxLength` 截断，再写回字段参数，避免超出服务端限制的动态参数进入请求体。
+- 有 `maxLength` 的文本字段会在输入框下方显示 `当前长度/最大长度` 计数，便于用户理解参数限制。
+- 新增 UI helper 回归测试，覆盖截断和计数器行为。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- `minLength` 当前只保留在 domain 中，尚未用于提交前校验或错误提示。
+- 条件字段、字段联动和 `inputsChildList` 子输入仍未完整动态化。
+- 本轮未触发真实生成或扣费。

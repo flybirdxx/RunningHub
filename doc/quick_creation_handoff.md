@@ -455,3 +455,23 @@ git diff --check
 下一步建议：
 - 继续补条件字段和子输入时，遵守同一原则：显示规则归 UI helper/request state，提交必需的隐藏默认值不能在 mapper 层丢弃。
 - 真实 App 复测可以只观察 Tune 高级页字段是否减少，不需要触发生成扣费。
+
+## 2026-06-18 追加交接：文本字段长度限制
+
+代码提交 `4047fbf fix(quickcreate): enforce service text field length` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreationServiceFieldUiModel.constrainQuickCreationTextInput()` 会读取 `inputExtra.maxLength` 并截断 Tune 高级参数区文本字段输入。
+- `quickCreationTextLimitCounter()` 会为有 `maxLength` 的字段提供 `当前长度/最大长度` 文案；Tune UI 已在文本输入框下方展示该计数。
+- 这只影响 Tune 高级参数里的服务端字段，不影响底部主 prompt 输入框。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+下一步建议：
+- `minLength` 仍未做提交前校验；后续可在同一个 helper 上补 `isTooShort` 或错误文案，再由 Tune UI 和 `generate()` 防线共同消费。
+- 继续补 `inputsChildList` 和条件联动时，优先扩展 `QuickCreationServiceFieldUiModelTest`，再接 Compose UI。
