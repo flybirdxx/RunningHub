@@ -1789,7 +1789,7 @@ class QuickCreateScreenModel(
             val mediaType = key.templateMediaType()
             values.mapIndexed { index, url ->
                 MediaReference(
-                    id = "template_${templateId}_${mediaType.name}_$index",
+                    id = "template_${templateId}_${key.templateReferenceIdPart()}_${mediaType.name}_$index",
                     type = mediaType,
                     uri = url,
                     displayName = url.substringAfterLast('/').ifBlank { "${mediaType.name.lowercase()}_$index" },
@@ -1801,6 +1801,14 @@ class QuickCreateScreenModel(
                 )
             }
         }
+
+    private fun String.templateReferenceIdPart(): String =
+        map { char ->
+            when (char) {
+                in 'A'..'Z', in 'a'..'z', in '0'..'9' -> char
+                else -> '_'
+            }
+        }.joinToString("").ifBlank { "field" }
 
     private fun String.templateMediaType(): QuickCreateMediaType {
         val marker = uppercase()
