@@ -240,6 +240,10 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     onVideoModelSelected = {
                         screenModel.updateVideoModel(it)
                     },
+                    onVideoServiceModelSelected = {
+                        screenModel.updateVideoServiceModel(it)
+                    },
+                    onVideoServiceParamChange = screenModel::updateVideoServiceParam,
                     onImageRatioChange = screenModel::updateImageAspectRatio,
                     onImageResChange = screenModel::updateImageResolution,
                     onImageQualityChange = screenModel::updateImageQuality,

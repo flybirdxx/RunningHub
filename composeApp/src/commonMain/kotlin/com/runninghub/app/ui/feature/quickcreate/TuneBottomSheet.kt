@@ -73,6 +73,8 @@ fun TuneBottomSheet(
     onImageServiceModelSelected: (QuickCreationServiceModel) -> Unit,
     onImageServiceParamChange: (String, String) -> Unit,
     onVideoModelSelected: (VideoModel) -> Unit,
+    onVideoServiceModelSelected: (QuickCreationServiceModel) -> Unit,
+    onVideoServiceParamChange: (String, String) -> Unit,
     onImageRatioChange: (ImageAspectRatio) -> Unit,
     onImageResChange: (ImageResolution) -> Unit,
     onImageQualityChange: (ImageQuality) -> Unit,
@@ -250,10 +252,16 @@ fun TuneBottomSheet(
                                 )
                             } else {
                                 VideoAdvancedContent(
+                                    serviceModels = uiState.serviceVideoModels,
+                                    selectedServiceModel = uiState.selectedVideoServiceModel,
+                                    serviceModelsLoading = uiState.serviceModelsLoading,
+                                    serviceParams = uiState.videoServiceParams,
                                     realistic = uiState.videoConfig.realisticMode,
                                     generateAudio = uiState.videoConfig.generateAudio,
                                     duration = uiState.videoConfig.duration,
                                     seed = uiState.videoConfig.seed,
+                                    onServiceModelSelect = onVideoServiceModelSelected,
+                                    onServiceParamChange = onVideoServiceParamChange,
                                     onRealisticToggle = onToggleRealistic,
                                     onAudioToggle = onToggleAudio,
                                     onDurationChange = onVideoDurationChange,
@@ -985,16 +993,124 @@ private fun SeedInput(seed: Int?, onSeedChange: (Int?) -> Unit) {
 
 @Composable
 private fun VideoAdvancedContent(
+    serviceModels: List<QuickCreationServiceModel>,
+    selectedServiceModel: QuickCreationServiceModel?,
+    serviceModelsLoading: Boolean,
+    serviceParams: Map<String, String>,
     realistic: Boolean,
     generateAudio: Boolean,
     duration: VideoDuration,
     seed: Int?,
+    onServiceModelSelect: (QuickCreationServiceModel) -> Unit,
+    onServiceParamChange: (String, String) -> Unit,
     onRealisticToggle: () -> Unit,
     onAudioToggle: () -> Unit,
     onDurationChange: (VideoDuration) -> Unit,
     onSeedChange: (Int?) -> Unit,
 ) {
-    Column {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+    ) {
+        Text(
+            text = "\u670d\u52a1\u7aef\u6a21\u578b",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Primary300,
+            modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+        )
+        when {
+            serviceModelsLoading -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = Dimens.SpaceSM),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        color = Primary300,
+                        strokeWidth = 2.dp,
+                    )
+                    Text("\u6b63\u5728\u52a0\u8f7d\u6a21\u578b", fontSize = 12.sp, color = Neutral400)
+                }
+            }
+            serviceModels.isEmpty() -> {
+                Text(
+                    text = "\u6682\u672a\u83b7\u53d6\u5230\u670d\u52a1\u7aef\u6a21\u578b\uff0c\u7ee7\u7eed\u4f7f\u7528\u672c\u5730\u9ed8\u8ba4\u914d\u7f6e",
+                    fontSize = 12.sp,
+                    color = Neutral500,
+                    modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+                )
+            }
+            else -> {
+                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
+                    serviceModels.forEach { model ->
+                        val isSelected = selectedServiceModel != null &&
+                            model.bindingId == selectedServiceModel.bindingId &&
+                            model.skuId == selectedServiceModel.skuId
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(Dimens.RadiusSM),
+                            color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
+                            border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
+                            onClick = { onServiceModelSelect(model) },
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(Dimens.SpaceMD),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = model.name,
+                                        fontSize = 13.sp,
+                                        fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                                        color = if (isSelected) Primary300 else Neutral200,
+                                    )
+                                    if (!model.groupName.isNullOrBlank() || model.fields.isNotEmpty()) {
+                                        Text(
+                                            text = listOfNotNull(
+                                                model.groupName,
+                                                "${model.fields.size} \u4e2a\u53c2\u6570",
+                                            ).joinToString(" \u00b7 "),
+                                            fontSize = 11.sp,
+                                            color = Neutral500,
+                                        )
+                                    }
+                                }
+                                if (isSelected) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Primary300,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(Dimens.SpaceXL))
+
+        selectedServiceModel
+            ?.fields
+            .orEmpty()
+            .filter { it.isQuickCreationServiceFieldRenderable() }
+            .takeIf { it.isNotEmpty() }
+            ?.let { fields ->
+                ServiceFieldOptionsContent(
+                    fields = fields,
+                    params = serviceParams,
+                    onParamChange = onServiceParamChange,
+                )
+                Spacer(Modifier.height(Dimens.SpaceXL))
+            }
+
         Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
             ToggleChip(
                 label = "真人模式",
