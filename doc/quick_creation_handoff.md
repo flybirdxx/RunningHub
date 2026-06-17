@@ -11,7 +11,7 @@
 - `all-power-image-g2`：默认仍可使用抓包确认的 `bindingId=2046586338670891013`、`skuId=2046514150500524034`、`categoryId=IMAGE`。
 - `/api/qc/v2/models`：已接 DTO、mapper、repository 和 ScreenModel 状态，`IMAGE/VIDEO` 服务端模型会在页面初始化时加载。
 - 图片服务端模型：加载后默认选中首个可用模型，Tune 高级页可切换；图片 v2 提交会优先携带选中模型的 `categoryId/bindingId/skuId`。
-- 服务端字段：`fields/options/defaultValue` 已解析到 domain model，但 UI 动态字段表单尚未完全替换本地枚举控件。
+- 服务端字段：`fields/options/defaultValue` 已解析到 domain model；字段默认值会初始化到 UI state，Tune 高级页可点选基础 options，图片 v2 提交会把当前字段值写入 `params`。
 - 提交流程：`fee-preview -> prepare -> commit -> list`。
 - `commit` 请求体：严格使用 `prepareToken + createRequest` 嵌套结构。
 - 任务轮询：使用 `/task/quick-creation/list`，不再依赖 `/api/output/taskHistory`。
@@ -37,7 +37,7 @@
 ## 后续开发顺序
 
 1. 真机验证图片 G-2.0 文生图：确认登录态、价格、扣费、任务状态和输出预览。
-2. 完成服务端字段动态表单：基于 `/api/qc/v2/models` 的 `fields/options/defaultValue` 渲染比例、分辨率、质量、上传素材等控件，并统一写入提交 params；当前本地枚举仍是 fallback。
+2. 补齐服务端字段动态表单矩阵：当前基础 options 已能渲染和提交，后续需要覆盖上传类字段、自由文本/数值、条件字段和复杂 `skuInputExtraJson`；当前本地枚举仍是 fallback。
 3. 接入模板详情：`/task/quick-creation/inspiration/template/detail`，实现“制作同款”到当前模型和字段的映射。
 4. 抓包并接入 Seedance2.0 视频 v2：复用当前 `QuickCreationCreateRequestDto` 和 prepare/commit/list 状态机。
 5. 做历史列表：直接消费 `/task/quick-creation/list`，详情使用 `outputId`。
