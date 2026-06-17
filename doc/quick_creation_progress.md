@@ -12,7 +12,7 @@
 | Phase 1 | 图片 G-2.0 MVP | 部分完成 | 70% | 默认 `all-power-image-g2` 已切到 Web v2 的 `fee-preview -> prepare -> commit -> list`；图片提交会优先携带当前服务端模型的 `categoryId/bindingId/skuId`；真实端到端扣费生成尚未在 App 内复测。 |
 | Phase 2 | 页面结构重构 | 部分完成 | 80% | 页面已按移动端截图边界调整为顶部轻量“创作/灵感”、中间可滚动内容区、底部固定模型参数和提示词输入面板；底部输入区已显示服务端模型摘要，Tune 高级页可切换服务端图片模型。 |
 | Phase 3 | 灵感接口接入 | 部分完成 | 82% | 已接 tags/templates 列表和真实 template/detail；UI 使用真实 state 渲染，点击模板可“制作同款”并回填分类、服务端模型、prompt、基础参数和远端素材。 |
-| Phase 3A | 服务端模型字段接入 | 部分完成 | 78% | 已接 `/api/qc/v2/models` DTO、mapper、repository 和 ScreenModel 状态；服务端 `defaultValue/options` 会初始化字段值，Tune 高级页可选择基础 options，文本/数值字段可输入，图片/视频/音频上传字段会按服务端字段映射已上传素材 URL 列表；图片 v2 提交会把字段值写入 `params`，视频请求结构已携带服务端模型 ID 和字段参数。 |
+| Phase 3A | 服务端模型字段接入 | 部分完成 | 82% | 已接 `/api/qc/v2/models` 真实 catalog 响应结构，按 `data.categories[categoryId]` 读取模型并兼容 `groupName` 分组名；服务端 `defaultValue/options` 会初始化字段值，Tune 高级页可选择基础 options，文本/数值字段可输入，图片/视频/音频上传字段会按服务端字段映射已上传素材 URL 列表；图片 v2 提交会把字段值写入 `params`，视频请求结构已携带服务端模型 ID 和字段参数。 |
 | Phase 4 | 视频 v2 链路 | 部分完成 | 45% | 当视频请求携带服务端 `bindingId/skuId` 时已切到 Web v2 的 `fee-preview -> prepare -> commit -> list`；Seedance2.0 多模态参数已按抓包结构生成，真实 App 端视频扣费生成尚未复测。 |
 | Phase 5 | 历史/项目 | 部分完成 | 99% | `list/detail/cancel/project/list/project/tasks/project/pin/project/create/project/rename/project/delete/project/detail` DTO/API 已可解析，domain repository 已公开历史分页、按 `outputId` 获取详情、按 `taskId` 取消任务、项目列表分页、项目任务分页、项目置顶切换、项目创建/重命名/删除和项目详情；创作页中间区域已展示最近创作，可打开详情弹窗，已接入加载更多分页，会对非终态历史任务定时刷新，并可取消非终态任务；历史区顶部已展示项目筛选条和新建按钮，点击项目会加载项目内任务并可切回最近创作，项目 chip 可置顶、查看详情、重命名和删除；项目管理端点已通过 Chrome DevTools 使用登录态临时项目验证，仍缺 App 内端到端复测。 |
 
@@ -28,7 +28,7 @@
 | 测试 | `shared/src/commonTest/kotlin/com/runninghub/shared/data/repository/QuickCreateRepositoryImplVideoV2Test.kt` | 覆盖视频请求在携带 quick-creation ID 时走 `fee-preview -> prepare -> commit -> list`，并从 `outputList` 产出视频结果。 |
 | 测试 | `shared/src/commonTest/kotlin/com/runninghub/shared/data/repository/QuickCreateRepositoryImplHistoryTest.kt` | 覆盖 `/task/quick-creation/list` 历史分页映射、扣费字段、`apiRequestParams` 解析、输出尺寸解析、`/task/quick-creation/detail` 按 `outputId` 获取详情、`/task/quick-creation/cancel` 使用 URL 编码后的 `taskId` 请求体、`/task/quick-creation/project/list` 项目分页映射和请求体、`/task/quick-creation/project/tasks` 按真实 `projectId/page/size` 请求并解析 `records/current` 分页、`/task/quick-creation/project/pin` 按真实 `projectId/pinned` 提交置顶状态，以及 `project/create/rename/delete/detail` 的请求体和项目映射。 |
 | 测试 | `composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt` | 覆盖 ScreenModel 初始化加载 quick-creation 历史和项目列表、选择项目后加载项目内任务、清除项目筛选后回到最近创作、加载更多追加下一页、非终态历史任务定时刷新到终态、取消历史任务后刷新列表、选择 output 后按 `outputId` 加载详情并写入 UI state、切换项目置顶时调用 repository 并更新本地项目 state、创建/重命名/删除项目时更新项目列表并在删除当前筛选项目后回到最近创作，以及按 `projectId` 加载项目详情写入 UI state。 |
-| 测试 | `shared/src/commonTest/kotlin/com/runninghub/shared/data/remote/dto/QuickCreationModelDtoTest.kt` / `shared/src/commonTest/kotlin/com/runninghub/shared/data/repository/QuickCreationModelMapperTest.kt` | 覆盖 `/api/qc/v2/models` 分组、模型、字段、options/defaultValue 解析和 domain flatten 映射。 |
+| 测试 | `shared/src/commonTest/kotlin/com/runninghub/shared/data/remote/dto/QuickCreationModelDtoTest.kt` / `shared/src/commonTest/kotlin/com/runninghub/shared/data/repository/QuickCreationModelMapperTest.kt` / `QuickCreateRepositoryImplHistoryTest.kt` | 覆盖 `/api/qc/v2/models` 真实 `data.categoryMeta/categories` catalog 结构、分组、模型、字段、options/defaultValue 解析和 domain flatten 映射。 |
 | 数据层 | `QuickCreationV2Dto.kt` | 新增 Web quick-creation v2 DTO。 |
 | 数据层 | `QuickCreateApi.kt` | 新增 `categories/models/fee-preview/prepare/commit/list/detail/inspiration` 端点封装。 |
 | 数据层 | `QuickCreateRepositoryImpl.kt` | 默认图片 G-2.0 改走 v2 提交和列表轮询，视频请求携带服务端 quick-creation ID 时也走 v2 提交和列表轮询；旧模型保留回退。 |
@@ -51,7 +51,7 @@
 | `./gradlew.bat :shared:testDebugUnitTest` | 通过 | 存在既有 Kotlin warning，未新增失败。 |
 | `./gradlew.bat :composeApp:testDebugUnitTest` | 通过 | 存在既有 Profile/MediaChip warning。 |
 | `./gradlew.bat :composeApp:assembleDebug` | 通过 | Debug APK 打包成功；native strip 提示为既有库处理信息。 |
-| `adb -s emulator-5554 install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk` + UI tree/screenshot | 通过 | App 可启动到“创作”页；已验证项目列表、最近创作、项目操作菜单和项目详情弹窗。修复了长项目名挤压项目操作按钮的问题，详情弹窗时间已从毫秒值格式化为可读日期时间。 |
+| `adb -s emulator-5554 install -r composeApp/build/outputs/apk/debug/composeApp-debug.apk` + UI tree/screenshot | 通过 | App 可启动到“创作”页；已验证项目列表、最近创作、项目操作菜单、项目详情弹窗和真实服务端模型摘要。修复了长项目名挤压项目操作按钮的问题，详情弹窗时间已从毫秒值格式化为可读日期时间；底部模型摘要已显示 `全能图片G-2.0-文生图-官方版` 和 `4 个参数`。 |
 
 ## 未完成与风险
 

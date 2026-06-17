@@ -60,8 +60,10 @@ body: { "categoryIds": ["VIDEO"] }
 
 模型返回是服务端驱动结构：
 
+- 真实响应 `data` 是 catalog 对象，不是数组：`data.categoryMeta` 描述分类，`data.categories` 是按分类 key 分组的 map，例如 `data.categories.IMAGE` 才是图片模型数组。
 - 顶层可能是 `type = group`，其 `children` 才是真正可提交模型。
 - 也可能是 `type = model`，例如动作模仿分类。
+- 分组名称真实字段为 `groupName`；部分 group 的 `name/nameCn/nameAi` 为空，移动端映射时必须优先使用 `groupName`。
 - 每个模型带 `bindingId`、`skuId`、`name`、`fields`、`pricing`、`supportsT2i`、`supportsI2i`。
 - `fields` 描述表单字段：`fieldKey`、`mappedApiParamKey`、`fieldType`、`required`、`defaultValue`、`options`、`maxUploadCount`、`maxUploadSize`、`multipleInputs`、`skuInputExtraJson`。
 
