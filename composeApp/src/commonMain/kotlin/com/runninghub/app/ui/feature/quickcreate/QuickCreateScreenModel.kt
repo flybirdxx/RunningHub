@@ -1742,6 +1742,7 @@ class QuickCreateScreenModel(
             quality = detail.params.templateImageQuality() ?: imageConfig.quality,
             mediaReferences = detail.templateMediaReferences(
                 activeFieldParamKeys = selectedModel.quickCreationActiveUploadParamKeys(serviceParams),
+                declaredFieldParamKeys = selectedModel.quickCreationDeclaredUploadParamKeys(),
             ),
         )
         return copy(
@@ -1769,6 +1770,7 @@ class QuickCreateScreenModel(
             realisticMode = detail.params.templateBoolean("realPersonMode") ?: videoConfig.realisticMode,
             mediaReferences = detail.templateMediaReferences(
                 activeFieldParamKeys = selectedModel.quickCreationActiveUploadParamKeys(serviceParams),
+                declaredFieldParamKeys = selectedModel.quickCreationDeclaredUploadParamKeys(),
             ),
         )
         return copy(
@@ -1792,9 +1794,15 @@ class QuickCreateScreenModel(
 
     private fun QuickCreateInspirationTemplateDetail.templateMediaReferences(
         activeFieldParamKeys: Set<String>,
+        declaredFieldParamKeys: Set<String>,
     ): List<MediaReference> =
         listParams.entries.flatMapIndexed { fieldIndex, (key, values) ->
             val mediaType = key.templateMediaType()
+            val fieldParamKey = when {
+                key in activeFieldParamKeys -> key
+                key in declaredFieldParamKeys -> return@flatMapIndexed emptyList()
+                else -> null
+            }
             values.mapIndexed { index, url ->
                 MediaReference(
                     id = "template_${templateId}_${fieldIndex}_${key.templateReferenceIdPart()}_${mediaType.name}_$index",
@@ -1802,13 +1810,30 @@ class QuickCreateScreenModel(
                     uri = url,
                     displayName = url.substringAfterLast('/').ifBlank { "${mediaType.name.lowercase()}_$index" },
                     fileSizeBytes = 0L,
-                    fieldParamKey = key.takeIf { it in activeFieldParamKeys },
+                    fieldParamKey = fieldParamKey,
                     uploadStatus = UploadStatus.DONE,
                     uploadProgress = 1f,
                     remoteUrl = url,
                 )
             }
         }
+
+    private fun QuickCreationServiceModel?.quickCreationDeclaredUploadParamKeys(): Set<String> =
+        this?.fields.orEmpty()
+            .filter { it.visible }
+            .flatMap { field ->
+                buildList {
+                    if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {
+                        add(field.paramKey)
+                    }
+                    addAll(
+                        field.inputExtra?.inputChildren.orEmpty()
+                            .filter { it.isQuickCreationServiceFieldRenderable() && it.isQuickCreationUploadField() }
+                            .map { it.paramKey }
+                    )
+                }
+            }
+            .toSet()
 
     private fun String.templateReferenceIdPart(): String =
         map { char ->

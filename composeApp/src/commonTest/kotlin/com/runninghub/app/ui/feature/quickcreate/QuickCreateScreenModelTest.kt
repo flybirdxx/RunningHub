@@ -2026,6 +2026,65 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `apply inspiration image template does not submit inactive child upload media as global reference`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "text",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "childImage",
+                                    paramKey = "childImages",
+                                    fieldType = "IMAGE",
+                                    maxInputCount = 1,
+                                    visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                        fieldKey = "creationMode",
+                                        values = listOf("imageReference"),
+                                    ),
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+            templateDetail = QuickCreateInspirationTemplateDetail(
+                templateId = "tpl-image",
+                title = "Image template",
+                categoryId = "IMAGE",
+                bindingId = "binding-1",
+                skuId = "sku-1",
+                prompt = "template prompt",
+                params = emptyMap(),
+                listParams = mapOf("childImages" to listOf("https://example.com/child.png")),
+                coverUrl = "https://example.com/template-cover.png",
+                videoUrl = null,
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchMode(QuickCreateMode.INSPIRATION)
+        model.applyInspirationTemplate("tpl-image")
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest?.referenceImageUri)
+        assertEquals(null, repository.lastImageRequest?.quickCreationListParams?.get("childImages"))
+    }
+
+    @Test
     fun `updateImagePrompt changes prompt`() {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.updateImagePrompt("test prompt")
