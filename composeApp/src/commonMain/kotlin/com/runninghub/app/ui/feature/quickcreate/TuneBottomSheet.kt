@@ -913,8 +913,9 @@ private fun ServiceChildFieldInput(
             OutlinedTextField(
                 value = text,
                 onValueChange = { value ->
-                    text = value
-                    onParamChange(child.paramKey, value)
+                    val constrained = child.constrainQuickCreationTextInput(value)
+                    text = constrained
+                    onParamChange(child.paramKey, constrained)
                 },
                 singleLine = true,
                 placeholder = { Text(child.quickCreationInputPlaceholder(), color = Neutral500, fontSize = 12.sp) },
@@ -930,6 +931,14 @@ private fun ServiceChildFieldInput(
                 ),
                 modifier = Modifier.fillMaxWidth(),
             )
+            child.quickCreationTextLimitCounter(text)?.let { counter ->
+                Text(
+                    text = counter,
+                    fontSize = 10.sp,
+                    color = Neutral500,
+                    modifier = Modifier.align(Alignment.End),
+                )
+            }
         } else if (child.isQuickCreationUploadField()) {
             Text(
                 text = "上传参数由素材入口处理",

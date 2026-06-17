@@ -78,8 +78,18 @@ internal fun QuickCreationServiceField.constrainQuickCreationTextInput(value: St
     return value.take(maxLength)
 }
 
+internal fun QuickCreationServiceFieldInputChild.constrainQuickCreationTextInput(value: String): String {
+    val maxLength = maxLength?.takeIf { it >= 0 } ?: return value
+    return value.take(maxLength)
+}
+
 internal fun QuickCreationServiceField.quickCreationTextLimitCounter(value: String): String? {
     val maxLength = inputExtra?.maxLength?.takeIf { it >= 0 } ?: return null
+    return "${value.length.coerceAtMost(maxLength)}/$maxLength"
+}
+
+internal fun QuickCreationServiceFieldInputChild.quickCreationTextLimitCounter(value: String): String? {
+    val maxLength = maxLength?.takeIf { it >= 0 } ?: return null
     return "${value.length.coerceAtMost(maxLength)}/$maxLength"
 }
 

@@ -226,4 +226,29 @@ class QuickCreationServiceFieldUiModelTest {
         assertEquals("Sub prompt 至少 3 个字符", child.quickCreationTextValidationError("ab"))
         assertEquals(null, child.quickCreationTextValidationError("abc"))
     }
+
+    @Test
+    fun `child text input is constrained by max length metadata`() {
+        val child = QuickCreationServiceFieldInputChild(
+            fieldKey = "subPrompt",
+            paramKey = "subPrompt",
+            fieldType = "STRING",
+            maxLength = 5,
+        )
+
+        assertEquals("abcde", child.constrainQuickCreationTextInput("abcdefg"))
+        assertEquals("abc", child.constrainQuickCreationTextInput("abc"))
+    }
+
+    @Test
+    fun `child text limit counter uses max length metadata`() {
+        val child = QuickCreationServiceFieldInputChild(
+            fieldKey = "subPrompt",
+            paramKey = "subPrompt",
+            fieldType = "STRING",
+            maxLength = 5,
+        )
+
+        assertEquals("3/5", child.quickCreationTextLimitCounter("abc"))
+    }
 }
