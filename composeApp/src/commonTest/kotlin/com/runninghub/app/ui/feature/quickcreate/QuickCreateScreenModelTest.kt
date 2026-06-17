@@ -13,15 +13,21 @@ import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.*
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class QuickCreateScreenModelTest {
     @BeforeTest
     fun setUpMainDispatcher() {
@@ -67,6 +73,7 @@ class QuickCreateScreenModelTest {
             ),
         )
         var historyPages: Map<Int, QuickCreationHistoryPage>? = null
+        var overrideHistoryList: ((page: Int, size: Int) -> QuickCreationHistoryPage)? = null
         var historyDetail = QuickCreationHistoryItem(
             taskId = "history-task-detail",
             status = "SUCCESS",
@@ -226,7 +233,8 @@ class QuickCreateScreenModelTest {
 
         override suspend fun listQuickCreationHistory(page: Int, size: Int): Result<QuickCreationHistoryPage> =
             Result.success(
-                (historyPages?.get(page) ?: historyPage).copy(page = page, size = size)
+                overrideHistoryList?.invoke(page, size)
+                    ?: (historyPages?.get(page) ?: historyPage).copy(page = page, size = size)
             ).also {
                 requestedHistoryPages += page
             }
@@ -349,6 +357,52 @@ class QuickCreateScreenModelTest {
         assertEquals(listOf("history-task-1", "history-task-2"), model.uiState.value.historyItems.map { it.taskId })
         assertEquals(false, model.uiState.value.historyHasMore)
         assertEquals(false, model.uiState.value.historyLoadingMore)
+    }
+
+    @Test
+    fun `running history refreshes first page until terminal status`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            var requestCount = 0
+            historyPage = QuickCreationHistoryPage(
+                page = 1,
+                size = 10,
+                total = 1,
+                items = listOf(
+                    QuickCreationHistoryItem(
+                        taskId = "history-task-1",
+                        status = "PREPAID",
+                    )
+                ),
+            )
+            historyPages = emptyMap()
+            overrideHistoryList = { page, size ->
+                requestCount += 1
+                val status = if (requestCount == 1) "PREPAID" else "SUCCESS"
+                QuickCreationHistoryPage(
+                    page = page,
+                    size = size,
+                    total = 1,
+                    items = listOf(
+                        QuickCreationHistoryItem(
+                            taskId = "history-task-1",
+                            status = status,
+                        )
+                    ),
+                )
+            }
+        }
+
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+        assertEquals("PREPAID", model.uiState.value.historyItems.single().status)
+
+        advanceTimeBy(5_000)
+        runCurrent()
+
+        assertEquals(listOf(1, 1), repository.requestedHistoryPages)
+        assertEquals("SUCCESS", model.uiState.value.historyItems.single().status)
     }
 
     @Test

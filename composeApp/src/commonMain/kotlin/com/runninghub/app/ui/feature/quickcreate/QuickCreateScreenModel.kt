@@ -6,6 +6,8 @@ import com.runninghub.app.platform.MediaResolver
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
+import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
+import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
@@ -36,6 +38,10 @@ data class DraftData(
 )
 
 private val draftJson = Json { encodeDefaults = true }
+private const val HISTORY_REFRESH_INTERVAL_MS = 5_000L
+private val terminalHistoryStatuses = setOf("SUCCESS", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED")
+private val QuickCreationHistoryItem.needsHistoryRefresh: Boolean
+    get() = status.isNotBlank() && status.uppercase() !in terminalHistoryStatuses
 
 class QuickCreateScreenModel(
     private val quickCreateRepository: QuickCreateRepository,
@@ -49,6 +55,7 @@ class QuickCreateScreenModel(
     private var generationJob: Job? = null
     private val uploadJobs = mutableMapOf<String, Job>()
     private var draftSaveJob: Job? = null
+    private var historyRefreshJob: Job? = null
 
     /** Check if a draft exists and returns its content.
      *  TODO: These properties are non-reactive and currently have no UI consumers.
@@ -104,9 +111,9 @@ class QuickCreateScreenModel(
         screenModelScope.launch {
             _uiState.update { it.copy(historyLoading = true) }
             val history = quickCreateRepository.listQuickCreationHistory(page = 1, size = 10)
-            _uiState.update { state ->
-                history.fold(
-                    onSuccess = { page ->
+            history.fold(
+                onSuccess = { page ->
+                    _uiState.update { state ->
                         state.copy(
                             historyLoading = false,
                             historyPage = page.page,
@@ -114,12 +121,13 @@ class QuickCreateScreenModel(
                             historyHasMore = page.items.size < page.total,
                             historyItems = page.items,
                         )
-                    },
-                    onFailure = {
-                        state.copy(historyLoading = false)
-                    },
-                )
-            }
+                    }
+                    updateHistoryRefreshJob(page.items)
+                },
+                onFailure = {
+                    _uiState.update { state -> state.copy(historyLoading = false) }
+                },
+            )
         }
     }
 
@@ -131,11 +139,12 @@ class QuickCreateScreenModel(
             val nextPage = _uiState.value.historyPage + 1
             _uiState.update { it.copy(historyLoadingMore = true) }
             val history = quickCreateRepository.listQuickCreationHistory(page = nextPage, size = 10)
-            _uiState.update { current ->
-                history.fold(
-                    onSuccess = { page ->
-                        val merged = (current.historyItems + page.items)
-                            .distinctBy { it.taskId }
+            history.fold(
+                onSuccess = { page ->
+                    var mergedItems: List<QuickCreationHistoryItem> = emptyList()
+                    _uiState.update { current ->
+                        val merged = (current.historyItems + page.items).distinctBy { it.taskId }
+                        mergedItems = merged
                         current.copy(
                             historyLoadingMore = false,
                             historyPage = page.page,
@@ -143,15 +152,58 @@ class QuickCreateScreenModel(
                             historyHasMore = merged.size < page.total,
                             historyItems = merged,
                         )
-                    },
-                    onFailure = { error ->
+                    }
+                    updateHistoryRefreshJob(mergedItems)
+                },
+                onFailure = { error ->
+                    _uiState.update { current ->
                         current.copy(
                             historyLoadingMore = false,
                             error = error.message ?: "历史加载失败",
                         )
-                    },
-                )
+                    }
+                },
+            )
+        }
+    }
+
+    private fun updateHistoryRefreshJob(items: List<QuickCreationHistoryItem>) {
+        if (items.none { it.needsHistoryRefresh }) {
+            historyRefreshJob?.cancel()
+            historyRefreshJob = null
+            return
+        }
+        if (historyRefreshJob?.isActive == true) return
+
+        historyRefreshJob = screenModelScope.launch {
+            while (_uiState.value.historyItems.any { it.needsHistoryRefresh }) {
+                delay(HISTORY_REFRESH_INTERVAL_MS)
+                refreshLoadedQuickCreationHistory()
             }
+            historyRefreshJob = null
+        }
+    }
+
+    private suspend fun refreshLoadedQuickCreationHistory() {
+        val size = maxOf(10, _uiState.value.historyItems.size)
+        val history = quickCreateRepository.listQuickCreationHistory(page = 1, size = size)
+        history.fold(
+            onSuccess = { page -> applyHistoryRefreshPage(page) },
+            onFailure = { error ->
+                _uiState.update { state ->
+                    state.copy(error = error.message ?: "历史刷新失败")
+                }
+            },
+        )
+    }
+
+    private fun applyHistoryRefreshPage(page: QuickCreationHistoryPage) {
+        _uiState.update { state ->
+            state.copy(
+                historyTotal = page.total,
+                historyHasMore = page.items.size < page.total,
+                historyItems = page.items,
+            )
         }
     }
 
