@@ -80,3 +80,21 @@
 - `output/quickcreate_app_create_before_generation.png`
 - `output/quickcreate_app_history_detail_success.xml`
 - `output/quickcreate_app_history_detail_success.png`
+
+## 2026-06-18 费用显示精度修复
+
+模拟器验证发现最近创作与详情弹窗把真实 `0.76 CNY` 显示成 `0.8 CNY`，原因是历史 UI 复用了通用 `formatOneDecimal`。本轮已新增现金金额专用格式化：
+
+- `composeApp/src/commonMain/kotlin/com/runninghub/app/util/NumberFormat.kt` 新增 `formatCashAmount`，现金金额固定显示两位小数。
+- `QuickCreateScreen.kt` 历史列表和详情弹窗费用展示改为使用 `formatCashAmount`。
+- `composeApp/src/commonTest/kotlin/com/runninghub/app/util/NumberFormatTest.kt` 覆盖 `0.76 -> 0.76`、`9.6 -> 9.60`、`1.0 -> 1.00`。
+
+已验证：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.util.NumberFormatTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest
+```
+
+代码提交：`ac9d40b fix(quickcreate): preserve cash amount precision`。

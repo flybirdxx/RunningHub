@@ -132,3 +132,23 @@ adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_history_deta
 - 用户此前只明确授权 `0.76 元`继续验证。
 - 当前 App 已能读取并展示真实成功扣费任务；本轮没有再次点击“生成”，避免发生第二次扣费。
 - 若后续必须证明“移动端 App 自身点击生成后完成 prepare/commit/轮询/详情展示”的完整链路，需要先取得新的明确扣费授权，再提交一次低成本图片任务。
+
+## 2026-06-18 追加交接：现金金额显示精度
+
+问题：App 历史列表和详情弹窗曾把 `0.76 CNY` 显示为 `0.8 CNY`，会和 Web 抓包、`fee-preview`、`commit` 响应里的真实金额不一致。
+
+处理：
+
+- 新增 `com.runninghub.app.util.formatCashAmount(value: Double)`，用于现金金额展示，固定保留两位小数。
+- `QuickCreateScreen.kt` 中快捷创作历史列表和详情弹窗的 `cashAmount` 展示已切换到 `formatCashAmount`。
+- 保留原 `formatOneDecimal` 给文件大小、估算价格等旧调用点，避免改变其它 UI 语义。
+
+回归测试：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.util.NumberFormatTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest
+```
+
+代码提交：`ac9d40b fix(quickcreate): preserve cash amount precision`。
