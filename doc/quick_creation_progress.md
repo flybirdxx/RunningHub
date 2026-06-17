@@ -1091,3 +1091,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真机仍需复测视频灵感模板里图片参考、视频参考、音频参考三类素材：声明字段的进入 Tune 字段区，未声明字段的进入底部全局参考并进入 legacy 请求字段。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 inactive child 模板素材不再回退为全局素材
+
+代码提交 `c59466b fix(quickcreate): ignore inactive template upload media` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 模板素材分类现在区分三类 key：当前 active 上传字段、当前模型声明但未激活的上传字段、当前模型未声明字段。
+- active 字段继续写入 `MediaReference.fieldParamKey`，后续进入字段级 `quickCreationListParams`。
+- 当前模型未声明字段继续保持全局素材，用于兼容视频模板 `imageUrls` 这类 legacy 参考图场景。
+- 当前模型声明但未激活的上传字段会被忽略，不再回退为全局素材，避免 inactive child upload 的模板 URL 被误提交到 `referenceImageUri`。
+- 新增回归测试覆盖：图片模板返回 `childImages`，但 `creationMode=text` 未激活该 child 时，生成请求既不带 `referenceImageUri`，也不带 `quickCreationListParams["childImages"]`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template does not submit inactive child upload media as global reference"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测带条件子上传字段的灵感模板：切换父字段后，素材是否只在 active child 区域显示和提交。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。

@@ -1175,3 +1175,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测 Tune 字段区和底部全局素材区在同一个视频模板里混合出现时的显示、删除和最终请求体。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：inactive child 模板素材丢弃规则
+
+代码提交 `c59466b fix(quickcreate): ignore inactive template upload media` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `templateMediaReferences()` 现在接收 `activeFieldParamKeys` 和 `declaredFieldParamKeys` 两个集合。
+- `key in activeFieldParamKeys`：生成字段级素材，写入 `fieldParamKey`。
+- `key in declaredFieldParamKeys` 但不 active：直接跳过该模板素材，不生成全局素材。
+- 未声明 key：保留全局素材，兼容 legacy `referenceImageUri/referenceVideoUri/referenceAudioUri`。
+- `declaredFieldParamKeys` 覆盖顶层上传字段和 `inputChildren` 上传字段，但不受 `visibleWhen` 当前选中值影响；这正好用于识别“声明过但当前 inactive”的 child upload。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template does not submit inactive child upload media as global reference"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 补 active child 模板素材正向回归：模板 params 激活 child upload 且 `listParams` 命中 child key 时，应进入 child 的 `quickCreationListParams`。
+- 补视频模板 `referenceVideos/referenceAudios` 的字段级正向回归，作为交接里提到的显式覆盖。
+- 真机复测条件字段切换后，模板素材卡片显示、删除和最终请求体是否跟当前 active 字段一致。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
