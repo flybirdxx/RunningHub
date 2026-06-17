@@ -733,3 +733,33 @@ UI 复测结果：
 仍未完成：
 - 真实多独立上传槽模型还需要在后续有明确样例或授权时做完整端到端验证。
 - 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。
+
+## 2026-06-18 字段级上传素材展示与移除
+
+代码提交 `d5b18d6 fix(quickcreate): separate field upload chips` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `quickCreationGlobalMediaReferences()` 和 `quickCreationFieldMediaReferences(paramKey)` helper，并用测试锁定全局素材与字段素材的过滤规则。
+- 底部快捷创作面板现在只展示 `fieldParamKey` 为空的全局参考素材，避免字段专属上传混入全局参考区。
+- Tune 高级参数区的上传字段会在字段自身区域展示已绑定素材卡片，并复用 `MediaChipCard` 支持移除。
+- 字段上传按钮、上传计数和素材卡片都按字段 `paramKey` 过滤，便于多个独立上传槽各自管理素材。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.global media references exclude field bound uploads" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.field media references match only exact param key"
+.\gradlew.bat :composeApp:compileDebugKotlinAndroid
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:assembleDebug
+git diff --check
+```
+
+UI 复测结果：
+- 最新 APK 安装到 `emulator-5554` 后，进入 `创作 -> 图片 -> 创作调优 -> 高级`，切换服务端模型到 `全能图片G-2.0-图生图-官方版`。
+- 滚动到 `imageUrls` 字段，UI 树仍显示 `参考图片（1-4张）`、上传限制和 `选择图片` 专属按钮。
+- 证据文件保存在 `output/quickcreate_field_upload_remove_i2i_scrolled.xml` 和 `output/quickcreate_field_upload_remove_i2i_scrolled.png`，不纳入 Git。
+- 本轮没有选择真实素材、没有点击生成、没有触发新的 `prepare/commit`，也没有新增扣费。
+
+仍未完成：
+- 字段级素材卡片的真实移除流程仍需在可控测试素材或真机相册环境中做手动端到端验证。
+- 视频真实 `prepare/commit/list/detail` 端到端扣费链路仍需要新的明确授权。

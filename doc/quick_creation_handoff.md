@@ -800,3 +800,34 @@ git diff --check
 - 找一个真实同时包含多个独立上传字段的模型做端到端 UI 验证，确认每个字段按钮都能选素材并在请求体中分别落到各自 `paramKey`。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：字段级上传素材展示与移除
+
+代码提交 `d5b18d6 fix(quickcreate): separate field upload chips` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 底部快捷创作面板调用 `quickCreationGlobalMediaReferences()`，只展示全局参考素材。
+- Tune 字段上传区域调用 `quickCreationFieldMediaReferences(paramKey)`，只展示当前字段绑定的素材。
+- 字段级上传素材会显示为 `MediaChipCard`，删除操作复用 `QuickCreateScreenModel.removeMediaReference()`。
+- `ServiceUploadFieldPicker` 的上传数量和上传中数量都按字段 `paramKey` 计算，不再看同类型的其它字段素材。
+
+验证记录：
+- 新增 helper 测试覆盖“全局素材排除字段绑定素材”和“字段素材只匹配精确 `paramKey`”。
+- 已跑：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+.\gradlew.bat :composeApp:compileDebugKotlinAndroid
+.\gradlew.bat :composeApp:assembleDebug
+git diff --check
+```
+
+真实 UI 复测：
+- 路径：`创作 -> 图片 -> 创作调优 -> 高级 -> 全能图片G-2.0-图生图-官方版`。
+- UI 树 `output/quickcreate_field_upload_remove_i2i_scrolled.xml` 确认 `imageUrls` 字段仍显示 `参考图片（1-4张）` 和 `选择图片`。
+- 截图证据为 `output/quickcreate_field_upload_remove_i2i_scrolled.png`，继续保持未跟踪。
+
+下一步建议：
+- 在具备可控素材的设备上实际为字段上传一张图片，确认素材卡片出现在字段区域且可删除，同时底部全局参考区不显示该字段素材。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才能继续真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录。
