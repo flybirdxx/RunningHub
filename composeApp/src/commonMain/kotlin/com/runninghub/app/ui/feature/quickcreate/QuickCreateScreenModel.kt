@@ -770,20 +770,28 @@ class QuickCreateScreenModel(
 
     fun updateImageServiceParam(paramKey: String, value: String) {
         if (paramKey.isBlank()) return
-        if (_uiState.value.selectedImageServiceModel?.hasFieldParam(paramKey) != true) return
+        val selectedModel = _uiState.value.selectedImageServiceModel
+        if (selectedModel?.hasFieldParam(paramKey) != true) return
+        val nextParams = _uiState.value.imageServiceParams + (paramKey to value)
         _uiState.update {
-            it.copy(imageServiceParams = it.imageServiceParams + (paramKey to value))
+            it.copy(imageServiceParams = nextParams)
         }
-        scheduleFeePreview()
+        if (paramKey in selectedModel.activeServiceParamKeys(nextParams)) {
+            scheduleFeePreview()
+        }
     }
 
     fun updateVideoServiceParam(paramKey: String, value: String) {
         if (paramKey.isBlank()) return
-        if (_uiState.value.selectedVideoServiceModel?.hasFieldParam(paramKey) != true) return
+        val selectedModel = _uiState.value.selectedVideoServiceModel
+        if (selectedModel?.hasFieldParam(paramKey) != true) return
+        val nextParams = _uiState.value.videoServiceParams + (paramKey to value)
         _uiState.update {
-            it.copy(videoServiceParams = it.videoServiceParams + (paramKey to value))
+            it.copy(videoServiceParams = nextParams)
         }
-        scheduleFeePreview()
+        if (paramKey in selectedModel.activeServiceParamKeys(nextParams)) {
+            scheduleFeePreview()
+        }
     }
 
     fun updateVideoModel(model: VideoModel) {
