@@ -424,3 +424,24 @@ git diff --check
 仍未完成：
 - 上传字段 required/maxInputCount、列表字段条件联动和 `inputsChildList` 子输入仍未完整校验。
 - 本轮未触发真实生成或扣费。
+
+## 2026-06-18 媒体字段请求参数映射修复
+
+代码提交 `1f0bad6 fix(quickcreate): include media fields in upload params` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreateScreenModel.uploadFields()` 不再只识别 `fieldType` 包含 `UPLOAD` 的字段，改为复用 `isQuickCreationUploadField()`，覆盖真实服务端常见的 `IMAGE/VIDEO/AUDIO/UPLOAD`。
+- 修复了 Tune UI 能展示 `IMAGE` 上传字段，但请求构造阶段忽略该字段、导致上传素材 URL 未写入 `quickCreationListParams` 的不一致。
+- 新增回归测试：服务端字段 `fieldType=IMAGE,paramKey=imageUrls` 时，上传图片后生成请求会把远端素材 URL 写入 `quickCreationListParams["imageUrls"]`。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image maps uploaded images to service image field"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+git diff --check
+```
+
+仍未完成：
+- 上传字段 required/maxInputCount 的提交前校验仍需继续补齐。
+- 本轮未触发真实生成或扣费。
