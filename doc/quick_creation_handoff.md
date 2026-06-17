@@ -1035,3 +1035,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真实设备上复测跨 tab 上传和移除，尤其是 Tune 字段级上传与底部全局上传同时存在时的状态显示。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：素材删除跨 tab 生效
+
+代码提交 `457d859 fix(quickcreate): remove media across tabs` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `removeMediaReference(id)` 会取消对应上传任务，并同时从图片配置和视频配置中按 id 删除素材。
+- 这个逻辑让删除动作不再依赖当前 tab；即使用户点删除后马上切 tab，或者异步回调在另一个 tab 执行，原 tab 素材也不会残留进请求体。
+- `shouldRefreshFeePreview` 仍使用删除前的 `currentRelevantMediaReferences()` 判断，避免后台 tab 素材删除错误刷新当前 tab 价格。
+- 测试侧移除了“上传中不刷新 fee-preview”用例里的人工上传延迟；`StandardTestDispatcher` 已足够保证协程在切 tab 后才执行，测试更稳定。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.remove media reference removes image media after switching to video tab"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 补视频方向删除测试：视频 tab 上传视频/音频素材后切到图片 tab 调用删除，再切回视频生成，应不再提交对应 reference URL。
+- 真实设备上复测删除时 UI 卡片消失、底部全局素材区和 Tune 字段素材区各自过滤是否一致。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
