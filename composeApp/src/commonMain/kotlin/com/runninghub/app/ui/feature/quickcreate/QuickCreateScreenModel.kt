@@ -1507,7 +1507,7 @@ class QuickCreateScreenModel(
     }
 
     private fun QuickCreationServiceModel?.uploadFields(): List<QuickCreationServiceField> =
-        this?.fields.orEmpty().filter { it.fieldType.uppercase().contains("UPLOAD") }
+        this?.fields.orEmpty().filter { it.isQuickCreationUploadField() }
 
     private fun QuickCreationServiceField.uploadMediaType(): QuickCreateMediaType? {
         val marker = listOfNotNull(fieldType, fieldKey, paramKey, inputExtraJson)

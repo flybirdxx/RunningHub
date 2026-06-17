@@ -981,6 +981,42 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image maps uploaded images to service image field`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "imageUrls",
+                        paramKey = "imageUrls",
+                        fieldType = "IMAGE",
+                        required = true,
+                        defaultValue = null,
+                        options = emptyList(),
+                        maxUploadCount = 1,
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReference("content://image/1")
+        advanceUntilIdle()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(
+            listOf("https://example.com/file.jpg"),
+            repository.lastImageRequest?.quickCreationListParams?.get("imageUrls"),
+        )
+    }
+
+    @Test
     fun `generate video maps uploaded video and audio to service upload fields`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
