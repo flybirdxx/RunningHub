@@ -213,3 +213,30 @@ adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_history_deta
 ```
 
 下一步建议先做 ScreenModel 的 RED 测试：当图片 prompt、选中模型或服务端字段参数变化并满足可预览条件时，ScreenModel 调用 `previewImageQuickCreationFee`，将 `requiredCashAmount=0.76` 写入 UI state，并让底部生成按钮显示服务端金额。实现时需要 debounce 或任务取消，避免每个字符都打服务端；失败态必须和本地估算区分，不能把 `estimatedCost` 伪装成最终扣费价。
+
+## 2026-06-18 追加交接：ScreenModel 图片实时价格刷新
+
+代码提交 `650e13d fix(quickcreate): refresh image price from fee preview` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+
+- 图片 prompt 变化后，ScreenModel 会等待 500ms debounce，再用当前图片配置、服务端模型 ID、服务端字段参数和已上传图片 URL 调用 `previewImageQuickCreationFee`。
+- 以下图片配置变化也会触发刷新：本地图片模型、服务端图片模型、服务端字段参数、比例、分辨率、质量、数量、seed、图片素材上传完成、图片素材移除。
+- fee-preview 成功后，`requiredCashAmount` 会写回 `uiState.estimatedCost`，因此底部生成按钮会显示服务端金额；`free=true` 时写回 0。
+- `feePreviewLoading/feePreviewError` 已进入 `QuickCreateUiState`，但 UI 文案还没有消费它们。
+- 图片生成提交和 fee-preview 复用 `buildImageGenerationRequest`，减少“预览价格参数”和“实际提交参数”不一致的风险。
+- 顺手修复了草稿自动保存：不再依赖 `DraftData` 的生成 serializer，改为显式 `JsonObject` 读写，避免输入 500ms 后协程因 serializer 缺失失败。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image prompt refreshes server fee preview into estimated cost"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest
+```
+
+后续建议：
+
+- 在底部输入区消费 `feePreviewLoading/feePreviewError`，显示“价格确认中/价格待确认”，并考虑在价格预览失败时禁用生成或要求用户确认。
+- 继续补视频 fee-preview 的 UI 价格刷新；当前本轮只覆盖图片链路。
+- 下一次 App 真机/模拟器验证时，不需要额外扣费就能观察输入 prompt 后按钮金额是否从本地估算刷新为服务端 `0.76`；真正点击生成仍需新的扣费授权。

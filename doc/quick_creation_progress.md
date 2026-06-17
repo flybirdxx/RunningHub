@@ -154,3 +154,26 @@
 代码提交：`4cd380a fix(quickcreate): expose image fee preview`。
 
 仍未完成：ScreenModel 还没有把底部按钮价格刷新改成服务端 fee-preview。下一步应在 UI state 中增加价格预览加载/失败/最新值状态，基于当前图片模型、prompt、服务端字段参数和上传 URL debounce 调用 `previewImageQuickCreationFee`，成功后用 `requiredCashAmount` 替换本地 `estimatedCost` 展示；失败时显示“价格待确认”或保留明确的不可用状态，避免把本地估算误认为最终扣费。
+
+## 2026-06-18 ScreenModel 接入图片实时 fee-preview
+
+本轮已把图片创作底部按钮价格从纯本地估算推进为服务端 fee-preview 驱动：
+
+- `QuickCreateUiState` 新增 `feePreviewLoading/feePreviewError`。
+- `QuickCreateScreenModel` 在图片 prompt、图片模型、服务端模型、服务端字段参数、比例、分辨率、质量、数量、seed、图片素材上传完成和移除素材后调度价格刷新。
+- 刷新使用 500ms debounce，调用 `QuickCreateRepository.previewImageQuickCreationFee`，成功后用 `requiredCashAmount` 写回 `estimatedCost`；免费任务写回 0，现金金额缺失时回退 `requiredRhAmount`。
+- 图片提交与 fee-preview 现在复用同一个 `buildImageGenerationRequest`，避免预览价格与实际提交参数不一致。
+- 修复 `autoSaveDraft()` 依赖生成 serializer 的问题，改为显式 `JsonObject` 读写 `currentTab/imagePrompt/videoPrompt`，避免输入 500ms 后触发 `DraftData` serializer 异常。
+- 新增 `QuickCreateScreenModelTest.image prompt refreshes server fee preview into estimated cost`，锁定 prompt 变化后会用当前服务端模型 ID 请求 fee-preview，并把 `0.76` 写回 UI 价格。
+
+已验证：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image prompt refreshes server fee preview into estimated cost"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :composeApp:testDebugUnitTest
+```
+
+代码提交：`650e13d fix(quickcreate): refresh image price from fee preview`。
+
+仍未完成：UI 还没有显式展示 `feePreviewLoading/feePreviewError` 文案，当前按钮金额会在预览成功后更新；后续应在底部输入区增加“价格确认中/价格待确认”的轻量状态，避免弱网或服务端失败时用户误解当前金额。
