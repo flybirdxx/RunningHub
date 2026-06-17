@@ -1357,9 +1357,7 @@ class QuickCreateScreenModelTest {
     fun `image upload completion updates image config after switching to video tab`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
-        val repository = FakeQuickCreateRepository().apply {
-            uploadDelayMillis = 1_000L
-        }
+        val repository = FakeQuickCreateRepository()
         val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
@@ -1410,14 +1408,16 @@ class QuickCreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             models = listOf(
                 models.single().copy(
-                    fields = models.single().fields + QuickCreationServiceField(
-                        fieldKey = "imageUrls",
-                        paramKey = "imageUrls",
-                        fieldType = "IMAGE",
-                        required = true,
-                        defaultValue = null,
-                        options = emptyList(),
-                        maxUploadCount = 1,
+                    fields = listOf(
+                        QuickCreationServiceField(
+                            fieldKey = "imageUrls",
+                            paramKey = "imageUrls",
+                            fieldType = "IMAGE",
+                            required = true,
+                            defaultValue = null,
+                            options = emptyList(),
+                            maxUploadCount = 1,
+                        )
                     )
                 )
             )
@@ -1437,6 +1437,50 @@ class QuickCreateScreenModelTest {
             listOf("https://example.com/file.jpg"),
             repository.lastImageRequest?.quickCreationListParams?.get("imageUrls"),
         )
+    }
+
+    @Test
+    fun `global image media does not fill multiple service image fields`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = listOf(
+                        QuickCreationServiceField(
+                            fieldKey = "imageUrls",
+                            paramKey = "imageUrls",
+                            fieldType = "IMAGE",
+                            required = false,
+                            defaultValue = null,
+                            options = emptyList(),
+                            maxUploadCount = 1,
+                        ),
+                        QuickCreationServiceField(
+                            fieldKey = "maskUrls",
+                            paramKey = "maskUrls",
+                            fieldType = "IMAGE",
+                            required = false,
+                            defaultValue = null,
+                            options = emptyList(),
+                            maxUploadCount = 1,
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReference("content://image/1")
+        advanceUntilIdle()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(emptyMap(), repository.lastImageRequest?.quickCreationListParams)
     }
 
     @Test
@@ -1471,7 +1515,7 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         model.updateImagePrompt("prompt")
-        model.pickImageReference("content://image/1")
+        model.pickImageReferenceForField("content://image/1", "childImages")
         advanceUntilIdle()
         advanceTimeBy(500)
         runCurrent()

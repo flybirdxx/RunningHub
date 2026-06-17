@@ -1527,11 +1527,14 @@ class QuickCreateScreenModel(
             .mapValues { (_, refs) ->
                 refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
             }
+        val uploadFieldCountByType = model.uploadFieldCountByType(serviceParams, fallbackMediaType)
 
         return buildMap {
             model.uploadFields().forEach { field ->
                 val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@forEach
-                val urls = urlsByField[field.paramKey].orEmpty().ifEmpty { urlsByType[mediaType].orEmpty() }
+                val urls = urlsByField[field.paramKey].orEmpty().ifEmpty {
+                    urlsByType.fallbackUrlsForSingleUploadField(mediaType, uploadFieldCountByType)
+                }
                 if (urls.isNotEmpty()) {
                     val maxCount = field.maxUploadCount ?: urls.size
                     put(field.paramKey, urls.take(maxCount))
@@ -1539,7 +1542,9 @@ class QuickCreateScreenModel(
             }
             model.activeChildUploadFields(serviceParams).forEach { child ->
                 val mediaType = child.uploadMediaType() ?: fallbackMediaType ?: return@forEach
-                val urls = urlsByField[child.paramKey].orEmpty().ifEmpty { urlsByType[mediaType].orEmpty() }
+                val urls = urlsByField[child.paramKey].orEmpty().ifEmpty {
+                    urlsByType.fallbackUrlsForSingleUploadField(mediaType, uploadFieldCountByType)
+                }
                 if (urls.isNotEmpty()) {
                     val maxCount = child.maxInputCount ?: urls.size
                     put(child.paramKey, urls.take(maxCount))
@@ -1642,11 +1647,12 @@ class QuickCreateScreenModel(
             .mapValues { (_, refs) ->
                 refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
             }
+        val uploadFieldCountByType = model.uploadFieldCountByType(serviceParams, fallbackMediaType)
         model.uploadFields()
             .firstNotNullOfOrNull { field ->
                 val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@firstNotNullOfOrNull null
                 val uploadedCount = urlsByField[field.paramKey].orEmpty()
-                    .ifEmpty { urlsByType[mediaType].orEmpty() }
+                    .ifEmpty { urlsByType.fallbackUrlsForSingleUploadField(mediaType, uploadFieldCountByType) }
                     .size
                 field.quickCreationUploadValidationError(uploadedCount)
             }
@@ -1655,11 +1661,36 @@ class QuickCreateScreenModel(
             .firstNotNullOfOrNull { child ->
                 val mediaType = child.uploadMediaType() ?: fallbackMediaType ?: return@firstNotNullOfOrNull null
                 val uploadedCount = urlsByField[child.paramKey].orEmpty()
-                    .ifEmpty { urlsByType[mediaType].orEmpty() }
+                    .ifEmpty { urlsByType.fallbackUrlsForSingleUploadField(mediaType, uploadFieldCountByType) }
                     .size
                 child.quickCreationUploadValidationError(uploadedCount)
             }
     }
+
+    private fun QuickCreationServiceModel?.uploadFieldCountByType(
+        serviceParams: Map<String, String>,
+        fallbackMediaType: QuickCreateMediaType?,
+    ): Map<QuickCreateMediaType, Int> =
+        buildMap {
+            this@uploadFieldCountByType.uploadFields().forEach { field ->
+                val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@forEach
+                put(mediaType, getOrDefault(mediaType, 0) + 1)
+            }
+            this@uploadFieldCountByType.activeChildUploadFields(serviceParams).forEach { child ->
+                val mediaType = child.uploadMediaType() ?: fallbackMediaType ?: return@forEach
+                put(mediaType, getOrDefault(mediaType, 0) + 1)
+            }
+        }
+
+    private fun Map<QuickCreateMediaType, List<String>>.fallbackUrlsForSingleUploadField(
+        mediaType: QuickCreateMediaType,
+        uploadFieldCountByType: Map<QuickCreateMediaType, Int>,
+    ): List<String> =
+        if (uploadFieldCountByType[mediaType] == 1) {
+            get(mediaType).orEmpty()
+        } else {
+            emptyList()
+        }
 
     private fun QuickCreationServiceModel?.uploadFields(): List<QuickCreationServiceField> =
         this?.fields.orEmpty().filter { it.isQuickCreationServiceFieldRenderable() && it.isQuickCreationUploadField() }
