@@ -1012,3 +1012,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真实设备复测时重点观察素材上传耗时较长的场景，确认上传中不会出现多余 fee-preview 请求，上传完成后才刷新。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：上传状态回写原始 tab
+
+代码提交 `bb291e0 fix(quickcreate): keep uploads bound to original tab` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `addMediaReference()` 会在素材创建时捕获 `targetTab = _uiState.value.currentTab`，并把该 tab 传入上传任务。
+- `uploadReference()` 及 `updateReferenceStatus()` 使用 `targetTab` 回写素材状态，不再读取任务完成时的 `state.currentTab`。
+- 因此用户在图片上传中切到视频 tab，图片素材仍会完成并留在 `imageConfig.mediaReferences`；反向视频上传同理。
+- fee-preview 调度仍由 `scheduleFeePreviewForMediaReference()` 判断当前相关素材和 `remoteUrl` 状态；后台 tab 上传完成不会错误写到当前 tab。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image upload completion updates image config after switching to video tab"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 补视频方向的显式回归测试：视频 tab 选择视频/音频素材后切回图片 tab，上传完成后切回视频生成，请求体仍应带上对应 URL。
+- 真实设备上复测跨 tab 上传和移除，尤其是 Tune 字段级上传与底部全局上传同时存在时的状态显示。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

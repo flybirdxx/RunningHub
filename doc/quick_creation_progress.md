@@ -938,3 +938,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真实设备上仍需复测全局/字段级素材的上传中、上传完成、移除状态与 fee-preview 网络请求是否一致。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 上传任务按创建时 tab 回写
+
+代码提交 `bb291e0 fix(quickcreate): keep uploads bound to original tab` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `addMediaReference()` 现在在创建素材时记录 `targetTab`，后续上传任务不再依赖实时 `currentTab` 决定回写位置。
+- `uploadReference()`、上传进度更新、上传成功和上传失败都按创建时 tab 更新对应的 `imageConfig` 或 `videoConfig`。
+- 修复用户在图片素材上传中切到视频 tab 后，图片素材完成状态无法写回图片配置的问题。
+- 新增回归测试覆盖：图片 tab 选择素材后立即切到视频 tab，上传完成后切回图片生成，请求体仍应包含 `referenceImages` URL。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image upload completion updates image config after switching to video tab"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真实设备上仍需复测跨 tab 上传：图片上传中切到视频、视频上传中切到图片、字段级素材上传中切 tab。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
