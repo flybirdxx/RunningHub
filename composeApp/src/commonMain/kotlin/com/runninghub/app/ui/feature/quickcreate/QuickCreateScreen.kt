@@ -117,6 +117,9 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             onProjectSelected = screenModel::selectProject,
                             onClearSelectedProject = screenModel::clearSelectedProject,
                             onToggleProjectPin = screenModel::toggleProjectPin,
+                            onCreateProject = screenModel::createProject,
+                            onRenameProject = screenModel::renameProject,
+                            onDeleteProject = screenModel::deleteProject,
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(
                             uiState = uiState,
@@ -367,6 +370,9 @@ private fun CreationScrollableArea(
     onProjectSelected: (String) -> Unit,
     onClearSelectedProject: () -> Unit,
     onToggleProjectPin: (String) -> Unit,
+    onCreateProject: (String) -> Unit,
+    onRenameProject: (String, String) -> Unit,
+    onDeleteProject: (String) -> Unit,
 ) {
     when {
         uiState.results.isNotEmpty() -> ResultArea(
@@ -377,7 +383,7 @@ private fun CreationScrollableArea(
             status = uiState.taskStatus,
             statusText = uiState.statusText,
         )
-        uiState.historyLoading || uiState.projectTasksLoading || uiState.historyItems.isNotEmpty() -> HistoryArea(
+        else -> HistoryArea(
             uiState = uiState,
             onHistoryItemSelected = onHistoryItemSelected,
             onLoadMoreHistory = onLoadMoreHistory,
@@ -385,8 +391,10 @@ private fun CreationScrollableArea(
             onProjectSelected = onProjectSelected,
             onClearSelectedProject = onClearSelectedProject,
             onToggleProjectPin = onToggleProjectPin,
+            onCreateProject = onCreateProject,
+            onRenameProject = onRenameProject,
+            onDeleteProject = onDeleteProject,
         )
-        else -> EmptyArea()
     }
 }
 
@@ -399,6 +407,9 @@ private fun HistoryArea(
     onProjectSelected: (String) -> Unit,
     onClearSelectedProject: () -> Unit,
     onToggleProjectPin: (String) -> Unit,
+    onCreateProject: (String) -> Unit,
+    onRenameProject: (String, String) -> Unit,
+    onDeleteProject: (String) -> Unit,
 ) {
     val selectedProject = uiState.projects.firstOrNull { it.projectId == uiState.selectedProjectId }
     LazyColumn(
@@ -407,18 +418,20 @@ private fun HistoryArea(
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
     ) {
         item {
-            if (uiState.projects.isNotEmpty() || uiState.projectsLoading) {
-                ProjectStrip(
-                    projects = uiState.projects,
-                    isLoading = uiState.projectsLoading,
-                    selectedProjectId = uiState.selectedProjectId,
-                    pinningIds = uiState.projectPinningIds,
-                    onProjectSelected = onProjectSelected,
-                    onClearSelectedProject = onClearSelectedProject,
-                    onToggleProjectPin = onToggleProjectPin,
-                )
-                Spacer(Modifier.height(Dimens.SpaceSM))
-            }
+            ProjectStrip(
+                projects = uiState.projects,
+                isLoading = uiState.projectsLoading,
+                selectedProjectId = uiState.selectedProjectId,
+                pinningIds = uiState.projectPinningIds,
+                mutatingIds = uiState.projectMutatingIds,
+                onProjectSelected = onProjectSelected,
+                onClearSelectedProject = onClearSelectedProject,
+                onToggleProjectPin = onToggleProjectPin,
+                onCreateProject = onCreateProject,
+                onRenameProject = onRenameProject,
+                onDeleteProject = onDeleteProject,
+            )
+            Spacer(Modifier.height(Dimens.SpaceSM))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -483,10 +496,18 @@ private fun ProjectStrip(
     isLoading: Boolean,
     selectedProjectId: String?,
     pinningIds: Set<String>,
+    mutatingIds: Set<String>,
     onProjectSelected: (String) -> Unit,
     onClearSelectedProject: () -> Unit,
     onToggleProjectPin: (String) -> Unit,
+    onCreateProject: (String) -> Unit,
+    onRenameProject: (String, String) -> Unit,
+    onDeleteProject: (String) -> Unit,
 ) {
+    var createDialogVisible by remember { mutableStateOf(false) }
+    var renameTarget by remember { mutableStateOf<QuickCreationProject?>(null) }
+    var deleteTarget by remember { mutableStateOf<QuickCreationProject?>(null) }
+
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXS)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -499,12 +520,28 @@ private fun ProjectStrip(
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
             )
-            if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = Primary300,
-                )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXS),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(18.dp),
+                        strokeWidth = 2.dp,
+                        color = Primary300,
+                    )
+                }
+                IconButton(
+                    onClick = { createDialogVisible = true },
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Add,
+                        contentDescription = "新建项目",
+                        tint = Primary300,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
         Row(
@@ -522,11 +559,51 @@ private fun ProjectStrip(
                     project = project,
                     selected = project.projectId == selectedProjectId,
                     isPinning = project.projectId in pinningIds,
+                    isMutating = project.projectId in mutatingIds,
                     onClick = { onProjectSelected(project.projectId) },
                     onTogglePin = { onToggleProjectPin(project.projectId) },
+                    onRename = { renameTarget = project },
+                    onDelete = { deleteTarget = project },
                 )
             }
         }
+    }
+
+    if (createDialogVisible) {
+        ProjectNameDialog(
+            title = "新建项目",
+            initialName = "",
+            confirmText = "新建",
+            onDismiss = { createDialogVisible = false },
+            onConfirm = { name ->
+                createDialogVisible = false
+                onCreateProject(name)
+            },
+        )
+    }
+
+    renameTarget?.let { project ->
+        ProjectNameDialog(
+            title = "重命名项目",
+            initialName = project.name,
+            confirmText = "保存",
+            onDismiss = { renameTarget = null },
+            onConfirm = { name ->
+                renameTarget = null
+                onRenameProject(project.projectId, name)
+            },
+        )
+    }
+
+    deleteTarget?.let { project ->
+        ProjectDeleteDialog(
+            project = project,
+            onDismiss = { deleteTarget = null },
+            onConfirm = {
+                deleteTarget = null
+                onDeleteProject(project.projectId)
+            },
+        )
     }
 }
 
@@ -569,9 +646,13 @@ private fun ProjectChip(
     project: QuickCreationProject,
     selected: Boolean,
     isPinning: Boolean,
+    isMutating: Boolean,
     onClick: () -> Unit,
     onTogglePin: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Surface(
         onClick = onClick,
         color = if (selected) Primary300.copy(alpha = 0.16f) else DarkSurface,
@@ -625,8 +706,123 @@ private fun ProjectChip(
                     fontSize = 11.sp,
                 )
             }
+            Box {
+                IconButton(
+                    onClick = { menuExpanded = true },
+                    enabled = !isMutating,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    if (isMutating) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = Primary300,
+                        )
+                    } else {
+                        Icon(
+                            Icons.Default.MoreVert,
+                            contentDescription = "项目操作",
+                            tint = Neutral400,
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = menuExpanded,
+                    onDismissRequest = { menuExpanded = false },
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("重命名") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Edit, contentDescription = null)
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onRename()
+                        },
+                    )
+                    DropdownMenuItem(
+                        text = { Text("删除") },
+                        leadingIcon = {
+                            Icon(Icons.Default.Delete, contentDescription = null)
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onDelete()
+                        },
+                    )
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun ProjectNameDialog(
+    title: String,
+    initialName: String,
+    confirmText: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var name by remember(initialName) { mutableStateOf(initialName) }
+    val trimmedName = name.trim()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(title, fontWeight = FontWeight.SemiBold)
+        },
+        text = {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("项目名称") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(trimmedName) },
+                enabled = trimmedName.isNotBlank(),
+            ) {
+                Text(confirmText)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        },
+    )
+}
+
+@Composable
+private fun ProjectDeleteDialog(
+    project: QuickCreationProject,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("删除项目", fontWeight = FontWeight.SemiBold)
+        },
+        text = {
+            Text("删除「${project.name}」后，项目入口会从当前列表移除。")
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("删除", color = ErrorDark)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("取消")
+            }
+        },
+    )
 }
 
 @Composable
@@ -1495,6 +1691,9 @@ private fun QuickCreatePreviewContent(
                             onProjectSelected = {},
                             onClearSelectedProject = {},
                             onToggleProjectPin = {},
+                            onCreateProject = {},
+                            onRenameProject = { _, _ -> },
+                            onDeleteProject = {},
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(uiState = uiState, onApplyTemplate = {})
                     }

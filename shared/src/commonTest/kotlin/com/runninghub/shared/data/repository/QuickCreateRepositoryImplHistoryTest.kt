@@ -301,6 +301,125 @@ class QuickCreateRepositoryImplHistoryTest {
         assertEquals("""{"projectId":"project-1","pin":true}""", bodies.single())
     }
 
+    @Test
+    fun `create project posts name and maps project`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
+        val repository = repositoryWithMock(
+            responseForPath = { path ->
+                paths += path
+                when (path) {
+                    QuickCreateApi.QC_PROJECT_CREATE -> """
+                        {
+                          "code": 0,
+                          "msg": "success",
+                          "data": {
+                            "projectId": "project-new",
+                            "name": "新品项目",
+                            "taskCount": 0,
+                            "pin": false
+                          }
+                        }
+                    """
+                    else -> """{"code":404,"msg":"unexpected path"}"""
+                }
+            },
+            captureBody = { bodies += it },
+        )
+
+        val project = repository.createQuickCreationProject("新品项目").getOrThrow()
+
+        assertEquals(listOf(QuickCreateApi.QC_PROJECT_CREATE), paths)
+        assertEquals("""{"name":"新品项目"}""", bodies.single())
+        assertEquals("project-new", project.projectId)
+        assertEquals("新品项目", project.name)
+    }
+
+    @Test
+    fun `rename project posts project id and name`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
+        val repository = repositoryWithMock(
+            responseForPath = { path ->
+                paths += path
+                when (path) {
+                    QuickCreateApi.QC_PROJECT_RENAME -> """{"code":0,"msg":"success","data":true}"""
+                    else -> """{"code":404,"msg":"unexpected path"}"""
+                }
+            },
+            captureBody = { bodies += it },
+        )
+
+        val result = repository.renameQuickCreationProject(
+            projectId = "project-1",
+            name = "新名称",
+        ).getOrThrow()
+
+        assertEquals(Unit, result)
+        assertEquals(listOf(QuickCreateApi.QC_PROJECT_RENAME), paths)
+        assertEquals("""{"projectId":"project-1","name":"新名称"}""", bodies.single())
+    }
+
+    @Test
+    fun `delete project posts project id`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
+        val repository = repositoryWithMock(
+            responseForPath = { path ->
+                paths += path
+                when (path) {
+                    QuickCreateApi.QC_PROJECT_DELETE -> """{"code":0,"msg":"success","data":true}"""
+                    else -> """{"code":404,"msg":"unexpected path"}"""
+                }
+            },
+            captureBody = { bodies += it },
+        )
+
+        val result = repository.deleteQuickCreationProject(projectId = "project-1").getOrThrow()
+
+        assertEquals(Unit, result)
+        assertEquals(listOf(QuickCreateApi.QC_PROJECT_DELETE), paths)
+        assertEquals("""{"projectId":"project-1"}""", bodies.single())
+    }
+
+    @Test
+    fun `get project detail posts project id and maps project`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
+        val repository = repositoryWithMock(
+            responseForPath = { path ->
+                paths += path
+                when (path) {
+                    QuickCreateApi.QC_PROJECT_DETAIL -> """
+                        {
+                          "code": 0,
+                          "msg": "success",
+                          "data": {
+                            "id": "project-1",
+                            "projectName": "项目详情",
+                            "cover": "https://example.com/detail.png",
+                            "taskCount": 5,
+                            "pinned": true
+                          }
+                        }
+                    """
+                    else -> """{"code":404,"msg":"unexpected path"}"""
+                }
+            },
+            captureBody = { bodies += it },
+        )
+
+        val project = repository.getQuickCreationProjectDetail(projectId = "project-1").getOrThrow()
+
+        assertEquals(listOf(QuickCreateApi.QC_PROJECT_DETAIL), paths)
+        assertEquals("""{"projectId":"project-1"}""", bodies.single())
+        assertEquals("project-1", project.projectId)
+        assertEquals("项目详情", project.name)
+        assertEquals("https://example.com/detail.png", project.coverUrl)
+        assertEquals(5, project.taskCount)
+        assertEquals(true, project.pinned)
+    }
+
     private fun repositoryWithMock(responseForPath: (String) -> String): QuickCreateRepositoryImpl {
         return repositoryWithMock(responseForPath = responseForPath, captureBody = {})
     }

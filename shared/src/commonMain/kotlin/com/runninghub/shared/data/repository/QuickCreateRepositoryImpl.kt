@@ -130,6 +130,9 @@ private fun QuickCreationProjectDto.toProjectOrNull(): QuickCreationProject? {
     )
 }
 
+private fun QuickCreationProjectDto.toProject(): QuickCreationProject =
+    toProjectOrNull() ?: throw IllegalStateException("Project id missing")
+
 private fun QuickCreationTaskRecordDto.toHistoryItem(): QuickCreationHistoryItem {
     val params = parseJsonObjectOrNull(apiRequestParams)
         ?.mapNotNull { (key, value) ->
@@ -1297,11 +1300,45 @@ class QuickCreateRepositoryImpl(
             response.data.toHistoryPage()
         }
 
+    override suspend fun createQuickCreationProject(name: String): Result<QuickCreationProject> =
+        runCatching {
+            val response = quickCreateApi.createQuickCreationProject(name = name)
+            if (response.code != 0 || response.data == null) {
+                throw IllegalStateException(response.msg ?: response.message ?: "Project create failed")
+            }
+            response.data.toProject()
+        }
+
+    override suspend fun renameQuickCreationProject(projectId: String, name: String): Result<Unit> =
+        runCatching {
+            val response = quickCreateApi.renameQuickCreationProject(projectId = projectId, name = name)
+            if (response.code != 0) {
+                throw IllegalStateException(response.msg ?: response.message ?: "Project rename failed")
+            }
+        }
+
+    override suspend fun deleteQuickCreationProject(projectId: String): Result<Unit> =
+        runCatching {
+            val response = quickCreateApi.deleteQuickCreationProject(projectId = projectId)
+            if (response.code != 0) {
+                throw IllegalStateException(response.msg ?: response.message ?: "Project delete failed")
+            }
+        }
+
     override suspend fun pinQuickCreationProject(projectId: String, pinned: Boolean): Result<Unit> =
         runCatching {
             val response = quickCreateApi.pinQuickCreationProject(projectId = projectId, pinned = pinned)
             if (response.code != 0) {
                 throw IllegalStateException(response.msg ?: response.message ?: "Project pin failed")
             }
+        }
+
+    override suspend fun getQuickCreationProjectDetail(projectId: String): Result<QuickCreationProject> =
+        runCatching {
+            val response = quickCreateApi.getQuickCreationProjectDetail(projectId = projectId)
+            if (response.code != 0 || response.data == null) {
+                throw IllegalStateException(response.msg ?: response.message ?: "Project detail load failed")
+            }
+            response.data.toProject()
         }
 }

@@ -51,6 +51,13 @@ class QuickCreateScreenModelTest {
         val requestedProjectPages = mutableListOf<Int>()
         val requestedProjectTaskPages = mutableListOf<Pair<String, Int>>()
         val pinnedProjectRequests = mutableListOf<Pair<String, Boolean>>()
+        val createdProjectNames = mutableListOf<String>()
+        val renamedProjectRequests = mutableListOf<Pair<String, String>>()
+        val deletedProjectIds = mutableListOf<String>()
+        var createdProject = QuickCreationProject(
+            projectId = "project-new",
+            name = "新项目",
+        )
         var historyPage = QuickCreationHistoryPage(
             page = 1,
             size = 10,
@@ -306,10 +313,28 @@ class QuickCreateScreenModelTest {
                 requestedProjectTaskPages += projectId to page
             }
 
+        override suspend fun createQuickCreationProject(name: String): Result<QuickCreationProject> =
+            Result.success(createdProject.copy(name = name)).also {
+                createdProjectNames += name
+            }
+
+        override suspend fun renameQuickCreationProject(projectId: String, name: String): Result<Unit> =
+            Result.success(Unit).also {
+                renamedProjectRequests += projectId to name
+            }
+
+        override suspend fun deleteQuickCreationProject(projectId: String): Result<Unit> =
+            Result.success(Unit).also {
+                deletedProjectIds += projectId
+            }
+
         override suspend fun pinQuickCreationProject(projectId: String, pinned: Boolean): Result<Unit> =
             Result.success(Unit).also {
                 pinnedProjectRequests += projectId to pinned
             }
+
+        override suspend fun getQuickCreationProjectDetail(projectId: String): Result<QuickCreationProject> =
+            Result.success(projectPage.items.first { it.projectId == projectId })
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -411,6 +436,46 @@ class QuickCreateScreenModelTest {
         assertEquals(listOf("project-1" to false), repository.pinnedProjectRequests)
         assertEquals(false, model.uiState.value.projects.single().pinned)
         assertEquals(emptySet(), model.uiState.value.projectPinningIds)
+    }
+
+    @Test
+    fun `creating project calls repository and prepends project`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.createProject("新项目")
+
+        assertEquals(listOf("新项目"), repository.createdProjectNames)
+        assertEquals("project-new", model.uiState.value.projects.first().projectId)
+        assertEquals("新项目", model.uiState.value.projects.first().name)
+        assertEquals(emptySet(), model.uiState.value.projectMutatingIds)
+    }
+
+    @Test
+    fun `renaming project calls repository and updates project name`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.renameProject("project-1", "新名称")
+
+        assertEquals(listOf("project-1" to "新名称"), repository.renamedProjectRequests)
+        assertEquals("新名称", model.uiState.value.projects.single().name)
+        assertEquals(emptySet(), model.uiState.value.projectMutatingIds)
+    }
+
+    @Test
+    fun `deleting selected project removes it and reloads recent history`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        model.selectProject("project-1")
+
+        model.deleteProject("project-1")
+
+        assertEquals(listOf("project-1"), repository.deletedProjectIds)
+        assertEquals(emptyList(), model.uiState.value.projects)
+        assertEquals(null, model.uiState.value.selectedProjectId)
+        assertEquals(listOf(1, 1), repository.requestedHistoryPages)
+        assertEquals(emptySet(), model.uiState.value.projectMutatingIds)
     }
 
     @Test

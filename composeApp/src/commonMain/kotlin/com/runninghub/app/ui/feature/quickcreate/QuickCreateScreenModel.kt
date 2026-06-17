@@ -39,6 +39,7 @@ data class DraftData(
 
 private val draftJson = Json { encodeDefaults = true }
 private const val HISTORY_REFRESH_INTERVAL_MS = 5_000L
+private const val PROJECT_CREATE_MUTATION_ID = "__create_project__"
 private val terminalHistoryStatuses = setOf("SUCCESS", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED")
 private val QuickCreationHistoryItem.needsHistoryRefresh: Boolean
     get() = status.isNotBlank() && status.uppercase() !in terminalHistoryStatuses
@@ -285,6 +286,116 @@ class QuickCreateScreenModel(
                         state.copy(
                             projectPinningIds = state.projectPinningIds - projectId,
                             error = error.message ?: "项目置顶失败",
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    fun createProject(name: String) {
+        val trimmedName = name.trim()
+        if (trimmedName.isBlank()) return
+
+        val mutationId = PROJECT_CREATE_MUTATION_ID
+        if (mutationId in _uiState.value.projectMutatingIds) return
+
+        screenModelScope.launch {
+            _uiState.update { state ->
+                state.copy(projectMutatingIds = state.projectMutatingIds + mutationId)
+            }
+            val result = quickCreateRepository.createQuickCreationProject(trimmedName)
+            result.fold(
+                onSuccess = { project ->
+                    _uiState.update { state ->
+                        state.copy(
+                            projectMutatingIds = state.projectMutatingIds - mutationId,
+                            projects = (listOf(project) + state.projects)
+                                .distinctBy { it.projectId },
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            projectMutatingIds = state.projectMutatingIds - mutationId,
+                            error = error.message ?: "项目创建失败",
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    fun renameProject(projectId: String, name: String) {
+        val trimmedName = name.trim()
+        if (projectId.isBlank() || trimmedName.isBlank()) return
+        if (projectId in _uiState.value.projectMutatingIds) return
+
+        screenModelScope.launch {
+            _uiState.update { state ->
+                state.copy(projectMutatingIds = state.projectMutatingIds + projectId)
+            }
+            val result = quickCreateRepository.renameQuickCreationProject(
+                projectId = projectId,
+                name = trimmedName,
+            )
+            result.fold(
+                onSuccess = {
+                    _uiState.update { state ->
+                        state.copy(
+                            projectMutatingIds = state.projectMutatingIds - projectId,
+                            projects = state.projects.map { project ->
+                                if (project.projectId == projectId) project.copy(name = trimmedName) else project
+                            },
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            projectMutatingIds = state.projectMutatingIds - projectId,
+                            error = error.message ?: "项目重命名失败",
+                        )
+                    }
+                },
+            )
+        }
+    }
+
+    fun deleteProject(projectId: String) {
+        if (projectId.isBlank()) return
+        if (projectId in _uiState.value.projectMutatingIds) return
+
+        val wasSelected = _uiState.value.selectedProjectId == projectId
+        screenModelScope.launch {
+            _uiState.update { state ->
+                state.copy(projectMutatingIds = state.projectMutatingIds + projectId)
+            }
+            val result = quickCreateRepository.deleteQuickCreationProject(projectId)
+            result.fold(
+                onSuccess = {
+                    _uiState.update { state ->
+                        state.copy(
+                            projectMutatingIds = state.projectMutatingIds - projectId,
+                            projects = state.projects.filterNot { it.projectId == projectId },
+                            selectedProjectId = if (wasSelected) null else state.selectedProjectId,
+                            projectTasksLoading = if (wasSelected) false else state.projectTasksLoading,
+                            historyItems = if (wasSelected) emptyList() else state.historyItems,
+                            historyPage = if (wasSelected) 0 else state.historyPage,
+                            historyTotal = if (wasSelected) 0 else state.historyTotal,
+                            historyHasMore = if (wasSelected) false else state.historyHasMore,
+                        )
+                    }
+                    if (wasSelected) {
+                        loadQuickCreationHistory()
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            projectMutatingIds = state.projectMutatingIds - projectId,
+                            error = error.message ?: "项目删除失败",
                         )
                     }
                 },

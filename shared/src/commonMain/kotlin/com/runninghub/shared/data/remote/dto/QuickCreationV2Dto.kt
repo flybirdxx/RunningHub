@@ -194,6 +194,22 @@ data class QuickCreationProjectTasksRequestDto(
 )
 
 @Serializable
+data class QuickCreationProjectCreateRequestDto(
+    @SerialName("name") val name: String,
+)
+
+@Serializable
+data class QuickCreationProjectRenameRequestDto(
+    @SerialName("projectId") val projectId: String,
+    @SerialName("name") val name: String,
+)
+
+@Serializable
+data class QuickCreationProjectIdRequestDto(
+    @SerialName("projectId") val projectId: String,
+)
+
+@Serializable
 data class QuickCreationProjectPinRequestDto(
     @SerialName("projectId") val projectId: String,
     @SerialName("pin") val pinned: Boolean,
