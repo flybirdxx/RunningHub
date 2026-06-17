@@ -82,6 +82,9 @@ import com.runninghub.app.ui.component.AppSearchBar
 import com.runninghub.app.ui.component.ErrorState
 import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.component.VideoThumbnail
+import com.runninghub.app.ui.adaptive.RhAdaptivePreview
+import com.runninghub.app.ui.adaptive.RhPreviewSpec
+import com.runninghub.app.ui.adaptive.previewDiscoveryUiState
 import com.runninghub.app.ui.feature.detail.AppDetailScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.WindowSizeClass
@@ -94,6 +97,7 @@ import com.runninghub.shared.domain.model.Tag
 import com.runninghub.shared.domain.model.TagSimple
 import com.runninghub.shared.domain.model.WebApp
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class DiscoveryVoyagerScreen : Screen {
 
@@ -602,6 +606,82 @@ private fun FeaturedAppBanner(
 }
 
 // endregion
+
+@Composable
+private fun DiscoveryAdaptivePreview(
+    spec: RhPreviewSpec,
+    searchExpanded: Boolean = false,
+) {
+    RhAdaptivePreview(spec = spec) {
+        DiscoveryContent(
+            uiState = previewDiscoveryUiState(searchExpanded = searchExpanded),
+            onExpandSearch = {},
+            onCollapseSearch = {},
+            onSearchQueryChange = {},
+            onSearchSubmit = {},
+            onLoadMoreSearchResults = {},
+            onAppClick = {},
+            onCategorySelected = {},
+            onSortSelected = {},
+            onRefresh = {},
+            onLoadMore = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun DiscoveryPhone320Preview() {
+    DiscoveryAdaptivePreview(RhPreviewSpec.Phone320)
+}
+
+@Preview
+@Composable
+private fun DiscoveryPhone360Preview() {
+    DiscoveryAdaptivePreview(RhPreviewSpec.Phone360)
+}
+
+@Preview
+@Composable
+private fun DiscoveryPhone430Preview() {
+    DiscoveryAdaptivePreview(RhPreviewSpec.Phone430)
+}
+
+@Preview
+@Composable
+private fun DiscoveryMedium600Preview() {
+    DiscoveryAdaptivePreview(RhPreviewSpec.Medium600)
+}
+
+@Preview
+@Composable
+private fun DiscoveryExpanded840Preview() {
+    DiscoveryAdaptivePreview(RhPreviewSpec.Expanded840)
+}
+
+@Preview
+@Composable
+private fun DiscoveryLandscapePreview() {
+    DiscoveryAdaptivePreview(RhPreviewSpec.Landscape800)
+}
+
+@Preview
+@Composable
+private fun DiscoveryFontScale13Preview() {
+    DiscoveryAdaptivePreview(RhPreviewSpec.FontScale13)
+}
+
+@Preview
+@Composable
+private fun DiscoveryFontScale15Preview() {
+    DiscoveryAdaptivePreview(RhPreviewSpec.FontScale15)
+}
+
+@Preview
+@Composable
+private fun DiscoveryInlineSearchPreview() {
+    DiscoveryAdaptivePreview(RhPreviewSpec.Phone360, searchExpanded = true)
+}
 
 // region Category Tags + Sort
 

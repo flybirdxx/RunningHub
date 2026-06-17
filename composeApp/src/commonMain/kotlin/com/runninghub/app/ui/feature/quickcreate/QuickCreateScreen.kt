@@ -37,6 +37,8 @@ import com.runninghub.app.ui.component.MediaType
 import com.runninghub.app.platform.PermissionController
 import com.runninghub.app.platform.rememberPermissionController
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
+import com.runninghub.app.ui.adaptive.RhAdaptivePreview
+import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.RunningHubPreviewSurface
 import com.runninghub.app.ui.adaptive.previewQuickCreateUiState
 import com.runninghub.app.ui.component.PermissionBottomSheet
@@ -673,6 +675,113 @@ private fun SendButton(
             }
         }
     }
+}
+
+@Composable
+private fun QuickCreatePreviewContent(
+    uiState: QuickCreateUiState = previewQuickCreateUiState(),
+) {
+    val windowInfo = LocalRhWindowInfo.current
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(DarkBackground),
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .widthIn(max = windowInfo.detailContentMaxWidth),
+            ) {
+                TopBar(title = "快捷创作", onBack = null)
+
+                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    when {
+                        uiState.results.isNotEmpty() -> ResultArea(
+                            results = uiState.results,
+                            onClear = {},
+                        )
+                        uiState.taskStatus != QuickCreateTaskUiStatus.IDLE -> TaskStatusArea(
+                            status = uiState.taskStatus,
+                            statusText = uiState.statusText,
+                        )
+                        else -> EmptyArea()
+                    }
+                }
+
+                BottomPromptPanel(
+                    uiState = uiState,
+                    onTabSwitch = {},
+                    onPromptChange = {},
+                    onLaunchImagePicker = {},
+                    onLaunchVideoPicker = {},
+                    onLaunchAudioPicker = {},
+                    onRemoveMedia = {},
+                    onToggleTune = {},
+                    onGenerate = {},
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun QuickCreateAdaptivePreview(spec: RhPreviewSpec) {
+    RhAdaptivePreview(spec = spec) {
+        QuickCreatePreviewContent()
+    }
+}
+
+@Preview
+@Composable
+private fun QuickCreatePhone320Preview() {
+    QuickCreateAdaptivePreview(RhPreviewSpec.Phone320)
+}
+
+@Preview
+@Composable
+private fun QuickCreatePhone360Preview() {
+    QuickCreateAdaptivePreview(RhPreviewSpec.Phone360)
+}
+
+@Preview
+@Composable
+private fun QuickCreatePhone430Preview() {
+    QuickCreateAdaptivePreview(RhPreviewSpec.Phone430)
+}
+
+@Preview
+@Composable
+private fun QuickCreateMedium600Preview() {
+    QuickCreateAdaptivePreview(RhPreviewSpec.Medium600)
+}
+
+@Preview
+@Composable
+private fun QuickCreateExpanded840Preview() {
+    QuickCreateAdaptivePreview(RhPreviewSpec.Expanded840)
+}
+
+@Preview
+@Composable
+private fun QuickCreateLandscapePreview() {
+    QuickCreateAdaptivePreview(RhPreviewSpec.Landscape800)
+}
+
+@Preview
+@Composable
+private fun QuickCreateFontScale13Preview() {
+    QuickCreateAdaptivePreview(RhPreviewSpec.FontScale13)
+}
+
+@Preview
+@Composable
+private fun QuickCreateFontScale15Preview() {
+    QuickCreateAdaptivePreview(RhPreviewSpec.FontScale15)
 }
 
 @Composable

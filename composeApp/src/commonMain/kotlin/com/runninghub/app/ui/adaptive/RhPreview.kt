@@ -13,6 +13,36 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.theme.RunningHubTheme
 
+internal enum class RhPreviewSpec(
+    val widthDp: Int,
+    val heightDp: Int,
+    val fontScale: Float = 1f,
+) {
+    Phone320(widthDp = 320, heightDp = 568),
+    Phone360(widthDp = 360, heightDp = 640),
+    Phone430(widthDp = 430, heightDp = 932),
+    Medium600(widthDp = 600, heightDp = 840),
+    Expanded840(widthDp = 840, heightDp = 1180),
+    Landscape800(widthDp = 800, heightDp = 360),
+    FontScale13(widthDp = 360, heightDp = 800, fontScale = 1.3f),
+    FontScale15(widthDp = 360, heightDp = 800, fontScale = 1.5f),
+}
+
+@Composable
+internal fun RhAdaptivePreview(
+    spec: RhPreviewSpec,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    RunningHubPreviewSurface(
+        modifier = modifier,
+        windowWidth = spec.widthDp.dp,
+        windowHeight = spec.heightDp.dp,
+        fontScale = spec.fontScale,
+        content = content,
+    )
+}
+
 @Composable
 fun RunningHubPreviewSurface(
     modifier: Modifier = Modifier,

@@ -56,6 +56,9 @@ import com.runninghub.app.ui.component.AppCard
 import com.runninghub.app.ui.component.AppSearchBar
 import com.runninghub.app.ui.component.ErrorState
 import com.runninghub.app.ui.component.LoadingIndicator
+import com.runninghub.app.ui.adaptive.RhAdaptivePreview
+import com.runninghub.app.ui.adaptive.RhPreviewSpec
+import com.runninghub.app.ui.adaptive.previewSearchUiState
 import com.runninghub.app.ui.feature.detail.AppDetailScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
@@ -63,6 +66,7 @@ import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.adaptiveGridColumns
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.shared.domain.model.Tag
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class SearchVoyagerScreen : Screen {
 
@@ -367,4 +371,68 @@ private fun HotTagsSection(
             }
         }
     }
+}
+
+@Composable
+private fun SearchAdaptivePreview(spec: RhPreviewSpec) {
+    RhAdaptivePreview(spec = spec) {
+        SearchContent(
+            uiState = previewSearchUiState(),
+            onQueryChange = {},
+            onSearch = {},
+            onClearSearch = {},
+            onTagClick = {},
+            onAppClick = {},
+            onBack = {},
+            onLoadMore = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun SearchPhone320Preview() {
+    SearchAdaptivePreview(RhPreviewSpec.Phone320)
+}
+
+@Preview
+@Composable
+private fun SearchPhone360Preview() {
+    SearchAdaptivePreview(RhPreviewSpec.Phone360)
+}
+
+@Preview
+@Composable
+private fun SearchPhone430Preview() {
+    SearchAdaptivePreview(RhPreviewSpec.Phone430)
+}
+
+@Preview
+@Composable
+private fun SearchMedium600Preview() {
+    SearchAdaptivePreview(RhPreviewSpec.Medium600)
+}
+
+@Preview
+@Composable
+private fun SearchExpanded840Preview() {
+    SearchAdaptivePreview(RhPreviewSpec.Expanded840)
+}
+
+@Preview
+@Composable
+private fun SearchLandscapePreview() {
+    SearchAdaptivePreview(RhPreviewSpec.Landscape800)
+}
+
+@Preview
+@Composable
+private fun SearchFontScale13Preview() {
+    SearchAdaptivePreview(RhPreviewSpec.FontScale13)
+}
+
+@Preview
+@Composable
+private fun SearchFontScale15Preview() {
+    SearchAdaptivePreview(RhPreviewSpec.FontScale15)
 }

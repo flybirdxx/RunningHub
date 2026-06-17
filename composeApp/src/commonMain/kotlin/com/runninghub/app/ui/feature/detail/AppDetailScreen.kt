@@ -88,7 +88,8 @@ import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.TaskProgressIndicator
 import com.runninghub.app.ui.component.TaskStep
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
-import com.runninghub.app.ui.adaptive.RunningHubPreviewSurface
+import com.runninghub.app.ui.adaptive.RhAdaptivePreview
+import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.previewAppDetail
 import com.runninghub.app.ui.adaptive.previewTaskOutputs
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreen
@@ -1140,8 +1141,8 @@ private fun detailPreviewState(): AppDetailUiState {
 }
 
 @Composable
-private fun DetailAdaptivePreview(widthDp: Int, heightDp: Int) {
-    RunningHubPreviewSurface(windowWidth = widthDp.dp, windowHeight = heightDp.dp) {
+private fun DetailAdaptivePreview(spec: RhPreviewSpec) {
+    RhAdaptivePreview(spec = spec) {
         DetailContent(
             uiState = detailPreviewState(),
             onBack = {},
@@ -1153,39 +1154,52 @@ private fun DetailAdaptivePreview(widthDp: Int, heightDp: Int) {
             onRemoveFile = { _, _ -> },
         )
     }
+}
+
+@Preview
+@Composable
+private fun DetailPhone320Preview() {
+    DetailAdaptivePreview(RhPreviewSpec.Phone320)
+}
+
+@Preview
+@Composable
+private fun DetailPhone360Preview() {
+    DetailAdaptivePreview(RhPreviewSpec.Phone360)
+}
+
+@Preview
+@Composable
+private fun DetailPhone430Preview() {
+    DetailAdaptivePreview(RhPreviewSpec.Phone430)
 }
 
 @Preview
 @Composable
 private fun DetailMediumPreview() {
-    DetailAdaptivePreview(widthDp = 600, heightDp = 840)
+    DetailAdaptivePreview(RhPreviewSpec.Medium600)
 }
 
 @Preview
 @Composable
 private fun DetailExpandedPreview() {
-    DetailAdaptivePreview(widthDp = 840, heightDp = 1180)
+    DetailAdaptivePreview(RhPreviewSpec.Expanded840)
 }
 
 @Preview
 @Composable
 private fun DetailLandscapePreview() {
-    DetailAdaptivePreview(widthDp = 800, heightDp = 360)
+    DetailAdaptivePreview(RhPreviewSpec.Landscape800)
+}
+
+@Preview
+@Composable
+private fun DetailFontScale13Preview() {
+    DetailAdaptivePreview(RhPreviewSpec.FontScale13)
 }
 
 @Preview
 @Composable
 private fun DetailFontScale15Preview() {
-    RunningHubPreviewSurface(windowWidth = 360.dp, windowHeight = 800.dp, fontScale = 1.5f) {
-        DetailContent(
-            uiState = detailPreviewState(),
-            onBack = {},
-            onAuthorClick = {},
-            onInputChanged = { _, _, _ -> },
-            onRunTask = {},
-            onResetTask = {},
-            onPickImage = { _, _ -> },
-            onRemoveFile = { _, _ -> },
-        )
-    }
+    DetailAdaptivePreview(RhPreviewSpec.FontScale15)
 }

@@ -33,12 +33,16 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import com.runninghub.app.ui.component.LoadingIndicator
+import com.runninghub.app.ui.adaptive.RhAdaptivePreview
+import com.runninghub.app.ui.adaptive.RhPreviewSpec
+import com.runninghub.app.ui.adaptive.previewProfileUiState
 import com.runninghub.app.ui.feature.login.LoginVoyagerScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
 import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.shared.domain.model.User
+import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class ProfileVoyagerScreen : Screen {
 
@@ -724,4 +728,69 @@ private fun formatNumber(value: String): String {
         num >= 1000 -> String.format("%.1fk", num / 1000)
         else -> num.toInt().toString()
     }
+}
+
+@Composable
+private fun ProfileAdaptivePreview(spec: RhPreviewSpec) {
+    RhAdaptivePreview(spec = spec) {
+        ProfileScreenContent(
+            uiState = previewProfileUiState(),
+            onRefresh = {},
+            onBindApiKey = {},
+            onBindCookie = {},
+            onShowApiKeyDialog = {},
+            onDismissApiKeyDialog = {},
+            onShowCookieDialog = {},
+            onDismissCookieDialog = {},
+            onLogout = {},
+        )
+    }
+}
+
+@Preview
+@Composable
+private fun ProfilePhone320Preview() {
+    ProfileAdaptivePreview(RhPreviewSpec.Phone320)
+}
+
+@Preview
+@Composable
+private fun ProfilePhone360Preview() {
+    ProfileAdaptivePreview(RhPreviewSpec.Phone360)
+}
+
+@Preview
+@Composable
+private fun ProfilePhone430Preview() {
+    ProfileAdaptivePreview(RhPreviewSpec.Phone430)
+}
+
+@Preview
+@Composable
+private fun ProfileMedium600Preview() {
+    ProfileAdaptivePreview(RhPreviewSpec.Medium600)
+}
+
+@Preview
+@Composable
+private fun ProfileExpanded840Preview() {
+    ProfileAdaptivePreview(RhPreviewSpec.Expanded840)
+}
+
+@Preview
+@Composable
+private fun ProfileLandscapePreview() {
+    ProfileAdaptivePreview(RhPreviewSpec.Landscape800)
+}
+
+@Preview
+@Composable
+private fun ProfileFontScale13Preview() {
+    ProfileAdaptivePreview(RhPreviewSpec.FontScale13)
+}
+
+@Preview
+@Composable
+private fun ProfileFontScale15Preview() {
+    ProfileAdaptivePreview(RhPreviewSpec.FontScale15)
 }

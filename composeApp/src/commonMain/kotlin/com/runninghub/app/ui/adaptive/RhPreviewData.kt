@@ -10,6 +10,10 @@ import com.runninghub.app.ui.feature.quickcreate.QuickCreateMediaType
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateTab
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
 import com.runninghub.app.ui.feature.quickcreate.UploadStatus
+import com.runninghub.app.ui.feature.discovery.DiscoveryUiState
+import com.runninghub.app.ui.feature.discovery.SortOption
+import com.runninghub.app.ui.feature.profile.ProfileUiState
+import com.runninghub.app.ui.feature.search.SearchUiState
 import com.runninghub.shared.domain.model.AppDetail
 import com.runninghub.shared.domain.model.Author
 import com.runninghub.shared.domain.model.Cover
@@ -86,6 +90,33 @@ internal fun previewWebApp(
     carefullyChosen = true,
 )
 
+internal fun previewWebApps(count: Int = 12): List<WebApp> {
+    val titles = listOf(
+        "Cinema Portrait Generator with Long Title",
+        "Ultra Detail Product Upscale",
+        "Product Shot Studio",
+        "Storyboard Motion Builder",
+        "Restyle Interior Lighting",
+        "Avatar Reference Mixer",
+        "Video Background Reframe",
+        "Batch Cover Polisher",
+        "Commercial Poster Layout",
+        "Image Repair Workflow",
+        "Character Sheet Composer",
+        "Social Campaign Visual Pack",
+    )
+    return List(count) { index ->
+        previewWebApp(
+            id = "preview-app-${index + 1}",
+            title = titles[index % titles.size],
+            tags = listOf(
+                previewTagSimple("tag-${index + 1}-a", if (index % 2 == 0) "Portrait" else "Video"),
+                previewTagSimple("tag-${index + 1}-b", if (index % 3 == 0) "Long Adaptive Tag" else "Detail"),
+            ),
+        )
+    }
+}
+
 internal fun previewCategories(): List<Tag> = listOf(
     previewTag(
         id = "portrait-root",
@@ -116,6 +147,26 @@ internal fun previewCategories(): List<Tag> = listOf(
     ),
 )
 
+internal fun previewDiscoveryUiState(
+    searchExpanded: Boolean = false,
+): DiscoveryUiState {
+    val apps = previewWebApps()
+    return DiscoveryUiState(
+        isLoading = false,
+        banners = apps.take(4),
+        categories = previewCategories(),
+        selectedCategoryIndex = 1,
+        selectedSort = SortOption.RECOMMEND,
+        apps = apps,
+        currentPage = 2,
+        hasMore = false,
+        isSearchExpanded = searchExpanded,
+        searchQuery = if (searchExpanded) "portrait workflow" else "",
+        searchResults = apps.take(8),
+        searchHasMore = false,
+    )
+}
+
 internal fun previewUser(): User = User(
     id = "user-1",
     nickName = "Creator with a Very Long Display Name",
@@ -141,6 +192,19 @@ internal fun previewUser(): User = User(
     followCount = "268",
     likeCount = "14500",
     collectCount = "3890",
+)
+
+internal fun previewProfileUiState(): ProfileUiState = ProfileUiState(
+    isLoading = false,
+    user = previewUser(),
+    isLoggedIn = true,
+)
+
+internal fun previewSearchUiState(): SearchUiState = SearchUiState(
+    query = "portrait workflow",
+    results = previewWebApps(count = 10),
+    hotTags = previewCategories(),
+    hasMore = false,
 )
 
 internal fun previewAppDetail(): AppDetail = AppDetail(
