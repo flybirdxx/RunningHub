@@ -14,12 +14,13 @@
 - 任务轮询：使用 `/task/quick-creation/list`，不再依赖 `/api/output/taskHistory`。
 - 其它图片模型和视频模型：暂时保留旧 `openapi/v2` 兼容逻辑。
 - 页面结构：顶部“创作/灵感”、中间滚动区、底部固定输入区已落地。
-- 灵感页：当前是 UI 占位，尚未接真实模板接口。
+- 灵感页：已接真实 `tags/templates` 列表；模板详情和“制作同款”尚未接入。
 
 ## 关键文件
 
 - `shared/src/commonMain/kotlin/com/runninghub/shared/data/remote/dto/QuickCreationV2Dto.kt`
 - `shared/src/commonMain/kotlin/com/runninghub/shared/data/remote/api/QuickCreateApi.kt`
+- `shared/src/commonMain/kotlin/com/runninghub/shared/domain/repository/QuickCreateRepository.kt`
 - `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/QuickCreationV2Defaults.kt`
 - `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/QuickCreateRepositoryImpl.kt`
 - `shared/src/commonMain/kotlin/com/runninghub/shared/di/SharedModule.kt`
@@ -33,7 +34,7 @@
 
 1. 真机验证图片 G-2.0 文生图：确认登录态、价格、扣费、任务状态和输出预览。
 2. 接入 `/api/qc/v2/models`：替换本地图片模型枚举的参数来源，先保留 UI 枚举作为 fallback。
-3. 接入真实灵感接口：`tags/templates/template/detail`，把占位列表替换为服务端数据。
+3. 接入模板详情：`/task/quick-creation/inspiration/template/detail`，实现“制作同款”到当前模型和字段的映射。
 4. 抓包并接入 Seedance2.0 视频 v2：复用当前 `QuickCreationCreateRequestDto` 和 prepare/commit/list 状态机。
 5. 做历史列表：直接消费 `/task/quick-creation/list`，详情使用 `outputId`。
 6. 再考虑项目管理接口：`project/list/create/rename/delete/pin/detail/tasks`。
