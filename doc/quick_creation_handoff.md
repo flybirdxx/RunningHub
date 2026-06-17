@@ -1271,3 +1271,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 补视频模板 `referenceAudios` 的字段级正向回归，覆盖音频素材的 fieldKey/paramKey 别名路径。
 - 真机复测字段别名冲突模板，重点看 Tune 默认值、child 激活状态和最终 prepare 请求字段。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：visibleWhen 条件字段别名解析
+
+代码提交 `6a20c50 fix(quickcreate): resolve visible conditions by field aliases` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 条件字段判断现在先构造只用于 UI/校验/归属计算的 params 视图：`quickCreationParamsWithFieldAliases(serviceParams)`。
+- 这个视图会为每个服务字段和 input child 建立 `fieldKey <-> paramKey` 的值别名，并在没有显式值时使用非空默认值；它不会写回 `imageServiceParams` / `videoServiceParams`，也不会把 fieldKey 提交给后端。
+- 因此当真实接口返回 `visibleWhen.fieldKey = "creationMode"`，但客户端状态只保存 `creation_mode` 这类 canonical `paramKey` 时，active child 仍能被正确渲染、校验、绑定模板素材并进入 `quickCreationListParams`。
+- `TuneBottomSheet` 已在图片和视频服务字段渲染前使用同一 alias 视图，避免出现“提交路径认为 child active，但 UI 不显示”或反向不一致。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.active upload param keys resolve sibling field key conditions from param key values"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModel.kt composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/TuneBottomSheet.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModelTest.kt
+```
+
+下一步建议：
+- 用真实登录态抓一个带 `visibleWhen` 且 `fieldKey != paramKey` 的模板，核对应用模板后的 Tune UI 子字段、素材卡片位置和最终 prepare 请求体。
+- 继续审查 `detail.params` 里的 unknown key 是否应该进入 `quickCreationParams`；如果后端未来收紧 schema，可能需要把模板 UI 配置字段和服务字段进一步拆开。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

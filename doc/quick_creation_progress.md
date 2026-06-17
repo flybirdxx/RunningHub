@@ -1177,3 +1177,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真机仍需复测模板 params 同时包含 fieldKey/paramKey 的真实返回，确认最终请求体使用 canonical paramKey 且值不被别名覆盖。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 条件字段 visibleWhen 支持 fieldKey/paramKey 别名
+
+代码提交 `6a20c50 fix(quickcreate): resolve visible conditions by field aliases` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `QuickCreationServiceModel?.quickCreationParamsWithFieldAliases()`，在条件判断视图里把同一服务字段的 `fieldKey`、`paramKey` 和非空默认值对齐为同一个值。
+- `quickCreationActiveUploadParamKeys()` 现在用别名化 params 解析 active child upload，避免 `visibleWhen.fieldKey` 引用 sibling 字段时，因为当前状态只保存 canonical `paramKey` 而漏激活。
+- `QuickCreateScreenModel` 的 active 参数过滤、文本校验、上传校验、模板素材 active alias 解析都改为基于别名化 params。
+- `TuneBottomSheet` 的图片/视频服务字段渲染入口也使用别名化 params，保证 UI 显示、校验、模板素材归属和最终提交路径一致。
+- 新增回归测试覆盖：`fieldKey=creationMode,paramKey=creation_mode` 的 sibling 条件字段，在状态只有 `creation_mode=imageReference` 时仍能激活 `reference_images` 上传字段。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest.active upload param keys resolve sibling field key conditions from param key values"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModel.kt composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/TuneBottomSheet.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreationServiceFieldUiModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测真实模板中 `visibleWhen.fieldKey` 指向 sibling 字段且字段名与提交 `paramKey` 不一致的场景，重点确认 Tune 子字段显示、模板素材字段卡片和 prepare 请求体一致。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
