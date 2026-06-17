@@ -468,3 +468,29 @@ git diff --check
 仍未完成：
 - 列表字段条件联动、`inputsChildList` 子输入和更复杂的 `skuInputExtraJson` 动态表单仍未完整覆盖。
 - 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。
+
+## 2026-06-18 inputsChildList 子输入元数据解析
+
+代码提交 `ef79c92 fix(quickcreate): parse service input child metadata` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreationServiceFieldExtra` 新增 `inputChildren`，开始结构化承载复杂 `skuInputExtraJson.inputsChildList`。
+- 新增 `QuickCreationServiceFieldInputChild` 和 `QuickCreationServiceFieldVisibilityCondition` domain 模型，保留子字段 `fieldKey/paramKey/fieldType/required/visible/defaultValue/title/paramDescription/placeholder/options/visibleWhen`。
+- `QuickCreationModelMapper` 支持 `inputsChildList/inputChildList/children` 三种子列表键；子列表既可为 JSON array，也可为 JSON array 字符串。
+- 子字段 options 支持对象数组和 primitive 数组；简单可见条件支持 `showWhen/visibleWhen/dependsOn`，并解析 `fieldKey` 与 `values/value`。
+- 新增 mapper 回归测试，锁定子输入字段、选项和条件可见 metadata 不再只停留在 raw JSON。
+
+已验证命令：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest.maps service field input child list metadata"
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :shared:testDebugUnitTest
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+git diff --check
+```
+
+仍未完成：
+- 子输入 metadata 目前已进入 domain，但 Tune UI 尚未渲染 `inputChildren`，正式请求构造也尚未消费子字段值。
+- 条件联动目前只保留简单 `visibleWhen` metadata，尚未在 UI 中按父字段值动态显示/隐藏。
+- 本轮未点击真实生成，未触发新的 `prepare/commit`，也未产生扣费。

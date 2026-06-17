@@ -541,3 +541,30 @@ git diff --check
 - 继续处理 `inputsChildList`、条件字段和复杂 `skuInputExtraJson`。这些能力应先补 domain/metadata 解析和 helper 单测，再接 Tune UI。
 - 后续如需验证真实视频 `prepare/commit/list/detail`，仍必须先取得新的明确扣费授权；本轮没有触发任何真实生成或扣费。
 - 继续不要把既有 `AuthRepositoryImpl.kt` 改动和未跟踪 `output/` 证据目录混入后续提交。
+
+## 2026-06-18 追加交接：inputsChildList 子输入解析
+
+代码提交 `ef79c92 fix(quickcreate): parse service input child metadata` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreationServiceFieldExtra.inputChildren` 已承载 `skuInputExtraJson` 中的子输入列表。
+- 子输入 domain 类型为 `QuickCreationServiceFieldInputChild`，当前保留 `fieldKey/paramKey/fieldType/required/visible/defaultValue/title/paramDescription/placeholder/options/visibleWhen`。
+- mapper 兼容 `inputsChildList/inputChildList/children`，并兼容子列表是 JSON array 或 JSON array 字符串的形态。
+- 子输入 options 支持对象数组和 primitive 数组；简单条件 metadata 支持 `showWhen/visibleWhen/dependsOn`，输出为 `QuickCreationServiceFieldVisibilityCondition`。
+- 这一步只把复杂字段从 raw JSON 解析到 domain，没有改变 Tune UI 展示，也没有改变正式请求参数构造。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest.maps service field input child list metadata"
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreationModelMapperTest"
+.\gradlew.bat :shared:testDebugUnitTest
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest"
+git diff --check
+```
+
+下一步建议：
+- 先在 `QuickCreationServiceFieldUiModelTest` 定义子输入渲染规则：父字段何时显示子字段、子字段标题/占位/说明怎么回退、子字段是否复用文本/上传校验 helper。
+- 再接 `TuneBottomSheet`：渲染当前父字段激活的 `inputChildren`，并把子字段值写回 `serviceParams`，参数 key 使用子字段 `paramKey`。
+- 最后补 `QuickCreateScreenModel` 提交前校验和请求构造测试，确保子字段只在可见/激活时进入正式 params。
+- 继续不要触发真实生成；视频完整 `prepare/commit` 仍需新的明确扣费授权。
