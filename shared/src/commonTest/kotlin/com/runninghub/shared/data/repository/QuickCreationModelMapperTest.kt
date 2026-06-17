@@ -104,4 +104,53 @@ class QuickCreationModelMapperTest {
         assertEquals(false, pricing.isTimeFree)
         assertEquals("none", pricing.promoType)
     }
+
+    @Test
+    fun `maps service field extra json metadata`() {
+        val models = listOf(
+            QuickCreationModelDto(
+                type = "model",
+                categoryId = "IMAGE",
+                bindingId = "binding-1",
+                skuId = "sku-1",
+                name = "model",
+                fields = listOf(
+                    QuickCreationFieldDto(
+                        fieldKey = "imageUrls",
+                        mappedApiParamKey = "imageUrls",
+                        fieldType = "IMAGE",
+                        required = true,
+                        skuInputExtraJson = JsonPrimitive(
+                            """
+                            {
+                              "title": "Reference image",
+                              "titleEn": "Reference image",
+                              "paramDesc": "Upload 1-4 reference images",
+                              "paramDescEn": "Upload reference images",
+                              "placeholder": "Upload image",
+                              "accept": "[\"JPG\",\"PNG\",\"WEBP\"]",
+                              "maxLength": 20000,
+                              "minLength": 1,
+                              "maxInpuNum": 4,
+                              "ignoreListValueCaseSensitive": true
+                            }
+                            """.trimIndent()
+                        ),
+                    )
+                ),
+            )
+        )
+
+        val field = QuickCreationModelMapper.flatten("IMAGE", models).single().fields.single()
+        val extra = assertNotNull(field.inputExtra)
+
+        assertEquals("Reference image", extra.title)
+        assertEquals("Upload 1-4 reference images", extra.paramDescription)
+        assertEquals("Upload image", extra.placeholder)
+        assertEquals(listOf("JPG", "PNG", "WEBP"), extra.acceptFormats)
+        assertEquals(20000, extra.maxLength)
+        assertEquals(1, extra.minLength)
+        assertEquals(4, extra.maxInputCount)
+        assertEquals(true, extra.ignoreListValueCaseSensitive)
+    }
 }

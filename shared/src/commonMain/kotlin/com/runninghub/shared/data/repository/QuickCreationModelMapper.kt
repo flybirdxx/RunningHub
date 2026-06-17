@@ -5,9 +5,13 @@ import com.runninghub.shared.data.remote.dto.QuickCreationFieldOptionDto
 import com.runninghub.shared.data.remote.dto.QuickCreationModelDto
 import com.runninghub.shared.data.remote.dto.QuickCreationPricingDto
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldOption
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.QuickCreationServicePricing
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -16,6 +20,12 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
 internal object QuickCreationModelMapper {
+    private val inputExtraJson = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        explicitNulls = false
+    }
+
     fun flatten(
         fallbackCategoryId: String,
         models: List<QuickCreationModelDto>,
@@ -54,6 +64,7 @@ internal object QuickCreationModelMapper {
 
     private fun QuickCreationFieldDto.toDomain(): QuickCreationServiceField? {
         val key = fieldKey?.takeIf { it.isNotBlank() } ?: return null
+        val extraJson = skuInputExtraJson?.stringValue()
         return QuickCreationServiceField(
             fieldKey = key,
             paramKey = mappedApiParamKey?.takeIf { it.isNotBlank() } ?: key,
@@ -64,7 +75,8 @@ internal object QuickCreationModelMapper {
             maxUploadCount = maxUploadCount,
             maxUploadSize = maxUploadSize,
             multipleInputs = multipleInputs,
-            inputExtraJson = skuInputExtraJson?.stringValue(),
+            inputExtraJson = extraJson,
+            inputExtra = extraJson?.toInputExtra(),
         )
     }
 
@@ -89,6 +101,65 @@ internal object QuickCreationModelMapper {
             isTimeFree = isTimeFree,
             promoType = promoType,
         )
+
+    private fun String.toInputExtra(): QuickCreationServiceFieldExtra? {
+        val extra = runCatching { inputExtraJson.parseToJsonElement(this) }.getOrNull() as? JsonObject
+            ?: return null
+        val parsed = QuickCreationServiceFieldExtra(
+            title = extra.stringValue("title"),
+            titleEn = extra.stringValue("titleEn"),
+            paramDescription = extra.stringValue("paramDesc"),
+            paramDescriptionEn = extra.stringValue("paramDescEn"),
+            placeholder = extra.stringValue("placeholder"),
+            acceptFormats = extra.acceptFormats(),
+            maxLength = extra.intValue("maxLength"),
+            minLength = extra.intValue("minLength"),
+            maxInputCount = extra.intValue("maxInpuNum") ?: extra.intValue("maxInputNum"),
+            ignoreListValueCaseSensitive = extra.booleanValue("ignoreListValueCaseSensitive") ?: false,
+        )
+        return parsed.takeIf {
+            listOfNotNull(
+                it.title,
+                it.titleEn,
+                it.paramDescription,
+                it.paramDescriptionEn,
+                it.placeholder,
+            ).isNotEmpty() ||
+                it.acceptFormats.isNotEmpty() ||
+                it.maxLength != null ||
+                it.minLength != null ||
+                it.maxInputCount != null ||
+                it.ignoreListValueCaseSensitive
+        }
+    }
+
+    private fun JsonObject.acceptFormats(): List<String> {
+        val accept = this["accept"] ?: return emptyList()
+        val array = accept as? JsonArray
+            ?: accept.stringValue()
+                ?.let { value -> runCatching { inputExtraJson.parseToJsonElement(value) }.getOrNull() as? JsonArray }
+        if (array != null) {
+            return array.mapNotNull { it.stringValue()?.takeIf(String::isNotBlank) }
+        }
+        return accept.stringValue()
+            ?.split(',')
+            ?.map { it.trim().trim('"', '\'') }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+    }
+
+    private fun JsonObject.stringValue(key: String): String? =
+        this[key]?.stringValue()?.takeIf { it.isNotBlank() }
+
+    private fun JsonObject.intValue(key: String): Int? =
+        this[key]?.jsonPrimitive?.intOrNull ?: this[key]?.stringValue()?.toIntOrNull()
+
+    private fun JsonObject.booleanValue(key: String): Boolean? =
+        this[key]?.jsonPrimitive?.booleanOrNull ?: when (this[key]?.stringValue()?.lowercase()) {
+            "true" -> true
+            "false" -> false
+            else -> null
+        }
 }
 
 private fun kotlinx.serialization.json.JsonElement.stringValue(): String? {

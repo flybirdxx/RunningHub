@@ -770,10 +770,17 @@ private fun ServiceFieldOptionsContent(
         fields.forEach { field ->
             Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
                 Text(
-                    text = field.fieldKey,
+                    text = field.displayTitle(),
                     fontSize = 12.sp,
                     color = Neutral300,
                 )
+                field.inputExtra?.paramDescription?.takeIf { it.isNotBlank() }?.let { description ->
+                    Text(
+                        text = description,
+                        fontSize = 11.sp,
+                        color = Neutral500,
+                    )
+                }
                 if (field.options.isNotEmpty()) {
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
@@ -809,7 +816,7 @@ private fun ServiceFieldOptionsContent(
                             onParamChange(field.paramKey, value)
                         },
                         singleLine = true,
-                        placeholder = { Text(field.paramKey, color = Neutral500, fontSize = 12.sp) },
+                        placeholder = { Text(field.inputPlaceholder(), color = Neutral500, fontSize = 12.sp) },
                         shape = RoundedCornerShape(Dimens.RadiusSM),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedTextColor = Color.White,
@@ -825,6 +832,7 @@ private fun ServiceFieldOptionsContent(
                 } else if (field.fieldType.uppercase().contains("UPLOAD")) {
                     Text(
                         text = listOfNotNull(
+                            field.inputExtra?.acceptFormats?.takeIf { it.isNotEmpty() }?.joinToString("/"),
                             field.maxUploadCount?.let { "最多 $it 个文件" },
                             field.maxUploadSize?.let { "单文件 ${it / 1024 / 1024}MB" },
                         ).joinToString(" · ").ifBlank { "上传参数由素材入口处理" },
@@ -845,6 +853,12 @@ private fun QuickCreationServiceField.supportsTextEntry(): Boolean {
         type.contains("INTEGER") ||
         type.contains("FLOAT")
 }
+
+private fun QuickCreationServiceField.displayTitle(): String =
+    inputExtra?.title?.takeIf { it.isNotBlank() } ?: fieldKey
+
+private fun QuickCreationServiceField.inputPlaceholder(): String =
+    inputExtra?.placeholder?.takeIf { it.isNotBlank() } ?: paramKey
 
 private fun QuickCreationServiceField.isServiceFieldRenderable(): Boolean =
     options.isNotEmpty() || supportsTextEntry() || fieldType.uppercase().contains("UPLOAD")

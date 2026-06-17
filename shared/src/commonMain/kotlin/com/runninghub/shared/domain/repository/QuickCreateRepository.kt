@@ -490,6 +490,20 @@ data class QuickCreationServiceField(
     val maxUploadSize: Long? = null,
     val multipleInputs: Boolean = false,
     val inputExtraJson: String? = null,
+    val inputExtra: QuickCreationServiceFieldExtra? = null,
+)
+
+data class QuickCreationServiceFieldExtra(
+    val title: String? = null,
+    val titleEn: String? = null,
+    val paramDescription: String? = null,
+    val paramDescriptionEn: String? = null,
+    val placeholder: String? = null,
+    val acceptFormats: List<String> = emptyList(),
+    val maxLength: Int? = null,
+    val minLength: Int? = null,
+    val maxInputCount: Int? = null,
+    val ignoreListValueCaseSensitive: Boolean = false,
 )
 
 data class QuickCreationServiceFieldOption(
