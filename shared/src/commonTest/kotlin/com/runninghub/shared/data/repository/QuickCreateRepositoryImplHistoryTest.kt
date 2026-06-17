@@ -279,6 +279,28 @@ class QuickCreateRepositoryImplHistoryTest {
         assertEquals("https://example.com/project-result.png", item.outputs.single().url)
     }
 
+    @Test
+    fun `pin project posts project id and pin state`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
+        val repository = repositoryWithMock(
+            responseForPath = { path ->
+                paths += path
+                when (path) {
+                    QuickCreateApi.QC_PROJECT_PIN -> """{"code":0,"msg":"success","data":true}"""
+                    else -> """{"code":404,"msg":"unexpected path"}"""
+                }
+            },
+            captureBody = { bodies += it },
+        )
+
+        val result = repository.pinQuickCreationProject(projectId = "project-1", pinned = true).getOrThrow()
+
+        assertEquals(Unit, result)
+        assertEquals(listOf(QuickCreateApi.QC_PROJECT_PIN), paths)
+        assertEquals("""{"projectId":"project-1","pin":true}""", bodies.single())
+    }
+
     private fun repositoryWithMock(responseForPath: (String) -> String): QuickCreateRepositoryImpl {
         return repositoryWithMock(responseForPath = responseForPath, captureBody = {})
     }

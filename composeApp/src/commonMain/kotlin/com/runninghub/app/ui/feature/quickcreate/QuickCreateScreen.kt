@@ -116,6 +116,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             onCancelHistoryTask = screenModel::cancelHistoryTask,
                             onProjectSelected = screenModel::selectProject,
                             onClearSelectedProject = screenModel::clearSelectedProject,
+                            onToggleProjectPin = screenModel::toggleProjectPin,
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(
                             uiState = uiState,
@@ -365,6 +366,7 @@ private fun CreationScrollableArea(
     onCancelHistoryTask: (String) -> Unit,
     onProjectSelected: (String) -> Unit,
     onClearSelectedProject: () -> Unit,
+    onToggleProjectPin: (String) -> Unit,
 ) {
     when {
         uiState.results.isNotEmpty() -> ResultArea(
@@ -382,6 +384,7 @@ private fun CreationScrollableArea(
             onCancelHistoryTask = onCancelHistoryTask,
             onProjectSelected = onProjectSelected,
             onClearSelectedProject = onClearSelectedProject,
+            onToggleProjectPin = onToggleProjectPin,
         )
         else -> EmptyArea()
     }
@@ -395,6 +398,7 @@ private fun HistoryArea(
     onCancelHistoryTask: (String) -> Unit,
     onProjectSelected: (String) -> Unit,
     onClearSelectedProject: () -> Unit,
+    onToggleProjectPin: (String) -> Unit,
 ) {
     val selectedProject = uiState.projects.firstOrNull { it.projectId == uiState.selectedProjectId }
     LazyColumn(
@@ -408,8 +412,10 @@ private fun HistoryArea(
                     projects = uiState.projects,
                     isLoading = uiState.projectsLoading,
                     selectedProjectId = uiState.selectedProjectId,
+                    pinningIds = uiState.projectPinningIds,
                     onProjectSelected = onProjectSelected,
                     onClearSelectedProject = onClearSelectedProject,
+                    onToggleProjectPin = onToggleProjectPin,
                 )
                 Spacer(Modifier.height(Dimens.SpaceSM))
             }
@@ -476,8 +482,10 @@ private fun ProjectStrip(
     projects: List<QuickCreationProject>,
     isLoading: Boolean,
     selectedProjectId: String?,
+    pinningIds: Set<String>,
     onProjectSelected: (String) -> Unit,
     onClearSelectedProject: () -> Unit,
+    onToggleProjectPin: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceXS)) {
         Row(
@@ -513,7 +521,9 @@ private fun ProjectStrip(
                 ProjectChip(
                     project = project,
                     selected = project.projectId == selectedProjectId,
+                    isPinning = project.projectId in pinningIds,
                     onClick = { onProjectSelected(project.projectId) },
+                    onTogglePin = { onToggleProjectPin(project.projectId) },
                 )
             }
         }
@@ -558,7 +568,9 @@ private fun RecentProjectChip(
 private fun ProjectChip(
     project: QuickCreationProject,
     selected: Boolean,
+    isPinning: Boolean,
     onClick: () -> Unit,
+    onTogglePin: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
@@ -578,13 +590,25 @@ private fun ProjectChip(
             horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXS),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (project.pinned) {
-                Icon(
-                    Icons.Default.PushPin,
-                    contentDescription = null,
-                    tint = Primary300,
-                    modifier = Modifier.size(14.dp),
-                )
+            IconButton(
+                onClick = onTogglePin,
+                enabled = !isPinning,
+                modifier = Modifier.size(28.dp),
+            ) {
+                if (isPinning) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(14.dp),
+                        strokeWidth = 2.dp,
+                        color = Primary300,
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.PushPin,
+                        contentDescription = if (project.pinned) "取消置顶项目" else "置顶项目",
+                        tint = if (project.pinned) Primary300 else Neutral400,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
             }
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
@@ -1470,6 +1494,7 @@ private fun QuickCreatePreviewContent(
                             onCancelHistoryTask = {},
                             onProjectSelected = {},
                             onClearSelectedProject = {},
+                            onToggleProjectPin = {},
                         )
                         QuickCreateMode.INSPIRATION -> InspirationArea(uiState = uiState, onApplyTemplate = {})
                     }

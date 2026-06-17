@@ -194,6 +194,12 @@ data class QuickCreationProjectTasksRequestDto(
 )
 
 @Serializable
+data class QuickCreationProjectPinRequestDto(
+    @SerialName("projectId") val projectId: String,
+    @SerialName("pin") val pinned: Boolean,
+)
+
+@Serializable
 data class QuickCreationProjectPageDto(
     @SerialName("records") val records: List<QuickCreationProjectDto> = emptyList(),
     @SerialName("size") val size: JsonElement? = null,

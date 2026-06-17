@@ -50,6 +50,7 @@ class QuickCreateScreenModelTest {
         val requestedHistoryPages = mutableListOf<Int>()
         val requestedProjectPages = mutableListOf<Int>()
         val requestedProjectTaskPages = mutableListOf<Pair<String, Int>>()
+        val pinnedProjectRequests = mutableListOf<Pair<String, Boolean>>()
         var historyPage = QuickCreationHistoryPage(
             page = 1,
             size = 10,
@@ -304,6 +305,11 @@ class QuickCreateScreenModelTest {
             Result.success(projectTaskPage.copy(page = page, size = size)).also {
                 requestedProjectTaskPages += projectId to page
             }
+
+        override suspend fun pinQuickCreationProject(projectId: String, pinned: Boolean): Result<Unit> =
+            Result.success(Unit).also {
+                pinnedProjectRequests += projectId to pinned
+            }
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -393,6 +399,18 @@ class QuickCreateScreenModelTest {
         assertEquals(null, model.uiState.value.selectedProjectId)
         assertEquals(listOf(1, 1), repository.requestedHistoryPages)
         assertEquals("history-task-1", model.uiState.value.historyItems.single().taskId)
+    }
+
+    @Test
+    fun `toggling project pin calls repository and updates project state`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.toggleProjectPin("project-1")
+
+        assertEquals(listOf("project-1" to false), repository.pinnedProjectRequests)
+        assertEquals(false, model.uiState.value.projects.single().pinned)
+        assertEquals(emptySet(), model.uiState.value.projectPinningIds)
     }
 
     @Test

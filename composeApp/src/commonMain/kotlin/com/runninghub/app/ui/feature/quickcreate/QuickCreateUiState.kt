@@ -364,6 +364,7 @@ data class QuickCreateUiState(
     val projectsHasMore: Boolean = false,
     val selectedProjectId: String? = null,
     val projectTasksLoading: Boolean = false,
+    val projectPinningIds: Set<String> = emptySet(),
     val serviceModelsLoading: Boolean = false,
     val serviceImageModels: List<QuickCreationServiceModel> = emptyList(),
     val serviceVideoModels: List<QuickCreationServiceModel> = emptyList(),

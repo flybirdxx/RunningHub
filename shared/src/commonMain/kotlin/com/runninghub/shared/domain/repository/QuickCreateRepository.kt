@@ -493,4 +493,5 @@ interface QuickCreateRepository {
         page: Int = 1,
         size: Int = 10,
     ): Result<QuickCreationHistoryPage>
+    suspend fun pinQuickCreationProject(projectId: String, pinned: Boolean): Result<Unit>
 }

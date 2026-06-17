@@ -259,6 +259,39 @@ class QuickCreateScreenModel(
         loadQuickCreationHistory()
     }
 
+    fun toggleProjectPin(projectId: String) {
+        val project = _uiState.value.projects.firstOrNull { it.projectId == projectId } ?: return
+        if (projectId in _uiState.value.projectPinningIds) return
+
+        val targetPinned = !project.pinned
+        screenModelScope.launch {
+            _uiState.update { state ->
+                state.copy(projectPinningIds = state.projectPinningIds + projectId)
+            }
+            val result = quickCreateRepository.pinQuickCreationProject(projectId = projectId, pinned = targetPinned)
+            result.fold(
+                onSuccess = {
+                    _uiState.update { state ->
+                        state.copy(
+                            projectPinningIds = state.projectPinningIds - projectId,
+                            projects = state.projects.map { item ->
+                                if (item.projectId == projectId) item.copy(pinned = targetPinned) else item
+                            },
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update { state ->
+                        state.copy(
+                            projectPinningIds = state.projectPinningIds - projectId,
+                            error = error.message ?: "项目置顶失败",
+                        )
+                    }
+                },
+            )
+        }
+    }
+
     private fun updateHistoryRefreshJob(items: List<QuickCreationHistoryItem>) {
         if (items.none { it.needsHistoryRefresh }) {
             historyRefreshJob?.cancel()

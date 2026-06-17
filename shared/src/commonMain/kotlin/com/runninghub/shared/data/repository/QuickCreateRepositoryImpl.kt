@@ -1296,4 +1296,12 @@ class QuickCreateRepositoryImpl(
             }
             response.data.toHistoryPage()
         }
+
+    override suspend fun pinQuickCreationProject(projectId: String, pinned: Boolean): Result<Unit> =
+        runCatching {
+            val response = quickCreateApi.pinQuickCreationProject(projectId = projectId, pinned = pinned)
+            if (response.code != 0) {
+                throw IllegalStateException(response.msg ?: response.message ?: "Project pin failed")
+            }
+        }
 }

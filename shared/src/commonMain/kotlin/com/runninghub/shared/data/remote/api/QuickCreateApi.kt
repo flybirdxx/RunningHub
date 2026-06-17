@@ -35,6 +35,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         const val QC_TASK_CANCEL = "/task/quick-creation/cancel"
         const val QC_PROJECT_LIST = "/task/quick-creation/project/list"
         const val QC_PROJECT_TASKS = "/task/quick-creation/project/tasks"
+        const val QC_PROJECT_PIN = "/task/quick-creation/project/pin"
         const val QC_INSPIRATION_TAGS = "/task/quick-creation/inspiration/tags"
         const val QC_INSPIRATION_TEMPLATES = "/task/quick-creation/inspiration/templates"
         const val QC_INSPIRATION_TEMPLATE_DETAIL = "/task/quick-creation/inspiration/template/detail"
@@ -211,6 +212,15 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         client.post("$BASE_URL$QC_PROJECT_TASKS") {
             contentType(ContentType.Application.Json)
             setBody(QuickCreationProjectTasksRequestDto(projectId, page, size))
+        }.body()
+
+    suspend fun pinQuickCreationProject(
+        projectId: String,
+        pinned: Boolean,
+    ): QuickCreationEnvelopeDto<JsonElement> =
+        client.post("$BASE_URL$QC_PROJECT_PIN") {
+            contentType(ContentType.Application.Json)
+            setBody(QuickCreationProjectPinRequestDto(projectId, pinned))
         }.body()
 
     suspend fun getQuickCreationInspirationTags(): QuickCreationEnvelopeDto<List<QuickCreationCategoryDto>> =
