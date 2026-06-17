@@ -1293,3 +1293,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 继续审查 `detail.params` 里的 unknown key 是否应该进入 `quickCreationParams`；如果后端未来收紧 schema，可能需要把模板 UI 配置字段和服务字段进一步拆开。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：active child 默认值提交规则
+
+代码提交 `0affee6 fix(quickcreate): submit active child defaults` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 顶层服务字段默认值和 active input child 默认值都会作为 `quickCreationParams` 的默认基线。
+- `defaultServiceParams(activeParams)` 会用“顶层默认值 + 当前有效参数”判断哪些 child 当前 active，因此模板或用户选择激活的 child 也能带上自身 `defaultValue`。
+- 请求体仍保持显式值优先：先 `putAll(model.defaultServiceParams(serviceParams))`，再把当前 active 且非空的 `serviceParams` 覆盖进去。
+- 模板应用阶段使用 `selectedModel.defaultServiceParams(templateParams) + templateParams` 初始化状态，避免模板激活 child 后 UI/校验看不到 child 默认值。
+- inactive child 的默认值不会进入请求体，因为 child 默认值只从 `quickCreationActiveInputChildren()` 结果里收集。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image submits active child service field defaults"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template submits defaults for child activated by template params"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 继续审查视频侧 child 默认值，特别是音频/视频参考字段以外的数值型参数，确认真实模型字段名、默认值和 `visibleWhen` 条件组合。
+- 真机复测模板激活 child 后的 Tune 默认值显示和 fee-preview 请求体。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

@@ -1199,3 +1199,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真机仍需复测真实模板中 `visibleWhen.fieldKey` 指向 sibling 字段且字段名与提交 `paramKey` 不一致的场景，重点确认 Tune 子字段显示、模板素材字段卡片和 prepare 请求体一致。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 active child 默认参数进入请求体
+
+代码提交 `0affee6 fix(quickcreate): submit active child defaults` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `defaultServiceParams()` 现在会补齐 active input child 的非空 `defaultValue`，不再只提交顶层服务字段默认值。
+- 默认值计算支持传入当前有效参数；当灵感模板 `params` 把父字段从默认 `text` 切到 `imageReference` 时，被模板激活的 child 默认值也会进入 `quickCreationParams`。
+- 请求体构造时先写入“基于当前参数计算出的默认值”，再用用户/模板显式 `serviceParams` 覆盖，保持显式值优先。
+- 模板应用后的 `imageServiceParams` / `videoServiceParams` 也使用同一规则初始化，降低 UI、校验和 prepare 请求体之间的默认值差异。
+- 新增回归测试覆盖两类场景：模型默认父字段激活 child 默认值；模板参数激活 child 默认值。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image submits active child service field defaults"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template submits defaults for child activated by template params"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机需复测真实服务模型里带默认值的 child 参数，例如参考强度、权重、开关等，确认用户不手动修改时 prepare 请求体仍包含服务端期望的默认值。
+- 仍需抓真实模板里“模板 params 激活 child”的返回，核对 Tune UI 默认显示、fee-preview 请求体和最终 prepare 请求体一致。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
