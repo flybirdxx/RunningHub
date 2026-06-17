@@ -1104,3 +1104,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测灵感模板进入创作页后，字段级素材卡片是否显示在 Tune 对应字段区域，而不是底部全局素材区。
 - 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：模板素材 id 按 listParams 字段区分
+
+代码提交 `6c4f6cc fix(quickcreate): make template media ids field specific` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreateInspirationTemplateDetail.templateMediaReferences()` 会把 `listParams` 的 key 同时用于 `MediaReference.fieldParamKey` 和内部素材 id 片段。
+- 同一模板内多个同媒体类型字段，例如 `imageUrls` 与 `maskUrls`，即使都是第 0 张图片，也会得到不同 id。
+- id 片段只保留 ASCII 字母和数字，其余字符替换为 `_`；空 key 片段回退为 `field`。
+- 这次改动不改变请求体映射，只消除模板素材列表在 UI key、删除和上传状态更新中的 id 冲突风险。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template keeps media ids unique per list param field"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测一个灵感模板含多个同类型素材字段的场景，重点观察字段级卡片显示、删除目标和最终 `quickCreationListParams` 是否一致。
+- 若后续发现服务端字段 key 含非 ASCII 且不同 key 规整后相同，需要在 id 里追加 map 顺序或 key hash；当前单测覆盖的是常见 API key 场景。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
