@@ -181,6 +181,41 @@ data class QuickCreationTaskCancelRequestDto(
 )
 
 @Serializable
+data class QuickCreationProjectPageRequestDto(
+    @SerialName("page") val page: Int,
+    @SerialName("size") val size: Int,
+)
+
+@Serializable
+data class QuickCreationProjectPageDto(
+    @SerialName("records") val records: List<QuickCreationProjectDto> = emptyList(),
+    @SerialName("size") val size: JsonElement? = null,
+    @SerialName("current") val current: JsonElement? = null,
+    @SerialName("total") val total: JsonElement? = null,
+    @SerialName("pages") val pages: JsonElement? = null,
+    @SerialName("hasNext") val hasNext: Boolean = false,
+    @SerialName("hasPrevious") val hasPrevious: Boolean = false,
+    @SerialName("nextCursor") val nextCursor: String? = null,
+)
+
+@Serializable
+data class QuickCreationProjectDto(
+    @SerialName("projectId") val projectId: String? = null,
+    @SerialName("id") val id: String? = null,
+    @SerialName("name") val name: String? = null,
+    @SerialName("projectName") val projectName: String? = null,
+    @SerialName("coverUrl") val coverUrl: String? = null,
+    @SerialName("cover") val cover: String? = null,
+    @SerialName("taskCount") val taskCount: Int = 0,
+    @SerialName("pin") val pin: Boolean = false,
+    @SerialName("pinned") val pinned: Boolean = false,
+    @SerialName("createdAt") val createdAt: String? = null,
+    @SerialName("createTime") val createTime: String? = null,
+    @SerialName("updatedAt") val updatedAt: String? = null,
+    @SerialName("updateTime") val updateTime: String? = null,
+)
+
+@Serializable
 data class QuickCreationInspirationTemplatePageRequestDto(
     @SerialName("page") val page: Int = 1,
     @SerialName("size") val size: Int = 20,

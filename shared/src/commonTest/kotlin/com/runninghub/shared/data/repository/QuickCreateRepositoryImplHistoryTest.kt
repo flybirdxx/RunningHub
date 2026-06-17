@@ -163,6 +163,65 @@ class QuickCreateRepositoryImplHistoryTest {
         assertEquals("""{"taskId":"task%20id%2F1"}""", bodies.single())
     }
 
+    @Test
+    fun `project list maps paged project records`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val bodies = mutableListOf<String>()
+        val repository = repositoryWithMock(
+            responseForPath = { path ->
+                paths += path
+                when (path) {
+                    QuickCreateApi.QC_PROJECT_LIST -> """
+                        {
+                          "code": 0,
+                          "msg": "success",
+                          "data": {
+                            "records": [
+                              {
+                                "projectId": "project-1",
+                                "name": "世界杯广告",
+                                "coverUrl": "https://example.com/project.png",
+                                "taskCount": 3,
+                                "pin": true,
+                                "createdAt": "2026-06-17 10:00:00",
+                                "updatedAt": "2026-06-17 11:00:00"
+                              }
+                            ],
+                            "size": "20",
+                            "current": "1",
+                            "total": "1",
+                            "pages": "1",
+                            "hasNext": false,
+                            "hasPrevious": false,
+                            "nextCursor": null
+                          }
+                        }
+                    """
+                    else -> """{"code":404,"msg":"unexpected path"}"""
+                }
+            },
+            captureBody = { bodies += it },
+        )
+
+        val page = repository.listQuickCreationProjects(page = 1, size = 20).getOrThrow()
+
+        assertEquals(listOf(QuickCreateApi.QC_PROJECT_LIST), paths)
+        assertEquals("""{"page":1,"size":20}""", bodies.single())
+        assertEquals(1, page.page)
+        assertEquals(20, page.size)
+        assertEquals(1, page.total)
+        assertEquals(1, page.pages)
+        assertEquals(false, page.hasNext)
+        val project = page.items.single()
+        assertEquals("project-1", project.projectId)
+        assertEquals("世界杯广告", project.name)
+        assertEquals("https://example.com/project.png", project.coverUrl)
+        assertEquals(3, project.taskCount)
+        assertEquals(true, project.pinned)
+        assertEquals("2026-06-17 10:00:00", project.createdAt)
+        assertEquals("2026-06-17 11:00:00", project.updatedAt)
+    }
+
     private fun repositoryWithMock(responseForPath: (String) -> String): QuickCreateRepositoryImpl {
         return repositoryWithMock(responseForPath = responseForPath, captureBody = {})
     }

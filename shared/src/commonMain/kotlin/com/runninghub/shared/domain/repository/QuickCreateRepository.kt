@@ -395,6 +395,27 @@ data class QuickCreationHistoryOutput(
         get() = type.lowercase() in setOf("mp4", "webm", "mov", "video")
 }
 
+data class QuickCreationProjectPage(
+    val page: Int,
+    val size: Int,
+    val total: Int,
+    val pages: Int,
+    val hasNext: Boolean,
+    val hasPrevious: Boolean,
+    val nextCursor: String? = null,
+    val items: List<QuickCreationProject>,
+)
+
+data class QuickCreationProject(
+    val projectId: String,
+    val name: String,
+    val coverUrl: String? = null,
+    val taskCount: Int = 0,
+    val pinned: Boolean = false,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+)
+
 data class QuickCreateInspirationTag(
     val id: String,
     val name: String,
@@ -466,4 +487,5 @@ interface QuickCreateRepository {
     suspend fun listQuickCreationHistory(page: Int = 1, size: Int = 10): Result<QuickCreationHistoryPage>
     suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem>
     suspend fun cancelQuickCreationTask(taskId: String): Result<Unit>
+    suspend fun listQuickCreationProjects(page: Int = 1, size: Int = 20): Result<QuickCreationProjectPage>
 }

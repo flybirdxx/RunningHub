@@ -13,6 +13,8 @@ import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
 import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
 import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
+import com.runninghub.shared.domain.repository.QuickCreationProject
+import com.runninghub.shared.domain.repository.QuickCreationProjectPage
 import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.VideoGenerationRequest
 import com.runninghub.shared.domain.repository.VideoModel
@@ -76,6 +78,13 @@ private val quickCreationParamJson = Json {
 private fun JsonElement.asParamString(): String? =
     (this as? JsonPrimitive)?.jsonPrimitive?.contentOrNull
 
+private fun JsonElement?.asIntOrZero(): Int =
+    (this as? JsonPrimitive)
+        ?.jsonPrimitive
+        ?.contentOrNull
+        ?.toIntOrNull()
+        ?: 0
+
 private fun JsonElement.asParamStringList(): List<String>? =
     (this as? JsonArray)
         ?.mapNotNull { it.asParamString()?.takeIf { value -> value.isNotBlank() } }
@@ -95,6 +104,31 @@ private fun QuickCreationTaskPageDto.toHistoryPage(): QuickCreationHistoryPage =
         total = total,
         items = list.map { it.toHistoryItem() },
     )
+
+private fun QuickCreationProjectPageDto.toProjectPage(): QuickCreationProjectPage =
+    QuickCreationProjectPage(
+        page = current.asIntOrZero(),
+        size = size.asIntOrZero(),
+        total = total.asIntOrZero(),
+        pages = pages.asIntOrZero(),
+        hasNext = hasNext,
+        hasPrevious = hasPrevious,
+        nextCursor = nextCursor,
+        items = records.mapNotNull { it.toProjectOrNull() },
+    )
+
+private fun QuickCreationProjectDto.toProjectOrNull(): QuickCreationProject? {
+    val resolvedProjectId = projectId ?: id ?: return null
+    return QuickCreationProject(
+        projectId = resolvedProjectId,
+        name = name ?: projectName ?: resolvedProjectId,
+        coverUrl = coverUrl ?: cover,
+        taskCount = taskCount,
+        pinned = pin || pinned,
+        createdAt = createdAt ?: createTime,
+        updatedAt = updatedAt ?: updateTime,
+    )
+}
 
 private fun QuickCreationTaskRecordDto.toHistoryItem(): QuickCreationHistoryItem {
     val params = parseJsonObjectOrNull(apiRequestParams)
@@ -1232,5 +1266,17 @@ class QuickCreateRepositoryImpl(
             if (response.code != 0) {
                 throw IllegalStateException(response.msg ?: response.message ?: "Task cancel failed")
             }
+        }
+
+    override suspend fun listQuickCreationProjects(
+        page: Int,
+        size: Int,
+    ): Result<QuickCreationProjectPage> =
+        runCatching {
+            val response = quickCreateApi.listQuickCreationProjects(page = page, size = size)
+            if (response.code != 0 || response.data == null) {
+                throw IllegalStateException(response.msg ?: response.message ?: "Project list load failed")
+            }
+            response.data.toProjectPage()
         }
 }

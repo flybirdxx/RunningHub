@@ -9,6 +9,7 @@ import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
 import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
 import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
+import com.runninghub.shared.domain.repository.QuickCreationProjectPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
@@ -249,6 +250,19 @@ class QuickCreateScreenModelTest {
             Result.success(Unit).also {
                 cancelledTaskIds += taskId
             }
+
+        override suspend fun listQuickCreationProjects(page: Int, size: Int): Result<QuickCreationProjectPage> =
+            Result.success(
+                QuickCreationProjectPage(
+                    page = page,
+                    size = size,
+                    total = 0,
+                    pages = 0,
+                    hasNext = false,
+                    hasPrevious = false,
+                    items = emptyList(),
+                )
+            )
     }
 
     class FakeMediaResolver : MediaResolver {
