@@ -4,6 +4,8 @@ import com.runninghub.shared.data.remote.api.QuickCreateApi
 import com.runninghub.shared.data.remote.dto.*
 import com.runninghub.shared.domain.repository.ImageGenerationRequest
 import com.runninghub.shared.domain.repository.ImageModel
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateResultItem
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
@@ -993,5 +995,41 @@ class QuickCreateRepositoryImpl(
         val TAG = "QuickCreateRepo"
         debug(TAG, "uploadMedia: FAILED")
         debug(TAG, "  exception = ${e::class.simpleName}: ${e.message}")
+    }
+
+    override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> = runCatching {
+        val response = quickCreateApi.getQuickCreationInspirationTags()
+        if (response.code != 0) {
+            throw IllegalStateException(response.msg ?: response.message ?: "灵感标签加载失败")
+        }
+
+        response.data.orEmpty().mapNotNull { tag ->
+            val id = tag.categoryId ?: tag.id ?: tag.name ?: tag.nameCn ?: return@mapNotNull null
+            val name = tag.nameCn ?: tag.name ?: tag.nameEn ?: id
+            QuickCreateInspirationTag(id = id, name = name)
+        }
+    }
+
+    override suspend fun getInspirationTemplates(
+        page: Int,
+        size: Int,
+        tagId: String?,
+    ): Result<List<QuickCreateInspirationTemplate>> = runCatching {
+        val response = quickCreateApi.getQuickCreationInspirationTemplates(page, size, tagId)
+        if (response.code != 0) {
+            throw IllegalStateException(response.msg ?: response.message ?: "灵感模板加载失败")
+        }
+
+        response.data?.list.orEmpty().map { template ->
+            QuickCreateInspirationTemplate(
+                templateId = template.templateId,
+                title = template.nameCn ?: template.nameAi ?: template.templateId,
+                categoryId = template.categoryId,
+                coverUrl = template.coverUrl,
+                videoUrl = template.videoUrl,
+                tagHot = template.tagHot,
+                tagNew = template.tagNew,
+            )
+        }
     }
 }

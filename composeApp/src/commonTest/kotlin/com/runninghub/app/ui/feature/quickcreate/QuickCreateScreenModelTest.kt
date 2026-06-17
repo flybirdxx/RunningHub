@@ -1,6 +1,8 @@
 package com.runninghub.app.ui.feature.quickcreate
 
 import com.runninghub.app.platform.MediaResolver
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.SettingsRepository
@@ -26,9 +28,27 @@ class QuickCreateScreenModelTest {
 
     class FakeQuickCreateRepository : QuickCreateRepository {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
+        var inspirationTags = listOf(QuickCreateInspirationTag(id = "hot", name = "热门"))
+        var inspirationTemplates = listOf(
+            QuickCreateInspirationTemplate(
+                templateId = "tpl-1",
+                title = "赛博城市漫游",
+                categoryId = "IMAGE",
+                coverUrl = "https://example.com/cover.png",
+                videoUrl = null,
+                tagHot = true,
+                tagNew = false,
+            )
+        )
         override fun generateImage(request: com.runninghub.shared.domain.repository.ImageGenerationRequest): Flow<QuickCreateTaskStatus> = emptyFlow()
         override fun generateVideo(request: com.runninghub.shared.domain.repository.VideoGenerationRequest): Flow<QuickCreateTaskStatus> = emptyFlow()
         override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String) = uploadResult
+        override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> = Result.success(inspirationTags)
+        override suspend fun getInspirationTemplates(
+            page: Int,
+            size: Int,
+            tagId: String?,
+        ): Result<List<QuickCreateInspirationTemplate>> = Result.success(inspirationTemplates)
     }
 
     class FakeMediaResolver : MediaResolver {
@@ -89,6 +109,18 @@ class QuickCreateScreenModelTest {
         model.switchMode(QuickCreateMode.CREATION)
         assertEquals(QuickCreateMode.CREATION, model.uiState.value.currentMode)
         assertEquals(true, model.uiState.value.showCreationInput)
+    }
+
+    @Test
+    fun `switchMode to inspiration loads tags and templates`() {
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.switchMode(QuickCreateMode.INSPIRATION)
+
+        assertEquals(listOf("热门"), model.uiState.value.inspirationTags.map { it.name })
+        assertEquals("tpl-1", model.uiState.value.inspirationTemplates.single().templateId)
+        assertEquals(false, model.uiState.value.inspirationLoading)
     }
 
     @Test

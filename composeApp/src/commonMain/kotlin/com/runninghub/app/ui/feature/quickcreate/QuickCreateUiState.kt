@@ -1,5 +1,8 @@
 package com.runninghub.app.ui.feature.quickcreate
 
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
+
 enum class QuickCreateTab(val displayName: String) {
     IMAGE("图片"),
     VIDEO("视频"),
@@ -340,6 +343,9 @@ data class QuickCreateUiState(
     val error: String? = null,
     val estimatedCost: Double = 0.0,
     val tuneSheetVisible: Boolean = false,
+    val inspirationLoading: Boolean = false,
+    val inspirationTags: List<QuickCreateInspirationTag> = emptyList(),
+    val inspirationTemplates: List<QuickCreateInspirationTemplate> = emptyList(),
 ) {
     val showCreationInput: Boolean
         get() = currentMode == QuickCreateMode.CREATION

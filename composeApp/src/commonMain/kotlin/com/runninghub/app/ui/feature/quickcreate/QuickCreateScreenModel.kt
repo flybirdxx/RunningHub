@@ -103,6 +103,32 @@ class QuickCreateScreenModel(
                 tuneSheetVisible = if (mode == QuickCreateMode.CREATION) it.tuneSheetVisible else false,
             )
         }
+        if (mode == QuickCreateMode.INSPIRATION && _uiState.value.inspirationTemplates.isEmpty()) {
+            loadInspiration()
+        }
+    }
+
+    fun loadInspiration() {
+        screenModelScope.launch {
+            _uiState.update { it.copy(inspirationLoading = true, error = null) }
+
+            val tagsResult = quickCreateRepository.getInspirationTags()
+            val templatesResult = quickCreateRepository.getInspirationTemplates()
+
+            _uiState.update { state ->
+                val tags = tagsResult.getOrElse { emptyList() }
+                val templates = templatesResult.getOrElse { emptyList() }
+                val error = tagsResult.exceptionOrNull()?.message
+                    ?: templatesResult.exceptionOrNull()?.message
+
+                state.copy(
+                    inspirationLoading = false,
+                    inspirationTags = tags,
+                    inspirationTemplates = templates,
+                    error = error,
+                )
+            }
+        }
     }
 
     fun switchTab(tab: QuickCreateTab) {

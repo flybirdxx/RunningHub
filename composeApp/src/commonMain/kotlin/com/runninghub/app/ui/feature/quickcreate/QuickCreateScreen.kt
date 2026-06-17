@@ -107,7 +107,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             uiState = uiState,
                             onClearResults = screenModel::clearResults,
                         )
-                        QuickCreateMode.INSPIRATION -> InspirationArea()
+                        QuickCreateMode.INSPIRATION -> InspirationArea(uiState)
                     }
                 }
 
@@ -373,16 +373,7 @@ private fun EmptyArea() {
 }
 
 @Composable
-private fun InspirationArea() {
-    val tags = listOf("热门", "人像", "电商", "舞蹈", "创意")
-    val templates = listOf(
-        "赛博城市漫游" to "IMAGE",
-        "产品海报主视觉" to "IMAGE",
-        "人物写真光影" to "IMAGE",
-        "节奏舞蹈短片" to "VIDEO",
-        "电商场景展示" to "VIDEO",
-    )
-
+private fun InspirationArea(uiState: QuickCreateUiState) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(Dimens.SpaceMD),
@@ -395,7 +386,7 @@ private fun InspirationArea() {
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
             ) {
-                tags.forEachIndexed { index, tag ->
+                uiState.inspirationTags.forEachIndexed { index, tag ->
                     Surface(
                         color = if (index == 0) Primary300.copy(alpha = 0.16f) else DarkSurfaceVariant,
                         shape = RoundedCornerShape(Dimens.RadiusFull),
@@ -405,7 +396,7 @@ private fun InspirationArea() {
                         ),
                     ) {
                         Text(
-                            tag,
+                            tag.name,
                             modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 7.dp),
                             color = if (index == 0) Primary300 else Neutral400,
                             fontSize = 13.sp,
@@ -416,14 +407,45 @@ private fun InspirationArea() {
             }
         }
 
-        items(templates) { (title, category) ->
-            InspirationTemplateCard(title = title, category = category)
+        if (uiState.inspirationLoading) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(160.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(color = Primary300)
+                }
+            }
+        }
+
+        items(uiState.inspirationTemplates, key = { it.templateId }) { template ->
+            InspirationTemplateCard(
+                title = template.title,
+                category = template.categoryId ?: "IMAGE",
+                coverUrl = template.coverUrl,
+                videoUrl = template.videoUrl,
+                tagHot = template.tagHot,
+                tagNew = template.tagNew,
+            )
+        }
+
+        if (!uiState.inspirationLoading && uiState.inspirationTemplates.isEmpty()) {
+            item { EmptyArea() }
         }
     }
 }
 
 @Composable
-private fun InspirationTemplateCard(title: String, category: String) {
+private fun InspirationTemplateCard(
+    title: String,
+    category: String,
+    coverUrl: String?,
+    videoUrl: String?,
+    tagHot: Boolean,
+    tagNew: Boolean,
+) {
     Surface(
         shape = RoundedCornerShape(Dimens.RadiusLG),
         color = DarkSurface,
@@ -449,12 +471,24 @@ private fun InspirationTemplateCard(title: String, category: String) {
                     ),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    if (category == "VIDEO") Icons.Default.Videocam else Icons.Default.Image,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.72f),
-                    modifier = Modifier.size(26.dp),
-                )
+                when {
+                    !videoUrl.isNullOrBlank() -> VideoThumbnail(
+                        url = videoUrl,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                    !coverUrl.isNullOrBlank() -> SmartAsyncImage(
+                        imageUrl = coverUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                    else -> Icon(
+                        if (category == "VIDEO") Icons.Default.Videocam else Icons.Default.Image,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.72f),
+                        modifier = Modifier.size(26.dp),
+                    )
+                }
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -464,11 +498,19 @@ private fun InspirationTemplateCard(title: String, category: String) {
                     fontSize = 15.sp,
                 )
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    category,
-                    color = Neutral500,
-                    fontSize = 12.sp,
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        category,
+                        color = Neutral500,
+                        fontSize = 12.sp,
+                    )
+                    if (tagHot) {
+                        Text("HOT", color = ErrorDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                    if (tagNew) {
+                        Text("NEW", color = Primary300, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
             }
             Icon(
                 Icons.Default.ChevronRight,
@@ -890,7 +932,7 @@ private fun QuickCreatePreviewContent(
                             uiState = uiState,
                             onClearResults = {},
                         )
-                        QuickCreateMode.INSPIRATION -> InspirationArea()
+                        QuickCreateMode.INSPIRATION -> InspirationArea(uiState)
                     }
                 }
 

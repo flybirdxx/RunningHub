@@ -346,8 +346,29 @@ data class QuickCreateResultItem(
     val duration: Int? = null,
 )
 
+data class QuickCreateInspirationTag(
+    val id: String,
+    val name: String,
+)
+
+data class QuickCreateInspirationTemplate(
+    val templateId: String,
+    val title: String,
+    val categoryId: String?,
+    val coverUrl: String?,
+    val videoUrl: String?,
+    val tagHot: Boolean,
+    val tagNew: Boolean,
+)
+
 interface QuickCreateRepository {
     fun generateImage(request: ImageGenerationRequest): Flow<QuickCreateTaskStatus>
     fun generateVideo(request: VideoGenerationRequest): Flow<QuickCreateTaskStatus>
     suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String>
+    suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>>
+    suspend fun getInspirationTemplates(
+        page: Int = 1,
+        size: Int = 20,
+        tagId: String? = null,
+    ): Result<List<QuickCreateInspirationTemplate>>
 }
