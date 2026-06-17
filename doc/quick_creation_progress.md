@@ -1069,3 +1069,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 仍未完成：
 - 真机仍需复测服务端真实模板字段 key 中包含符号、下划线或非 ASCII 字符时，Tune 字段卡片显示、删除和最终请求体是否保持一致。
 - 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+## 2026-06-18 视频模板未声明 listParams 保持全局参考
+
+代码提交 `9f1013a fix(quickcreate): keep undeclared template media global` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 应用灵感模板时，会先用选中的服务模型和模板 `params` 计算 active 上传字段 key。
+- `templateMediaReferences()` 只在 `listParams` key 命中当前模型 active 上传字段时写入 `MediaReference.fieldParamKey`。
+- 未被当前模型声明的模板素材不再被错误绑定为字段素材，而是保留为空 `fieldParamKey` 的全局素材。
+- 修复视频模板 `listParams["imageUrls"]` 在当前视频模型没有 `imageUrls` 字段时，从生成请求中丢失的问题；现在会作为 `referenceImageUri` 提交。
+- 新增回归测试覆盖：应用视频灵感模板后直接生成，未声明的图片模板素材进入 legacy 全局参考图，且不污染 `quickCreationListParams["imageUrls"]`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration video template keeps undeclared image list params as global reference"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测视频灵感模板里图片参考、视频参考、音频参考三类素材：声明字段的进入 Tune 字段区，未声明字段的进入底部全局参考并进入 legacy 请求字段。
+- 完整视频 `prepare/commit/list/detail` 扣费链路仍需要新的明确授权；本轮没有触发真实生成、`prepare/commit` 或新增扣费。

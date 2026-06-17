@@ -1151,3 +1151,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 继续补视频模板字段级素材回归：`referenceVideos`、`referenceAudios` 应绑定到对应字段，而不是底部全局素材。
 - 真机复测字段 key 含特殊字符的模板，重点看删除目标和最终请求体是否使用原始 `paramKey`。
 - 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：模板素材字段绑定只匹配当前模型声明字段
+
+代码提交 `9f1013a fix(quickcreate): keep undeclared template media global` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `applyImageTemplateDetail()` 和 `applyVideoTemplateDetail()` 会先构造 `serviceParams = selectedModel.defaultServiceParams() + detail.params`。
+- 模板素材绑定字段前，会调用 `selectedModel.quickCreationActiveUploadParamKeys(serviceParams)` 得到当前模型真正可接收的上传字段集合。
+- `listParams` key 命中 active 上传字段时，素材写入 `fieldParamKey` 并走字段级 `quickCreationListParams`。
+- `listParams` key 未命中当前模型字段时，素材保持全局；例如视频模板返回 `imageUrls`，但视频模型没有该字段时，图片会进入 `referenceImageUri`，不会被丢弃。
+- 这条规则把“灵感模板字段素材绑定”和“legacy 全局参考素材”分开，避免模板 detail 返回的非模型字段 listParams 被错误吞掉。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration video template keeps undeclared image list params as global reference"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 补一个显式视频字段级模板素材测试：模板返回 `referenceVideos/referenceAudios` 且当前视频模型声明这些字段时，应进入 `quickCreationListParams`，而不是 legacy 全局 URL。
+- 真机复测 Tune 字段区和底部全局素材区在同一个视频模板里混合出现时的显示、删除和最终请求体。
+- 完整视频扣费链路仍未复测；只有用户再次明确授权后才可触发真实 `prepare/commit/list/detail`。
+- 后续提交继续避开既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
