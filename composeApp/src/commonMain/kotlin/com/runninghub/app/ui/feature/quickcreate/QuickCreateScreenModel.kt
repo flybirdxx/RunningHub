@@ -1488,7 +1488,10 @@ class QuickCreateScreenModel(
             .toMap()
 
     private fun QuickCreationServiceModel.hasFieldParam(paramKey: String): Boolean =
-        fields.any { it.paramKey == paramKey }
+        fields.any { field ->
+            field.paramKey == paramKey ||
+                field.inputExtra?.inputChildren.orEmpty().any { child -> child.paramKey == paramKey }
+        }
 
     private fun validateCurrentServiceFields(state: QuickCreateUiState): String? =
         when (state.currentTab) {

@@ -14,6 +14,7 @@ import com.runninghub.shared.domain.repository.QuickCreationProject
 import com.runninghub.shared.domain.repository.QuickCreationProjectPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
@@ -922,6 +923,46 @@ class QuickCreateScreenModelTest {
 
         assertEquals("low quality", repository.lastImageRequest?.quickCreationParams?.get("negativePrompt"))
         assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("unexpected"))
+    }
+
+    @Test
+    fun `generate image submits declared child service field values`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "imageReference",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "referenceStrength",
+                                    paramKey = "referenceStrength",
+                                    fieldType = "NUMBER",
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.updateImageServiceParam("referenceStrength", "0.65")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("0.65", repository.lastImageRequest?.quickCreationParams?.get("referenceStrength"))
     }
 
     @Test

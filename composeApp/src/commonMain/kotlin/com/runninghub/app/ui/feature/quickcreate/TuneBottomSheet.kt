@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.theme.*
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 
 enum class TuneTab(val label: String) {
@@ -847,7 +848,94 @@ private fun ServiceFieldOptionsContent(
                         color = Neutral500,
                     )
                 }
+                field.quickCreationActiveInputChildren(params).forEach { child ->
+                    ServiceChildFieldInput(
+                        child = child,
+                        params = params,
+                        onParamChange = onParamChange,
+                    )
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun ServiceChildFieldInput(
+    child: QuickCreationServiceFieldInputChild,
+    params: Map<String, String>,
+    onParamChange: (String, String) -> Unit,
+) {
+    Column(
+        modifier = Modifier.padding(start = Dimens.SpaceMD),
+        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+    ) {
+        Text(
+            text = child.quickCreationFieldTitle(),
+            fontSize = 12.sp,
+            color = Neutral300,
+        )
+        child.paramDescription?.takeIf { it.isNotBlank() }?.let { description ->
+            Text(
+                text = description,
+                fontSize = 11.sp,
+                color = Neutral500,
+            )
+        }
+        if (child.options.isNotEmpty()) {
+            Row(
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            ) {
+                child.options.forEach { option ->
+                    val selectedValue = params[child.paramKey] ?: child.defaultValue
+                    val isSelected = selectedValue == option.value
+                    Surface(
+                        shape = RoundedCornerShape(Dimens.RadiusSM),
+                        color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
+                        border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
+                        onClick = { onParamChange(child.paramKey, option.value) },
+                    ) {
+                        Text(
+                            text = option.label,
+                            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 7.dp),
+                            fontSize = 12.sp,
+                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                            color = if (isSelected) Primary300 else Neutral200,
+                        )
+                    }
+                }
+            }
+        } else if (child.supportsQuickCreationTextEntry()) {
+            var text by remember(child.paramKey, params[child.paramKey]) {
+                mutableStateOf(params[child.paramKey] ?: child.defaultValue.orEmpty())
+            }
+            OutlinedTextField(
+                value = text,
+                onValueChange = { value ->
+                    text = value
+                    onParamChange(child.paramKey, value)
+                },
+                singleLine = true,
+                placeholder = { Text(child.quickCreationInputPlaceholder(), color = Neutral500, fontSize = 12.sp) },
+                shape = RoundedCornerShape(Dimens.RadiusSM),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    cursorColor = Primary300,
+                    focusedBorderColor = Primary300,
+                    unfocusedBorderColor = DarkSurfaceVariant,
+                    focusedContainerColor = DarkSurfaceVariant,
+                    unfocusedContainerColor = DarkSurfaceVariant,
+                ),
+                modifier = Modifier.fillMaxWidth(),
+            )
+        } else if (child.isQuickCreationUploadField()) {
+            Text(
+                text = "上传参数由素材入口处理",
+                fontSize = 11.sp,
+                color = Neutral500,
+            )
         }
     }
 }

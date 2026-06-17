@@ -2,6 +2,8 @@ package com.runninghub.app.ui.feature.quickcreate
 
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -154,5 +156,45 @@ class QuickCreationServiceFieldUiModelTest {
 
         assertEquals("Tagline 至少 3 个字符", field.quickCreationTextValidationError("ab"))
         assertEquals(null, field.quickCreationTextValidationError("abc"))
+    }
+
+    @Test
+    fun `active child inputs follow parent selection metadata`() {
+        val field = QuickCreationServiceField(
+            fieldKey = "creationMode",
+            paramKey = "creationMode",
+            fieldType = "LIST",
+            required = true,
+            defaultValue = "text",
+            options = emptyList(),
+            inputExtra = QuickCreationServiceFieldExtra(
+                inputChildren = listOf(
+                    QuickCreationServiceFieldInputChild(
+                        fieldKey = "alwaysVisible",
+                        paramKey = "alwaysVisible",
+                        fieldType = "STRING",
+                    ),
+                    QuickCreationServiceFieldInputChild(
+                        fieldKey = "referenceStrength",
+                        paramKey = "referenceStrength",
+                        fieldType = "NUMBER",
+                        visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                            fieldKey = "creationMode",
+                            values = listOf("imageReference"),
+                        ),
+                    ),
+                )
+            ),
+        )
+
+        assertEquals(
+            listOf("alwaysVisible"),
+            field.quickCreationActiveInputChildren(params = emptyMap()).map { it.paramKey },
+        )
+        assertEquals(
+            listOf("alwaysVisible", "referenceStrength"),
+            field.quickCreationActiveInputChildren(params = mapOf("creationMode" to "imageReference"))
+                .map { it.paramKey },
+        )
     }
 }
