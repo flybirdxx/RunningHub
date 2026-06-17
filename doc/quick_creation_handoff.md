@@ -191,3 +191,25 @@ adb -s emulator-5554 exec-out screencap -p > output\quickcreate_app_history_deta
 代码提交：`be11bf9 fix(quickcreate): keep service model pricing metadata`。
 
 后续建议：在 repository 增加只做 `fee-preview` 的公开方法，ScreenModel 根据当前模型、prompt、字段参数和上传 URL 组装 createRequest 后刷新价格，并对输入变化做 debounce；刷新失败时不要允许用户误以为本地估算价就是最终扣费价。
+
+## 2026-06-18 追加交接：图片 fee-preview repository 能力
+
+代码提交 `4cd380a fix(quickcreate): expose image fee preview` 已推送到 `feature/kmp-refactoring`。本次只暴露服务端价格预览能力，不会触发扣费。
+
+变更边界：
+
+- `QuickCreateRepository.previewImageQuickCreationFee(ImageGenerationRequest)` 已可供 UI 层调用。
+- 返回模型为 `QuickCreationFeePreview`，包含 `passed/free/settlementMode/requiredRhAmount/requiredCashAmount/userCashBalance/insufficientType/cashCurrency`。
+- `QuickCreateRepositoryImpl` 内部使用 `QuickCreationV2Defaults.imageG2CreateRequest(request)` 构造与真实提交一致的 v2 `createRequest`，然后只请求 `/task/quick-creation/fee-preview`。
+- 新测试 `QuickCreateRepositoryImplFeePreviewTest` 使用 MockEngine 验证 endpoint、`0.76 CNY`、余额和结算模式映射。
+- `QuickCreateScreenModelTest.FakeQuickCreateRepository` 已补齐新接口；后续给 ScreenModel 接实时价格时可以在这个 Fake 上增加调用次数和返回值控制。
+
+已运行验证：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreateRepositoryImplFeePreviewTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :shared:testDebugUnitTest
+```
+
+下一步建议先做 ScreenModel 的 RED 测试：当图片 prompt、选中模型或服务端字段参数变化并满足可预览条件时，ScreenModel 调用 `previewImageQuickCreationFee`，将 `requiredCashAmount=0.76` 写入 UI state，并让底部生成按钮显示服务端金额。实现时需要 debounce 或任务取消，避免每个字符都打服务端；失败态必须和本地估算区分，不能把 `estimatedCost` 伪装成最终扣费价。

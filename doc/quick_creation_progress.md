@@ -132,3 +132,25 @@
 代码提交：`be11bf9 fix(quickcreate): keep service model pricing metadata`。
 
 仍未完成：底部生成按钮的价格来源仍是当前 UI 配置的本地 `estimatedCost`；完整改为服务端实时价格需要新增 repository 级 `fee-preview` 方法、ScreenModel 价格刷新状态和请求节流。
+
+## 2026-06-18 repository 级图片 fee-preview 能力
+
+本轮已把 Web quick-creation v2 的 `/task/quick-creation/fee-preview` 从内部提交流程中抽出为 repository 公开能力，作为后续“底部生成按钮价格来源改为服务端实时价格”的基础。
+
+- `QuickCreateRepository` 新增 `previewImageQuickCreationFee(request)`。
+- 新增 domain 模型 `QuickCreationFeePreview`，保留 `passed/free/settlementMode/requiredRhAmount/requiredCashAmount/userCashBalance/insufficientType/cashCurrency`。
+- `QuickCreateRepositoryImpl` 复用 `QuickCreationV2Defaults.imageG2CreateRequest(request)` 构造真实 v2 `createRequest`，只调用 `fee-preview`，不触发 `prepare/commit`，不会扣费。
+- 新增 `QuickCreateRepositoryImplFeePreviewTest`，用 MockEngine 锁定请求路径为 `QuickCreateApi.QC_FEE_PREVIEW`，并验证真实抓包中的 `0.76 CNY`、余额和结算模式字段能进入 domain。
+- `QuickCreateScreenModelTest.FakeQuickCreateRepository` 已补齐新接口，避免 repository contract 扩展破坏现有 Compose 测试。
+
+已验证：
+
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.QuickCreateRepositoryImplFeePreviewTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest"
+.\gradlew.bat :shared:testDebugUnitTest
+```
+
+代码提交：`4cd380a fix(quickcreate): expose image fee preview`。
+
+仍未完成：ScreenModel 还没有把底部按钮价格刷新改成服务端 fee-preview。下一步应在 UI state 中增加价格预览加载/失败/最新值状态，基于当前图片模型、prompt、服务端字段参数和上传 URL debounce 调用 `previewImageQuickCreationFee`，成功后用 `requiredCashAmount` 替换本地 `estimatedCost` 展示；失败时显示“价格待确认”或保留明确的不可用状态，避免把本地估算误认为最终扣费。
