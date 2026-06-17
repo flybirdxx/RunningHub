@@ -369,7 +369,11 @@ POST /task/quick-creation/project/tasks
 
 抓包确认 `project/list` 请求体为 `{"page":1,"size":20}`，响应分页字段为 `records/size/current/total/pages/hasNext/hasPrevious/nextCursor`。本次账号项目列表为空；移动端已落地项目列表 DTO/API/repository 映射，并在创作页历史区域顶部展示项目横向列表。
 
-`project/tasks` 已通过 Chrome DevTools 观察到真实请求，当前空项目状态下 Web 会发送 `{"page":1,"size":10}` 并返回 `code=301,msg=不能为null`；前端包确认端点函数为 `quickCreationProjectTasksApi`。由于当前账号没有非空项目，移动端数据层按端点语义和服务端空字段错误推断请求体为 `{"projectId":"...","page":1,"size":10}`，响应复用 quick-creation 历史任务分页结构。项目横向条已接入筛选 UI，点击项目会加载项目内任务，点击“最近创作”可清除筛选。后续拿到非空项目抓包后需要校正字段名或响应差异。项目创建、重命名、删除、置顶和详情放到后续步骤。
+`project/tasks` 已通过 Chrome DevTools 观察到真实请求，当前空项目状态下 Web 会发送 `{"page":1,"size":10}` 并返回 `code=301,msg=不能为null`；前端包确认端点函数为 `quickCreationProjectTasksApi`。由于当前账号没有非空项目，移动端数据层按端点语义和服务端空字段错误推断请求体为 `{"projectId":"...","page":1,"size":10}`，响应复用 quick-creation 历史任务分页结构。项目横向条已接入筛选 UI，点击项目会加载项目内任务，点击“最近创作”可清除筛选。后续拿到非空项目抓包后需要校正字段名或响应差异。
+
+`project/pin` 已从前端 bundle 确认端点函数为 `quickCreationProjectPinApi`，项目列表响应字段包含 `pin/pinned`。由于当前账号没有非空项目可交互，移动端暂按 `{"projectId":"...","pin":true|false}` 请求体实现，并已在项目 chip 上接入置顶/取消置顶交互和请求中 loading 状态。后续需要用非空项目真实交互抓包确认 `pin` 字段名及响应结构。
+
+项目创建、重命名、删除和详情放到后续步骤。
 
 ### 4.10 取消任务接口
 
@@ -550,7 +554,7 @@ data class QuickCreationCommitRequestDto(
 1. 快捷创作历史使用 `/task/quick-creation/list`。
 2. 详情使用 `outputId`。
 3. 接入取消任务。
-4. 项目列表接入到 ScreenModel 和历史区 UI；项目任务补 repository 数据层并接入项目筛选 UI；创建、重命名、删除、置顶和详情另行实现。
+4. 项目列表接入到 ScreenModel 和历史区 UI；项目任务补 repository 数据层并接入项目筛选 UI；置顶补 repository/ScreenModel/UI；创建、重命名、删除和详情另行实现。
 
 执行进展（2026-06-18）：
 
@@ -560,6 +564,7 @@ data class QuickCreationCommitRequestDto(
 - 创作页已在中间内容区展示最近创作，生成成功后刷新历史；列表底部可加载更多历史页并去重追加；非终态历史任务会每 5 秒刷新当前已加载范围，并支持调用 `/task/quick-creation/cancel` 取消后刷新；点击历史项会按 `outputId` 加载详情并展示详情弹窗。
 - 项目列表已接入 `/task/quick-creation/project/list`，兼容 Web 抓包确认的分页结构，并在历史区顶部展示项目横向列表。
 - 项目任务已接入 `/task/quick-creation/project/tasks`，请求体暂按 `projectId/page/size` 实现并复用历史分页模型；历史区项目 chip 可筛选项目任务，也可切回“最近创作”。因为当前账号项目列表为空，尚缺非空项目真实响应校验。
+- 项目置顶已接入 `/task/quick-creation/project/pin`，请求体暂按 `projectId/pin` 实现；项目 chip 图钉可切换置顶状态，请求中显示 loading，成功后更新本地项目列表。因为当前账号项目列表为空，尚缺非空项目真实请求体和响应结构校验。
 
 验收：
 
