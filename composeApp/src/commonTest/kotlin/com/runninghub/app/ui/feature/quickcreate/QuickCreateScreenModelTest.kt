@@ -16,6 +16,7 @@ import com.runninghub.shared.domain.repository.QuickCreationProjectPage
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldOption
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
@@ -1274,6 +1275,41 @@ class QuickCreateScreenModelTest {
         assertEquals(null, repository.lastImageRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertEquals("Tagline 至少 3 个字符", model.uiState.value.error)
+    }
+
+    @Test
+    fun `generate image is blocked when required service option field is empty`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "stylePreset",
+                        paramKey = "stylePreset",
+                        fieldType = "LIST",
+                        required = true,
+                        defaultValue = null,
+                        options = listOf(
+                            QuickCreationServiceFieldOption(label = "Realistic", value = "realistic"),
+                        ),
+                        inputExtra = QuickCreationServiceFieldExtra(title = "Style preset"),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("Style preset 不能为空", model.uiState.value.error)
     }
 
     @Test

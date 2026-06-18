@@ -1698,6 +1698,12 @@ class QuickCreateScreenModel(
         return model?.fields.orEmpty()
             .filter { it.visible }
             .firstNotNullOfOrNull { field ->
+                if (field.options.isNotEmpty()) {
+                    val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
+                    if (field.required && value.isBlank()) {
+                        return@firstNotNullOfOrNull "${field.quickCreationFieldTitle()} 不能为空"
+                    }
+                }
                 if (field.supportsQuickCreationTextEntry()) {
                     val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
                     field.quickCreationTextValidationError(value)?.let { return@firstNotNullOfOrNull it }
