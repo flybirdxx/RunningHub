@@ -1434,11 +1434,15 @@ class QuickCreateScreenModel(
         }
     }
 
-    private fun hasFeePreviewRequest(state: QuickCreateUiState): Boolean =
-        when (state.currentTab) {
+    private fun hasFeePreviewRequest(state: QuickCreateUiState): Boolean {
+        val canBuildRequest = when (state.currentTab) {
             QuickCreateTab.IMAGE -> buildImageGenerationRequest(state, requirePrompt = true) != null
             QuickCreateTab.VIDEO -> buildVideoGenerationRequest(state, requirePrompt = true) != null
         }
+        return canBuildRequest &&
+            validateCurrentServiceFields(state) == null &&
+            validateCurrentServiceUploads(state) == null
+    }
 
     private fun clearFeePreviewState() {
         _uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null) }

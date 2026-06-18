@@ -1071,6 +1071,73 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `image fee preview is skipped when required service option field is empty`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "stylePreset",
+                        paramKey = "stylePreset",
+                        fieldType = "LIST",
+                        required = true,
+                        defaultValue = null,
+                        options = listOf(
+                            QuickCreationServiceFieldOption(label = "Realistic", value = "realistic"),
+                        ),
+                        inputExtra = QuickCreationServiceFieldExtra(title = "Style preset"),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(0, repository.feePreviewRequests.size)
+        assertEquals(false, model.uiState.value.feePreviewLoading)
+        assertEquals(null, model.uiState.value.feePreviewError)
+    }
+
+    @Test
+    fun `video fee preview is skipped when required service option field is empty`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            videoModels = listOf(
+                videoModels.single().copy(
+                    fields = videoModels.single().fields + QuickCreationServiceField(
+                        fieldKey = "motionPreset",
+                        paramKey = "motionPreset",
+                        fieldType = "LIST",
+                        required = true,
+                        defaultValue = null,
+                        options = listOf(
+                            QuickCreationServiceFieldOption(label = "Smooth", value = "smooth"),
+                        ),
+                        inputExtra = QuickCreationServiceFieldExtra(title = "Motion preset"),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("green icon animation")
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(0, repository.videoFeePreviewRequests.size)
+        assertEquals(false, model.uiState.value.feePreviewLoading)
+        assertEquals(null, model.uiState.value.feePreviewError)
+    }
+
+    @Test
     fun `hidden service param update does not refresh image fee preview`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
