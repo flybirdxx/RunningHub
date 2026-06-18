@@ -1518,3 +1518,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：进入页面检查草稿、点击恢复、点击丢弃、恢复后再次输入，入口显示和底部 fee-preview 状态应同步。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：初始化自动加载草稿状态
+
+代码提交 `46f354c fix(quickcreate): load draft state on init` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreateScreenModel.init` 会先调用 `checkForDraft()`，再加载模型、历史和项目数据。
+- 页面模型创建后，已有持久化草稿会进入 `uiState.draftData`，`uiState.hasDraft` 会变为 `true`。
+- 后续恢复草稿入口不需要额外在 Composable 中主动调用 `checkForDraft()` 才能拿到初始状态。
+- 手动 `checkForDraft()` 仍保留，适合未来页面恢复前台或用户显式刷新草稿状态时复用。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.init exposes saved draft through ui state"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 接入真实恢复/丢弃草稿入口时，以 `uiState.hasDraft` 控制展示，以 `restoreDraft()` 和 `discardDraft()` 处理动作。
+- 真机复测进入页面即展示已有草稿提示，点击恢复后入口消失、prompt/tab/fee-preview 同步更新。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
