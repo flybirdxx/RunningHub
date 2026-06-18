@@ -1305,6 +1305,57 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `removing inactive child service upload field media does not refresh image fee preview`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "text",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "childImage",
+                                    paramKey = "childImages",
+                                    fieldType = "IMAGE",
+                                    maxInputCount = 1,
+                                    visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                        fieldKey = "creationMode",
+                                        values = listOf("imageReference"),
+                                    ),
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(1, repository.feePreviewRequests.size)
+
+        model.pickImageReferenceForField("content://image/inactive-child", "childImages")
+        advanceUntilIdle()
+        val inactiveChildReferenceId = model.uiState.value.imageConfig.mediaReferences.single().id
+
+        model.removeMediaReference(inactiveChildReferenceId)
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(1, repository.feePreviewRequests.size)
+    }
+
+    @Test
     fun `uploading global image media does not refresh image fee preview before remote url exists`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
