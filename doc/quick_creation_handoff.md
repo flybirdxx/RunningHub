@@ -2575,3 +2575,31 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测项目数超过 20 的账号，确认分页追加后仍可置顶、重命名、删除和进入项目任务筛选。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需后续明确授权。
 - 继续避免提交已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
+
+## 2026-06-18 追加交接：灵感模板分页加载更多
+
+当前行为：
+- 进入“灵感”模式后，模板列表首屏使用 `/task/quick-creation/inspiration/templates` 的 `page=1,size=20` 请求。
+- 当首屏或下一页返回数量达到 20 条时，UI 认为仍有下一页，并在灵感模板列表末尾展示“加载更多模板”按钮。
+- 点击“加载更多模板”会调用 `loadMoreInspirationTemplates()` 请求下一页，追加到当前模板列表并按 `templateId` 去重。
+- `inspirationTemplatesLoadingMore` 只覆盖分页追加状态，不影响初次加载的 `inspirationLoading`。
+
+本轮变更：
+- `QuickCreateUiState` 新增 `inspirationTemplatesLoadingMore`、`inspirationTemplatesPage`、`inspirationTemplatesHasMore`。
+- `QuickCreateScreenModel` 新增 `INSPIRATION_TEMPLATE_PAGE_SIZE = 20` 和 `loadMoreInspirationTemplates()`。
+- `InspirationArea` 新增 `onLoadMoreTemplates` 回调和列表底部加载更多按钮。
+- `FakeQuickCreateRepository` 新增灵感模板分页夹具和请求页记录。
+- 新增测试 `loading more inspiration templates appends next page`，覆盖第 1 页 20 条、第 2 页 1 条时的追加、页码和 hasMore 状态。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.loading more inspiration templates appends next page"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check
+```
+
+后续建议：
+- 真机复测灵感模板数量超过 20 的账号，确认底部“加载更多模板”出现、追加结果不重复，并且追加后的模板仍能“制作同款”回填创作参数。
+- 当前 domain 层没有暴露模板分页元数据，`hasMore` 使用短页启发式。后续若接口 DTO/domain 补充 `hasNext/pages/total`，应替换为服务端分页字段。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需后续明确授权。
+- 继续避免提交已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。

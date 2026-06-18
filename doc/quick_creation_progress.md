@@ -2479,3 +2479,24 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需复测项目数量超过 20 时，横向项目条末尾出现“加载更多”，点击后追加下一页项目且不影响当前项目筛选。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加进度：灵感模板分页加载更多
+
+本轮已完成：
+- `QuickCreateScreenModel.loadInspiration()` 明确按 `page=1,size=20` 请求灵感模板。
+- 新增 `loadMoreInspirationTemplates()`，在灵感模板列表有更多数据时请求下一页，追加到 `inspirationTemplates` 并按 `templateId` 去重。
+- 新增 `inspirationTemplatesLoadingMore/inspirationTemplatesPage/inspirationTemplatesHasMore` UI state。
+- `InspirationArea` 在模板列表末尾展示“加载更多模板”按钮，加载中禁用并显示进度。
+- 因当前 domain repository 只返回模板列表、不返回分页元数据，移动端暂按“返回数量达到 20 条则认为还有下一页”的规则判断 `hasMore`。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.loading more inspiration templates appends next page"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check
+```
+
+仍未完成：
+- 真机仍需复测灵感模板数量超过 20 时，列表末尾出现“加载更多模板”，点击后追加下一页模板且“制作同款”仍可正常回填。
+- 后续若 repository 增加模板分页响应元数据，应改为使用服务端 `hasNext/pages/total`，替代当前短页启发式判断。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
