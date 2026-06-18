@@ -2290,3 +2290,24 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：先让 prompt-only 服务端价格显示，再选择并失败上传参考素材，删除失败素材后确认按钮恢复到服务端预览价格。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：价格预览失败后回退本地估算价
+
+当前行为：
+- `scheduleFeePreview()` 在当前状态无法构造有效 fee-preview 请求时，会把 `estimatedCost` 回退到当前 tab 的本地估算价。
+- 图片 fee-preview 请求失败时，状态会同时保留 `feePreviewError` 并把 `estimatedCost` 回退到当前图片配置估算价，避免继续展示上一轮服务端金额。
+- 视频 fee-preview 请求失败时也通过 `applyFeePreviewError()` 使用同一套本地估算价回退逻辑。
+- 点击生成时仍优先检查 `feePreviewError`，所以失败后不会因为有本地估算价而继续提交真实 `prepare/commit`。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image fee preview failure falls back from previous server amount to local estimate"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image fee preview failure falls back from previous server amount to local estimate" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when fee preview failed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video is blocked when fee preview failed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.fee preview failure clears previous task status text when generate is blocked"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：断网或制造 fee-preview 失败后，确认按钮不再显示上一轮服务端金额，点击生成仍显示“价格待确认”。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
