@@ -2475,6 +2475,20 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `init ignores saved draft without prompt content`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"","videoPrompt":""}""")
+
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        runCurrent()
+
+        assertEquals(false, model.uiState.value.hasDraft)
+        assertEquals(null, settings.getQuickCreateDraft())
+    }
+
+    @Test
     fun `draft resume summary describes tab and prompt length`() {
         val draft = DraftData(
             currentTab = "VIDEO",

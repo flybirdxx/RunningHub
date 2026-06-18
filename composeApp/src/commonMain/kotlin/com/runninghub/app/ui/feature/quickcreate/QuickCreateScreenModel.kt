@@ -42,6 +42,9 @@ data class DraftData(
     val videoPrompt: String = "",
 )
 
+private val DraftData.hasPromptContent: Boolean
+    get() = imagePrompt.isNotBlank() || videoPrompt.isNotBlank()
+
 internal fun DraftData.resumeSummaryText(): String {
     val isVideo = currentTab == "VIDEO"
     val tabLabel = if (isVideo) "视频" else "图片"
@@ -594,7 +597,12 @@ class QuickCreateScreenModel(
             if (!raw.isNullOrEmpty()) {
                 try {
                     val draft = parseDraftData(raw)
-                    setDraftData(draft)
+                    if (draft.hasPromptContent) {
+                        setDraftData(draft)
+                    } else {
+                        setDraftData(null)
+                        settingsRepository.clearQuickCreateDraft()
+                    }
                 } catch (_: Exception) {
                     setDraftData(null)
                     settingsRepository.clearQuickCreateDraft()
