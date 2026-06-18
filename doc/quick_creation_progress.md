@@ -2500,3 +2500,72 @@ git diff --check
 - 真机仍需复测灵感模板数量超过 20 时，列表末尾出现“加载更多模板”，点击后追加下一页模板且“制作同款”仍可正常回填。
 - 后续若 repository 增加模板分页响应元数据，应改为使用服务端 `hasNext/pages/total`，替代当前短页启发式判断。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+
+## 2026-06-18 授权扣费验证与服务端默认参数修复
+
+本轮在用户明确授权后，使用模拟器中已登录账号的登录态刷新 access token，并按当前 `/api/qc/v2/models` 返回的 G-2.0 官方文生图字段默认值发起一次真实低成本图片任务。
+
+已完成：
+- 真实 API 链路已跑通 `fee-preview -> prepare -> commit -> list`。
+- 成功任务 `taskId=2067493642653888514`，prompt 为 `authorized billing test green circle icon api 2k`。
+- `fee-preview` 返回 `passed=true`、`requiredCashAmount=0.76`、`cashCurrency=CNY`、`userCashBalance=153.496`。
+- `prepare` 返回 `prepareToken` 且 `prepare.feePreview.requiredCashAmount=0.76`。
+- `commit` 返回 `taskStatus=QUEUED`、`cashAmount=0.76`、`isFree=false`。
+- 任务列表轮询最终返回 `taskStatus=SUCCESS`、`outputList=1`、`prepayRecord.cashAmount=0.76`、输出尺寸 `2048x1152`。
+- 证据文件保存在未跟踪目录 `output/quickcreate_authorized_api_commit_evidence_2k.json`。
+
+本轮发现并修复：
+- 使用本地 fallback `resolution=1K` 直连 G-2.0 官方文生图时，`fee-preview` 返回 `passed=false`，错误为 `默认定价试算失败: PRICE_CONFIG_NOT_FOUND`。
+- 当前服务端模型字段默认值为 `resolution=2k`；改用 `2k` 后同一链路真实扣费成功。
+- `QuickCreateScreenModel` 的图片/视频 `quickCreationParams` 合并顺序已改为本地配置先入、服务端字段默认值和用户服务端字段后覆盖。
+- `QuickCreationV2Defaults` 的图片/视频 v2 请求构造也改为服务端 quick-creation params 覆盖本地 fallback，但最终 prompt 仍固定使用用户输入。
+- 新增/更新回归测试，锁定服务端默认 `resolution=2k` 会进入 fee-preview 请求和最终 v2 请求体。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image fee preview uses service model defaults before local fallbacks" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image prompt refreshes server fee preview into estimated cost" --tests "com.runninghub.shared.data.repository.QuickCreationV2DefaultsTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+.\gradlew.bat :composeApp:assembleDebug
+git diff --check -- shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/QuickCreationV2Defaults.kt composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt shared/src/commonTest/kotlin/com/runninghub/shared/data/repository/QuickCreationV2DefaultsTest.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt shared/src/commonMain/kotlin/com/runninghub/shared/data/remote/dto/QuickCreationV2Dto.kt shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/QuickCreateRepositoryImpl.kt
+```
+
+仍未完成：
+- 安装修复后的 debug APK 后，在 App UI 输入 `authorized billing test ui after defaults fix`，按钮仍显示本地 fallback `¥0.93`，未观察到回写 `¥0.76`；证据为 `output/quickcreate_postfix_prompt_fee.xml/png`。
+- 后续需继续查 App 端 fee-preview 调度为什么没有把成功预览价写回 UI，优先检查 `hasFeePreviewRequest()` 是否被静默判 false、以及真实设备上 preview 请求是否被取消或未发出。
+- 视频真实 `prepare/commit/list/detail` 仍未验证；本轮仅完成图片 G-2.0 真实扣费。
+## 2026-06-18 追加进度：App 端授权刷新与按钮价格回写闭环
+
+本轮继续定位上一节遗留的 App UI 未回写 `¥0.76` 问题，最终在模拟器真实登录态下验证通过，未再次点击生成，未新增扣费。
+
+关键定位：
+- 安装服务端默认参数修复后的 APK 后，输入 prompt 不再静默停在本地估算价；按钮变为 `价格待确认`，说明 fee-preview 已被触发但失败。
+- 读取 App DataStore 仅检查 JWT 过期时间，不打印 token：access token 已在 2026-05-28 过期，refresh token 仍有效到 2026-06-27。
+- 使用同一过期 access token 直连 `/task/quick-creation/fee-preview`，服务端返回 HTTP 200、业务 `code=412,msg=TOKEN_INVALID`，不会触发现有 HTTP 401 拦截器。
+- `AuthRepositoryImpl.refreshTokenIfNeeded()` 旧逻辑只判断 access token 非空，过期 token 也直接返回，导致 quick-creation retry 实际没有刷新。
+
+本轮变更：
+- `AuthRepositoryImpl.refreshTokenIfNeeded()` 现在解析 JWT `exp`，token 过期、缺少 `exp` 或解析失败时会使用 refresh token 刷新并落库；有效 token 仍直接复用。
+- `QuickCreateRepositoryImpl` 对 quick-creation envelope 增加一次性 token retry：当响应 `code=412,msg=TOKEN_INVALID` 时调用 `AuthRepository.refreshTokenIfNeeded()`，成功后重试原请求。
+- 生产 DI 将 `AuthRepository` 注入 `QuickCreateRepositoryImpl`。
+- `QuickCreateScreenModel` 跳过服务端字段中的 `prompt/promptAi` 必填校验，避免底部主 prompt 已填写时被动态服务字段的空 prompt 默认值阻断 fee-preview。
+- 新增 `AuthRepositoryImplTest.refreshTokenIfNeeded refreshes expired access token`。
+- 新增 `QuickCreateRepositoryImplFeePreviewTest.preview image fee refreshes token and retries token invalid envelope`。
+
+真实 UI 复测：
+- 安装新 APK 后，用同一个“过期 access + 有效 refresh”的 App 登录态进入“创作”页。
+- 输入 `authorized billing test ui auth refresh fix`。
+- 等待 debounce 与接口返回后，底部按钮显示 `生成 ¥0.76`。
+- 证据文件：`output/quickcreate_auth_refresh_price.xml`、`output/quickcreate_auth_refresh_price.png`。
+- 本次 UI 复测只触发 fee-preview，没有点击生成，没有新增 prepare/commit 或扣费。
+
+验证命令：
+```powershell
+.\gradlew.bat :shared:testDebugUnitTest --tests "com.runninghub.shared.data.repository.AuthRepositoryImplTest" --tests "com.runninghub.shared.data.repository.QuickCreateRepositoryImplFeePreviewTest" --tests "com.runninghub.shared.data.repository.QuickCreationV2DefaultsTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+.\gradlew.bat :composeApp:assembleDebug
+```
+
+仍未完成：
+- 视频真实扣费仍未验证；需要用户单独授权后再做。
+- `output/` 下包含截图、接口证据和 DataStore/token 相关调试文件，不能提交。

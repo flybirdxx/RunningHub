@@ -50,7 +50,7 @@ class QuickCreationV2DefaultsTest {
     }
 
     @Test
-    fun `service params are merged into image v2 request`() {
+    fun `service params override local image v2 fallbacks`() {
         val request = QuickCreationV2Defaults.imageG2CreateRequest(
             ImageGenerationRequest(
                 prompt = "green icon",
@@ -61,14 +61,15 @@ class QuickCreationV2DefaultsTest {
                 quickCreationParams = mapOf(
                     "aspectRatio" to "1:1",
                     "resolution" to "4k",
+                    "prompt" to "",
                     "style" to "photoreal",
                 ),
             )
         )
 
         assertEquals(JsonPrimitive("green icon"), request.params["prompt"])
-        assertEquals(JsonPrimitive("16:9"), request.params["aspectRatio"])
-        assertEquals(JsonPrimitive("2k"), request.params["resolution"])
+        assertEquals(JsonPrimitive("1:1"), request.params["aspectRatio"])
+        assertEquals(JsonPrimitive("4k"), request.params["resolution"])
         assertEquals(JsonPrimitive("medium"), request.params["quality"])
         assertEquals(JsonPrimitive("photoreal"), request.params["style"])
     }

@@ -11,6 +11,7 @@ import com.runninghub.shared.domain.repository.AuthRepository
 import com.runninghub.shared.domain.repository.SmsError
 import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.util.md5
+import kotlinx.datetime.Clock
 
 class AuthRepositoryImpl(
     private val api: RunningHubApi,
@@ -76,7 +77,7 @@ class AuthRepositoryImpl(
 
     override suspend fun refreshTokenIfNeeded(): Result<String> = runCatching {
         val currentToken = settings.getAuthToken()
-        if (!currentToken.isNullOrEmpty()) return@runCatching currentToken
+        if (!currentToken.isNullOrEmpty() && !currentToken.isExpiredJwt()) return@runCatching currentToken
 
         val refreshToken = settings.getRefreshToken()
             ?: throw IllegalStateException("No refresh token available")
@@ -167,6 +168,22 @@ class AuthRepositoryImpl(
         }
     }
 
+    private fun String.isExpiredJwt(): Boolean {
+        return try {
+            val payload = split(".").getOrNull(1) ?: return true
+            val decoded = decodeBase64Url(payload)
+            val exp = """"exp"\s*:\s*(\d+)""".toRegex()
+                .find(decoded)
+                ?.groupValues
+                ?.getOrNull(1)
+                ?.toLongOrNull()
+                ?: return true
+            exp <= Clock.System.now().epochSeconds + TOKEN_REFRESH_SKEW_SECONDS
+        } catch (_: Exception) {
+            true
+        }
+    }
+
     @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
     private fun decodeBase64Url(input: String): String {
         val padded = input
@@ -175,7 +192,11 @@ class AuthRepositoryImpl(
             .let {
                 val mod = it.length % 4
                 if (mod > 0) it + "=".repeat(4 - mod) else it
-            }
+        }
         return kotlin.io.encoding.Base64.decode(padded.encodeToByteArray()).decodeToString()
+    }
+
+    private companion object {
+        const val TOKEN_REFRESH_SKEW_SECONDS = 60L
     }
 }

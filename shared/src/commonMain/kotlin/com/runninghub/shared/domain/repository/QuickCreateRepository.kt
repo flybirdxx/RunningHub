@@ -442,6 +442,17 @@ data class QuickCreateInspirationTemplate(
     val tagNew: Boolean,
 )
 
+data class QuickCreateInspirationTemplatePage(
+    val page: Int,
+    val size: Int,
+    val total: Int,
+    val pages: Int,
+    val hasNext: Boolean,
+    val hasPrevious: Boolean,
+    val nextCursor: String? = null,
+    val items: List<QuickCreateInspirationTemplate>,
+)
+
 data class QuickCreateInspirationTemplateDetail(
     val templateId: String,
     val title: String,
@@ -546,7 +557,7 @@ interface QuickCreateRepository {
         page: Int = 1,
         size: Int = 20,
         tagId: String? = null,
-    ): Result<List<QuickCreateInspirationTemplate>>
+    ): Result<QuickCreateInspirationTemplatePage>
     suspend fun getInspirationTemplateDetail(templateId: String): Result<QuickCreateInspirationTemplateDetail>
     suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>>
     suspend fun listQuickCreationHistory(page: Int = 1, size: Int = 10): Result<QuickCreationHistoryPage>

@@ -2,11 +2,13 @@ package com.runninghub.shared.data.repository
 
 import com.runninghub.shared.data.remote.api.QuickCreateApi
 import com.runninghub.shared.data.remote.dto.*
+import com.runninghub.shared.domain.repository.AuthRepository
 import com.runninghub.shared.domain.repository.ImageGenerationRequest
 import com.runninghub.shared.domain.repository.ImageModel
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplatePage
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateResultItem
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
@@ -257,14 +259,30 @@ private fun pollQuickCreationTaskStatus(
 class QuickCreateRepositoryImpl(
     private val quickCreateApi: QuickCreateApi,
     private val settingsRepository: SettingsRepository,
+    private val authRepository: AuthRepository? = null,
 ) : QuickCreateRepository {
+
+    private suspend fun <T> quickCreationRequestWithTokenRetry(
+        request: suspend () -> QuickCreationEnvelopeDto<T>,
+    ): QuickCreationEnvelopeDto<T> {
+        val first = request()
+        if (!first.isTokenInvalid()) return first
+
+        val refreshed = authRepository?.refreshTokenIfNeeded()?.isSuccess == true
+        return if (refreshed) request() else first
+    }
+
+    private fun QuickCreationEnvelopeDto<*>.isTokenInvalid(): Boolean =
+        code == 412 && (msg.equals("TOKEN_INVALID", ignoreCase = true) ||
+            message.equals("TOKEN_INVALID", ignoreCase = true))
 
     override suspend fun previewImageQuickCreationFee(
         request: ImageGenerationRequest,
     ): Result<QuickCreationFeePreview> = runCatching {
-        val response = quickCreateApi.previewQuickCreationFee(
-            QuickCreationV2Defaults.imageG2CreateRequest(request)
-        )
+        val createRequest = QuickCreationV2Defaults.imageG2CreateRequest(request)
+        val response = quickCreationRequestWithTokenRetry {
+            quickCreateApi.previewQuickCreationFee(createRequest)
+        }
         if (response.code != 0 || response.data == null) {
             error(response.msg ?: response.message ?: "价格预览失败")
         }
@@ -274,9 +292,10 @@ class QuickCreateRepositoryImpl(
     override suspend fun previewVideoQuickCreationFee(
         request: VideoGenerationRequest,
     ): Result<QuickCreationFeePreview> = runCatching {
-        val response = quickCreateApi.previewQuickCreationFee(
-            QuickCreationV2Defaults.videoCreateRequest(request)
-        )
+        val createRequest = QuickCreationV2Defaults.videoCreateRequest(request)
+        val response = quickCreationRequestWithTokenRetry {
+            quickCreateApi.previewQuickCreationFee(createRequest)
+        }
         if (response.code != 0 || response.data == null) {
             error(response.msg ?: response.message ?: "价格预览失败")
         }
@@ -288,7 +307,9 @@ class QuickCreateRepositoryImpl(
     ): Flow<QuickCreateTaskStatus> = flow {
         val createRequest = QuickCreationV2Defaults.imageG2CreateRequest(request)
 
-        val feePreview = quickCreateApi.previewQuickCreationFee(createRequest)
+        val feePreview = quickCreationRequestWithTokenRetry {
+            quickCreateApi.previewQuickCreationFee(createRequest)
+        }
         if (feePreview.code != 0) {
             emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: "价格预览失败"))
             return@flow
@@ -299,18 +320,22 @@ class QuickCreateRepositoryImpl(
             return@flow
         }
 
-        val prepare = quickCreateApi.prepareQuickCreation(createRequest)
+        val prepare = quickCreationRequestWithTokenRetry {
+            quickCreateApi.prepareQuickCreation(createRequest)
+        }
         if (prepare.code != 0 || prepare.data == null) {
             emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: "任务预提交失败"))
             return@flow
         }
 
-        val commit = quickCreateApi.commitQuickCreation(
-            QuickCreationCommitRequestDto(
-                prepareToken = prepare.data.prepareToken,
-                createRequest = createRequest,
+        val commit = quickCreationRequestWithTokenRetry {
+            quickCreateApi.commitQuickCreation(
+                QuickCreationCommitRequestDto(
+                    prepareToken = prepare.data.prepareToken,
+                    createRequest = createRequest,
+                )
             )
-        )
+        }
         if (commit.code != 0 || commit.data == null) {
             emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: "任务提交失败"))
             return@flow
@@ -326,7 +351,9 @@ class QuickCreateRepositoryImpl(
     ): Flow<QuickCreateTaskStatus> = flow {
         val createRequest = QuickCreationV2Defaults.videoCreateRequest(request)
 
-        val feePreview = quickCreateApi.previewQuickCreationFee(createRequest)
+        val feePreview = quickCreationRequestWithTokenRetry {
+            quickCreateApi.previewQuickCreationFee(createRequest)
+        }
         if (feePreview.code != 0) {
             emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: "Fee preview failed"))
             return@flow
@@ -337,18 +364,22 @@ class QuickCreateRepositoryImpl(
             return@flow
         }
 
-        val prepare = quickCreateApi.prepareQuickCreation(createRequest)
+        val prepare = quickCreationRequestWithTokenRetry {
+            quickCreateApi.prepareQuickCreation(createRequest)
+        }
         if (prepare.code != 0 || prepare.data == null) {
             emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: "Prepare failed"))
             return@flow
         }
 
-        val commit = quickCreateApi.commitQuickCreation(
-            QuickCreationCommitRequestDto(
-                prepareToken = prepare.data.prepareToken,
-                createRequest = createRequest,
+        val commit = quickCreationRequestWithTokenRetry {
+            quickCreateApi.commitQuickCreation(
+                QuickCreationCommitRequestDto(
+                    prepareToken = prepare.data.prepareToken,
+                    createRequest = createRequest,
+                )
             )
-        )
+        }
         if (commit.code != 0 || commit.data == null) {
             emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: "Commit failed"))
             return@flow
@@ -1214,13 +1245,14 @@ class QuickCreateRepositoryImpl(
         page: Int,
         size: Int,
         tagId: String?,
-    ): Result<List<QuickCreateInspirationTemplate>> = runCatching {
+    ): Result<QuickCreateInspirationTemplatePage> = runCatching {
         val response = quickCreateApi.getQuickCreationInspirationTemplates(page, size, tagId)
         if (response.code != 0) {
             throw IllegalStateException(response.msg ?: response.message ?: "灵感模板加载失败")
         }
 
-        response.data?.list.orEmpty().map { template ->
+        val pageDto = response.data
+        val templates = (pageDto?.records?.takeIf { it.isNotEmpty() } ?: pageDto?.list).orEmpty().map { template ->
             QuickCreateInspirationTemplate(
                 templateId = template.templateId,
                 title = template.nameCn ?: template.nameAi ?: template.templateId,
@@ -1231,6 +1263,24 @@ class QuickCreateRepositoryImpl(
                 tagNew = template.tagNew,
             )
         }
+        val resolvedPage = pageDto?.current.asIntOrZero().takeIf { it > 0 }
+            ?: pageDto?.page.asIntOrZero().takeIf { it > 0 }
+            ?: page
+        val resolvedSize = pageDto?.size.asIntOrZero().takeIf { it > 0 } ?: size
+        val total = pageDto?.total.asIntOrZero() ?: 0
+        val pages = pageDto?.pages.asIntOrZero().takeIf { it > 0 }
+            ?: if (total > 0 && resolvedSize > 0) ((total + resolvedSize - 1) / resolvedSize) else 0
+        val hasNext = pageDto?.hasNext ?: (pages > 0 && resolvedPage < pages)
+        QuickCreateInspirationTemplatePage(
+            page = resolvedPage,
+            size = resolvedSize,
+            total = total,
+            pages = pages,
+            hasNext = hasNext,
+            hasPrevious = pageDto?.hasPrevious ?: (resolvedPage > 1),
+            nextCursor = pageDto?.nextCursor,
+            items = templates,
+        )
     }
 
     override suspend fun getInspirationTemplateDetail(

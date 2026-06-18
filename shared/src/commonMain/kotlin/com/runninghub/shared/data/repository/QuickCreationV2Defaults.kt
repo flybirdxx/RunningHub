@@ -15,6 +15,10 @@ internal object QuickCreationV2Defaults {
 
     fun imageG2CreateRequest(request: ImageGenerationRequest): QuickCreationCreateRequestDto {
         val params = buildMap {
+            put("aspectRatio", JsonPrimitive(request.aspectRatio))
+            put("resolution", JsonPrimitive(request.resolution))
+            put("quality", JsonPrimitive(request.quality))
+
             request.quickCreationParams.forEach { (key, value) ->
                 if (key.isNotBlank() && value.isNotBlank()) {
                     put(key, JsonPrimitive(value))
@@ -28,9 +32,6 @@ internal object QuickCreationV2Defaults {
             }
 
             put("prompt", JsonPrimitive(request.prompt))
-            put("aspectRatio", JsonPrimitive(request.aspectRatio))
-            put("resolution", JsonPrimitive(request.resolution))
-            put("quality", JsonPrimitive(request.quality))
 
             val imageUrl = request.referenceImageUri?.takeIf { it.isNotBlank() }
             if (imageUrl != null && !containsKey("imageUrls")) {
@@ -48,16 +49,17 @@ internal object QuickCreationV2Defaults {
 
     fun videoCreateRequest(request: VideoGenerationRequest): QuickCreationCreateRequestDto {
         val params = buildMap {
-            putStringParams(request.quickCreationParams)
-            putListParams(request.quickCreationListParams)
-
-            put("prompt", JsonPrimitive(request.prompt))
             put("ratio", JsonPrimitive(request.aspectRatio))
             put("aspectRatio", JsonPrimitive(request.aspectRatio))
             put("resolution", JsonPrimitive(request.resolution))
             put("duration", JsonPrimitive(request.duration))
             put("generateAudio", JsonPrimitive(request.generateAudio))
             put("realPersonMode", JsonPrimitive(request.realistic))
+
+            putStringParams(request.quickCreationParams)
+            putListParams(request.quickCreationListParams)
+
+            put("prompt", JsonPrimitive(request.prompt))
 
             request.referenceImageUri?.takeIf { it.isNotBlank() }?.let { imageUrl ->
                 putIfAbsent("imageUrls", JsonArray(listOf(JsonPrimitive(imageUrl))))

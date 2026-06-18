@@ -159,8 +159,8 @@ data class QuickCreationTaskPageDto(
     @SerialName("size") val size: JsonElement? = null,
     @SerialName("total") val total: JsonElement? = null,
     @SerialName("pages") val pages: JsonElement? = null,
-    @SerialName("hasNext") val hasNext: Boolean = false,
-    @SerialName("hasPrevious") val hasPrevious: Boolean = false,
+    @SerialName("hasNext") val hasNext: Boolean? = null,
+    @SerialName("hasPrevious") val hasPrevious: Boolean? = null,
     @SerialName("nextCursor") val nextCursor: String? = null,
     @SerialName("list") val list: List<QuickCreationTaskRecordDto> = emptyList(),
     @SerialName("records") val records: List<QuickCreationTaskRecordDto> = emptyList(),
@@ -289,10 +289,16 @@ data class QuickCreationInspirationTemplatePageRequestDto(
 
 @Serializable
 data class QuickCreationInspirationTemplatePageDto(
-    @SerialName("page") val page: Int = 1,
-    @SerialName("size") val size: Int = 20,
-    @SerialName("total") val total: Int = 0,
+    @SerialName("page") val page: JsonElement? = null,
+    @SerialName("current") val current: JsonElement? = null,
+    @SerialName("size") val size: JsonElement? = null,
+    @SerialName("total") val total: JsonElement? = null,
+    @SerialName("pages") val pages: JsonElement? = null,
+    @SerialName("hasNext") val hasNext: Boolean? = null,
+    @SerialName("hasPrevious") val hasPrevious: Boolean? = null,
+    @SerialName("nextCursor") val nextCursor: String? = null,
     @SerialName("list") val list: List<QuickCreationInspirationTemplateDto> = emptyList(),
+    @SerialName("records") val records: List<QuickCreationInspirationTemplateDto> = emptyList(),
 )
 
 @Serializable

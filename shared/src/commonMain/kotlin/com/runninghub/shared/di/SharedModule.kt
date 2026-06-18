@@ -150,6 +150,6 @@ val sharedModule = module {
     single<WebAppRepository> { WebAppRepositoryImpl(get()) }
     single<UserRepository> { UserRepositoryImpl(get()) }
     single<AudioRepository> { AudioRepositoryImpl(get()) }
-    single<QuickCreateRepository> { QuickCreateRepositoryImpl(get(), get()) }
     single<AuthRepository> { AuthRepositoryImpl(get(), get()) }
+    single<QuickCreateRepository> { QuickCreateRepositoryImpl(get(), get(), get()) }
 }

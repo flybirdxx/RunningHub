@@ -235,7 +235,7 @@ private fun DiscoveryContent(
             state = pullRefreshState,
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
-            LazyVerticalGrid(
+             LazyVerticalGrid(
                 state = gridState,
                 columns = GridCells.Adaptive(minSize = 180.dp),
                 contentPadding = PaddingValues(
