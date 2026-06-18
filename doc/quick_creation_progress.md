@@ -1900,7 +1900,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 ## 2026-06-18 已失败素材阻止正式提交
 
-代码提交 `f0d32b1 fix(quickcreate): block submit when upload failed` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `f0d32b1 fix(quickcreate): block submit when upload failed` 和文档提交 `4c5106c docs(quickcreate): record failed upload guard` 已在本地完成，等待网络恢复后推送到 `feature/kmp-refactoring`。
 
 已完成：
 - `awaitPendingUploads()` 现在会先检查当前 tab 相关素材里已经处于 `FAILED` 的项，发现后直接阻止生成。
@@ -1917,5 +1917,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 仍未完成：
 - 真机仍需验证选择参考图但上传失败后，点击生成会提示上传失败而不是提交不带参考图的任务。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 超长 prompt 拦截时显示准确错误
+
+代码提交 `1cb8774 fix(quickcreate): explain over limit prompts` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 图片和视频 prompt 超过 `MAX_PROMPT_CHARS=500` 时，生成前拦截会显示 `描述词不能超过 500 个字符`。
+- 修复旧行为：超长 prompt 虽然不会进入正式提交，但错误文案复用了空 prompt 的 `请输入描述词`，用户无法判断应缩短文本还是补充文本。
+- 新增回归测试覆盖：图片和视频超长 prompt 都不应提交正式请求，`taskStatus=IDLE`、`statusText=null`，错误文案为长度超限提示。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.over limit image prompt shows length error when generate is blocked" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.over limit video prompt shows length error when generate is blocked"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证输入超过 500 字后点击生成，页面提示长度超限且不进入正式提交。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
