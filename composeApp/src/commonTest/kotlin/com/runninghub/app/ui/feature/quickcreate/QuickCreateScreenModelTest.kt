@@ -828,6 +828,36 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `service model reload keeps selected image model canonical when identity matches`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        repository.models = listOf(repository.models.single().copy(name = "Updated image model"))
+        model.loadServiceModels()
+        runCurrent()
+
+        assertEquals("Updated image model", model.uiState.value.selectedImageServiceModel?.name)
+    }
+
+    @Test
+    fun `service model reload keeps selected video model canonical when identity matches`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        repository.videoModels = listOf(repository.videoModels.single().copy(name = "Updated video model"))
+        model.loadServiceModels()
+        runCurrent()
+
+        assertEquals("Updated video model", model.uiState.value.selectedVideoServiceModel?.name)
+    }
+
+    @Test
     fun `generate image uses selected service model field defaults`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

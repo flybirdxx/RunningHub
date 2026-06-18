@@ -127,10 +127,10 @@ class QuickCreateScreenModel(
                 val images = imageModels.getOrElse { emptyList() }
                 val videos = videoModels.getOrElse { emptyList() }
                 val selectedImage = state.selectedImageServiceModel
-                    ?.takeIf { selected -> images.any { it.matchesServiceIdentity(selected) } }
+                    ?.let { selected -> images.firstOrNull { it.matchesServiceIdentity(selected) } }
                     ?: images.firstOrNull()
                 val selectedVideo = state.selectedVideoServiceModel
-                    ?.takeIf { selected -> videos.any { it.matchesServiceIdentity(selected) } }
+                    ?.let { selected -> videos.firstOrNull { it.matchesServiceIdentity(selected) } }
                     ?: videos.firstOrNull()
                 state.copy(
                     serviceModelsLoading = false,
