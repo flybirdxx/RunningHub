@@ -1706,7 +1706,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
 ## 2026-06-18 追加交接：提交成功清理内存草稿入口
 
-代码提交 `da5cd42 fix(quickcreate): clear draft entry on submit` 已在本地生成；推送到 `feature/kmp-refactoring` 时遇到 GitHub 443 连接失败，待网络恢复后继续推送。
+代码提交 `da5cd42 fix(quickcreate): clear draft entry on submit` 和文档提交 `019ab05 docs(quickcreate): record submit draft cleanup` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - `handleTaskStatus()` 收到 `QuickCreateTaskStatus.Queuing` 时，会先调用 `clearDraft()`，再把任务状态更新为 `QUEUING`。
@@ -1723,14 +1723,14 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 ```
 
 下一步建议：
-- 网络恢复后推送本地代码和文档提交。
+- 远端已同步；后续继续保持代码提交和文档提交交替推送。
 - 真机复测：有旧草稿入口时应用灵感模板并提交，进入排队、任务完成或失败后都不应再显示旧草稿入口。
 - 真机复测：字段校验失败或价格待确认时不进入 `Queuing`，草稿入口/当前输入不应被误清理。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
 ## 2026-06-18 追加交接：失败任务替换旧运行文案
 
-代码提交 `b546ac1 fix(quickcreate): replace failed task status text` 已在本地生成；当前 GitHub 443 TCP 连接失败，待网络恢复后继续推送到 `feature/kmp-refactoring`。
+代码提交 `b546ac1 fix(quickcreate): replace failed task status text` 和文档提交 `3639727 docs(quickcreate): record failed status text fix` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - `QuickCreateTaskStatus.Failed` 会把 `taskStatus` 设为 `FAILED`，同时把 `error` 和 `statusText` 都设为服务端失败消息。
@@ -1747,14 +1747,14 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 ```
 
 下一步建议：
-- 网络恢复后推送本地代码和文档提交。
+- 远端已同步；后续继续保持代码提交和文档提交交替推送。
 - 真机复测：让任务进入运行态后失败，确认中间状态区显示失败消息，而不是旧进度。
 - 后续可以进一步检查 `TaskStatusArea` 对 `FAILED` 状态是否仍应显示圆形进度条；本轮只修复文案残留。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
 ## 2026-06-18 追加交接：清空结果时同步清理状态文案
 
-代码提交 `84cce5f fix(quickcreate): clear result status text` 已在本地生成；当前 Git over HTTPS 推送仍被连接重置，待网络恢复后继续推送到 `feature/kmp-refactoring`。
+代码提交 `84cce5f fix(quickcreate): clear result status text` 和文档提交 `7d331d2 docs(quickcreate): record result status cleanup` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - `clearResults()` 会清空 `results`、把 `taskStatus` 置回 `IDLE`，并把 `statusText` 置为 `null`。
@@ -1770,7 +1770,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 ```
 
 下一步建议：
-- 网络恢复后推送本地代码和文档提交。
+- 远端已同步；后续继续保持代码提交和文档提交交替推送。
 - 真机复测：成功结果出现后点击清空，页面应回到历史/项目区域，状态文案不应残留。
 - 后续可继续评估 `TaskStatusArea` 对 `FAILED` 状态是否还需要替换圆形进度图标；本轮只处理状态数据一致性。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
