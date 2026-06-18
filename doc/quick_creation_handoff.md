@@ -2403,3 +2403,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机慢网或代理延迟下验证连续输入 prompt、切换模型参数、上传素材状态变化时，底部按钮价格不会被旧 fee-preview 响应回写。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费；完整端到端扣费仍需后续明确授权。
 - 继续避免提交既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
+
+## 2026-06-18 追加交接：隐藏字段素材移除的价格预览边界
+
+当前行为：
+- `removeMediaReference()` 在删除前先读取当前 `currentRelevantMediaReferences()`，只有待删除素材属于当前 tab 的相关素材集合时才重新调度 fee-preview。
+- 隐藏服务端上传字段素材不属于相关集合；删除这类素材不会让当前 prompt 重新发起 prompt-only fee-preview。
+- 这与添加隐藏字段素材不刷新 fee-preview 的行为一致，避免隐藏字段影响底部按钮价格。
+
+本轮变更：
+- 只新增测试 `removing hidden service upload field media does not refresh image fee preview`。
+- 生产代码未改动；测试直接通过，说明当前实现已经满足该边界。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh image fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.uploading global image media does not refresh image fee preview before remote url exists" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing failed image upload restores image fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+后续建议：
+- 真机复测隐藏字段、inactive child 字段和 active 字段混合场景，确认 UI 删除动作与 fee-preview 请求边界一致。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需新的明确授权。
+- 继续避免提交既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。

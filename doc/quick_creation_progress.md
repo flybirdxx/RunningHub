@@ -2321,3 +2321,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证快速连续修改 prompt 或模型参数时，按钮价格不会被旧网络响应回写。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 隐藏上传字段素材移除不刷新价格预览
+
+代码提交待本文档提交后与测试覆盖交替推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `removing hidden service upload field media does not refresh image fee preview` 回归测试。
+- 覆盖隐藏服务端上传字段素材从 `imageConfig.mediaReferences` 移除时，不应触发当前图片 prompt 的新一轮 fee-preview。
+- 当前生产逻辑已按移除前 `currentRelevantMediaReferences()` 判断相关性工作，本轮只补显式测试覆盖，无生产代码改动。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh image fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.uploading global image media does not refresh image fee preview before remote url exists" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing failed image upload restores image fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测隐藏字段、inactive child 字段和当前 active 字段混合存在时，删除素材后的按钮价格刷新边界。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
