@@ -1777,7 +1777,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
 ## 2026-06-18 追加交接：失败状态区不再显示进度圈
 
-代码提交 `e8e722e fix(quickcreate): show failed task indicator` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `e8e722e fix(quickcreate): show failed task indicator` 和文档提交 `43e3ddc docs(quickcreate): record failed indicator fix` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - `TaskStatusArea` 不再固定显示 `CircularProgressIndicator`，而是通过 `quickCreateTaskStatusDisplay()` 得到文案和指示器类型。
@@ -1796,5 +1796,28 @@ git diff --check
 下一步建议：
 - 远端推送完成后，继续按“代码提交、文档提交”节奏推进下一个可验证缺口。
 - 真机复测：让任务进入运行态后失败，确认中间状态区显示错误图标和失败消息，不再有旋转进度圈。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：项目筛选内生成成功后刷新项目任务
+
+代码提交 `18a8d0a fix(quickcreate): refresh selected project after generation` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 用户处于项目筛选状态时，`selectedProjectId` 会保留在 `QuickCreateUiState`。
+- 生成成功后不再固定调用最近创作列表，而是通过 `refreshCurrentHistoryArea()` 判断：无项目筛选刷新最近历史，有项目筛选刷新当前项目任务。
+- `handleTaskStatus(Success)` 将历史刷新副作用移出 `StateFlow.update` lambda，避免状态更新 lambda 重试时重复发起历史/项目任务请求。
+- `selectProject()` 和成功后的项目任务刷新复用 `loadSelectedProjectTasks()`；切换项目会清空旧列表，成功后的刷新只显示 loading 并保留项目上下文。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.successful generation refreshes selected project tasks"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check
+```
+
+下一步建议：
+- 远端推送完成后，继续按“代码提交、文档提交”节奏推进下一个可验证缺口。
+- 真机复测：在项目筛选页完成一次已授权的低成本图片生成，确认成功后列表仍为当前项目任务，而不是跳回最近创作数据。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

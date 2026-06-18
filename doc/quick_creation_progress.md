@@ -1679,7 +1679,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
 ## 2026-06-18 失败任务状态区替换进度圈
 
-代码提交 `e8e722e fix(quickcreate): show failed task indicator` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `e8e722e fix(quickcreate): show failed task indicator` 和文档提交 `43e3ddc docs(quickcreate): record failed indicator fix` 已推送到 `feature/kmp-refactoring`。
 
 已完成：
 - 新增 `QuickCreateTaskStatusUi.kt`，用 `quickCreateTaskStatusDisplay()` 将任务状态映射为显示文案和指示器类型，避免 Compose UI 里直接散落状态判断。
@@ -1697,5 +1697,27 @@ git diff --check
 
 仍未完成：
 - 真机仍需验证任务进入失败态时，中间状态区显示错误图标和失败消息，不再有旋转进度圈。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 项目筛选内生成成功后刷新项目任务
+
+代码提交 `18a8d0a fix(quickcreate): refresh selected project after generation` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `refreshCurrentHistoryArea()`：生成成功后会按当前 `selectedProjectId` 判断刷新最近创作还是项目任务列表。
+- `selectProject()` 的项目任务加载逻辑抽为 `loadSelectedProjectTasks(projectId, clearExisting)`，切换项目时清空旧列表，成功生成后的刷新则保留当前项目筛选。
+- `handleTaskStatus(Success)` 不再在 `StateFlow.update` lambda 内直接启动历史刷新副作用，避免 `update` lambda 重试时重复刷新。
+- 新增回归测试覆盖：已选中项目时生成成功，应再次调用 `listQuickCreationProjectTasks(project-1,page=1)`，不应额外调用最近历史列表，历史区仍展示项目任务。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.successful generation refreshes selected project tasks"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check
+```
+
+仍未完成：
+- 真机仍需验证在项目筛选页触发低成本图片生成后，成功返回时项目筛选不丢失，列表仍为当前项目任务。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
