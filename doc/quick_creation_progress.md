@@ -2246,3 +2246,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证真实余额不足或 `fee-preview` 未通过响应时，按钮显示“价格待确认”，点击不会触发新的扣费任务。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 价格预览未通过时展示具体原因
+
+代码提交待本段文档提交后与实现交替推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `FEE_PREVIEW_NOT_PASSED_ERROR` 常量，避免“余额不足或价格预览未通过”在预览结果处理和生成拦截里重复硬编码。
+- `generate()` 在发现 `feePreviewError` 时，会区分“余额不足/预览未通过”和普通预览失败：前者直接展示具体原因，后者继续展示通用“价格待确认”。
+- 图片和视频两条 `passed=false + insufficientType=cash` 回归测试已更新为断言点击生成后 `uiState.error` 直接显示 `余额不足或价格预览未通过`。
+- 保留网络失败/接口异常场景的通用拦截文案，避免把临时预览失败误提示成余额不足。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when fee preview is not passed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video is blocked when fee preview is not passed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when fee preview failed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video is blocked when fee preview failed"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证真实余额不足时，用户点击生成看到的是具体余额/预览未通过原因，而不是泛化“价格待确认”。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
