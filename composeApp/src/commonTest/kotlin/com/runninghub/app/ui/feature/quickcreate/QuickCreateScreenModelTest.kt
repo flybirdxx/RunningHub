@@ -2743,6 +2743,30 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `errored image task clears running status text`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskStatuses = listOf(
+                QuickCreateTaskStatus.Running("task-1", progress = 42),
+                QuickCreateTaskStatus.Error("network unavailable"),
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("network unavailable", model.uiState.value.error)
+        assertEquals(null, model.uiState.value.statusText)
+    }
+
+    @Test
     fun `clearing successful results clears status text`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
