@@ -1441,8 +1441,16 @@ class QuickCreateScreenModel(
         }
         return canBuildRequest &&
             validateCurrentServiceFields(state) == null &&
-            validateCurrentServiceUploads(state) == null
+            validateCurrentServiceUploads(state) == null &&
+            !state.hasUnreadyFeePreviewMediaReferences()
     }
+
+    private fun QuickCreateUiState.hasUnreadyFeePreviewMediaReferences(): Boolean =
+        currentRelevantMediaReferences().any { reference ->
+            reference.uploadStatus == UploadStatus.FAILED ||
+                reference.uploadStatus == UploadStatus.UPLOADING ||
+                reference.uploadStatus == UploadStatus.PROCESSING
+        }
 
     private fun clearFeePreviewState() {
         _uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null) }
