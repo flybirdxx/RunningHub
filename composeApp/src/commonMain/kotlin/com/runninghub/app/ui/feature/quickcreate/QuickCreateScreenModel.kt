@@ -641,6 +641,8 @@ class QuickCreateScreenModel(
     }
 
     private fun clearDraft() {
+        draftSaveJob?.cancel()
+        draftSaveJob = null
         setDraftData(null)
         screenModelScope.launch { settingsRepository.clearQuickCreateDraft() }
     }

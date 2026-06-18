@@ -2643,6 +2643,25 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `restore draft cancels pending autosave`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"VIDEO","imagePrompt":"","videoPrompt":"video draft"}""")
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        runCurrent()
+
+        model.updateImagePrompt("existing image prompt")
+        runCurrent()
+        model.restoreDraft()
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(null, settings.getQuickCreateDraft())
+    }
+
+    @Test
     fun `checkForDraft clears stale in memory draft when stored draft is invalid`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
