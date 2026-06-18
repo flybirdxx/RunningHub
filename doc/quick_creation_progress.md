@@ -1448,3 +1448,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需接入并验证恢复/丢弃草稿 UI 入口，确认页面首屏出现时能正确显示已有草稿提示。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 接入草稿恢复/丢弃入口
+
+代码提交 `79afee0 feat(quickcreate): add draft resume entry` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `BottomPromptPanel` 在 `uiState.hasDraft=true` 且当前没有任务运行时，会在 Tab 区上方显示草稿提示条。
+- 草稿提示条展示 `上次草稿 · 图片/视频 · N 字` 摘要，并提供“恢复”和“丢弃”两个动作。
+- “恢复”连接 `QuickCreateScreenModel.restoreDraft()`，会恢复 prompt/tab、清空草稿状态并刷新 fee-preview；“丢弃”连接 `discardDraft()`，会清空持久化草稿和 `uiState.draftData`。
+- 新增 `DraftData.resumeSummaryText()`，集中生成草稿入口文案，避免 UI 层散落拼接逻辑。
+- 新增回归测试覆盖：视频草稿摘要应展示视频类型和当前 tab 对应 prompt 字数。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.draft resume summary describes tab and prompt length"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreen.kt composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证首屏草稿提示条在不同屏宽、键盘弹起、任务运行中和恢复/丢弃后的显示隐藏是否符合预期。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
