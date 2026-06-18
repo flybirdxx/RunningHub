@@ -2083,3 +2083,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证服务模型列表刷新或外部状态恢复后，不会把已不在当前分类列表的模型 ID 带入正式提交。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 服务模型刷新使用当前列表规范对象
+
+代码提交 `6f900a5 fix(quickcreate): canonicalize reloaded service models` 已完成，等待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `loadServiceModels()` 在刷新图片/视频服务模型列表时，如果旧选择的 `bindingId/skuId` 仍存在，会改用新列表里的匹配对象作为 `selectedImageServiceModel` / `selectedVideoServiceModel`。
+- 同身份刷新时继续保留已有服务参数，避免用户已填写的字段因列表刷新被无条件重置；只有身份变化或回退默认模型时才使用新模型默认参数。
+- 修复旧行为：接口返回同一身份但字段、名称或其他元数据已变化的服务模型后，UI 状态仍持有旧对象，后续可能展示或提交过期模型信息。
+- 新增回归测试覆盖图片和视频服务模型重新加载后，选中模型必须来自当前仓库返回列表。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.service model reload keeps selected image model canonical when identity matches" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.service model reload keeps selected video model canonical when identity matches"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证服务模型接口刷新后，页面展示的模型名称、字段和后续请求都来自最新列表对象。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

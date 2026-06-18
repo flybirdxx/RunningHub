@@ -2180,3 +2180,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：刷新服务模型列表、切换图片/视频 tab 后选择服务端模型，确认 UI 只会提交当前分类模型；如果列表重载后模型不再存在，应保留当前合法选择或回退默认选择。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：服务模型刷新使用当前列表对象
+
+代码提交 `6f900a5 fix(quickcreate): canonicalize reloaded service models` 已完成，等待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `loadServiceModels()` 重新拉取服务端模型列表后，会按 `bindingId/skuId` 在新图片列表或新视频列表中寻找旧选择对应项。
+- 如果找到同身份模型，`selectedImageServiceModel` / `selectedVideoServiceModel` 会替换为新列表中的规范对象，而不是继续持有刷新前的旧对象。
+- 同身份刷新保留当前 `imageServiceParams` / `videoServiceParams`，避免服务模型轮询或页面重进时覆盖用户已填写参数；身份变化或默认回退时才重新取默认参数。
+- 这补齐了上一轮“拒绝错分类模型”的后续边界：不仅选择入口要信任当前列表，列表刷新后的选中对象也必须来自当前列表。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.service model reload keeps selected image model canonical when identity matches" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.service model reload keeps selected video model canonical when identity matches"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：服务模型接口刷新后，确认页面展示的模型名称、字段配置和最终请求体都来自最新接口列表对象。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
