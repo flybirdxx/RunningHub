@@ -378,9 +378,13 @@ data class QuickCreateUiState(
     val selectedVideoServiceModel: QuickCreationServiceModel? = null,
     val imageServiceParams: Map<String, String> = emptyMap(),
     val videoServiceParams: Map<String, String> = emptyMap(),
+    val draftData: DraftData? = null,
 ) {
     val showCreationInput: Boolean
         get() = currentMode == QuickCreateMode.CREATION
+
+    val hasDraft: Boolean
+        get() = draftData != null
 }
 
 enum class QuickCreateTaskUiStatus {

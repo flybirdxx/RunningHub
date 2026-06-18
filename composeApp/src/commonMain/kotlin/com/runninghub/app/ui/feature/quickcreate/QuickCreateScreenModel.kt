@@ -81,13 +81,10 @@ class QuickCreateScreenModel(
     private var historyRefreshJob: Job? = null
     private var feePreviewJob: Job? = null
 
-    /** Check if a draft exists and returns its content.
-     *  TODO: These properties are non-reactive and currently have no UI consumers.
-     *  Consider moving draft state into QuickCreateUiState for reactive UI binding. */
-    var hasDraft: Boolean = false
-        private set
-    var draftData: DraftData? = null
-        private set
+    val hasDraft: Boolean
+        get() = _uiState.value.hasDraft
+    val draftData: DraftData?
+        get() = _uiState.value.draftData
 
     init {
         loadServiceModels()
@@ -589,22 +586,19 @@ class QuickCreateScreenModel(
             if (!raw.isNullOrEmpty()) {
                 try {
                     val draft = parseDraftData(raw)
-                    draftData = draft
-                    hasDraft = true
+                    setDraftData(draft)
                 } catch (_: Exception) {
-                    draftData = null
-                    hasDraft = false
+                    setDraftData(null)
                     settingsRepository.clearQuickCreateDraft()
                 }
             } else {
-                draftData = null
-                hasDraft = false
+                setDraftData(null)
             }
         }
     }
 
     fun restoreDraft() {
-        val draft = draftData ?: return
+        val draft = _uiState.value.draftData ?: return
         if (draft.imagePrompt.isNotEmpty()) {
             _uiState.update { it.copy(imageConfig = it.imageConfig.copy(prompt = draft.imagePrompt)) }
         }
@@ -622,9 +616,12 @@ class QuickCreateScreenModel(
     }
 
     private fun clearDraft() {
-        hasDraft = false
-        draftData = null
+        setDraftData(null)
         screenModelScope.launch { settingsRepository.clearQuickCreateDraft() }
+    }
+
+    private fun setDraftData(draft: DraftData?) {
+        _uiState.update { it.copy(draftData = draft) }
     }
 
     // ── Tab & Prompt ──────────────────────────────────────────────────────────
