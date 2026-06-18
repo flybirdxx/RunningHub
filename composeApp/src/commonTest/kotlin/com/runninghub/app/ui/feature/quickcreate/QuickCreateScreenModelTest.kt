@@ -1360,6 +1360,79 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `hidden service upload field media does not refresh video fee preview`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            videoModels = listOf(
+                videoModels.single().copy(
+                    fields = videoModels.single().fields + QuickCreationServiceField(
+                        fieldKey = "hiddenVideo",
+                        paramKey = "hiddenVideos",
+                        fieldType = "VIDEO_UPLOAD",
+                        required = false,
+                        defaultValue = null,
+                        options = emptyList(),
+                        visible = false,
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("green icon animation")
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(1, repository.videoFeePreviewRequests.size)
+
+        model.pickVideoReferenceForField("content://video/hidden", "hiddenVideos")
+        advanceUntilIdle()
+
+        assertEquals(1, repository.videoFeePreviewRequests.size)
+    }
+
+    @Test
+    fun `removing hidden service upload field media does not refresh video fee preview`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            videoModels = listOf(
+                videoModels.single().copy(
+                    fields = videoModels.single().fields + QuickCreationServiceField(
+                        fieldKey = "hiddenVideo",
+                        paramKey = "hiddenVideos",
+                        fieldType = "VIDEO_UPLOAD",
+                        required = false,
+                        defaultValue = null,
+                        options = emptyList(),
+                        visible = false,
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("green icon animation")
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(1, repository.videoFeePreviewRequests.size)
+
+        model.pickVideoReferenceForField("content://video/hidden", "hiddenVideos")
+        advanceUntilIdle()
+        val hiddenReferenceId = model.uiState.value.videoConfig.mediaReferences.single().id
+
+        model.removeMediaReference(hiddenReferenceId)
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(1, repository.videoFeePreviewRequests.size)
+    }
+
+    @Test
     fun `uploading global image media does not refresh image fee preview before remote url exists`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
