@@ -2136,3 +2136,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：切换到不支持生成音频或真人模式的视频模型后点击对应按钮，确认请求不会携带不支持字段；如需更好体验，再在 `TuneBottomSheet` 根据模型能力禁用或隐藏按钮。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：模板回填不再绕过模型能力过滤
+
+代码提交 `6db525a fix(quickcreate): filter unsupported template params` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `applyImageTemplateDetail()` 会先解析模板里的图片比例、分辨率、质量，再按当前 `imageConfig.model` 的支持集过滤。
+- `applyVideoTemplateDetail()` 会先解析模板里的视频比例、分辨率、时长，再按当前 `videoConfig.model` 的支持集过滤。
+- 视频模板布尔参数 `generateAudio` 和 `realPersonMode` 会再经过当前视频模型能力判断，不支持时最终仍为 `false`。
+- 这条防线补齐了模板/灵感路径，不再只依赖用户手动更新函数的模型能力校验。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template ignores unsupported model params" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration video template ignores unsupported model params and toggles"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：使用真实灵感模板或抓包样例回填跨模型参数，确认应用模板后 UI 和最终提交都保留当前模型支持范围内的值。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

@@ -2035,3 +2035,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证 Tune 面板的视频开关在不支持模型下的交互体验；当前 ScreenModel 已兜底，UI 层可后续按模型能力禁用或隐藏按钮。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 模板回填不再绕过模型能力过滤
+
+代码提交 `6db525a fix(quickcreate): filter unsupported template params` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 图片灵感模板回填的 `aspectRatio/resolution/quality` 现在会按当前 `ImageModel` 支持集过滤。
+- 视频灵感模板回填的 `aspectRatio/resolution/duration` 现在会按当前 `VideoModel` 支持集过滤。
+- 视频模板里的 `generateAudio/realPersonMode` 会按当前 `VideoModel.supportsGenerateAudio/supportsRealistic` 归一；不支持的能力不会被模板写成 `true`。
+- 修复旧行为：模板详情可携带当前 UI 模型不支持的比例、分辨率、时长或视频能力开关，绕过前几轮已加在公开更新函数上的请求体防线。
+- 新增回归测试覆盖：`Seedream 4.0` 应忽略模板中的 `21:9/4K`；`Seedance2.0-Fast` 应忽略模板中的 `1080p/10s/generateAudio=true/realPersonMode=true`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration image template ignores unsupported model params" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.apply inspiration video template ignores unsupported model params and toggles"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证真实灵感模板如果带有过期或跨模型参数，应用后不会把不支持值带入正式 `prepare/commit`。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
