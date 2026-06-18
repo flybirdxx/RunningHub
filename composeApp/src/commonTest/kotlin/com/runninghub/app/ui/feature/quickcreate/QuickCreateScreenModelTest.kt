@@ -785,6 +785,49 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image keeps selected image service model when video service model is requested`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImageServiceModel(repository.videoModels.single())
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("binding-1", model.uiState.value.selectedImageServiceModel?.bindingId)
+        assertEquals("IMAGE", repository.lastImageRequest?.quickCreationCategoryId)
+        assertEquals("binding-1", repository.lastImageRequest?.quickCreationBindingId)
+        assertEquals("sku-1", repository.lastImageRequest?.quickCreationSkuId)
+    }
+
+    @Test
+    fun `generate video keeps selected video service model when image service model is requested`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoServiceModel(repository.models.single())
+        model.updateVideoPrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("video-binding-1", model.uiState.value.selectedVideoServiceModel?.bindingId)
+        assertEquals("VIDEO", repository.lastVideoRequest?.quickCreationCategoryId)
+        assertEquals("video-binding-1", repository.lastVideoRequest?.quickCreationBindingId)
+        assertEquals("video-sku-1", repository.lastVideoRequest?.quickCreationSkuId)
+    }
+
+    @Test
     fun `generate image uses selected service model field defaults`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

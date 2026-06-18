@@ -810,20 +810,22 @@ class QuickCreateScreenModel(
     }
 
     fun updateImageServiceModel(model: QuickCreationServiceModel) {
+        val selectedModel = _uiState.value.serviceImageModels.firstOrNull { it.matchesServiceIdentity(model) } ?: return
         _uiState.update {
             it.copy(
-                selectedImageServiceModel = model,
-                imageServiceParams = model.defaultServiceParams(),
+                selectedImageServiceModel = selectedModel,
+                imageServiceParams = selectedModel.defaultServiceParams(),
             )
         }
         scheduleFeePreview()
     }
 
     fun updateVideoServiceModel(model: QuickCreationServiceModel) {
+        val selectedModel = _uiState.value.serviceVideoModels.firstOrNull { it.matchesServiceIdentity(model) } ?: return
         _uiState.update {
             it.copy(
-                selectedVideoServiceModel = model,
-                videoServiceParams = model.defaultServiceParams(),
+                selectedVideoServiceModel = selectedModel,
+                videoServiceParams = selectedModel.defaultServiceParams(),
             )
         }
         scheduleFeePreview()
