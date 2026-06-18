@@ -1657,3 +1657,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 如果草稿未来保存素材或参数，需要判断素材/参数是否也参与 `restorableTab`，目前只按 prompt 决定。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：草稿恢复替换 prompt 快照
+
+代码提交 `e4cb9d1 fix(quickcreate): replace prompts on draft restore` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `restoreDraft()` 不再只写入非空 prompt。
+- 恢复时会一次性设置 `imageConfig.prompt=draft.imagePrompt`、`videoConfig.prompt=draft.videoPrompt` 和 `currentTab=draft.restorableTab`。
+- 因此草稿中的空 prompt 也会清空当前 UI 中对应 tab 的旧 prompt，恢复语义是“替换成草稿快照”，不是“把草稿非空字段叠加到当前页面”。
+- 恢复后仍会 `clearDraft()` 并调用 `scheduleFeePreview()`，价格预览按恢复后的 tab 和 prompt 重新计算。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.restore video draft clears existing image prompt"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：图片 tab 有当前输入、恢复只有视频 prompt 的草稿后，切回图片 tab 应为空。
+- 如果草稿后续扩展到素材和参数，恢复动作也应明确是替换快照还是合并当前状态，避免跨 tab 旧状态残留。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

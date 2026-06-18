@@ -1564,3 +1564,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证从图片输入切到空视频 tab 后退出再进入，草稿入口应显示图片字数，恢复后停在图片 tab。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 草稿恢复完整替换 prompt 快照
+
+代码提交 `e4cb9d1 fix(quickcreate): replace prompts on draft restore` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `restoreDraft()` 现在一次性用草稿里的 `imagePrompt` 和 `videoPrompt` 替换当前 UI 两侧 prompt。
+- 修复只写入非空 prompt 导致的问题：恢复一个只有视频 prompt 的草稿时，图片 tab 里恢复前的旧 prompt 不会再残留。
+- 恢复 tab 仍使用上一轮的 `DraftData.restorableTab`，因此恢复后会停在真正有内容的 tab。
+- 新增回归测试覆盖：当前页面已有图片 prompt，恢复只有视频 prompt 的草稿后，图片 prompt 应为空、视频 prompt 应为草稿内容。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.restore video draft clears existing image prompt"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证恢复视频草稿后，再切回图片 tab 时不会看到恢复前旧图片 prompt。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
