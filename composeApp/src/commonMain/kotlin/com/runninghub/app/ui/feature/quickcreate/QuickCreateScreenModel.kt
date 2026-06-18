@@ -65,6 +65,8 @@ private val draftJson = Json { encodeDefaults = true }
 private const val HISTORY_REFRESH_INTERVAL_MS = 5_000L
 private const val FEE_PREVIEW_DEBOUNCE_MS = 500L
 private const val PROJECT_CREATE_MUTATION_ID = "__create_project__"
+private val supportedImageCounts = setOf(1, 2, 4)
+private val supportedVideoCounts = setOf(1, 2)
 private val terminalHistoryStatuses = setOf("SUCCESS", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED")
 private val QuickCreationHistoryItem.needsHistoryRefresh: Boolean
     get() = status.isNotBlank() && status.uppercase() !in terminalHistoryStatuses
@@ -888,6 +890,7 @@ class QuickCreateScreenModel(
     }
 
     fun updateImageCount(count: Int) {
+        if (count !in supportedImageCounts) return
         _uiState.update {
             val newConfig = it.imageConfig.copy(count = count)
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
@@ -922,6 +925,7 @@ class QuickCreateScreenModel(
     }
 
     fun updateVideoCount(count: Int) {
+        if (count !in supportedVideoCounts) return
         _uiState.update {
             val newConfig = it.videoConfig.copy(count = count)
             it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
