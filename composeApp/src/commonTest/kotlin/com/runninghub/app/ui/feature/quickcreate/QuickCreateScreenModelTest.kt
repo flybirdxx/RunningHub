@@ -2537,6 +2537,17 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `draft resume summary falls back to image prompt when video tab has no prompt`() {
+        val draft = DraftData(
+            currentTab = "VIDEO",
+            imagePrompt = "image prompt",
+            videoPrompt = "",
+        )
+
+        assertEquals("上次草稿 · 图片 · 12 字", draft.resumeSummaryText())
+    }
+
+    @Test
     fun `checkForDraft finds saved draft`() {
         runBlocking {
         val settings = FakeSettingsRepo()
@@ -2582,6 +2593,26 @@ class QuickCreateScreenModelTest {
         runCurrent()
         model.checkForDraft()
         runCurrent()
+        model.restoreDraft()
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(QuickCreateTab.IMAGE, model.uiState.value.currentTab)
+        assertEquals(1, repository.feePreviewRequests.size)
+        assertEquals("image draft", repository.feePreviewRequests.single().prompt)
+        assertEquals(0, repository.videoFeePreviewRequests.size)
+    }
+
+    @Test
+    fun `restore draft falls back to image tab when video prompt is empty`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"VIDEO","imagePrompt":"image draft","videoPrompt":""}""")
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), settings)
+        runCurrent()
+
         model.restoreDraft()
         advanceTimeBy(500)
         runCurrent()

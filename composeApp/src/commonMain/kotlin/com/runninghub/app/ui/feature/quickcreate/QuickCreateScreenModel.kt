@@ -45,10 +45,19 @@ data class DraftData(
 private val DraftData.hasPromptContent: Boolean
     get() = imagePrompt.isNotBlank() || videoPrompt.isNotBlank()
 
+private val DraftData.restorableTab: QuickCreateTab
+    get() = when {
+        currentTab == "VIDEO" && videoPrompt.isNotBlank() -> QuickCreateTab.VIDEO
+        currentTab != "VIDEO" && imagePrompt.isNotBlank() -> QuickCreateTab.IMAGE
+        imagePrompt.isNotBlank() -> QuickCreateTab.IMAGE
+        videoPrompt.isNotBlank() -> QuickCreateTab.VIDEO
+        else -> QuickCreateTab.IMAGE
+    }
+
 internal fun DraftData.resumeSummaryText(): String {
-    val isVideo = currentTab == "VIDEO"
-    val tabLabel = if (isVideo) "视频" else "图片"
-    val promptLength = if (isVideo) videoPrompt.length else imagePrompt.length
+    val tab = restorableTab
+    val tabLabel = if (tab == QuickCreateTab.VIDEO) "视频" else "图片"
+    val promptLength = if (tab == QuickCreateTab.VIDEO) videoPrompt.length else imagePrompt.length
     return "上次草稿 · $tabLabel · $promptLength 字"
 }
 
@@ -621,7 +630,7 @@ class QuickCreateScreenModel(
         if (draft.videoPrompt.isNotEmpty()) {
             _uiState.update { it.copy(videoConfig = it.videoConfig.copy(prompt = draft.videoPrompt)) }
         }
-        val restoredTab = if (draft.currentTab == "VIDEO") QuickCreateTab.VIDEO else QuickCreateTab.IMAGE
+        val restoredTab = draft.restorableTab
         _uiState.update { it.copy(currentTab = restoredTab) }
         clearDraft()
         scheduleFeePreview()
