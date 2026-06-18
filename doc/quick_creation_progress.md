@@ -1495,3 +1495,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证用户手动清空 prompt 后再次进入页面，不应出现空内容草稿入口。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 自动保存不落空草稿
+
+代码提交 `537ec48 fix(quickcreate): avoid autosaving empty drafts` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `autoSaveDraft()` 现在复用 `DraftData.hasPromptContent` 判断，只有图片或视频 prompt 至少一个非空时才保存草稿 JSON。
+- 当用户把图片/视频 prompt 都清空时，自动保存 debounce 到期后会调用 `settingsRepository.clearQuickCreateDraft()`，不再写入空草稿。
+- 这让“读取阶段过滤空草稿”和“写入阶段不产生空草稿”形成闭环，减少下一次进入页面时的清理负担。
+- 新增回归测试覆盖：先输入并自动保存草稿，再清空 prompt，持久化草稿应被删除。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.auto save clears draft when prompts become empty"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证清空图片和视频 prompt 后退出再进入，草稿入口不会短暂闪现。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

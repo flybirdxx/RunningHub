@@ -1588,3 +1588,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 后续如果草稿扩展到素材或服务参数，需要把 `hasPromptContent` 重命名为更通用的可恢复内容判断，并纳入素材/参数有效性。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：自动保存清理空草稿
+
+代码提交 `537ec48 fix(quickcreate): avoid autosaving empty drafts` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `autoSaveDraft()` 构造 `DraftData` 后会先检查 `hasPromptContent`。
+- 有图片或视频 prompt 时，继续调用 `settingsRepository.saveQuickCreateDraft(draft.toJsonString())`。
+- 两个 prompt 都为空时，调用 `settingsRepository.clearQuickCreateDraft()`，不再保存空 JSON 草稿。
+- 因此空草稿不会在写入阶段产生；如果来自旧版本或外部状态，也会在 `checkForDraft()` 读取阶段被清理。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.auto save clears draft when prompts become empty"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：输入 prompt 后等待保存、清空 prompt 后等待 debounce、退出再进入，草稿提示条不应出现。
+- 如果后续草稿要保存素材或服务参数，自动保存的“有效草稿”规则需要扩展到这些字段，否则清空 prompt 可能误删仍有素材/参数价值的草稿。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
