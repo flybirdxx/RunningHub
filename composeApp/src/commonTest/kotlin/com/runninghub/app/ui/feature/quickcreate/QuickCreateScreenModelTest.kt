@@ -2454,6 +2454,23 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `auto save hides stale draft entry after prompt changes`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"old draft","videoPrompt":""}""")
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        runCurrent()
+        assertEquals(true, model.uiState.value.hasDraft)
+
+        model.updateImagePrompt("new draft")
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(false, model.uiState.value.hasDraft)
+    }
+
+    @Test
     fun `updateVideoPrompt changes prompt`() {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.updateVideoPrompt("video prompt")

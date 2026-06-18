@@ -746,6 +746,7 @@ class QuickCreateScreenModel(
             } else {
                 settingsRepository.clearQuickCreateDraft()
             }
+            setDraftData(null)
         }
     }
 
