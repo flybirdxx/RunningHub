@@ -1273,6 +1273,10 @@ class QuickCreateScreenModel(
 
     private suspend fun awaitPendingUploads() {
         val mediaRefs = _uiState.value.currentRelevantMediaReferences()
+        val alreadyFailed = mediaRefs.filter { it.uploadStatus == UploadStatus.FAILED }
+        if (alreadyFailed.isNotEmpty()) {
+            throw IllegalStateException("素材上传失败: ${alreadyFailed.joinToString { it.displayName }}")
+        }
         val pending = mediaRefs.filter { it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING }
         if (pending.isEmpty()) return
 

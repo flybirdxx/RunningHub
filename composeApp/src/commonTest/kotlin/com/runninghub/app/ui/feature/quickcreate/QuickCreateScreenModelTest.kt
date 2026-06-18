@@ -1790,6 +1790,30 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image is blocked when selected upload already failed`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            uploadResult = Result.failure(IllegalStateException("upload unavailable"))
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.pickImageReference("content://image/fail")
+        advanceUntilIdle()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals(null, model.uiState.value.statusText)
+        assertEquals("素材上传失败: test.jpg", model.uiState.value.error)
+    }
+
+    @Test
     fun `remove media reference removes image media after switching to video tab`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
