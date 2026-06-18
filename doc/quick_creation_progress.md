@@ -1633,3 +1633,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证已有旧草稿入口时应用模板或直接生成，提交进入排队后草稿提示条不会在任务结束后重新出现。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 失败任务替换运行中文案
+
+代码提交 `b546ac1 fix(quickcreate): replace failed task status text` 已在本地生成；当前 GitHub 443 TCP 连接失败，待网络恢复后继续推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `handleTaskStatus(Failed)` 现在会把 `statusText` 更新为服务端失败消息，避免任务先进入 `Running` 后失败时，中间状态区继续显示旧的“生成中...N%”文案。
+- 测试 Fake repository 支持自定义图片任务状态流，可覆盖 `Running -> Failed` 这类多状态序列。
+- 新增回归测试覆盖：图片任务先返回 `Running(progress=42)` 再返回 `Failed("render failed")` 时，`taskStatus=FAILED`、`error=render failed`、`statusText=render failed`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.failed image task replaces running status text"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 需要网络恢复后把 `da5cd42`、`019ab05`、`b546ac1` 和本轮文档提交推送到远端。
+- 真机仍需验证任务从运行中进入失败态时，中间区域不再显示旧进度文案。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
