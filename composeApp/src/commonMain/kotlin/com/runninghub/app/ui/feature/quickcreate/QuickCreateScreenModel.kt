@@ -1182,7 +1182,7 @@ class QuickCreateScreenModel(
 
     fun removeMediaReference(id: String) {
         val shouldRefreshFeePreview = _uiState.value.currentRelevantMediaReferences()
-            .any { it.id == id && it.affectsFeePreviewRequest() }
+            .any { it.id == id }
         uploadJobs[id]?.cancel()
         uploadJobs.remove(id)
         _uiState.update { state ->
