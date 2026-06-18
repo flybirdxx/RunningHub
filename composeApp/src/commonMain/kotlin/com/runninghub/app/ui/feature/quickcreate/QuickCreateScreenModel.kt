@@ -68,6 +68,8 @@ private const val PROJECT_CREATE_MUTATION_ID = "__create_project__"
 private val supportedImageCounts = setOf(1, 2, 4)
 private val supportedVideoCounts = setOf(1, 2)
 private val terminalHistoryStatuses = setOf("SUCCESS", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED")
+private fun sanitizedSeed(seed: Int?): Int? = seed?.takeIf { it >= 0 }
+
 private val QuickCreationHistoryItem.needsHistoryRefresh: Boolean
     get() = status.isNotBlank() && status.uppercase() !in terminalHistoryStatuses
 
@@ -899,7 +901,7 @@ class QuickCreateScreenModel(
     }
 
     fun updateImageSeed(seed: Int?) {
-        _uiState.update { it.copy(imageConfig = it.imageConfig.copy(seed = seed)) }
+        _uiState.update { it.copy(imageConfig = it.imageConfig.copy(seed = sanitizedSeed(seed))) }
         scheduleFeePreview()
     }
 
@@ -934,7 +936,7 @@ class QuickCreateScreenModel(
     }
 
     fun updateVideoSeed(seed: Int?) {
-        _uiState.update { it.copy(videoConfig = it.videoConfig.copy(seed = seed)) }
+        _uiState.update { it.copy(videoConfig = it.videoConfig.copy(seed = sanitizedSeed(seed))) }
         scheduleFeePreview()
     }
 

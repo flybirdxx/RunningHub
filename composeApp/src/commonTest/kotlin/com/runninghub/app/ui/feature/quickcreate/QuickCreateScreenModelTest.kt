@@ -844,6 +844,47 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image clears negative seed before building request`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.updateImageSeed(123)
+        model.updateImageSeed(-1)
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, model.uiState.value.imageConfig.seed)
+        assertEquals(null, repository.lastImageRequest?.seed)
+    }
+
+    @Test
+    fun `generate video clears negative seed before building request`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("prompt")
+        model.updateVideoSeed(456)
+        model.updateVideoSeed(-1)
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, model.uiState.value.videoConfig.seed)
+        assertEquals(null, repository.lastVideoRequest?.seed)
+    }
+
+    @Test
     fun `image prompt refreshes server fee preview into estimated cost`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
