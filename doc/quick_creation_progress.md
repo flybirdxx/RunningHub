@@ -2059,3 +2059,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证真实灵感模板如果带有过期或跨模型参数，应用后不会把不支持值带入正式 `prepare/commit`。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 错分类服务模型不会覆盖当前选择
+
+代码提交 `826a02a fix(quickcreate): reject cross-category service models` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `updateImageServiceModel()` 现在只会接受当前 `serviceImageModels` 列表中能按 `bindingId/skuId` 匹配到的模型。
+- `updateVideoServiceModel()` 现在只会接受当前 `serviceVideoModels` 列表中能按 `bindingId/skuId` 匹配到的模型。
+- 传入错分类或当前列表不存在的服务模型会被忽略，不覆盖 `selectedImageServiceModel/selectedVideoServiceModel`，不刷新价格预览。
+- 修复旧行为：非 UI 路径可把视频服务模型传给图片选择入口，或把图片服务模型传给视频选择入口，导致正式请求体携带错误的 `quickCreationCategoryId/bindingId/skuId`。
+- 新增回归测试覆盖：图片入口收到视频模型、视频入口收到图片模型时，最终正式请求仍保留原本合法的服务模型 ID。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image keeps selected image service model when video service model is requested" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video keeps selected video service model when image service model is requested"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证服务模型列表刷新或外部状态恢复后，不会把已不在当前分类列表的模型 ID 带入正式提交。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

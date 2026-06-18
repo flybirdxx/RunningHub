@@ -2158,3 +2158,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：使用真实灵感模板或抓包样例回填跨模型参数，确认应用模板后 UI 和最终提交都保留当前模型支持范围内的值。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：错分类服务模型不再覆盖当前选择
+
+代码提交 `826a02a fix(quickcreate): reject cross-category service models` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 图片服务模型选择入口会在 `serviceImageModels` 中按 `bindingId/skuId` 查找匹配项，找不到就忽略。
+- 视频服务模型选择入口会在 `serviceVideoModels` 中按 `bindingId/skuId` 查找匹配项，找不到就忽略。
+- 命中时使用当前列表中的规范模型对象和默认参数，而不是直接信任外部传入对象。
+- 最终图片/视频请求不会因为错分类模型对象进入公共入口而携带错误的 `quickCreationCategoryId/bindingId/skuId`。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image keeps selected image service model when video service model is requested" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video keeps selected video service model when image service model is requested"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：刷新服务模型列表、切换图片/视频 tab 后选择服务端模型，确认 UI 只会提交当前分类模型；如果列表重载后模型不再存在，应保留当前合法选择或回退默认选择。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
