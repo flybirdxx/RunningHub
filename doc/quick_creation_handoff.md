@@ -1704,3 +1704,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：已有草稿入口时输入新 prompt，立即点丢弃；等待 500ms 后不应重新写回持久化草稿。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：提交成功清理内存草稿入口
+
+代码提交 `da5cd42 fix(quickcreate): clear draft entry on submit` 已在本地生成；推送到 `feature/kmp-refactoring` 时遇到 GitHub 443 连接失败，待网络恢复后继续推送。
+
+当前行为：
+- `handleTaskStatus()` 收到 `QuickCreateTaskStatus.Queuing` 时，会先调用 `clearDraft()`，再把任务状态更新为 `QUEUING`。
+- `clearDraft()` 统一负责取消 `draftSaveJob`、清空 `uiState.draftData`、清理持久化草稿，因此恢复、丢弃、成功提交后的草稿清理语义一致。
+- 这解决了“已有旧草稿入口，用户通过模板或其它非自动保存路径改了 prompt 并成功提交后，内存里仍保留旧草稿入口”的问题。
+- 生成失败、价格未确认、字段校验失败等未进入 `Queuing` 的路径不会清理草稿，保留用户继续编辑和恢复的机会。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.successful submit clears in memory draft entry"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 网络恢复后推送本地代码和文档提交。
+- 真机复测：有旧草稿入口时应用灵感模板并提交，进入排队、任务完成或失败后都不应再显示旧草稿入口。
+- 真机复测：字段校验失败或价格待确认时不进入 `Queuing`，草稿入口/当前输入不应被误清理。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
