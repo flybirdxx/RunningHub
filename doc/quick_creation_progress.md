@@ -2106,3 +2106,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证服务模型接口刷新后，页面展示的模型名称、字段和后续请求都来自最新列表对象。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 无效服务字段不触发价格预览
+
+代码提交 `3a32f4e fix(quickcreate): skip preview for invalid service fields` 已完成，等待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `hasFeePreviewRequest()` 现在不仅要求当前 tab 能构造正式请求，还要求当前服务端动态字段校验通过、上传字段校验通过，才会进入 fee-preview 防抖和服务端请求。
+- 图片和视频都覆盖：必填 options 字段未选择时，输入 prompt 不会调用 `previewImageQuickCreationFee` / `previewVideoQuickCreationFee`，也不会让 UI 停留在 `feePreviewLoading=true`。
+- 修复旧行为：必填服务字段为空时，最终生成虽会被 `generate()` 拦截，但输入 prompt 后仍可能先向 `/task/quick-creation/fee-preview` 发送缺少必填参数的请求。
+- 这条防线让“价格预览请求体”和“正式生成请求体”共享同一套最低有效性门槛，减少服务端无效预览请求和按钮误导。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image fee preview is skipped when required service option field is empty" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.video fee preview is skipped when required service option field is empty"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证真实模型存在必填但未选择的服务端字段时，输入 prompt 后不会出现“价格确认中”卡住，也不会发出 fee-preview 请求。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

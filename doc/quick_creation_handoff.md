@@ -2202,3 +2202,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：服务模型接口刷新后，确认页面展示的模型名称、字段配置和最终请求体都来自最新接口列表对象。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：无效服务字段不触发价格预览
+
+代码提交 `3a32f4e fix(quickcreate): skip preview for invalid service fields` 已完成，等待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `scheduleFeePreview()` 仍统一走 `hasFeePreviewRequest()` 判定是否需要服务端价格预览。
+- `hasFeePreviewRequest()` 现在会先确认当前图片/视频 tab 能构造正式请求，再复用 `validateCurrentServiceFields()` 和 `validateCurrentServiceUploads()`。
+- 只要当前服务端动态字段缺少必填值、带非法 options 值、文本字段不满足长度限制，或 required 上传字段没有完成上传，就不会进入 fee-preview 防抖，也不会调用服务端预览接口。
+- 这不会改变正式生成的拦截文案；`generate()` 仍会在用户点击生成时显示对应字段错误。本次只避免输入阶段先发无效 fee-preview。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image fee preview is skipped when required service option field is empty" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.video fee preview is skipped when required service option field is empty"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：找一个带必填下拉或必填上传字段的真实模型，先只输入 prompt，不补齐字段，确认按钮不会进入“价格确认中”并且不发 fee-preview。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
