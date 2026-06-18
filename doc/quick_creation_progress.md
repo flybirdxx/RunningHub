@@ -1472,3 +1472,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证首屏草稿提示条在不同屏宽、键盘弹起、任务运行中和恢复/丢弃后的显示隐藏是否符合预期。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 空内容草稿不显示恢复入口
+
+代码提交 `00c01cc fix(quickcreate): ignore empty saved drafts` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `DraftData.hasPromptContent` 判断，只有图片或视频 prompt 至少一个非空时才认为草稿可恢复。
+- `checkForDraft()` 读取到两个 prompt 都为空的草稿 JSON 时，会清空 `uiState.draftData` 并调用 `settingsRepository.clearQuickCreateDraft()`。
+- 这避免用户清空输入或历史遗留空草稿时，底部输入区显示没有实际内容的“上次草稿 · 0 字”入口。
+- 新增回归测试覆盖：初始化读取空内容草稿后，`uiState.hasDraft=false`，持久化草稿也应被清除。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.init ignores saved draft without prompt content"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证用户手动清空 prompt 后再次进入页面，不应出现空内容草稿入口。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

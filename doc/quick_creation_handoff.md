@@ -1565,3 +1565,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 如果提示条在 320dp 宽度下按钮拥挤，可把“丢弃”改为图标按钮或二级菜单；当前实现优先保持动作直观。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：空内容草稿过滤
+
+代码提交 `00c01cc fix(quickcreate): ignore empty saved drafts` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 草稿是否可恢复由 `DraftData.hasPromptContent` 决定：`imagePrompt` 或 `videoPrompt` 任一非空才有效。
+- `checkForDraft()` 读取到空内容草稿 JSON 时，会设置 `uiState.draftData=null`，并清除持久化草稿。
+- 因此 `BottomPromptPanel` 的草稿提示条不会因为空 JSON 草稿而显示“0 字”入口。
+- 损坏草稿、缺失草稿、空内容草稿现在都遵循同一类清理原则：不可恢复的数据不会进入 UI 状态。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.init ignores saved draft without prompt content"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测用户清空 prompt、切换 tab、退出再进入页面时，不应显示空草稿提示条。
+- 后续如果草稿扩展到素材或服务参数，需要把 `hasPromptContent` 重命名为更通用的可恢复内容判断，并纳入素材/参数有效性。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
