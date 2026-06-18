@@ -1811,7 +1811,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 ## 2026-06-18 激活子选项字段阻止正式提交
 
-代码提交 `8c6a448 fix(quickcreate): require active child options` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `8c6a448 fix(quickcreate): require active child options` 和文档提交 `2236193 docs(quickcreate): record child option validation` 已推送到 `feature/kmp-refactoring`。
 
 已完成：
 - `validateServiceFields()` 现在会在 active child 字段遍历中同时校验 options 子字段和文本子字段。
@@ -1829,5 +1829,28 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 仍未完成：
 - 真机仍需验证某个真实模型若通过父字段激活必填子下拉字段且无默认值，页面会要求先选择参数而不是直接提交扣费任务。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 无效顶层选项值阻止正式提交
+
+代码提交 `5624496 fix(quickcreate): reject invalid service option values` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 顶层可见 options 字段现在不仅校验必填为空，还会校验非空值必须命中服务端 `options.value`。
+- 修复旧行为：模板回填、旧草稿或其他状态恢复路径如果带入了服务端当前不再允许的选项值，旧逻辑会直接提交正式生成请求，导致 prepare/commit 请求体携带非法参数。
+- 新增回归测试覆盖：`stylePreset=legacy` 但服务端只允许 `realistic` 时，不应提交图片生成请求，`taskStatus=IDLE`，错误文案为 `Style preset 选项无效`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when service option value is not allowed"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- active child options 的非法值校验尚未在本轮扩展，后续应先补红灯测试再实现。
+- 真机仍需验证模板/草稿带入过期选项值时，页面会要求重新选择参数而不是直接提交扣费任务。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
