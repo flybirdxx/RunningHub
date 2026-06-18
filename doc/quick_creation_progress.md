@@ -1789,7 +1789,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 ## 2026-06-18 必填选项字段阻止正式提交
 
-代码提交 `2ec3a66 fix(quickcreate): require selected service options` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `2ec3a66 fix(quickcreate): require selected service options` 和文档提交 `906e630 docs(quickcreate): record required option validation` 已推送到 `feature/kmp-refactoring`。
 
 已完成：
 - `validateServiceFields()` 现在会校验服务端返回的可见顶层 options 字段：当字段 `required=true` 且没有默认值/当前值时，生成会在本地拦截。
@@ -1805,7 +1805,29 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 ```
 
 仍未完成：
-- 子字段 options 的必填校验尚未在本轮扩展，后续应先补红灯测试再实现。
 - 真机仍需验证某个真实模型若返回必填下拉字段且无默认值，页面会要求先选择参数而不是直接提交扣费任务。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 激活子选项字段阻止正式提交
+
+代码提交 `8c6a448 fix(quickcreate): require active child options` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `validateServiceFields()` 现在会在 active child 字段遍历中同时校验 options 子字段和文本子字段。
+- 当父字段默认值或当前值激活某个 `inputChildren`，且该子字段 `options.isNotEmpty()`、`required=true`、没有当前值/默认值时，生成会在本地拦截。
+- 修复旧行为：上轮只覆盖顶层 options 字段，active child options 仍可能绕过字段校验并进入正式 `generateImage()`，导致 prepare/commit 请求体缺少服务端必填子参数。
+- 新增回归测试覆盖：`creationMode=imageReference` 激活必填 `referenceStyle` options 子字段但未选择值时，不应提交图片生成请求，`taskStatus=IDLE`，错误文案为 `Reference style 不能为空`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when active required child option field is empty"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证某个真实模型若通过父字段激活必填子下拉字段且无默认值，页面会要求先选择参数而不是直接提交扣费任务。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
