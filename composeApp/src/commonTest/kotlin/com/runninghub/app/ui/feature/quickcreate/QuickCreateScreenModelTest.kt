@@ -885,6 +885,56 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image keeps previous model params when unsupported image params are requested`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.updateImageModel(ImageModel.SEEDREAM_4)
+        model.updateImageAspectRatio(ImageAspectRatio.RATIO_16_9)
+        model.updateImageAspectRatio(ImageAspectRatio.RATIO_21_9)
+        model.updateImageResolution(ImageResolution.RES_2K)
+        model.updateImageResolution(ImageResolution.RES_4K)
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(ImageAspectRatio.RATIO_16_9, model.uiState.value.imageConfig.aspectRatio)
+        assertEquals(ImageResolution.RES_2K, model.uiState.value.imageConfig.resolution)
+        assertEquals("16:9", repository.lastImageRequest?.aspectRatio)
+        assertEquals("2K", repository.lastImageRequest?.resolution)
+    }
+
+    @Test
+    fun `generate video keeps previous model params when unsupported video params are requested`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("prompt")
+        model.updateVideoModel(VideoModel.SEEDANCE_2_FAST)
+        model.updateVideoResolution(VideoResolution.RES_480P)
+        model.updateVideoResolution(VideoResolution.RES_1080P)
+        model.updateVideoDuration(VideoDuration.DURATION_10S)
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(VideoResolution.RES_480P, model.uiState.value.videoConfig.resolution)
+        assertEquals(VideoDuration.DURATION_5S, model.uiState.value.videoConfig.duration)
+        assertEquals("480p", repository.lastVideoRequest?.resolution)
+        assertEquals(5, repository.lastVideoRequest?.duration)
+    }
+
+    @Test
     fun `image prompt refreshes server fee preview into estimated cost`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

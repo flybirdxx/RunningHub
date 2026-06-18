@@ -871,11 +871,13 @@ class QuickCreateScreenModel(
     }
 
     fun updateImageAspectRatio(ratio: ImageAspectRatio) {
+        if (ratio !in _uiState.value.imageConfig.model.supportedRatios) return
         _uiState.update { it.copy(imageConfig = it.imageConfig.copy(aspectRatio = ratio)) }
         scheduleFeePreview()
     }
 
     fun updateImageResolution(res: ImageResolution) {
+        if (res !in _uiState.value.imageConfig.model.supportedResolutions) return
         _uiState.update {
             val newConfig = it.imageConfig.copy(resolution = res)
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
@@ -884,6 +886,7 @@ class QuickCreateScreenModel(
     }
 
     fun updateImageQuality(quality: ImageQuality) {
+        if (quality !in _uiState.value.imageConfig.model.supportedQualities) return
         _uiState.update {
             val newConfig = it.imageConfig.copy(quality = quality)
             it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
@@ -906,11 +909,13 @@ class QuickCreateScreenModel(
     }
 
     fun updateVideoAspectRatio(ratio: VideoAspectRatio) {
+        if (ratio !in _uiState.value.videoConfig.model.supportedRatios) return
         _uiState.update { it.copy(videoConfig = it.videoConfig.copy(aspectRatio = ratio)) }
         scheduleFeePreview()
     }
 
     fun updateVideoResolution(res: VideoResolution) {
+        if (res !in _uiState.value.videoConfig.model.supportedResolutions) return
         _uiState.update {
             val newConfig = it.videoConfig.copy(resolution = res)
             it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
@@ -919,6 +924,7 @@ class QuickCreateScreenModel(
     }
 
     fun updateVideoDuration(duration: VideoDuration) {
+        if (duration !in _uiState.value.videoConfig.model.supportedDurations) return
         _uiState.update {
             val newConfig = it.videoConfig.copy(duration = duration)
             it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
