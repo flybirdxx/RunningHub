@@ -1984,7 +1984,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 ## 2026-06-18 追加交接：空 prompt 拦截不再残留提交状态文案
 
-代码提交 `79f3da1 fix(quickcreate): clear status text on empty prompt` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `79f3da1 fix(quickcreate): clear status text on empty prompt` 和文档提交 `2609634 docs(quickcreate): record empty prompt status cleanup` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - 图片和视频生成在 prompt 为空或超过限制时，会把 `taskStatus` 置回 `IDLE`，同步清空 `statusText`，并设置 `error=请输入描述词`。
@@ -2001,5 +2001,28 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 下一步建议：
 - 真机复测：清空图片或视频 prompt 后点击生成，确认状态区不会残留“正在提交任务...”。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：已失败素材不再被静默忽略后提交
+
+代码提交 `f0d32b1 fix(quickcreate): block submit when upload failed` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `generate()` 进入正式图片/视频生成前会通过 `awaitPendingUploads()` 检查当前 tab 的相关素材。
+- 如果相关素材已经是 `FAILED`，会直接返回 `IDLE` 并显示 `素材上传失败: <文件名>`，不会进入正式 `generateImage()` / `generateVideo()`。
+- 这覆盖了可选参考素材上传失败的场景，避免用户以为带了参考图，实际提交并扣费一个不带参考素材的 prompt-only 任务。
+- 已移除或不属于当前 active 字段的素材不在 `currentRelevantMediaReferences()` 范围内，不会被这条失败检查阻塞。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when selected upload already failed"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：让参考图上传失败后点击生成，确认页面提示上传失败且不会进入正式提交。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
