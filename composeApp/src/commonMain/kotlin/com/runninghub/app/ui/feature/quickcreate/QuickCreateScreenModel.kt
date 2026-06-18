@@ -1330,12 +1330,17 @@ class QuickCreateScreenModel(
     private suspend fun generateImage() {
         val config = _uiState.value.imageConfig
         val prompt = config.prompt.trim()
-        if (prompt.isEmpty() || config.promptOverLimit) {
+        val promptError = when {
+            prompt.isEmpty() -> "请输入描述词"
+            config.promptOverLimit -> "描述词不能超过 $MAX_PROMPT_CHARS 个字符"
+            else -> null
+        }
+        if (promptError != null) {
             _uiState.update {
                 it.copy(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
                     statusText = null,
-                    error = "请输入描述词",
+                    error = promptError,
                 )
             }
             return
@@ -2107,12 +2112,17 @@ class QuickCreateScreenModel(
     private suspend fun generateVideo() {
         val config = _uiState.value.videoConfig
         val prompt = config.prompt.trim()
-        if (prompt.isEmpty() || config.promptOverLimit) {
+        val promptError = when {
+            prompt.isEmpty() -> "请输入描述词"
+            config.promptOverLimit -> "描述词不能超过 $MAX_PROMPT_CHARS 个字符"
+            else -> null
+        }
+        if (promptError != null) {
             _uiState.update {
                 it.copy(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
                     statusText = null,
-                    error = "请输入描述词",
+                    error = promptError,
                 )
             }
             return

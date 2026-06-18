@@ -1100,6 +1100,45 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `over limit image prompt shows length error when generate is blocked`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("x".repeat(MAX_PROMPT_CHARS + 1))
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals(null, model.uiState.value.statusText)
+        assertEquals("描述词不能超过 500 个字符", model.uiState.value.error)
+    }
+
+    @Test
+    fun `over limit video prompt shows length error when generate is blocked`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("x".repeat(MAX_PROMPT_CHARS + 1))
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastVideoRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals(null, model.uiState.value.statusText)
+        assertEquals("描述词不能超过 500 个字符", model.uiState.value.error)
+    }
+
+    @Test
     fun `generate image uses updated service field values`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
