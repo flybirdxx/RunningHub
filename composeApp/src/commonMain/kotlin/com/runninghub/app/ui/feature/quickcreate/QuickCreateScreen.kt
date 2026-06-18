@@ -129,6 +129,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         QuickCreateMode.INSPIRATION -> InspirationArea(
                             uiState = uiState,
                             onApplyTemplate = screenModel::applyInspirationTemplate,
+                            onLoadMoreTemplates = screenModel::loadMoreInspirationTemplates,
                         )
                     }
                 }
@@ -1271,6 +1272,7 @@ private fun EmptyArea() {
 private fun InspirationArea(
     uiState: QuickCreateUiState,
     onApplyTemplate: (String) -> Unit,
+    onLoadMoreTemplates: () -> Unit,
 ) {
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -1333,6 +1335,28 @@ private fun InspirationArea(
 
         if (!uiState.inspirationLoading && uiState.inspirationTemplates.isEmpty()) {
             item { EmptyArea() }
+        }
+
+        if (uiState.inspirationTemplatesHasMore) {
+            item {
+                OutlinedButton(
+                    onClick = onLoadMoreTemplates,
+                    enabled = !uiState.inspirationTemplatesLoadingMore,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Dimens.RadiusMD),
+                    border = BorderStroke(1.dp, DarkOutlineVariant),
+                ) {
+                    if (uiState.inspirationTemplatesLoadingMore) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = Primary300,
+                        )
+                        Spacer(Modifier.width(Dimens.SpaceSM))
+                    }
+                    Text("加载更多模板")
+                }
+            }
         }
     }
 }
@@ -2012,7 +2036,11 @@ private fun QuickCreatePreviewContent(
                             onDeleteProject = {},
                             onShowProjectDetail = {},
                         )
-                        QuickCreateMode.INSPIRATION -> InspirationArea(uiState = uiState, onApplyTemplate = {})
+                        QuickCreateMode.INSPIRATION -> InspirationArea(
+                            uiState = uiState,
+                            onApplyTemplate = {},
+                            onLoadMoreTemplates = {},
+                        )
                     }
                 }
 

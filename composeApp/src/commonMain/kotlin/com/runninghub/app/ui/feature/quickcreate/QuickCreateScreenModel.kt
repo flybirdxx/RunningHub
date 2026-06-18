@@ -66,6 +66,7 @@ private const val HISTORY_REFRESH_INTERVAL_MS = 5_000L
 private const val FEE_PREVIEW_DEBOUNCE_MS = 500L
 private const val FEE_PREVIEW_NOT_PASSED_ERROR = "余额不足或价格预览未通过"
 private const val PROJECT_CREATE_MUTATION_ID = "__create_project__"
+private const val INSPIRATION_TEMPLATE_PAGE_SIZE = 20
 private val supportedImageCounts = setOf(1, 2, 4)
 private val supportedVideoCounts = setOf(1, 2)
 private val terminalHistoryStatuses = setOf("SUCCESS", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED")
@@ -731,7 +732,10 @@ class QuickCreateScreenModel(
             _uiState.update { it.copy(inspirationLoading = true, error = null) }
 
             val tagsResult = quickCreateRepository.getInspirationTags()
-            val templatesResult = quickCreateRepository.getInspirationTemplates()
+            val templatesResult = quickCreateRepository.getInspirationTemplates(
+                page = 1,
+                size = INSPIRATION_TEMPLATE_PAGE_SIZE,
+            )
 
             _uiState.update { state ->
                 val tags = tagsResult.getOrElse { emptyList() }
@@ -743,7 +747,51 @@ class QuickCreateScreenModel(
                     inspirationLoading = false,
                     inspirationTags = tags,
                     inspirationTemplates = templates,
+                    inspirationTemplatesLoadingMore = false,
+                    inspirationTemplatesPage = if (templatesResult.isSuccess) 1 else 0,
+                    inspirationTemplatesHasMore = templates.size >= INSPIRATION_TEMPLATE_PAGE_SIZE,
                     error = error,
+                )
+            }
+        }
+    }
+
+    fun loadMoreInspirationTemplates() {
+        val current = _uiState.value
+        if (
+            current.inspirationLoading ||
+            current.inspirationTemplatesLoadingMore ||
+            !current.inspirationTemplatesHasMore
+        ) {
+            return
+        }
+
+        val nextPage = current.inspirationTemplatesPage + 1
+        screenModelScope.launch {
+            _uiState.update { it.copy(inspirationTemplatesLoadingMore = true, error = null) }
+
+            val result = quickCreateRepository.getInspirationTemplates(
+                page = nextPage,
+                size = INSPIRATION_TEMPLATE_PAGE_SIZE,
+            )
+
+            _uiState.update { state ->
+                result.fold(
+                    onSuccess = { nextTemplates ->
+                        state.copy(
+                            inspirationTemplates = (state.inspirationTemplates + nextTemplates)
+                                .distinctBy { it.templateId },
+                            inspirationTemplatesLoadingMore = false,
+                            inspirationTemplatesPage = nextPage,
+                            inspirationTemplatesHasMore = nextTemplates.size >= INSPIRATION_TEMPLATE_PAGE_SIZE,
+                        )
+                    },
+                    onFailure = { error ->
+                        state.copy(
+                            inspirationTemplatesLoadingMore = false,
+                            error = error.message,
+                        )
+                    },
                 )
             }
         }

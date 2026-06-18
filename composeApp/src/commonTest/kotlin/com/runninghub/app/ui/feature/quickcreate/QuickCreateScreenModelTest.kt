@@ -88,6 +88,7 @@ class QuickCreateScreenModelTest {
         val cancelledTaskIds = mutableListOf<String>()
         val requestedHistoryPages = mutableListOf<Int>()
         val requestedProjectPages = mutableListOf<Int>()
+        val requestedTemplatePages = mutableListOf<Int>()
         val requestedProjectTaskPages = mutableListOf<Pair<String, Int>>()
         val pinnedProjectRequests = mutableListOf<Pair<String, Boolean>>()
         val createdProjectNames = mutableListOf<String>()
@@ -199,6 +200,7 @@ class QuickCreateScreenModelTest {
                 tagNew = false,
             )
         )
+        var inspirationTemplatePages: Map<Int, List<QuickCreateInspirationTemplate>>? = null
         var templateDetail = QuickCreateInspirationTemplateDetail(
             templateId = "tpl-video",
             title = "薯片赛场",
@@ -340,7 +342,10 @@ class QuickCreateScreenModelTest {
             page: Int,
             size: Int,
             tagId: String?,
-        ): Result<List<QuickCreateInspirationTemplate>> = Result.success(inspirationTemplates)
+        ): Result<List<QuickCreateInspirationTemplate>> =
+            Result.success(inspirationTemplatePages?.get(page) ?: inspirationTemplates).also {
+                requestedTemplatePages += page
+            }
         override suspend fun getInspirationTemplateDetail(
             templateId: String,
         ): Result<QuickCreateInspirationTemplateDetail> = Result.success(templateDetail.copy(templateId = templateId))
@@ -805,6 +810,46 @@ class QuickCreateScreenModelTest {
         assertEquals(listOf("热门"), model.uiState.value.inspirationTags.map { it.name })
         assertEquals("tpl-1", model.uiState.value.inspirationTemplates.single().templateId)
         assertEquals(false, model.uiState.value.inspirationLoading)
+    }
+
+    @Test
+    fun `loading more inspiration templates appends next page`() {
+        val repository = FakeQuickCreateRepository().apply {
+            inspirationTemplatePages = mapOf(
+                1 to (1..20).map { index ->
+                    QuickCreateInspirationTemplate(
+                        templateId = "tpl-$index",
+                        title = "Template $index",
+                        categoryId = "IMAGE",
+                        coverUrl = "https://example.com/cover-$index.png",
+                        videoUrl = null,
+                        tagHot = index == 1,
+                        tagNew = false,
+                    )
+                },
+                2 to listOf(
+                    QuickCreateInspirationTemplate(
+                        templateId = "tpl-21",
+                        title = "Template 21",
+                        categoryId = "VIDEO",
+                        coverUrl = "https://example.com/cover-21.png",
+                        videoUrl = "https://example.com/preview-21.mp4",
+                        tagHot = false,
+                        tagNew = true,
+                    )
+                ),
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.switchMode(QuickCreateMode.INSPIRATION)
+        model.loadMoreInspirationTemplates()
+
+        assertEquals(listOf(1, 2), repository.requestedTemplatePages)
+        assertEquals((1..21).map { "tpl-$it" }, model.uiState.value.inspirationTemplates.map { it.templateId })
+        assertEquals(2, model.uiState.value.inspirationTemplatesPage)
+        assertEquals(false, model.uiState.value.inspirationTemplatesHasMore)
+        assertEquals(false, model.uiState.value.inspirationTemplatesLoadingMore)
     }
 
     @Test
