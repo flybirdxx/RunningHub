@@ -1138,12 +1138,13 @@ class QuickCreateScreenModel(
                         )
                     }
                 }
+                scheduleFeePreviewForMediaReference(id)
             }
         }
     }
 
     private fun scheduleFeePreviewForMediaReference(id: String) {
-        if (_uiState.value.currentRelevantMediaReferences().any { it.id == id && it.affectsFeePreviewRequest() }) {
+        if (_uiState.value.currentRelevantMediaReferences().any { it.id == id }) {
             scheduleFeePreview()
         }
     }

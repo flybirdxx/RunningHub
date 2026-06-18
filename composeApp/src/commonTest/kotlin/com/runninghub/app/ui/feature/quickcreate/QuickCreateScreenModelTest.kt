@@ -1250,6 +1250,28 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `failed image upload clears previous image fee preview`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(0.76, model.uiState.value.estimatedCost)
+
+        repository.uploadResult = Result.failure(IllegalStateException("upload unavailable"))
+        model.pickImageReference("content://image/fail")
+        advanceUntilIdle()
+
+        assertEquals(model.uiState.value.imageConfig.estimatedCost, model.uiState.value.estimatedCost)
+        assertEquals(false, model.uiState.value.feePreviewLoading)
+        assertEquals(null, model.uiState.value.feePreviewError)
+    }
+
+    @Test
     fun `video prompt refreshes server fee preview into estimated cost`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
