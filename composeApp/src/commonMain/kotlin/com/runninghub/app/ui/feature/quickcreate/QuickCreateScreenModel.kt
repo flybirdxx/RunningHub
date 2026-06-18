@@ -1328,7 +1328,11 @@ class QuickCreateScreenModel(
         val prompt = config.prompt.trim()
         if (prompt.isEmpty() || config.promptOverLimit) {
             _uiState.update {
-                it.copy(taskStatus = QuickCreateTaskUiStatus.IDLE, error = "请输入描述词")
+                it.copy(
+                    taskStatus = QuickCreateTaskUiStatus.IDLE,
+                    statusText = null,
+                    error = "请输入描述词",
+                )
             }
             return
         }
@@ -2101,7 +2105,11 @@ class QuickCreateScreenModel(
         val prompt = config.prompt.trim()
         if (prompt.isEmpty() || config.promptOverLimit) {
             _uiState.update {
-                it.copy(taskStatus = QuickCreateTaskUiStatus.IDLE, error = "请输入描述词")
+                it.copy(
+                    taskStatus = QuickCreateTaskUiStatus.IDLE,
+                    statusText = null,
+                    error = "请输入描述词",
+                )
             }
             return
         }
