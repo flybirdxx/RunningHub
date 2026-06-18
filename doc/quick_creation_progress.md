@@ -2129,3 +2129,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证真实模型存在必填但未选择的服务端字段时，输入 prompt 后不会出现“价格确认中”卡住，也不会发出 fee-preview 请求。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 未就绪素材不触发价格预览
+
+代码提交 `a95c7b8 fix(quickcreate): skip preview for unready uploads` 已完成，等待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `hasFeePreviewRequest()` 现在会检查当前 tab 的 relevant 素材，只要存在 `FAILED`、`UPLOADING` 或 `PROCESSING` 状态，就不会进入 fee-preview。
+- 该检查复用 `currentRelevantMediaReferences()`，因此隐藏字段、非当前 active child 字段或非当前 tab 的素材不会误阻止价格预览。
+- 修复旧行为：用户先选择可选参考图且上传失败，再输入 prompt 时，旧逻辑会发出不带失败参考图的 prompt-only fee-preview；但正式生成会因为失败素材被拦截，造成价格预览与实际可提交状态不一致。
+- 新增回归测试覆盖：失败图片上传后修改 prompt，不应调用 `previewImageQuickCreationFee`，也不应让 `feePreviewLoading` 残留。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.failed image upload prevents image fee preview when prompt changes"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证上传失败或仍在上传中的参考素材存在时，输入 prompt 不会出现“价格确认中”卡住，也不会发出 prompt-only fee-preview。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
