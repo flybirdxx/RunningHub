@@ -741,7 +741,11 @@ class QuickCreateScreenModel(
                 imagePrompt = state.imageConfig.prompt,
                 videoPrompt = state.videoConfig.prompt,
             )
-            settingsRepository.saveQuickCreateDraft(draft.toJsonString())
+            if (draft.hasPromptContent) {
+                settingsRepository.saveQuickCreateDraft(draft.toJsonString())
+            } else {
+                settingsRepository.clearQuickCreateDraft()
+            }
         }
     }
 

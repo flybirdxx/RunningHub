@@ -2434,6 +2434,26 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `auto save clears draft when prompts become empty`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        runCurrent()
+
+        model.updateImagePrompt("draft prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        assertNotNull(settings.getQuickCreateDraft())
+
+        model.updateImagePrompt("")
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(null, settings.getQuickCreateDraft())
+    }
+
+    @Test
     fun `updateVideoPrompt changes prompt`() {
         val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.updateVideoPrompt("video prompt")
