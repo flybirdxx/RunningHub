@@ -87,6 +87,7 @@ class QuickCreateScreenModel(
         get() = _uiState.value.draftData
 
     init {
+        checkForDraft()
         loadServiceModels()
         loadQuickCreationHistory()
         loadQuickCreationProjects()

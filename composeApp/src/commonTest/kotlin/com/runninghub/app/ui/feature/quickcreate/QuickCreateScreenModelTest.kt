@@ -2462,6 +2462,19 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `init exposes saved draft through ui state`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"hello","videoPrompt":""}""")
+
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        runCurrent()
+
+        assertEquals(true, model.uiState.value.hasDraft)
+    }
+
+    @Test
     fun `checkForDraft finds saved draft`() {
         runBlocking {
         val settings = FakeSettingsRepo()
