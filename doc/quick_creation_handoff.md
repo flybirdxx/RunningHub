@@ -1752,3 +1752,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 后续可以进一步检查 `TaskStatusArea` 对 `FAILED` 状态是否仍应显示圆形进度条；本轮只修复文案残留。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：清空结果时同步清理状态文案
+
+代码提交 `84cce5f fix(quickcreate): clear result status text` 已在本地生成；当前 Git over HTTPS 推送仍被连接重置，待网络恢复后继续推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `clearResults()` 会清空 `results`、把 `taskStatus` 置回 `IDLE`，并把 `statusText` 置为 `null`。
+- 因此用户清空成功结果后，ScreenModel 不会残留“生成完成”等旧状态文案。
+- 这与失败态文案修复形成闭环：任务状态区展示的文案只跟随当前任务状态，清空结果后不继续保留上一次任务文案。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.clearing successful results clears status text"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 网络恢复后推送本地代码和文档提交。
+- 真机复测：成功结果出现后点击清空，页面应回到历史/项目区域，状态文案不应残留。
+- 后续可继续评估 `TaskStatusArea` 对 `FAILED` 状态是否还需要替换圆形进度图标；本轮只处理状态数据一致性。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
