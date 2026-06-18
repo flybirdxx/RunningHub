@@ -1532,6 +1532,76 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `removing active child service upload field media refreshes video fee preview`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            videoModels = listOf(
+                videoModels.single().copy(
+                    fields = videoModels.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "videoReference",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "childVideo",
+                                    paramKey = "childVideos",
+                                    fieldType = "VIDEO_UPLOAD",
+                                    maxInputCount = 1,
+                                    visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                        fieldKey = "creationMode",
+                                        values = listOf("videoReference"),
+                                    ),
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("green icon animation")
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(1, repository.videoFeePreviewRequests.size)
+
+        model.pickVideoReferenceForField("content://video/active-child", "childVideos")
+        advanceUntilIdle()
+        withContext(Dispatchers.IO) {
+            delay(10)
+        }
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+        val activeChildReferenceId = model.uiState.value.videoConfig.mediaReferences.single().id
+        assertEquals("https://example.com/video.mp4", model.uiState.value.videoConfig.mediaReferences.single().remoteUrl)
+        assertEquals(2, repository.videoFeePreviewRequests.size)
+        assertEquals(
+            listOf("https://example.com/video.mp4"),
+            repository.videoFeePreviewRequests.last().quickCreationListParams["childVideos"],
+        )
+
+        model.removeMediaReference(activeChildReferenceId)
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(3, repository.videoFeePreviewRequests.size)
+        assertEquals(
+            null,
+            repository.videoFeePreviewRequests.last().quickCreationListParams["childVideos"],
+        )
+        model.onDispose()
+        runCurrent()
+    }
+
+    @Test
     fun `uploading global image media does not refresh image fee preview before remote url exists`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
