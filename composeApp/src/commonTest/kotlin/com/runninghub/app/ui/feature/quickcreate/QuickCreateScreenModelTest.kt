@@ -935,6 +935,47 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate video ignores realistic toggle when model does not support it`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("prompt")
+        model.toggleRealisticMode()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(false, model.uiState.value.videoConfig.realisticMode)
+        assertEquals(false, repository.lastVideoRequest?.realistic)
+    }
+
+    @Test
+    fun `generate video ignores audio toggle when model does not support it`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("prompt")
+        model.updateVideoModel(VideoModel.SEEDANCE_2_FAST)
+        model.toggleGenerateAudio()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(false, model.uiState.value.videoConfig.generateAudio)
+        assertEquals(false, repository.lastVideoRequest?.generateAudio)
+    }
+
+    @Test
     fun `image prompt refreshes server fee preview into estimated cost`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

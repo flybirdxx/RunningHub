@@ -947,6 +947,7 @@ class QuickCreateScreenModel(
     }
 
     fun toggleRealisticMode() {
+        if (!_uiState.value.videoConfig.model.supportsRealistic) return
         _uiState.update {
             it.copy(videoConfig = it.videoConfig.copy(realisticMode = !it.videoConfig.realisticMode))
         }
@@ -954,6 +955,7 @@ class QuickCreateScreenModel(
     }
 
     fun toggleGenerateAudio() {
+        if (!_uiState.value.videoConfig.model.supportsGenerateAudio) return
         _uiState.update {
             val newConfig = it.videoConfig.copy(generateAudio = !it.videoConfig.generateAudio)
             it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
