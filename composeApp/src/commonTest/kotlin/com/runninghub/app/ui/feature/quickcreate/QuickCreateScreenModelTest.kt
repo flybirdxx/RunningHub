@@ -81,6 +81,9 @@ class QuickCreateScreenModelTest {
             )
         )
         val videoFeePreviewRequests = mutableListOf<com.runninghub.shared.domain.repository.VideoGenerationRequest>()
+        var videoFeePreviewHandler:
+            (suspend (com.runninghub.shared.domain.repository.VideoGenerationRequest) -> Result<QuickCreationFeePreview>)? =
+            null
         var lastHistoryDetailOutputId: String? = null
         val cancelledTaskIds = mutableListOf<String>()
         val requestedHistoryPages = mutableListOf<Int>()
@@ -318,6 +321,7 @@ class QuickCreateScreenModelTest {
             request: com.runninghub.shared.domain.repository.VideoGenerationRequest,
         ): Result<QuickCreationFeePreview> {
             videoFeePreviewRequests += request
+            videoFeePreviewHandler?.let { handler -> return handler(request) }
             return videoFeePreviewResult
         }
         override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String> {
@@ -1467,6 +1471,61 @@ class QuickCreateScreenModelTest {
         assertEquals("video-binding-1", repository.videoFeePreviewRequests.single().quickCreationBindingId)
         assertEquals("video-sku-1", repository.videoFeePreviewRequests.single().quickCreationSkuId)
         assertEquals("green icon animation", repository.videoFeePreviewRequests.single().prompt)
+        assertEquals(9.60, model.uiState.value.estimatedCost)
+        assertEquals(false, model.uiState.value.feePreviewLoading)
+        assertEquals(null, model.uiState.value.feePreviewError)
+    }
+
+    @Test
+    fun `stale video fee preview result does not overwrite latest prompt cost`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            videoFeePreviewHandler = { request ->
+                if (request.prompt == "slow video") {
+                    withContext(NonCancellable) {
+                        delay(1_000)
+                    }
+                    Result.success(
+                        QuickCreationFeePreview(
+                            passed = true,
+                            free = false,
+                            settlementMode = "cash_only",
+                            requiredCashAmount = 4.44,
+                            userCashBalance = 156.376,
+                            cashCurrency = "CNY",
+                        )
+                    )
+                } else {
+                    Result.success(
+                        QuickCreationFeePreview(
+                            passed = true,
+                            free = false,
+                            settlementMode = "cash_only",
+                            requiredCashAmount = 9.60,
+                            userCashBalance = 156.376,
+                            cashCurrency = "CNY",
+                        )
+                    )
+                }
+            }
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("slow video")
+        advanceTimeBy(500)
+        runCurrent()
+        model.updateVideoPrompt("fast video")
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(9.60, model.uiState.value.estimatedCost)
+
+        advanceTimeBy(1_000)
+        runCurrent()
+
+        assertEquals(listOf("slow video", "fast video"), repository.videoFeePreviewRequests.map { it.prompt })
         assertEquals(9.60, model.uiState.value.estimatedCost)
         assertEquals(false, model.uiState.value.feePreviewLoading)
         assertEquals(null, model.uiState.value.feePreviewError)
