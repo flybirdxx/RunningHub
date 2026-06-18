@@ -1614,7 +1614,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 ## 2026-06-18 追加交接：自动保存后隐藏旧草稿入口
 
-代码提交 `73af161 fix(quickcreate): hide stale draft entry after autosave` 已创建在本地 `feature/kmp-refactoring`，当前尚未推送到远端。
+代码提交 `73af161 fix(quickcreate): hide stale draft entry after autosave` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - `autoSaveDraft()` 在 debounce 保存完成后，会调用 `setDraftData(null)`。
@@ -1629,7 +1629,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
 ```
 
-当前阻塞与下一步：
-- `git push` 连续失败；`Test-NetConnection github.com -Port 443` 返回 `TcpTestSucceeded: False`。
-- 网络恢复后，先推送本地领先提交，再补一条云端同步记录或修改本段状态。
+下一步建议：
+- 真机复测：存在旧草稿入口时直接输入新 prompt，等待 debounce 后提示条应自动消失。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
