@@ -2403,3 +2403,25 @@ git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/featu
 - 真机仍需复测视频隐藏上传字段、inactive child 字段和 active 字段混合场景，确认只有 active 相关素材影响按钮价格。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 视频非激活 child 上传字段素材不刷新价格预览
+代码提交待本文档提交后与测试覆盖交替推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `inactive child service upload field media does not refresh video fee preview` 回归测试。
+- 新增 `removing inactive child service upload field media does not refresh video fee preview` 回归测试。
+- 覆盖视频 tab 下 `creationMode=text` 时，绑定在 `visibleWhen creationMode=videoReference` 的 child `VIDEO_UPLOAD` 字段素材选择和移除都不应触发新的视频 fee-preview。
+- 生产代码未改动；当前 active upload param key 过滤已经覆盖视频 inactive child 上传字段。
+
+验证命令：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.inactive child service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing inactive child service upload field media does not refresh video fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing inactive child service upload field media does not refresh image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.inactive child service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing inactive child service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh video fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测视频 hidden、inactive child 和 active 上传字段混合存在时，只有 active 相关素材选择/移除影响按钮价格。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
