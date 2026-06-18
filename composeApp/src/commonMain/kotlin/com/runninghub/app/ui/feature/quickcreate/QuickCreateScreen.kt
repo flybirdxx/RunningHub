@@ -179,6 +179,8 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         },
                         onRemoveMedia = screenModel::removeMediaReference,
                         onToggleTune = { screenModel.setTuneSheetVisible(!uiState.tuneSheetVisible) },
+                        onRestoreDraft = screenModel::restoreDraft,
+                        onDiscardDraft = screenModel::discardDraft,
                         onGenerate = screenModel::generate,
                     )
                 }
@@ -1457,6 +1459,8 @@ private fun BottomPromptPanel(
     onLaunchAudioPicker: () -> Unit,
     onRemoveMedia: (String) -> Unit,
     onToggleTune: () -> Unit,
+    onRestoreDraft: () -> Unit,
+    onDiscardDraft: () -> Unit,
     onGenerate: () -> Unit,
 ) {
     val windowInfo = LocalRhWindowInfo.current
@@ -1495,6 +1499,15 @@ private fun BottomPromptPanel(
                     .navigationBarsPadding()
                     .padding(bottom = Dimens.SpaceMD),
             ) {
+                if (uiState.hasDraft && !isTaskActive) {
+                    DraftResumeRow(
+                        draftData = uiState.draftData,
+                        onRestoreDraft = onRestoreDraft,
+                        onDiscardDraft = onDiscardDraft,
+                    )
+                    Spacer(Modifier.height(Dimens.SpaceSM))
+                }
+
                 TabPillRow(
                     selectedTab = uiState.currentTab,
                     onTabSelected = onTabSwitch,
@@ -1577,6 +1590,55 @@ private fun BottomPromptPanel(
                         modifier = Modifier.weight(1f),
                     )
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DraftResumeRow(
+    draftData: DraftData?,
+    onRestoreDraft: () -> Unit,
+    onDiscardDraft: () -> Unit,
+) {
+    if (draftData == null) return
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = Primary300.copy(alpha = 0.10f),
+        shape = RoundedCornerShape(Dimens.RadiusMD),
+        border = BorderStroke(1.dp, Primary300.copy(alpha = 0.28f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+        ) {
+            Icon(
+                Icons.Default.History,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = Primary300,
+            )
+            Text(
+                text = draftData.resumeSummaryText(),
+                modifier = Modifier.weight(1f),
+                color = Neutral100,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            TextButton(
+                onClick = onDiscardDraft,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                Text("丢弃", color = Neutral400, fontSize = 12.sp)
+            }
+            TextButton(
+                onClick = onRestoreDraft,
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            ) {
+                Text("恢复", color = Primary300, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -1884,6 +1946,8 @@ private fun QuickCreatePreviewContent(
                         onLaunchAudioPicker = {},
                         onRemoveMedia = {},
                         onToggleTune = {},
+                        onRestoreDraft = {},
+                        onDiscardDraft = {},
                         onGenerate = {},
                     )
                 }
@@ -1973,6 +2037,8 @@ private fun QuickCreateBottomPanelAdaptivePreview(
                 onLaunchAudioPicker = {},
                 onRemoveMedia = {},
                 onToggleTune = {},
+                onRestoreDraft = {},
+                onDiscardDraft = {},
                 onGenerate = {},
             )
         }

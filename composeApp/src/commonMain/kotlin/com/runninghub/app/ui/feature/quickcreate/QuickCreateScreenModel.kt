@@ -42,6 +42,13 @@ data class DraftData(
     val videoPrompt: String = "",
 )
 
+internal fun DraftData.resumeSummaryText(): String {
+    val isVideo = currentTab == "VIDEO"
+    val tabLabel = if (isVideo) "视频" else "图片"
+    val promptLength = if (isVideo) videoPrompt.length else imagePrompt.length
+    return "上次草稿 · $tabLabel · $promptLength 字"
+}
+
 private val draftJson = Json { encodeDefaults = true }
 private const val HISTORY_REFRESH_INTERVAL_MS = 5_000L
 private const val FEE_PREVIEW_DEBOUNCE_MS = 500L

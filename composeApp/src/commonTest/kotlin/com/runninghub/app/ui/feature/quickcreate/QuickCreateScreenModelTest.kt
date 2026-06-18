@@ -2475,6 +2475,17 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `draft resume summary describes tab and prompt length`() {
+        val draft = DraftData(
+            currentTab = "VIDEO",
+            imagePrompt = "image",
+            videoPrompt = "video prompt",
+        )
+
+        assertEquals("上次草稿 · 视频 · 12 字", draft.resumeSummaryText())
+    }
+
+    @Test
     fun `checkForDraft finds saved draft`() {
         runBlocking {
         val settings = FakeSettingsRepo()
