@@ -2011,3 +2011,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证模型切换、草稿恢复或模板回填后，Tune 面板只显示并提交当前模型支持的比例、分辨率、质量和时长。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 不支持的视频开关不会进入正式请求
+
+代码提交 `3245edc fix(quickcreate): ignore unsupported video toggles` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `toggleRealisticMode()` 现在会先检查当前 `VideoModel.supportsRealistic`；不支持真人模式时直接忽略。
+- `toggleGenerateAudio()` 现在会先检查当前 `VideoModel.supportsGenerateAudio`；不支持生成音频时直接忽略。
+- 不支持的开关不会覆盖状态，不触发价格预览，也不会进入 `VideoGenerationRequest.realistic/generateAudio` 请求体字段。
+- 修复旧行为：默认 `Seedance2.0` 不支持真人模式但公共入口可写入 `realistic=true`；`Seedance2.0-Fast` 不支持生成音频但公共入口可写入 `generateAudio=true`。
+- 新增回归测试覆盖：不支持真人模式和不支持生成音频的模型，点击对应 toggle 后最终状态和正式请求仍保持 `false`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video ignores realistic toggle when model does not support it" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video ignores audio toggle when model does not support it"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证 Tune 面板的视频开关在不支持模型下的交互体验；当前 ScreenModel 已兜底，UI 层可后续按模型能力禁用或隐藏按钮。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
