@@ -1882,11 +1882,18 @@ class QuickCreateScreenModel(
         val selectedModel = serviceImageModels.matchTemplateModel(detail) ?: selectedImageServiceModel
         val templateParams = selectedModel.canonicalTemplateParams(detail.params)
         val serviceParams = selectedModel.defaultServiceParams(templateParams) + templateParams
+        val imageModel = imageConfig.model
+        val templateAspectRatio = detail.params.templateImageAspectRatio()
+            ?.takeIf { it in imageModel.supportedRatios }
+        val templateResolution = detail.params.templateImageResolution()
+            ?.takeIf { it in imageModel.supportedResolutions }
+        val templateQuality = detail.params.templateImageQuality()
+            ?.takeIf { it in imageModel.supportedQualities }
         val nextConfig = imageConfig.copy(
             prompt = detail.prompt ?: imageConfig.prompt,
-            aspectRatio = detail.params.templateImageAspectRatio() ?: imageConfig.aspectRatio,
-            resolution = detail.params.templateImageResolution() ?: imageConfig.resolution,
-            quality = detail.params.templateImageQuality() ?: imageConfig.quality,
+            aspectRatio = templateAspectRatio ?: imageConfig.aspectRatio,
+            resolution = templateResolution ?: imageConfig.resolution,
+            quality = templateQuality ?: imageConfig.quality,
             mediaReferences = detail.templateMediaReferences(
                 activeFieldParamAliases = selectedModel.quickCreationActiveUploadParamAliases(serviceParams),
                 declaredFieldParamAliases = selectedModel.quickCreationDeclaredUploadParamAliases(),
@@ -1909,13 +1916,24 @@ class QuickCreateScreenModel(
         val selectedModel = serviceVideoModels.matchTemplateModel(detail) ?: selectedVideoServiceModel
         val templateParams = selectedModel.canonicalTemplateParams(detail.params)
         val serviceParams = selectedModel.defaultServiceParams(templateParams) + templateParams
+        val videoModel = videoConfig.model
+        val templateAspectRatio = detail.params.templateVideoAspectRatio()
+            ?.takeIf { it in videoModel.supportedRatios }
+        val templateResolution = detail.params.templateVideoResolution()
+            ?.takeIf { it in videoModel.supportedResolutions }
+        val templateDuration = detail.params.templateVideoDuration()
+            ?.takeIf { it in videoModel.supportedDurations }
+        val templateGenerateAudio = detail.params.templateBoolean("generateAudio")
+            ?: videoConfig.generateAudio
+        val templateRealisticMode = detail.params.templateBoolean("realPersonMode")
+            ?: videoConfig.realisticMode
         val nextConfig = videoConfig.copy(
             prompt = detail.prompt ?: videoConfig.prompt,
-            aspectRatio = detail.params.templateVideoAspectRatio() ?: videoConfig.aspectRatio,
-            resolution = detail.params.templateVideoResolution() ?: videoConfig.resolution,
-            duration = detail.params.templateVideoDuration() ?: videoConfig.duration,
-            generateAudio = detail.params.templateBoolean("generateAudio") ?: videoConfig.generateAudio,
-            realisticMode = detail.params.templateBoolean("realPersonMode") ?: videoConfig.realisticMode,
+            aspectRatio = templateAspectRatio ?: videoConfig.aspectRatio,
+            resolution = templateResolution ?: videoConfig.resolution,
+            duration = templateDuration ?: videoConfig.duration,
+            generateAudio = videoModel.supportsGenerateAudio && templateGenerateAudio,
+            realisticMode = videoModel.supportsRealistic && templateRealisticMode,
             mediaReferences = detail.templateMediaReferences(
                 activeFieldParamAliases = selectedModel.quickCreationActiveUploadParamAliases(serviceParams),
                 declaredFieldParamAliases = selectedModel.quickCreationDeclaredUploadParamAliases(),

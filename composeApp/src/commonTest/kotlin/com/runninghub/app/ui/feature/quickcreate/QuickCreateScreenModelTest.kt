@@ -2580,6 +2580,79 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `apply inspiration image template ignores unsupported model params`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            templateDetail = QuickCreateInspirationTemplateDetail(
+                templateId = "tpl-image",
+                title = "Image template",
+                categoryId = "IMAGE",
+                bindingId = "binding-1",
+                skuId = "sku-1",
+                prompt = "template prompt",
+                params = mapOf(
+                    "aspectRatio" to "21:9",
+                    "resolution" to "4K",
+                ),
+                listParams = emptyMap(),
+                coverUrl = "https://example.com/template-cover.png",
+                videoUrl = null,
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImageModel(ImageModel.SEEDREAM_4)
+        model.applyInspirationTemplate("tpl-image")
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(ImageAspectRatio.RATIO_3_4, model.uiState.value.imageConfig.aspectRatio)
+        assertEquals(ImageResolution.RES_1K, model.uiState.value.imageConfig.resolution)
+        assertEquals("3:4", repository.lastImageRequest?.aspectRatio)
+        assertEquals("1K", repository.lastImageRequest?.resolution)
+    }
+
+    @Test
+    fun `apply inspiration video template ignores unsupported model params and toggles`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            templateDetail = templateDetail.copy(
+                params = mapOf(
+                    "resolution" to "1080p",
+                    "duration" to "10",
+                    "generateAudio" to "true",
+                    "realPersonMode" to "true",
+                ),
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateVideoModel(VideoModel.SEEDANCE_2_FAST)
+        model.applyInspirationTemplate("tpl-video")
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(VideoResolution.RES_720P, model.uiState.value.videoConfig.resolution)
+        assertEquals(VideoDuration.DURATION_5S, model.uiState.value.videoConfig.duration)
+        assertEquals(false, model.uiState.value.videoConfig.generateAudio)
+        assertEquals(false, model.uiState.value.videoConfig.realisticMode)
+        assertEquals("720p", repository.lastVideoRequest?.resolution)
+        assertEquals(5, repository.lastVideoRequest?.duration)
+        assertEquals(false, repository.lastVideoRequest?.generateAudio)
+        assertEquals(false, repository.lastVideoRequest?.realistic)
+    }
+
+    @Test
     fun `apply inspiration video template infers generic list param media type from service field`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
