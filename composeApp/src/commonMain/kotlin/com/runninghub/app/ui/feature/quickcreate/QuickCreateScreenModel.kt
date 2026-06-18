@@ -1717,6 +1717,9 @@ class QuickCreateScreenModel(
                         if (child.options.isNotEmpty() && child.required && value.isBlank()) {
                             return@firstNotNullOfOrNull "${child.quickCreationFieldTitle()} 不能为空"
                         }
+                        if (child.options.isNotEmpty() && value.isNotBlank() && child.options.none { option -> option.value == value }) {
+                            return@firstNotNullOfOrNull "${child.quickCreationFieldTitle()} 选项无效"
+                        }
                         if (child.supportsQuickCreationTextEntry()) {
                             return@firstNotNullOfOrNull child.quickCreationTextValidationError(value)
                         }
