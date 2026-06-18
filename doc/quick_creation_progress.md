@@ -2344,3 +2344,21 @@ git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/featu
 - 真机仍需复测隐藏字段、inactive child 字段和当前 active 字段混合存在时，删除素材后的按钮价格刷新边界。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 非激活 child 上传字段素材移除不刷新价格预览
+代码提交待本文档提交后与测试覆盖交替推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `removing inactive child service upload field media does not refresh image fee preview` 回归测试。
+- 覆盖 `creationMode=text` 时，绑定在 `visibleWhen creationMode=imageReference` 的 child 图片字段素材被移除，不应触发新的图片 fee-preview。
+- 当前生产逻辑已经通过删除前的 `currentRelevantMediaReferences()` 判断过滤 inactive child 字段素材；本轮仅补显式测试覆盖，无生产代码改动。
+
+验证命令：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing inactive child service upload field media does not refresh image fee preview"
+```
+
+仍未完成：
+- 真机仍需复测隐藏字段、inactive child 字段和当前 active 字段混合存在时，只有 active 相关素材的删除会刷新按钮价格。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

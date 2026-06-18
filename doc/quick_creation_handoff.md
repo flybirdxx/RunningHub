@@ -2427,3 +2427,24 @@ git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/featu
 - 真机复测隐藏字段、inactive child 字段和 active 字段混合场景，确认 UI 删除动作与 fee-preview 请求边界一致。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需新的明确授权。
 - 继续避免提交既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
+
+## 2026-06-18 追加交接：非激活 child 字段素材移除的价格预览边界
+
+当前行为：
+- `removeMediaReference()` 在删除前读取当前 `currentRelevantMediaReferences()`，只有待删除素材属于当前 tab 的相关素材集合时才重新调度 fee-preview。
+- 非激活 child 上传字段素材不属于相关集合；删除这类素材不会让当前 prompt 重新发起 prompt-only fee-preview。
+- 这与隐藏上传字段素材移除的边界一致，避免非活跃动态字段影响底部按钮价格。
+
+本轮变更：
+- 只新增测试 `removing inactive child service upload field media does not refresh image fee preview`。
+- 生产代码未改动；测试直接通过，说明当前实现已满足该边界。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing inactive child service upload field media does not refresh image fee preview"
+```
+
+后续建议：
+- 真机复测隐藏字段、inactive child 字段和 active 字段混合场景，确认 UI 删除动作与 fee-preview 请求边界一致。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需新的明确授权。
+- 继续避免提交既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
