@@ -2050,14 +2050,15 @@ class QuickCreateScreenModel(
     }
 
     private fun handleTaskStatus(status: QuickCreateTaskStatus) {
+        if (status is QuickCreateTaskStatus.Queuing) {
+            clearDraft()
+        }
         _uiState.update {
             when (status) {
                 is QuickCreateTaskStatus.Submitting -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING, statusText = "正在提交..."
                 )
                 is QuickCreateTaskStatus.Queuing -> {
-                    // AC5: draft cleared on successful submit — side effect moved outside update lambda
-                    screenModelScope.launch { settingsRepository.clearQuickCreateDraft() }
                     it.copy(
                         taskStatus = QuickCreateTaskUiStatus.QUEUING, statusText = "排队中..."
                     )

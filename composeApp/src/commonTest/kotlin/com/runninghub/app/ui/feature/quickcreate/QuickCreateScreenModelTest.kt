@@ -2662,6 +2662,27 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `successful submit clears in memory draft entry`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"old draft","videoPrompt":""}""")
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        runCurrent()
+        assertEquals(true, model.uiState.value.hasDraft)
+
+        model.applyInspirationTemplate("tpl-image")
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(false, model.uiState.value.hasDraft)
+        assertEquals(null, settings.getQuickCreateDraft())
+    }
+
+    @Test
     fun `checkForDraft clears stale in memory draft when stored draft is invalid`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
