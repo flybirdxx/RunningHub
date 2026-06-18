@@ -119,6 +119,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             onCancelHistoryTask = screenModel::cancelHistoryTask,
                             onProjectSelected = screenModel::selectProject,
                             onClearSelectedProject = screenModel::clearSelectedProject,
+                            onLoadMoreProjects = screenModel::loadMoreQuickCreationProjects,
                             onToggleProjectPin = screenModel::toggleProjectPin,
                             onCreateProject = screenModel::createProject,
                             onRenameProject = screenModel::renameProject,
@@ -416,6 +417,7 @@ private fun CreationScrollableArea(
     onCancelHistoryTask: (String) -> Unit,
     onProjectSelected: (String) -> Unit,
     onClearSelectedProject: () -> Unit,
+    onLoadMoreProjects: () -> Unit,
     onToggleProjectPin: (String) -> Unit,
     onCreateProject: (String) -> Unit,
     onRenameProject: (String, String) -> Unit,
@@ -438,6 +440,7 @@ private fun CreationScrollableArea(
             onCancelHistoryTask = onCancelHistoryTask,
             onProjectSelected = onProjectSelected,
             onClearSelectedProject = onClearSelectedProject,
+            onLoadMoreProjects = onLoadMoreProjects,
             onToggleProjectPin = onToggleProjectPin,
             onCreateProject = onCreateProject,
             onRenameProject = onRenameProject,
@@ -455,6 +458,7 @@ private fun HistoryArea(
     onCancelHistoryTask: (String) -> Unit,
     onProjectSelected: (String) -> Unit,
     onClearSelectedProject: () -> Unit,
+    onLoadMoreProjects: () -> Unit,
     onToggleProjectPin: (String) -> Unit,
     onCreateProject: (String) -> Unit,
     onRenameProject: (String, String) -> Unit,
@@ -471,11 +475,14 @@ private fun HistoryArea(
             ProjectStrip(
                 projects = uiState.projects,
                 isLoading = uiState.projectsLoading,
+                isLoadingMore = uiState.projectsLoadingMore,
+                hasMore = uiState.projectsHasMore,
                 selectedProjectId = uiState.selectedProjectId,
                 pinningIds = uiState.projectPinningIds,
                 mutatingIds = uiState.projectMutatingIds,
                 onProjectSelected = onProjectSelected,
                 onClearSelectedProject = onClearSelectedProject,
+                onLoadMoreProjects = onLoadMoreProjects,
                 onToggleProjectPin = onToggleProjectPin,
                 onCreateProject = onCreateProject,
                 onRenameProject = onRenameProject,
@@ -545,11 +552,14 @@ private fun HistoryArea(
 private fun ProjectStrip(
     projects: List<QuickCreationProject>,
     isLoading: Boolean,
+    isLoadingMore: Boolean,
+    hasMore: Boolean,
     selectedProjectId: String?,
     pinningIds: Set<String>,
     mutatingIds: Set<String>,
     onProjectSelected: (String) -> Unit,
     onClearSelectedProject: () -> Unit,
+    onLoadMoreProjects: () -> Unit,
     onToggleProjectPin: (String) -> Unit,
     onCreateProject: (String) -> Unit,
     onRenameProject: (String, String) -> Unit,
@@ -617,6 +627,12 @@ private fun ProjectStrip(
                     onShowDetail = { onShowProjectDetail(project.projectId) },
                     onRename = { renameTarget = project },
                     onDelete = { deleteTarget = project },
+                )
+            }
+            if (hasMore) {
+                LoadMoreProjectsChip(
+                    isLoading = isLoadingMore,
+                    onClick = onLoadMoreProjects,
                 )
             }
         }
@@ -689,6 +705,48 @@ private fun RecentProjectChip(
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoadMoreProjectsChip(
+    isLoading: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = !isLoading,
+        color = DarkSurface,
+        shape = RoundedCornerShape(Dimens.RadiusMD),
+        border = BorderStroke(1.dp, DarkOutlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = Dimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXS),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(14.dp),
+                    strokeWidth = 2.dp,
+                    color = Primary300,
+                )
+            } else {
+                Icon(
+                    Icons.Default.MoreHoriz,
+                    contentDescription = null,
+                    tint = Primary300,
+                    modifier = Modifier.size(14.dp),
+                )
+            }
+            Text(
+                if (isLoading) "加载中" else "加载更多",
+                color = Primary300,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
             )
         }
     }
@@ -1947,6 +2005,7 @@ private fun QuickCreatePreviewContent(
                             onCancelHistoryTask = {},
                             onProjectSelected = {},
                             onClearSelectedProject = {},
+                            onLoadMoreProjects = {},
                             onToggleProjectPin = {},
                             onCreateProject = {},
                             onRenameProject = { _, _ -> },

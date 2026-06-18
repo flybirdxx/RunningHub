@@ -362,6 +362,7 @@ data class QuickCreateUiState(
     val historyDetailLoading: Boolean = false,
     val selectedHistoryDetail: QuickCreationHistoryItem? = null,
     val projectsLoading: Boolean = false,
+    val projectsLoadingMore: Boolean = false,
     val projects: List<QuickCreationProject> = emptyList(),
     val projectsPage: Int = 0,
     val projectsHasMore: Boolean = false,

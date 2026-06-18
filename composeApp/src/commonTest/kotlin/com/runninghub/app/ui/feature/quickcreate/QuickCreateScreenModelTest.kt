@@ -170,6 +170,7 @@ class QuickCreateScreenModelTest {
                 )
             ),
         )
+        var projectPages: Map<Int, QuickCreationProjectPage>? = null
         var overrideHistoryList: ((page: Int, size: Int) -> QuickCreationHistoryPage)? = null
         var historyDetail = QuickCreationHistoryItem(
             taskId = "history-task-detail",
@@ -365,7 +366,7 @@ class QuickCreateScreenModelTest {
             }
 
         override suspend fun listQuickCreationProjects(page: Int, size: Int): Result<QuickCreationProjectPage> =
-            Result.success(projectPage.copy(page = page, size = size)).also {
+            Result.success((projectPages?.get(page) ?: projectPage).copy(page = page, size = size)).also {
                 requestedProjectPages += page
             }
 
@@ -464,6 +465,47 @@ class QuickCreateScreenModelTest {
         assertEquals("世界杯广告", model.uiState.value.projects.single().name)
         assertEquals(true, model.uiState.value.projects.single().pinned)
         assertEquals(false, model.uiState.value.projectsHasMore)
+    }
+
+    @Test
+    fun `loading more projects appends next page`() {
+        val repository = FakeQuickCreateRepository().apply {
+            projectPages = mapOf(
+                1 to projectPage.copy(
+                    page = 1,
+                    total = 2,
+                    hasNext = true,
+                    items = listOf(
+                        QuickCreationProject(
+                            projectId = "project-1",
+                            name = "世界杯广告",
+                            taskCount = 3,
+                        )
+                    ),
+                ),
+                2 to projectPage.copy(
+                    page = 2,
+                    total = 2,
+                    hasNext = false,
+                    items = listOf(
+                        QuickCreationProject(
+                            projectId = "project-2",
+                            name = "新品海报",
+                            taskCount = 1,
+                        )
+                    ),
+                ),
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.loadMoreQuickCreationProjects()
+
+        assertEquals(listOf(1, 2), repository.requestedProjectPages)
+        assertEquals(listOf("project-1", "project-2"), model.uiState.value.projects.map { it.projectId })
+        assertEquals(2, model.uiState.value.projectsPage)
+        assertEquals(false, model.uiState.value.projectsHasMore)
+        assertEquals(false, model.uiState.value.projectsLoadingMore)
     }
 
     @Test

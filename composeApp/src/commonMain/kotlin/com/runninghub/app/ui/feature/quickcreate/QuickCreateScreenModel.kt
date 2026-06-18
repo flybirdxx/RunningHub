@@ -189,6 +189,7 @@ class QuickCreateScreenModel(
                     _uiState.update { state ->
                         state.copy(
                             projectsLoading = false,
+                            projectsLoadingMore = false,
                             projects = page.items,
                             projectsPage = page.page,
                             projectsHasMore = page.hasNext,
@@ -196,7 +197,38 @@ class QuickCreateScreenModel(
                     }
                 },
                 onFailure = {
-                    _uiState.update { state -> state.copy(projectsLoading = false) }
+                    _uiState.update { state -> state.copy(projectsLoading = false, projectsLoadingMore = false) }
+                },
+            )
+        }
+    }
+
+    fun loadMoreQuickCreationProjects() {
+        val state = _uiState.value
+        if (state.projectsLoading || state.projectsLoadingMore || !state.projectsHasMore) return
+
+        screenModelScope.launch {
+            val nextPage = _uiState.value.projectsPage + 1
+            _uiState.update { it.copy(projectsLoadingMore = true, error = null) }
+            val projects = quickCreateRepository.listQuickCreationProjects(page = nextPage, size = 20)
+            projects.fold(
+                onSuccess = { page ->
+                    _uiState.update { current ->
+                        current.copy(
+                            projectsLoadingMore = false,
+                            projects = (current.projects + page.items).distinctBy { it.projectId },
+                            projectsPage = page.page,
+                            projectsHasMore = page.hasNext,
+                        )
+                    }
+                },
+                onFailure = { error ->
+                    _uiState.update { current ->
+                        current.copy(
+                            projectsLoadingMore = false,
+                            error = error.message ?: "项目加载失败",
+                        )
+                    }
                 },
             )
         }
