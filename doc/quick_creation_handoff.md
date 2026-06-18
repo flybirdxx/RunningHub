@@ -1869,7 +1869,7 @@ git diff --check
 
 ## 2026-06-18 追加交接：拦截提交时清理旧状态文案
 
-代码提交 `6a4e8db fix(quickcreate): clear status text on blocked submit` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `6a4e8db fix(quickcreate): clear status text on blocked submit` 和文档提交 `c5e1644 docs(quickcreate): record blocked submit status cleanup` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - `generate()` 在价格确认中、价格预览失败、服务端字段校验失败、素材等待失败和上传字段校验失败时，会把 `taskStatus` 置回 `IDLE` 并清空 `statusText`。
@@ -1887,5 +1887,28 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 下一步建议：
 - 远端推送完成后，继续按“代码提交、文档提交”节奏推进下一个可验证缺口。
 - 真机复测：保留上一轮成功结果，修改 prompt 让价格预览失败后点击生成，确认页面不会继续显示旧“生成完成”状态文案。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：必填 options 字段不再漏过校验
+
+代码提交 `2ec3a66 fix(quickcreate): require selected service options` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 顶层可见服务端字段只要带 `options` 且 `required=true`，在没有当前值也没有默认值时，会在 `generate()` 的服务端字段校验阶段被拦截。
+- 拦截发生在素材等待和正式 `generateImage()` / `generateVideo()` 之前，因此不会进入 `prepare/commit`，也不会新增扣费。
+- 文本字段、上传字段和已有默认值的 options 字段行为不变；本轮没有扩展子字段 options 校验，避免把未经红灯测试的行为混入提交。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when required service option field is empty"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 可继续用 TDD 补齐 active child options 字段的必填校验。
+- 真机复测：找一个真实模型的必填下拉字段，确认未选择时不会进入正式提交；如果服务端总是带默认值，则用接口返回样例或 MockEngine 覆盖无默认值场景。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
