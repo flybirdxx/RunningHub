@@ -2293,3 +2293,31 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证真实余额不足时，按钮显示“价格待确认”，点击后展示具体原因，且状态中不会继续展示上一轮或当前未通过预览金额。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 旧价格预览结果不覆盖最新输入
+
+代码提交待本文档提交后与实现交替推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `QuickCreateScreenModel.scheduleFeePreview()` 新增递增请求序号；每次重新调度价格预览或清理不可预览状态时都会生成新序号。
+- 图片与视频 fee-preview 返回后，只有当前序号仍然是最新请求时才允许回写 `estimatedCost/feePreviewLoading/feePreviewError`。
+- 修复的旧行为：用户先输入一个触发慢 fee-preview 的 prompt，再快速输入新 prompt；如果旧 repository 调用不配合协程取消，旧结果仍可能晚到并覆盖新 prompt 的价格。
+- 新增回归测试用 `NonCancellable` 模拟旧请求无视取消并晚返回，断言最终价格保持最新 prompt 的 `0.76`，不会被旧 prompt 的 `3.33` 覆盖。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.stale image fee preview result does not overwrite latest prompt cost"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.stale image fee preview result does not overwrite latest prompt cost" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image prompt refreshes server fee preview into estimated cost" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.video prompt refreshes server fee preview into estimated cost" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image fee preview failure falls back from previous server amount to local estimate" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when fee preview is not passed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video is blocked when fee preview is not passed"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+调试记录：
+- 新增单测先红后绿；红灯时最终 `estimatedCost` 会被旧请求覆盖为 `3.33`。
+- 完整快捷创作测试组第一次出现 `generate image maps field bound images to matching child upload fields` 顺序失败；该用例单独运行通过，完整组重跑通过，判断为既有非稳定顺序/调度问题，本次未扩大修复范围。
+
+仍未完成：
+- 真机仍需验证快速连续修改 prompt 或模型参数时，按钮价格不会被旧网络响应回写。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
