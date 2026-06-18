@@ -2092,3 +2092,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：在图片和视频高级参数里输入负 seed 后点击生成，确认请求不会带负 seed；必要时再补 UI 层非负数字输入限制。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：模型不支持参数不再进入正式请求
+
+代码提交 `bdf27d1 fix(quickcreate): ignore unsupported model params` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 图片比例、分辨率、质量更新会先检查当前 `ImageModel` 支持集；视频比例、分辨率、时长更新会先检查当前 `VideoModel` 支持集。
+- 不支持的值会被忽略，上一轮合法配置会保留，价格预览不会因为非法更新重新请求。
+- 最终 `ImageGenerationRequest.aspectRatio/resolution/quality` 和 `VideoGenerationRequest.aspectRatio/resolution/duration` 不会携带当前模型不支持的值。
+- 正常 Tune UI 选择行为不变；本轮是在 ScreenModel 公共入口补齐同样的请求体防线。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image keeps previous model params when unsupported image params are requested" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video keeps previous model params when unsupported video params are requested"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：切换到 `Seedream 4.0`、`Seedance2.0-Fast` 等支持范围较窄的模型，确认 Tune UI 与最终提交参数都不会出现不支持的比例、分辨率或时长。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

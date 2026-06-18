@@ -1987,3 +1987,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证高级参数 Seed 输入负数后 UI 不会提交负 seed；如果需要更明确体验，后续可在输入框层增加只能输入非负数字的限制或错误提示。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 模型不支持的参数不会进入正式请求
+
+代码提交 `bdf27d1 fix(quickcreate): ignore unsupported model params` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `updateImageAspectRatio()`、`updateImageResolution()`、`updateImageQuality()` 现在会按当前 `ImageModel` 的 `supportedRatios/supportedResolutions/supportedQualities` 过滤。
+- `updateVideoAspectRatio()`、`updateVideoResolution()`、`updateVideoDuration()` 现在会按当前 `VideoModel` 的 `supportedRatios/supportedResolutions/supportedDurations` 过滤。
+- 不支持的值会被直接忽略，不覆盖上一轮合法配置，不触发新的价格预览，也不会进入正式请求体。
+- 修复旧行为：非 UI 路径可在 `Seedream 4.0` 下写入 `21:9/4K`，或在 `Seedance2.0-Fast` 下写入 `1080p/10s`，导致请求体携带当前模型不支持的参数。
+- 新增回归测试覆盖：图片模型不支持的比例/分辨率、视频模型不支持的分辨率/时长都不会覆盖上一轮合法参数。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image keeps previous model params when unsupported image params are requested" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video keeps previous model params when unsupported video params are requested"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证模型切换、草稿恢复或模板回填后，Tune 面板只显示并提交当前模型支持的比例、分辨率、质量和时长。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
