@@ -1518,3 +1518,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证清空图片和视频 prompt 后退出再进入，草稿入口不会短暂闪现。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 自动保存后隐藏过期草稿入口
+
+代码提交 `73af161 fix(quickcreate): hide stale draft entry after autosave` 已创建在本地 `feature/kmp-refactoring`，但尚未推送到远端。
+
+已完成：
+- `autoSaveDraft()` 在保存新草稿或清理空草稿后，会同步调用 `setDraftData(null)` 清掉当前 UI 中的旧草稿入口状态。
+- 修复用户看到旧草稿提示条但选择直接输入新内容时，旧 `uiState.draftData` 仍保留，导致底部继续显示已过期草稿入口的问题。
+- 新增回归测试覆盖：已有旧草稿入口时输入新 prompt，等待自动保存 debounce 后，`uiState.hasDraft` 应变为 `false`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.auto save hides stale draft entry after prompt changes"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+当前阻塞：
+- `git push` 失败，`Test-NetConnection github.com -Port 443` 返回 `TcpTestSucceeded: False`，本机当前无法连接 GitHub 443 端口。
+- 该提交和本文档记录都需要网络恢复后再推送到云端。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
