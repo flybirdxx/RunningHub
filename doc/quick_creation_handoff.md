@@ -2268,3 +2268,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：先输入 prompt 等服务端价格显示，再选择参考素材并让上传失败，确认按钮不会继续显示旧的 prompt-only 服务端金额。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：删除失败素材后恢复价格预览
+
+代码提交 `a275c10 fix(quickcreate): restore preview after removing failed upload` 已完成，等待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 删除素材前，`removeMediaReference()` 会判断该素材是否属于当前 relevant 素材集合。
+- 只要删除的是当前 relevant 素材，无论它是 `DONE`、`FAILED`、`UPLOADING` 还是 `PROCESSING`，删除后都会调用 `scheduleFeePreview()` 重新评估当前价格预览状态。
+- 因此失败素材存在时会阻止并清理 fee-preview；删除失败素材后，如果 prompt 和其他字段已经有效，会重新发起 prompt-only 或当前剩余素材对应的 fee-preview。
+- 这和上一条“上传失败后清理旧价格预览”形成闭环：失败时不显示旧价，删除失败项后恢复可预览状态。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing failed image upload restores image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.failed image upload clears previous image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.remove media reference removes image media after switching to video tab"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：先让 prompt-only 服务端价格显示，再选择并失败上传参考素材，删除失败素材后确认按钮恢复到服务端预览价格。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

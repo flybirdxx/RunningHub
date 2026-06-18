@@ -2175,3 +2175,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证已有服务端价格显示后，选择参考素材并上传失败时，按钮价格不会继续显示旧的 prompt-only 预览价。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 删除失败素材后恢复价格预览
+
+代码提交 `a275c10 fix(quickcreate): restore preview after removing failed upload` 已完成，等待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `removeMediaReference()` 现在只要删除的是当前 relevant 素材，就会触发 fee-preview 重评估，而不再只处理 `DONE + remoteUrl` 的素材。
+- 修复旧行为：上传失败素材会清掉旧服务端预览价，但用户删除失败素材后，旧逻辑不会重新发起 prompt-only fee-preview，页面可能停留在本地估算价。
+- 新增回归测试覆盖：先完成 prompt-only 图片 fee-preview，再让参考图上传失败，删除失败素材后应重新发起图片 fee-preview，金额恢复为服务端 `0.76`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing failed image upload restores image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.failed image upload clears previous image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.remove media reference removes image media after switching to video tab"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证删除失败参考素材后，按钮会从本地估算价恢复到当前 prompt 的服务端预览价格。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
