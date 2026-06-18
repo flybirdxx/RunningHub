@@ -1633,3 +1633,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：存在旧草稿入口时直接输入新 prompt，等待 debounce 后提示条应自动消失。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：草稿恢复 tab 选择有内容的一侧
+
+代码提交 `baf2e87 fix(quickcreate): restore draft tab with prompt` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 草稿入口摘要和恢复目标 tab 都由 `DraftData.restorableTab` 决定。
+- 如果 `currentTab=VIDEO` 且 `videoPrompt` 非空，则恢复视频；如果视频 prompt 为空但图片 prompt 非空，则恢复图片。
+- 如果 `currentTab=IMAGE` 且 `imagePrompt` 非空，则恢复图片；如果图片 prompt 为空但视频 prompt 非空，则恢复视频。
+- `DraftData.resumeSummaryText()` 使用同一规则，因此提示条文案不会再出现“视频 · 0 字”但实际只有图片 prompt 的情况。
+- `restoreDraft()` 使用 `restorableTab` 后再调用 `scheduleFeePreview()`，因此 fee-preview 会按恢复后真正有 prompt 的 tab 构造请求。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.draft resume summary falls back to image prompt when video tab has no prompt" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.restore draft falls back to image tab when video prompt is empty"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：图片 prompt 非空、切到空视频 tab、退出再进入、恢复草稿，页面应回到图片 tab 并刷新图片价格。
+- 如果草稿未来保存素材或参数，需要判断素材/参数是否也参与 `restorableTab`，目前只按 prompt 决定。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
