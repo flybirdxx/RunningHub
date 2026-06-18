@@ -2048,3 +2048,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：输入超过 500 字后点击生成，确认页面提示长度超限且不会进入正式提交。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：非法生成数量不再进入正式请求
+
+代码提交 `40a0e04 fix(quickcreate): ignore unsupported output counts` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 图片生成数量只允许 `1/2/4`；视频生成数量只允许 `1/2`。
+- `updateImageCount()` / `updateVideoCount()` 收到不支持的数量时直接返回，保留上一轮合法配置，不刷新价格预览。
+- 最终 `ImageGenerationRequest.numImages` 和 `VideoGenerationRequest.numVideos` 只会来自合法数量，避免草稿恢复、外部入口或测试路径把 `0/99` 等值提交到正式生成链路。
+- 正常 UI 枚举选择行为不变；本轮只是给公开 ScreenModel 更新入口补齐请求体防线。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image keeps previous count when unsupported image count is requested" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video keeps previous count when unsupported video count is requested"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：从草稿恢复、模板回填或异常状态恢复后切换生成数量，确认界面仍只显示合法数量且提交请求不带非法 `numImages/numVideos`。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

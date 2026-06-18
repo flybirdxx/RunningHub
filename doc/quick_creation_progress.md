@@ -1941,3 +1941,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证输入超过 500 字后点击生成，页面提示长度超限且不进入正式提交。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 非法生成数量不会进入正式请求
+
+代码提交 `40a0e04 fix(quickcreate): ignore unsupported output counts` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `updateImageCount()` 只接受图片生成实际支持的数量 `1/2/4`；`updateVideoCount()` 只接受视频生成实际支持的数量 `1/2`。
+- 非法数量会被直接忽略，不覆盖上一轮合法配置，不触发新的价格预览，也不会进入 `numImages` / `numVideos` 请求体字段。
+- 修复旧行为：公开 ScreenModel 入口如果被非 UI 路径、草稿恢复或测试代码传入 `0/99` 这类非法值，旧逻辑会写入状态并随正式生成请求提交，导致请求体和价格显示都可能偏离真实可选项。
+- 新增回归测试覆盖：图片先选 `4` 后传入 `0`，视频先选 `2` 后传入 `99`，最终状态和正式请求仍保留上一轮合法数量。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image keeps previous count when unsupported image count is requested" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video keeps previous count when unsupported video count is requested"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证异常恢复路径或外部状态恢复不会把非法生成数量带入 UI；正常 UI 选择本身已由枚举按钮限制。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
