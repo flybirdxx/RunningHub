@@ -2070,3 +2070,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测：从草稿恢复、模板回填或异常状态恢复后切换生成数量，确认界面仍只显示合法数量且提交请求不带非法 `numImages/numVideos`。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：负 seed 不再进入正式请求
+
+代码提交 `4923297 fix(quickcreate): drop negative generation seeds` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 图片和视频高级参数里的 seed 在 ScreenModel 层统一经过 `sanitizedSeed()`。
+- 负 seed 会被转成 `null`，含义是随机 seed；合法范围内的 `0` 和正整数继续保留。
+- 最终 `ImageGenerationRequest.seed` 和 `VideoGenerationRequest.seed` 不会携带负数，避免高级输入框、草稿恢复或外部入口把非法 seed 带入正式生成链路。
+- 本轮只处理请求体安全边界，没有改 Tune 输入框的交互文案；如果产品需要更强提示，可以继续在 `SeedInput` 层限制输入或显示错误。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image clears negative seed before building request" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video clears negative seed before building request"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：在图片和视频高级参数里输入负 seed 后点击生成，确认请求不会带负 seed；必要时再补 UI 层非负数字输入限制。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

@@ -1964,3 +1964,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证异常恢复路径或外部状态恢复不会把非法生成数量带入 UI；正常 UI 选择本身已由枚举按钮限制。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 负 seed 不会进入正式请求
+
+代码提交 `4923297 fix(quickcreate): drop negative generation seeds` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `updateImageSeed()` 和 `updateVideoSeed()` 现在会把负 seed 归一为 `null`，即随机 seed。
+- 依据 `doc/API-MODELS-DEV-DOC.md` 中 seed 范围 `0-2147483647`，只拦截负数；`0` 和正整数仍可正常作为固定 seed。
+- 修复旧行为：高级参数输入 `-1` 这类负数时，旧逻辑会覆盖上一轮合法 seed 并随 `ImageGenerationRequest.seed` / `VideoGenerationRequest.seed` 进入正式请求体。
+- 新增回归测试覆盖：图片和视频先写入合法 seed，再传入 `-1`，最终状态和正式请求里的 seed 都应为 `null`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image clears negative seed before building request" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video clears negative seed before building request"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证高级参数 Seed 输入负数后 UI 不会提交负 seed；如果需要更明确体验，后续可在输入框层增加只能输入非负数字的限制或错误提示。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
