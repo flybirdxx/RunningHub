@@ -1701,7 +1701,7 @@ git diff --check
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
 ## 2026-06-18 项目筛选内生成成功后刷新项目任务
 
-代码提交 `18a8d0a fix(quickcreate): refresh selected project after generation` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `18a8d0a fix(quickcreate): refresh selected project after generation` 和文档提交 `a4fec9e docs(quickcreate): record project refresh fix` 已推送到 `feature/kmp-refactoring`。
 
 已完成：
 - 新增 `refreshCurrentHistoryArea()`：生成成功后会按当前 `selectedProjectId` 判断刷新最近创作还是项目任务列表。
@@ -1719,5 +1719,26 @@ git diff --check
 
 仍未完成：
 - 真机仍需验证在项目筛选页触发低成本图片生成后，成功返回时项目筛选不丢失，列表仍为当前项目任务。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 错误任务回到空闲时清理状态文案
+
+代码提交 `23274aa fix(quickcreate): clear status text on task error` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `handleTaskStatus(Error)` 现在会把 `taskStatus` 置回 `IDLE` 的同时清空 `statusText`。
+- 修复任务先进入 `Running` 后返回通用 `Error` 时，ScreenModel 中仍残留旧“生成中...N%”文案的问题。
+- 新增回归测试覆盖：图片任务状态流 `Running(progress=42) -> Error("network unavailable")` 后，应得到 `taskStatus=IDLE`、`error=network unavailable`、`statusText=null`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.errored image task clears running status text"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check
+```
+
+仍未完成：
+- 真机仍需验证网络或接口通用错误时，中间状态区不会在下一次进入任务态前保留旧进度文案。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
