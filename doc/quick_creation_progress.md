@@ -2269,3 +2269,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证真实余额不足时，用户点击生成看到的是具体余额/预览未通过原因，而不是泛化“价格待确认”。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 价格预览未通过时不保留服务端金额
+
+代码提交待本段文档提交后与实现交替推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `applyFeePreview()` 在服务端预览通过时继续使用 `requiredCashAmount/requiredRhAmount` 写入 UI 金额。
+- 当 `passed=false` 或 `insufficientType != null` 时，`estimatedCost` 改为回退当前 tab 的本地估算价，同时保留 `feePreviewError=余额不足或价格预览未通过`。
+- 图片和视频未通过预览测试新增金额断言，确保不可提交状态不会继续持有服务端返回的不可用金额。
+- 保留正常通过预览、预览失败回退本地估算价、未通过预览阻断提交的既有行为。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when fee preview is not passed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video is blocked when fee preview is not passed"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when fee preview is not passed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video is blocked when fee preview is not passed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image prompt refreshes server fee preview into estimated cost" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.video prompt refreshes server fee preview into estimated cost" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.image fee preview failure falls back from previous server amount to local estimate"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证真实余额不足时，按钮显示“价格待确认”，点击后展示具体原因，且状态中不会继续展示上一轮或当前未通过预览金额。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
