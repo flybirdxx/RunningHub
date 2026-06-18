@@ -1360,6 +1360,56 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image is blocked when active required child option field is empty`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "creationMode",
+                        paramKey = "creationMode",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "imageReference",
+                        options = emptyList(),
+                        inputExtra = QuickCreationServiceFieldExtra(
+                            inputChildren = listOf(
+                                QuickCreationServiceFieldInputChild(
+                                    fieldKey = "referenceStyle",
+                                    paramKey = "referenceStyle",
+                                    fieldType = "LIST",
+                                    required = true,
+                                    title = "Reference style",
+                                    options = listOf(
+                                        QuickCreationServiceFieldOption(label = "Realistic", value = "realistic"),
+                                    ),
+                                    visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                        fieldKey = "creationMode",
+                                        values = listOf("imageReference"),
+                                    ),
+                                )
+                            )
+                        ),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("Reference style 不能为空", model.uiState.value.error)
+    }
+
+    @Test
     fun `inactive required child text field does not block image generation`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

@@ -1709,10 +1709,15 @@ class QuickCreateScreenModel(
                     field.quickCreationTextValidationError(value)?.let { return@firstNotNullOfOrNull it }
                 }
                 field.quickCreationActiveInputChildren(aliasedParams)
-                    .filter { it.supportsQuickCreationTextEntry() }
                     .firstNotNullOfOrNull { child ->
                         val value = serviceParams[child.paramKey] ?: child.defaultValue.orEmpty()
-                        child.quickCreationTextValidationError(value)
+                        if (child.options.isNotEmpty() && child.required && value.isBlank()) {
+                            return@firstNotNullOfOrNull "${child.quickCreationFieldTitle()} 不能为空"
+                        }
+                        if (child.supportsQuickCreationTextEntry()) {
+                            return@firstNotNullOfOrNull child.quickCreationTextValidationError(value)
+                        }
+                        null
                     }
             }
     }
