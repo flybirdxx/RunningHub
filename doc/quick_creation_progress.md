@@ -1677,3 +1677,25 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证成功结果区域点击清空后，中间区域回到最近创作/项目历史，不再携带旧状态文案。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 失败任务状态区替换进度圈
+
+代码提交 `e8e722e fix(quickcreate): show failed task indicator` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `QuickCreateTaskStatusUi.kt`，用 `quickCreateTaskStatusDisplay()` 将任务状态映射为显示文案和指示器类型，避免 Compose UI 里直接散落状态判断。
+- `TaskStatusArea` 现在按 `QuickCreateTaskIndicator` 渲染：提交/排队/运行显示进度圈，成功显示 `CheckCircle`，失败显示 `Error`。
+- 失败态继续显示服务端失败文案；若没有文案则回退为“生成失败”，不再显示“处理中...”或进度圈。
+- 新增 `QuickCreateTaskStatusUiTest` 覆盖失败态错误指示器和运行态进度指示器。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check
+```
+
+仍未完成：
+- 真机仍需验证任务进入失败态时，中间状态区显示错误图标和失败消息，不再有旋转进度圈。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
