@@ -2222,3 +2222,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证网络异常或 fee-preview 接口失败时，按钮不会继续显示上一轮服务端金额，并且点击生成仍会被“价格待确认”阻止。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 价格预览未通过时阻断提交
+
+代码提交待本段文档提交后与实现交替推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `applyFeePreview()` 现在统一处理图片和视频 fee-preview 成功响应，不再让图片分支单独绕过公共逻辑。
+- 当服务端返回 `passed=false` 或 `insufficientType != null` 时，`feePreviewError` 会写入 `余额不足或价格预览未通过`。
+- 生成入口已有的 `feePreviewError` 检查会继续阻断正式 `generateImage/generateVideo`，避免在价格预览未通过时进入真实 `prepare/commit`。
+- 修复旧行为：`fee-preview` 已明确未通过时，底部状态仍可能只显示金额并允许用户点击生成，随后才由 repository 提交流程返回错误。
+- 新增回归测试覆盖图片和视频两条路径：`passed=false + insufficientType=cash` 时，点击生成不会写入正式生成请求，并显示“价格待确认”。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when fee preview is not passed" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate video is blocked when fee preview is not passed"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证真实余额不足或 `fee-preview` 未通过响应时，按钮显示“价格待确认”，点击不会触发新的扣费任务。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
