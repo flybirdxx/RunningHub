@@ -1961,7 +1961,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 ## 2026-06-18 追加交接：active child options 非法值不再进入正式提交
 
-代码提交 `bfa9a2e fix(quickcreate): reject invalid child option values` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `bfa9a2e fix(quickcreate): reject invalid child option values` 和文档提交 `43ed8cb docs(quickcreate): record child option value validation` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - `validateServiceFields()` 对 active child options 字段同时覆盖“必填为空”和“非空值不在 `options.value` 列表内”两类拦截。
@@ -1979,5 +1979,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 下一步建议：
 - 真机复测：应用一个带过期 active child 选项值的模板或草稿，确认不会进入正式提交。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：空 prompt 拦截不再残留提交状态文案
+
+代码提交 `79f3da1 fix(quickcreate): clear status text on empty prompt` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- 图片和视频生成在 prompt 为空或超过限制时，会把 `taskStatus` 置回 `IDLE`，同步清空 `statusText`，并设置 `error=请输入描述词`。
+- 该拦截发生在正式 `generateImage()` / `generateVideo()` 请求发出前，因此不会进入 `prepare/commit`，也不会新增扣费。
+- 这补齐了提交状态文案清理的 prompt 入口：此前 `generate()` 先写入“正在提交任务...”，再由图片/视频生成函数拦截空 prompt 时，可能留下旧提交文案。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.empty image prompt clears submitting status text when generate is blocked" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.empty video prompt clears submitting status text when generate is blocked"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：清空图片或视频 prompt 后点击生成，确认状态区不会残留“正在提交任务...”。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
