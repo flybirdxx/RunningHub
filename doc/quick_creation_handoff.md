@@ -1495,3 +1495,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 如果后续把草稿恢复入口接到真实 UI，仍建议把 `hasDraft/draftData` 迁移到 `QuickCreateUiState`，让入口展示随检查结果响应式刷新。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：草稿状态已响应式化
+
+代码提交 `70a98ad fix(quickcreate): expose draft state in ui state` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `QuickCreateUiState.draftData` 是草稿状态的唯一来源，`QuickCreateUiState.hasDraft` 根据 `draftData != null` 派生。
+- `QuickCreateScreenModel.hasDraft` 和 `QuickCreateScreenModel.draftData` 仍可读，但只是代理到当前 `uiState`，不再维护第二份普通 mutable 状态。
+- `checkForDraft()` 加载有效草稿时会更新 `uiState.draftData`；空草稿、损坏草稿、恢复草稿和丢弃草稿都会把它清空。
+- 后续接入恢复入口时，Compose 只需要收集 `uiState.hasDraft`，不需要读取 ScreenModel 的非响应式属性。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.checkForDraft exposes saved draft through ui state"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateUiState.kt composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 在真实快捷创作页面顶部或底部输入区附近接入恢复/丢弃草稿入口，并以 `uiState.hasDraft` 控制显示。
+- 真机复测：进入页面检查草稿、点击恢复、点击丢弃、恢复后再次输入，入口显示和底部 fee-preview 状态应同步。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
