@@ -1703,6 +1703,9 @@ class QuickCreateScreenModel(
                     if (field.required && value.isBlank()) {
                         return@firstNotNullOfOrNull "${field.quickCreationFieldTitle()} 不能为空"
                     }
+                    if (value.isNotBlank() && field.options.none { option -> option.value == value }) {
+                        return@firstNotNullOfOrNull "${field.quickCreationFieldTitle()} 选项无效"
+                    }
                 }
                 if (field.supportsQuickCreationTextEntry()) {
                     val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()

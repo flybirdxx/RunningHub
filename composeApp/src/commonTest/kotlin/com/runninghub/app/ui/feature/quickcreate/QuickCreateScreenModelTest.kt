@@ -1313,6 +1313,42 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image is blocked when service option value is not allowed`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = listOf(
+                models.single().copy(
+                    fields = models.single().fields + QuickCreationServiceField(
+                        fieldKey = "stylePreset",
+                        paramKey = "stylePreset",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = null,
+                        options = listOf(
+                            QuickCreationServiceFieldOption(label = "Realistic", value = "realistic"),
+                        ),
+                        inputExtra = QuickCreationServiceFieldExtra(title = "Style preset"),
+                    )
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.updateImageServiceParam("stylePreset", "legacy")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("Style preset 选项无效", model.uiState.value.error)
+    }
+
+    @Test
     fun `generate image is blocked when active required child text field is empty`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
