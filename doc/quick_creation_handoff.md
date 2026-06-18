@@ -2547,3 +2547,31 @@ git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/featu
 - 真机复测视频 hidden、inactive child、active child 上传字段混合场景，重点观察删除 active child 素材后按钮价格是否刷新，删除 hidden/inactive 素材后是否保持不刷新。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需后续明确授权。
 - 继续避免提交已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
+
+## 2026-06-18 追加交接：项目列表分页加载更多
+
+当前行为：
+- 项目列表初次加载仍使用 `/task/quick-creation/project/list` 的 `page=1,size=20`。
+- 当服务端返回 `hasNext=true` 时，项目横向条末尾展示“加载更多”chip。
+- 点击“加载更多”会调用 `loadMoreQuickCreationProjects()` 请求下一页，并把新项目追加到当前 `projects`，按 `projectId` 去重。
+- `projectsLoadingMore` 只覆盖分页加载状态，不影响初次加载的 `projectsLoading`，也不影响当前已选项目的任务筛选。
+
+本轮变更：
+- 新增 `QuickCreateUiState.projectsLoadingMore`。
+- 新增 `QuickCreateScreenModel.loadMoreQuickCreationProjects()`。
+- `ProjectStrip` 新增加载更多 chip，接入顶层 `QuickCreateScreen`。
+- 新增测试 `loading more projects appends next page`。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.loading more projects appends next page"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.initialization loads quick creation projects" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.loading more projects appends next page" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.selecting project loads project tasks into history area" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.clearing selected project reloads recent history" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.toggling project pin calls repository and updates project state" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.creating project calls repository and prepends project" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.renaming project calls repository and updates project name" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.deleting selected project removes it and reloads recent history" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.selecting project detail loads detail into state"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreen.kt composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateUiState.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt doc/quick_creation_progress.md doc/quick_creation_handoff.md
+```
+
+后续建议：
+- 真机复测项目数超过 20 的账号，确认分页追加后仍可置顶、重命名、删除和进入项目任务筛选。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需后续明确授权。
+- 继续避免提交已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
