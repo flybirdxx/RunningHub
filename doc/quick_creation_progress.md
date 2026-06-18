@@ -1587,3 +1587,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证恢复视频草稿后，再切回图片 tab 时不会看到恢复前旧图片 prompt。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 恢复草稿取消待执行自动保存
+
+代码提交 `7cb0470 fix(quickcreate): cancel draft autosave on restore` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `clearDraft()` 现在会取消 `draftSaveJob` 并置空，避免恢复或丢弃草稿后，恢复前输入触发的 pending auto-save 再次写回持久化草稿。
+- 修复用户输入后立即恢复草稿时，500ms debounce 到期后又把恢复后的内容重新保存为草稿，导致后续草稿入口可能再次出现的问题。
+- `restoreDraft()` 和 `discardDraft()` 都复用 `clearDraft()`，因此两条路径都会取消待执行自动保存。
+- 新增回归测试覆盖：触发自动保存防抖后立即恢复草稿，再推进 500ms，`SettingsRepository.getQuickCreateDraft()` 应保持为空。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.restore draft cancels pending autosave"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证输入后立即恢复或丢弃草稿，等待 debounce 时间后草稿提示条不会重新出现。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

@@ -1680,3 +1680,27 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 如果草稿后续扩展到素材和参数，恢复动作也应明确是替换快照还是合并当前状态，避免跨 tab 旧状态残留。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：恢复/丢弃取消待执行草稿保存
+
+代码提交 `7cb0470 fix(quickcreate): cancel draft autosave on restore` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `clearDraft()` 会先取消 `draftSaveJob` 并置空，再清空 `uiState.draftData`，最后异步调用 `settingsRepository.clearQuickCreateDraft()`。
+- 影响路径包括 `restoreDraft()` 和 `discardDraft()`。用户在看到旧草稿入口后如果先输入新内容、立刻恢复或丢弃旧草稿，之前输入触发的 500ms 自动保存不会再落盘。
+- `restoreDraft()` 仍会完整替换图片/视频 prompt 快照、切到 `DraftData.restorableTab`，并重新调度 fee-preview。
+- `discardDraft()` 只清理草稿入口和持久化草稿，不修改当前输入。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.restore draft cancels pending autosave"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：已有草稿入口时输入新 prompt，立即点恢复；等待 500ms 后不应再次出现草稿入口，重新进入页面也不应读到刚恢复后的草稿。
+- 真机复测：已有草稿入口时输入新 prompt，立即点丢弃；等待 500ms 后不应重新写回持久化草稿。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
