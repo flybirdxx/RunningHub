@@ -64,6 +64,7 @@ internal fun DraftData.resumeSummaryText(): String {
 private val draftJson = Json { encodeDefaults = true }
 private const val HISTORY_REFRESH_INTERVAL_MS = 5_000L
 private const val FEE_PREVIEW_DEBOUNCE_MS = 500L
+private const val FEE_PREVIEW_NOT_PASSED_ERROR = "余额不足或价格预览未通过"
 private const val PROJECT_CREATE_MUTATION_ID = "__create_project__"
 private val supportedImageCounts = setOf(1, 2, 4)
 private val supportedVideoCounts = setOf(1, 2)
@@ -1230,11 +1231,12 @@ class QuickCreateScreenModel(
             return
         }
         if (_uiState.value.feePreviewError != null) {
+            val feePreviewError = _uiState.value.feePreviewError
             _uiState.update {
                 it.copy(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
                     statusText = null,
-                    error = "价格待确认",
+                    error = feePreviewError.toGenerateBlockedMessage(),
                 )
             }
             return
@@ -1457,7 +1459,7 @@ class QuickCreateScreenModel(
             else -> preview.requiredRhAmount
         }
         val previewError = if (!preview.passed || preview.insufficientType != null) {
-            "余额不足或价格预览未通过"
+            FEE_PREVIEW_NOT_PASSED_ERROR
         } else {
             null
         }
@@ -1469,6 +1471,13 @@ class QuickCreateScreenModel(
             )
         }
     }
+
+    private fun String?.toGenerateBlockedMessage(): String =
+        if (this == FEE_PREVIEW_NOT_PASSED_ERROR) {
+            this
+        } else {
+            "价格待确认"
+        }
 
     private fun applyFeePreviewError(error: Throwable) {
         _uiState.update {
