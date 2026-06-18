@@ -1346,6 +1346,29 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `image fee preview failure falls back from previous server amount to local estimate`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(0.76, model.uiState.value.estimatedCost)
+
+        repository.feePreviewResult = Result.failure(IllegalStateException("preview unavailable"))
+        model.updateImagePrompt("blue icon")
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(model.uiState.value.imageConfig.estimatedCost, model.uiState.value.estimatedCost)
+        assertEquals("preview unavailable", model.uiState.value.feePreviewError)
+        assertEquals(false, model.uiState.value.feePreviewLoading)
+    }
+
+    @Test
     fun `generate video is blocked when fee preview failed`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

@@ -1377,11 +1377,7 @@ class QuickCreateScreenModel(
                 it.copy(
                     feePreviewLoading = false,
                     feePreviewError = null,
-                    estimatedCost = if (it.currentTab == QuickCreateTab.IMAGE) {
-                        it.imageConfig.estimatedCost
-                    } else {
-                        it.videoConfig.estimatedCost
-                    },
+                    estimatedCost = it.currentLocalEstimatedCost(),
                 )
             }
             return
@@ -1426,6 +1422,7 @@ class QuickCreateScreenModel(
                 onFailure = { error ->
                     _uiState.update {
                         it.copy(
+                            estimatedCost = it.currentLocalEstimatedCost(),
                             feePreviewLoading = false,
                             feePreviewError = error.message ?: "价格预览失败",
                         )
@@ -1453,6 +1450,13 @@ class QuickCreateScreenModel(
                 reference.uploadStatus == UploadStatus.PROCESSING
         }
 
+    private fun QuickCreateUiState.currentLocalEstimatedCost(): Double =
+        if (currentTab == QuickCreateTab.IMAGE) {
+            imageConfig.estimatedCost
+        } else {
+            videoConfig.estimatedCost
+        }
+
     private fun clearFeePreviewState() {
         _uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null) }
     }
@@ -1477,6 +1481,7 @@ class QuickCreateScreenModel(
     private fun applyFeePreviewError(error: Throwable) {
         _uiState.update {
             it.copy(
+                estimatedCost = it.currentLocalEstimatedCost(),
                 feePreviewLoading = false,
                 feePreviewError = error.message ?: "价格预览失败",
             )
