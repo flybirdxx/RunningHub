@@ -2520,3 +2520,30 @@ git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/featu
 - 真机复测隐藏字段、inactive child 字段和 active 字段混合场景，确认 UI 删除动作与 fee-preview 请求边界一致。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需新的明确授权。
 - 继续避免提交既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
+
+## 2026-06-18 追加交接：视频 active child 字段删除的价格预览刷新边界
+
+当前行为：
+- 视频 tab 的相关素材集合由当前服务模型和 `videoServiceParams` 共同决定。
+- 当父字段 `creationMode` 的默认值激活 `videoReference` 分支时，child `VIDEO_UPLOAD` 字段 `childVideos` 被视为 active 上传字段。
+- active child 视频素材上传完成后会进入视频 fee-preview 请求体的 `quickCreationListParams["childVideos"]`。
+- 删除该 active child 视频素材时，`removeMediaReference()` 会在删除前判断它属于当前 relevant 素材集合，因此会重新调度视频 fee-preview，并在新请求体中移除 `childVideos`。
+
+本轮变更：
+- 新增测试 `removing active child service upload field media refreshes video fee preview`。
+- 生产代码未改动；测试证明当前实现已经满足 active child 删除后刷新价格预览的边界。
+- 测试末尾调用 `model.onDispose()`，用于清理 `screenModelScope`，避免上传流程中的 `Dispatchers.IO` continuation 影响同测试类后续 Main dispatcher setup。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing active child service upload field media refreshes video fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing active child service upload field media refreshes video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.inactive child service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing inactive child service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh video fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt doc/quick_creation_progress.md doc/quick_creation_handoff.md
+```
+
+后续建议：
+- 真机复测视频 hidden、inactive child、active child 上传字段混合场景，重点观察删除 active child 素材后按钮价格是否刷新，删除 hidden/inactive 素材后是否保持不刷新。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需后续明确授权。
+- 继续避免提交已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。

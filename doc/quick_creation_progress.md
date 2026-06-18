@@ -2425,3 +2425,33 @@ git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/featu
 - 真机仍需复测视频 hidden、inactive child 和 active 上传字段混合存在时，只有 active 相关素材选择/移除影响按钮价格。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 视频 active child 上传字段素材删除刷新价格预览
+
+代码提交待本文档提交后与测试覆盖交替推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `removing active child service upload field media refreshes video fee preview` 回归测试。
+- 覆盖视频 tab 中父字段 `creationMode` 默认值为 `videoReference` 时，active child `VIDEO_UPLOAD` 字段 `childVideos` 属于当前相关素材集合。
+- 选择该 active child 视频素材并上传完成后，会触发第二次视频 fee-preview，请求体包含 `quickCreationListParams["childVideos"] = ["https://example.com/video.mp4"]`。
+- 删除该 active child 视频素材后，会触发第三次视频 fee-preview，请求体移除 `childVideos`，避免底部按钮继续按已删除素材计价。
+- 生产代码未改动；当前实现已按 `currentRelevantMediaReferences()` 和 active upload param key 判断满足该边界。
+- 新增测试末尾显式调用 `model.onDispose()` 并清空测试调度队列，避免上传链路内部 `Dispatchers.IO` continuation 在同一测试类后续用例中污染 Main dispatcher。
+
+验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing active child service upload field media refreshes video fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing active child service upload field media refreshes video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.inactive child service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing inactive child service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh video fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt doc/quick_creation_progress.md doc/quick_creation_handoff.md
+```
+
+调试记录：
+- 新增测试红灯阶段确认过：未等待真实上传完成时，第二次视频 fee-preview 不会出现，`remoteUrl` 仍为 `null`。
+- 首次完整组运行出现一次 `Dispatchers.setMain(UnconfinedTestDispatcher())` setup 失败；单独复现失败用例通过，判断为新增测试遗留 ScreenModel scope/IO continuation 引起的同类内调度污染。加入 `model.onDispose()` 后，单个新增测试和完整快捷创作测试组均通过。
+
+仍未完成：
+- 真机仍需复测视频 hidden、inactive child、active child 上传字段混合存在时，只有 active 字段素材的选择/删除会影响底部按钮价格。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
