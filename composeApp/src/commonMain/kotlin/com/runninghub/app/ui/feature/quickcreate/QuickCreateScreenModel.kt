@@ -1167,7 +1167,13 @@ class QuickCreateScreenModel(
     }
 
     fun clearResults() {
-        _uiState.update { it.copy(results = emptyList(), taskStatus = QuickCreateTaskUiStatus.IDLE) }
+        _uiState.update {
+            it.copy(
+                results = emptyList(),
+                taskStatus = QuickCreateTaskUiStatus.IDLE,
+                statusText = null,
+            )
+        }
     }
 
     // ── Generate ──────────────────────────────────────────────────────────────

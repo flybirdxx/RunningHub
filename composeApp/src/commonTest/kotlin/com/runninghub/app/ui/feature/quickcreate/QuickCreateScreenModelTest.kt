@@ -5,6 +5,7 @@ import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
 import com.runninghub.shared.domain.repository.QuickCreateRepository
+import com.runninghub.shared.domain.repository.QuickCreateResultItem
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.QuickCreationFeePreview
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
@@ -2705,6 +2706,38 @@ class QuickCreateScreenModelTest {
         assertEquals(QuickCreateTaskUiStatus.FAILED, model.uiState.value.taskStatus)
         assertEquals("render failed", model.uiState.value.error)
         assertEquals("render failed", model.uiState.value.statusText)
+    }
+
+    @Test
+    fun `clearing successful results clears status text`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskStatuses = listOf(
+                QuickCreateTaskStatus.Success(
+                    taskId = "task-1",
+                    results = listOf(
+                        QuickCreateResultItem(
+                            url = "https://example.com/result.png",
+                            type = "png",
+                        )
+                    ),
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+        model.clearResults()
+
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals(emptyList(), model.uiState.value.results)
+        assertEquals(null, model.uiState.value.statusText)
     }
 
     @Test
