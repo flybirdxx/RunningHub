@@ -1723,7 +1723,7 @@ git diff --check
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
 ## 2026-06-18 错误任务回到空闲时清理状态文案
 
-代码提交 `23274aa fix(quickcreate): clear status text on task error` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `23274aa fix(quickcreate): clear status text on task error` 和文档提交 `e52e27d docs(quickcreate): record task error status cleanup` 已推送到 `feature/kmp-refactoring`。
 
 已完成：
 - `handleTaskStatus(Error)` 现在会把 `taskStatus` 置回 `IDLE` 的同时清空 `statusText`。
@@ -1740,5 +1740,27 @@ git diff --check
 
 仍未完成：
 - 真机仍需验证网络或接口通用错误时，中间状态区不会在下一次进入任务态前保留旧进度文案。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 素材上传超时阻止正式提交
+
+代码提交 `f2cc0e6 fix(quickcreate): block submit on upload timeout` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `awaitPendingUploads()` 在等待窗口结束后会再次检查仍处于 `UPLOADING/PROCESSING` 的相关素材。
+- 若仍有 pending 素材，会抛出 `素材上传超时: <文件名>`，`generate()` 捕获后回到 `IDLE` 并显示错误，不再继续调用正式生成接口。
+- 修复旧行为：上传任务长期卡住且未进入 `FAILED` 时，等待循环结束后会直接继续提交生成请求，可能导致素材缺失或错误扣费链路。
+- 新增回归测试覆盖：图片素材上传延迟 120 秒，生成等待 60 秒后应阻止正式 `generateImage()`，并显示 `素材上传超时: test.jpg`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when upload stays pending past wait window"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check
+```
+
+仍未完成：
+- 真机仍需验证网络很慢或上传接口卡住时，点击生成后不会进入 `prepare/commit`，页面显示上传超时错误。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

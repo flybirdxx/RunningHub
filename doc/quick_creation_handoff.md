@@ -1823,7 +1823,7 @@ git diff --check
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
 ## 2026-06-18 追加交接：通用错误状态清理旧状态文案
 
-代码提交 `23274aa fix(quickcreate): clear status text on task error` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `23274aa fix(quickcreate): clear status text on task error` 和文档提交 `e52e27d docs(quickcreate): record task error status cleanup` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - `QuickCreateTaskStatus.Error` 会把 `taskStatus` 置回 `IDLE`，同时清空 `statusText` 并设置 `error=status.message`。
@@ -1841,5 +1841,28 @@ git diff --check
 下一步建议：
 - 远端推送完成后，继续按“代码提交、文档提交”节奏推进下一个可验证缺口。
 - 真机复测：模拟网络或接口通用错误时，页面不应在后续任务状态区重用旧“生成中...N%”文案。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+## 2026-06-18 追加交接：素材上传超时不再继续正式提交
+
+代码提交 `f2cc0e6 fix(quickcreate): block submit on upload timeout` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `generate()` 进入正式图片/视频生成前会调用 `awaitPendingUploads()` 等待当前 tab 的相关素材上传完成。
+- 等待窗口结束后，如果相关素材仍处于 `UPLOADING` 或 `PROCESSING`，会返回 `IDLE` 并设置 `error=素材上传超时: <文件名>`。
+- 只有 pending 素材全部完成，或明确进入 `FAILED` 并被错误处理拦截后，才会继续后续流程；不再把长期卡住的上传当作成功等待结束。
+- 这条防线覆盖全局素材和当前激活服务端上传字段素材，因为 `awaitPendingUploads()` 使用 `currentRelevantMediaReferences()`。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when upload stays pending past wait window"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check
+```
+
+下一步建议：
+- 远端推送完成后，继续按“代码提交、文档提交”节奏推进下一个可验证缺口。
+- 真机复测：模拟弱网或上传接口长时间无响应，确认点击生成不会触发正式 `prepare/commit`。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
