@@ -1368,19 +1368,40 @@ private fun InspirationTemplateCard(
 
 @Composable
 private fun TaskStatusArea(status: QuickCreateTaskUiStatus, statusText: String?) {
+    val display = quickCreateTaskStatusDisplay(status, statusText)
+    val indicatorColor = when (display.indicator) {
+        QuickCreateTaskIndicator.Progress -> Primary300
+        QuickCreateTaskIndicator.Success -> SuccessDark
+        QuickCreateTaskIndicator.Error -> ErrorDark
+    }
+
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(
-                modifier = Modifier.size(48.dp),
-                color = Primary300,
-                strokeWidth = 3.dp,
-            )
+            when (display.indicator) {
+                QuickCreateTaskIndicator.Progress -> CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp),
+                    color = indicatorColor,
+                    strokeWidth = 3.dp,
+                )
+                QuickCreateTaskIndicator.Success -> Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = indicatorColor,
+                )
+                QuickCreateTaskIndicator.Error -> Icon(
+                    imageVector = Icons.Default.Error,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = indicatorColor,
+                )
+            }
             Spacer(Modifier.height(Dimens.SpaceXL))
             Text(
-                statusText ?: "处理中...",
+                display.text,
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 15.sp,
             )
