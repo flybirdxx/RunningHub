@@ -1834,7 +1834,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 ## 2026-06-18 无效顶层选项值阻止正式提交
 
-代码提交 `5624496 fix(quickcreate): reject invalid service option values` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `5624496 fix(quickcreate): reject invalid service option values` 和文档提交 `189a119 docs(quickcreate): record option value validation` 已推送到 `feature/kmp-refactoring`。
 
 已完成：
 - 顶层可见 options 字段现在不仅校验必填为空，还会校验非空值必须命中服务端 `options.value`。
@@ -1850,7 +1850,28 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 ```
 
 仍未完成：
-- active child options 的非法值校验尚未在本轮扩展，后续应先补红灯测试再实现。
 - 真机仍需验证模板/草稿带入过期选项值时，页面会要求重新选择参数而不是直接提交扣费任务。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 无效激活子选项值阻止正式提交
+
+代码提交 `bfa9a2e fix(quickcreate): reject invalid child option values` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- active child options 字段现在不仅校验必填为空，还会校验非空值必须命中该子字段的 `options.value`。
+- 修复旧行为：模板回填、旧草稿或服务端模型变更如果让已激活子字段携带过期选项值，旧逻辑会绕过子字段非法值校验并继续进入正式生成请求。
+- 新增回归测试覆盖：`creationMode=imageReference` 激活 `referenceStyle` 子下拉字段，当前值为 `legacy` 但服务端只允许 `realistic` 时，不应提交图片生成请求，`taskStatus=IDLE`，错误文案为 `Reference style 选项无效`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when active child option value is not allowed"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证模板/草稿带入过期 active child 选项值时，页面会要求重新选择参数而不是直接提交扣费任务。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

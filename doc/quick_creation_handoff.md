@@ -1938,13 +1938,13 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 ## 2026-06-18 追加交接：顶层 options 非法值不再进入正式提交
 
-代码提交 `5624496 fix(quickcreate): reject invalid service option values` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `5624496 fix(quickcreate): reject invalid service option values` 和文档提交 `189a119 docs(quickcreate): record option value validation` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - 顶层可见服务端 options 字段如果存在非空值，该值必须在当前服务端 `options.value` 列表内。
 - 非法值会在 `generate()` 的服务端字段校验阶段被拦截，发生在素材等待和正式 `generateImage()` / `generateVideo()` 之前。
 - 该修复主要覆盖模板回填、旧草稿、状态恢复或服务端模型变更导致的过期选项值；正常 UI 选择仍应只产生合法值。
-- 本轮只覆盖顶层 options 非法值；active child options 非法值仍应按 TDD 另行补齐。
+- 本轮只覆盖顶层 options 非法值；active child options 非法值已在后续提交 `bfa9a2e` 补齐。
 
 验证记录：
 
@@ -1955,7 +1955,29 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 ```
 
 下一步建议：
-- 用同样 TDD 路径补 active child options 非法值校验，避免子字段模板参数过期后绕过校验。
 - 真机复测：应用一个带过期顶层选项值的模板或草稿，确认不会进入正式提交。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：active child options 非法值不再进入正式提交
+
+代码提交 `bfa9a2e fix(quickcreate): reject invalid child option values` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `validateServiceFields()` 对 active child options 字段同时覆盖“必填为空”和“非空值不在 `options.value` 列表内”两类拦截。
+- inactive child 仍不会参与校验；只有父字段当前值或默认值激活的子字段才会被检查。
+- 非法值会在 `generate()` 的服务端字段校验阶段被拦截，发生在素材等待和正式 `generateImage()` / `generateVideo()` 之前，因此不会进入 `prepare/commit`，也不会新增扣费。
+- 该修复主要覆盖模板回填、旧草稿、状态恢复或服务端模型变更导致的 active child 过期选项值；正常 UI 选择仍应只产生合法值。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when active child option value is not allowed"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测：应用一个带过期 active child 选项值的模板或草稿，确认不会进入正式提交。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
