@@ -1845,7 +1845,7 @@ git diff --check
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
 ## 2026-06-18 追加交接：素材上传超时不再继续正式提交
 
-代码提交 `f2cc0e6 fix(quickcreate): block submit on upload timeout` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+代码提交 `f2cc0e6 fix(quickcreate): block submit on upload timeout` 和文档提交 `9cb1c35 docs(quickcreate): record upload timeout guard` 已推送到 `feature/kmp-refactoring`。
 
 当前行为：
 - `generate()` 进入正式图片/视频生成前会调用 `awaitPendingUploads()` 等待当前 tab 的相关素材上传完成。
@@ -1864,5 +1864,28 @@ git diff --check
 下一步建议：
 - 远端推送完成后，继续按“代码提交、文档提交”节奏推进下一个可验证缺口。
 - 真机复测：模拟弱网或上传接口长时间无响应，确认点击生成不会触发正式 `prepare/commit`。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：拦截提交时清理旧状态文案
+
+代码提交 `6a4e8db fix(quickcreate): clear status text on blocked submit` 已完成，待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `generate()` 在价格确认中、价格预览失败、服务端字段校验失败、素材等待失败和上传字段校验失败时，会把 `taskStatus` 置回 `IDLE` 并清空 `statusText`。
+- 这补齐了任务状态文案清理的另一类入口：不是服务端任务返回 `Failed/Error`，而是正式提交前就被本地状态或字段校验拦截。
+- 价格预览失败仍不会提交新的 `generateImage()` / `generateVideo()` 请求；本轮只清理旧状态文案，不改变扣费和提交防线。
+
+验证记录：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.fee preview failure clears previous task status text when generate is blocked"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 远端推送完成后，继续按“代码提交、文档提交”节奏推进下一个可验证缺口。
+- 真机复测：保留上一轮成功结果，修改 prompt 让价格预览失败后点击生成，确认页面不会继续显示旧“生成完成”状态文案。
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需按后续授权单独验证。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
