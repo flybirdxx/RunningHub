@@ -2624,6 +2624,25 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `restore video draft clears existing image prompt`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        settings.saveQuickCreateDraft("""{"currentTab":"VIDEO","imagePrompt":"","videoPrompt":"video draft"}""")
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        runCurrent()
+
+        model.updateImagePrompt("existing image prompt")
+        runCurrent()
+        model.restoreDraft()
+        runCurrent()
+
+        assertEquals("", model.uiState.value.imageConfig.prompt)
+        assertEquals("video draft", model.uiState.value.videoConfig.prompt)
+        assertEquals(QuickCreateTab.VIDEO, model.uiState.value.currentTab)
+    }
+
+    @Test
     fun `checkForDraft clears stale in memory draft when stored draft is invalid`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

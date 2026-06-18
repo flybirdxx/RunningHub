@@ -624,14 +624,14 @@ class QuickCreateScreenModel(
 
     fun restoreDraft() {
         val draft = _uiState.value.draftData ?: return
-        if (draft.imagePrompt.isNotEmpty()) {
-            _uiState.update { it.copy(imageConfig = it.imageConfig.copy(prompt = draft.imagePrompt)) }
-        }
-        if (draft.videoPrompt.isNotEmpty()) {
-            _uiState.update { it.copy(videoConfig = it.videoConfig.copy(prompt = draft.videoPrompt)) }
-        }
         val restoredTab = draft.restorableTab
-        _uiState.update { it.copy(currentTab = restoredTab) }
+        _uiState.update {
+            it.copy(
+                currentTab = restoredTab,
+                imageConfig = it.imageConfig.copy(prompt = draft.imagePrompt),
+                videoConfig = it.videoConfig.copy(prompt = draft.videoPrompt),
+            )
+        }
         clearDraft()
         scheduleFeePreview()
     }
