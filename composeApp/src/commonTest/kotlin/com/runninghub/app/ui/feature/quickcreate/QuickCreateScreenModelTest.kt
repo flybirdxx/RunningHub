@@ -51,6 +51,7 @@ class QuickCreateScreenModelTest {
         var uploadDelayMillis: Long = 0L
         var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
         var lastVideoRequest: com.runninghub.shared.domain.repository.VideoGenerationRequest? = null
+        var imageTaskStatuses: List<QuickCreateTaskStatus> = listOf(QuickCreateTaskStatus.Queuing("task-1"))
         var feePreviewResult: Result<QuickCreationFeePreview> = Result.success(
             QuickCreationFeePreview(
                 passed = true,
@@ -293,7 +294,7 @@ class QuickCreateScreenModelTest {
         )
         override fun generateImage(request: com.runninghub.shared.domain.repository.ImageGenerationRequest): Flow<QuickCreateTaskStatus> {
             lastImageRequest = request
-            return flowOf(QuickCreateTaskStatus.Queuing("task-1"))
+            return flowOf(*imageTaskStatuses.toTypedArray())
         }
         override fun generateVideo(request: com.runninghub.shared.domain.repository.VideoGenerationRequest): Flow<QuickCreateTaskStatus> {
             lastVideoRequest = request
@@ -2680,6 +2681,30 @@ class QuickCreateScreenModelTest {
 
         assertEquals(false, model.uiState.value.hasDraft)
         assertEquals(null, settings.getQuickCreateDraft())
+    }
+
+    @Test
+    fun `failed image task replaces running status text`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskStatuses = listOf(
+                QuickCreateTaskStatus.Running("task-1", progress = 42),
+                QuickCreateTaskStatus.Failed("task-1", "render failed"),
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(QuickCreateTaskUiStatus.FAILED, model.uiState.value.taskStatus)
+        assertEquals("render failed", model.uiState.value.error)
+        assertEquals("render failed", model.uiState.value.statusText)
     }
 
     @Test

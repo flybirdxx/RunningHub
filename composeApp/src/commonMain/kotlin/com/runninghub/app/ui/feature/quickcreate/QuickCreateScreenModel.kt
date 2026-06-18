@@ -2087,6 +2087,7 @@ class QuickCreateScreenModel(
                 }
                 is QuickCreateTaskStatus.Failed -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.FAILED,
+                    statusText = status.errorMessage,
                     error = status.errorMessage,
                 )
                 is QuickCreateTaskStatus.Error -> it.copy(
