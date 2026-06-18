@@ -104,6 +104,7 @@ class QuickCreateScreenModel(
     private var draftSaveJob: Job? = null
     private var historyRefreshJob: Job? = null
     private var feePreviewJob: Job? = null
+    private var feePreviewRequestSeq: Long = 0L
 
     val hasDraft: Boolean
         get() = _uiState.value.hasDraft
@@ -1374,6 +1375,7 @@ class QuickCreateScreenModel(
 
     private fun scheduleFeePreview() {
         feePreviewJob?.cancel()
+        val requestSeq = ++feePreviewRequestSeq
         if (!hasFeePreviewRequest(_uiState.value)) {
             _uiState.update {
                 it.copy(
@@ -1391,24 +1393,41 @@ class QuickCreateScreenModel(
             if (_uiState.value.currentTab == QuickCreateTab.VIDEO) {
                 val latestRequest = buildVideoGenerationRequest(_uiState.value, requirePrompt = true)
                 if (latestRequest == null) {
-                    clearFeePreviewState()
+                    if (isCurrentFeePreviewRequest(requestSeq)) {
+                        clearFeePreviewState()
+                    }
                     return@launch
                 }
                 quickCreateRepository.previewVideoQuickCreationFee(latestRequest).fold(
-                    onSuccess = ::applyFeePreview,
-                    onFailure = ::applyFeePreviewError,
+                    onSuccess = { preview ->
+                        if (isCurrentFeePreviewRequest(requestSeq)) {
+                            applyFeePreview(preview)
+                        }
+                    },
+                    onFailure = { error ->
+                        if (isCurrentFeePreviewRequest(requestSeq)) {
+                            applyFeePreviewError(error)
+                        }
+                    },
                 )
                 return@launch
             }
             val latestRequest = buildImageGenerationRequest(_uiState.value, requirePrompt = true)
             if (latestRequest == null) {
-                clearFeePreviewState()
+                if (isCurrentFeePreviewRequest(requestSeq)) {
+                    clearFeePreviewState()
+                }
                 return@launch
             }
 
             quickCreateRepository.previewImageQuickCreationFee(latestRequest).fold(
-                onSuccess = ::applyFeePreview,
+                onSuccess = { preview ->
+                    if (isCurrentFeePreviewRequest(requestSeq)) {
+                        applyFeePreview(preview)
+                    }
+                },
                 onFailure = { error ->
+                    if (!isCurrentFeePreviewRequest(requestSeq)) return@fold
                     _uiState.update {
                         it.copy(
                             estimatedCost = it.currentLocalEstimatedCost(),
@@ -1420,6 +1439,9 @@ class QuickCreateScreenModel(
             )
         }
     }
+
+    private fun isCurrentFeePreviewRequest(requestSeq: Long): Boolean =
+        requestSeq == feePreviewRequestSeq
 
     private fun hasFeePreviewRequest(state: QuickCreateUiState): Boolean {
         val canBuildRequest = when (state.currentTab) {

@@ -22,6 +22,7 @@ import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import com.runninghub.shared.domain.repository.SettingsRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -34,6 +35,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
 import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -65,6 +67,9 @@ class QuickCreateScreenModelTest {
             )
         )
         val feePreviewRequests = mutableListOf<com.runninghub.shared.domain.repository.ImageGenerationRequest>()
+        var imageFeePreviewHandler:
+            (suspend (com.runninghub.shared.domain.repository.ImageGenerationRequest) -> Result<QuickCreationFeePreview>)? =
+            null
         var videoFeePreviewResult: Result<QuickCreationFeePreview> = Result.success(
             QuickCreationFeePreview(
                 passed = true,
@@ -306,6 +311,7 @@ class QuickCreateScreenModelTest {
             request: com.runninghub.shared.domain.repository.ImageGenerationRequest,
         ): Result<QuickCreationFeePreview> {
             feePreviewRequests += request
+            imageFeePreviewHandler?.let { handler -> return handler(request) }
             return feePreviewResult
         }
         override suspend fun previewVideoQuickCreationFee(
@@ -1065,6 +1071,60 @@ class QuickCreateScreenModelTest {
         assertEquals("binding-1", repository.feePreviewRequests.single().quickCreationBindingId)
         assertEquals("sku-1", repository.feePreviewRequests.single().quickCreationSkuId)
         assertEquals("green icon", repository.feePreviewRequests.single().prompt)
+        assertEquals(0.76, model.uiState.value.estimatedCost)
+        assertEquals(false, model.uiState.value.feePreviewLoading)
+        assertEquals(null, model.uiState.value.feePreviewError)
+    }
+
+    @Test
+    fun `stale image fee preview result does not overwrite latest prompt cost`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageFeePreviewHandler = { request ->
+                if (request.prompt == "slow prompt") {
+                    withContext(NonCancellable) {
+                        delay(1_000)
+                    }
+                    Result.success(
+                        QuickCreationFeePreview(
+                            passed = true,
+                            free = false,
+                            settlementMode = "cash_only",
+                            requiredCashAmount = 3.33,
+                            userCashBalance = 156.376,
+                            cashCurrency = "CNY",
+                        )
+                    )
+                } else {
+                    Result.success(
+                        QuickCreationFeePreview(
+                            passed = true,
+                            free = false,
+                            settlementMode = "cash_only",
+                            requiredCashAmount = 0.76,
+                            userCashBalance = 156.376,
+                            cashCurrency = "CNY",
+                        )
+                    )
+                }
+            }
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("slow prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.updateImagePrompt("fast prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        assertEquals(0.76, model.uiState.value.estimatedCost)
+
+        advanceTimeBy(1_000)
+        runCurrent()
+
+        assertEquals(listOf("slow prompt", "fast prompt"), repository.feePreviewRequests.map { it.prompt })
         assertEquals(0.76, model.uiState.value.estimatedCost)
         assertEquals(false, model.uiState.value.feePreviewLoading)
         assertEquals(null, model.uiState.value.feePreviewError)
