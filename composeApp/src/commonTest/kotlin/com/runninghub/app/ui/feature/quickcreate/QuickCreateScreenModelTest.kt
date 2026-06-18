@@ -4,6 +4,7 @@ import com.runninghub.app.platform.MediaResolver
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
+import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplatePage
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.QuickCreateResultItem
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
@@ -200,7 +201,7 @@ class QuickCreateScreenModelTest {
                 tagNew = false,
             )
         )
-        var inspirationTemplatePages: Map<Int, List<QuickCreateInspirationTemplate>>? = null
+        var inspirationTemplatePages: Map<Int, QuickCreateInspirationTemplatePage>? = null
         var templateDetail = QuickCreateInspirationTemplateDetail(
             templateId = "tpl-video",
             title = "薯片赛场",
@@ -342,8 +343,18 @@ class QuickCreateScreenModelTest {
             page: Int,
             size: Int,
             tagId: String?,
-        ): Result<List<QuickCreateInspirationTemplate>> =
-            Result.success(inspirationTemplatePages?.get(page) ?: inspirationTemplates).also {
+        ): Result<QuickCreateInspirationTemplatePage> =
+            Result.success(
+                inspirationTemplatePages?.get(page) ?: QuickCreateInspirationTemplatePage(
+                    page = page,
+                    size = size,
+                    total = inspirationTemplates.size,
+                    pages = 1,
+                    hasNext = false,
+                    hasPrevious = page > 1,
+                    items = inspirationTemplates,
+                )
+            ).also {
                 requestedTemplatePages += page
             }
         override suspend fun getInspirationTemplateDetail(
@@ -801,6 +812,24 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `quick create sheets are mutually exclusive and close outside creation`() {
+        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+
+        model.showModelPickerSheet()
+        assertEquals(QuickCreateSheet.MODEL_PICKER, model.uiState.value.activeSheet)
+
+        model.showParamsSheet()
+        assertEquals(QuickCreateSheet.PARAMS, model.uiState.value.activeSheet)
+
+        model.closeActiveSheet()
+        assertEquals(null, model.uiState.value.activeSheet)
+
+        model.showModelPickerSheet()
+        model.switchMode(QuickCreateMode.INSPIRATION)
+        assertEquals(null, model.uiState.value.activeSheet)
+    }
+
+    @Test
     fun `switchMode to inspiration loads tags and templates`() {
         val repository = FakeQuickCreateRepository()
         val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
@@ -816,27 +845,43 @@ class QuickCreateScreenModelTest {
     fun `loading more inspiration templates appends next page`() {
         val repository = FakeQuickCreateRepository().apply {
             inspirationTemplatePages = mapOf(
-                1 to (1..20).map { index ->
-                    QuickCreateInspirationTemplate(
-                        templateId = "tpl-$index",
-                        title = "Template $index",
-                        categoryId = "IMAGE",
-                        coverUrl = "https://example.com/cover-$index.png",
-                        videoUrl = null,
-                        tagHot = index == 1,
-                        tagNew = false,
-                    )
-                },
-                2 to listOf(
-                    QuickCreateInspirationTemplate(
-                        templateId = "tpl-21",
-                        title = "Template 21",
-                        categoryId = "VIDEO",
-                        coverUrl = "https://example.com/cover-21.png",
-                        videoUrl = "https://example.com/preview-21.mp4",
-                        tagHot = false,
-                        tagNew = true,
-                    )
+                1 to QuickCreateInspirationTemplatePage(
+                    page = 1,
+                    size = 20,
+                    total = 21,
+                    pages = 2,
+                    hasNext = true,
+                    hasPrevious = false,
+                    items = (1..20).map { index ->
+                        QuickCreateInspirationTemplate(
+                            templateId = "tpl-$index",
+                            title = "Template $index",
+                            categoryId = "IMAGE",
+                            coverUrl = "https://example.com/cover-$index.png",
+                            videoUrl = null,
+                            tagHot = index == 1,
+                            tagNew = false,
+                        )
+                    },
+                ),
+                2 to QuickCreateInspirationTemplatePage(
+                    page = 2,
+                    size = 20,
+                    total = 21,
+                    pages = 2,
+                    hasNext = false,
+                    hasPrevious = true,
+                    items = listOf(
+                        QuickCreateInspirationTemplate(
+                            templateId = "tpl-21",
+                            title = "Template 21",
+                            categoryId = "VIDEO",
+                            coverUrl = "https://example.com/cover-21.png",
+                            videoUrl = "https://example.com/preview-21.mp4",
+                            tagHot = false,
+                            tagNew = true,
+                        )
+                    ),
                 ),
             )
         }
@@ -969,7 +1014,7 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         assertEquals("photoreal", repository.lastImageRequest?.quickCreationParams?.get("style"))
-        assertEquals("16:9", repository.lastImageRequest?.quickCreationParams?.get("aspectRatio"))
+        assertEquals("1:1", repository.lastImageRequest?.quickCreationParams?.get("aspectRatio"))
     }
 
     @Test
@@ -1165,6 +1210,46 @@ class QuickCreateScreenModelTest {
         assertEquals(0.76, model.uiState.value.estimatedCost)
         assertEquals(false, model.uiState.value.feePreviewLoading)
         assertEquals(null, model.uiState.value.feePreviewError)
+    }
+
+    @Test
+    fun `image fee preview uses service model defaults before local fallbacks`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            models = models.map { model ->
+                model.copy(
+                    fields = model.fields + listOf(
+                        QuickCreationServiceField(
+                            fieldKey = "prompt",
+                            paramKey = "prompt",
+                            fieldType = "STRING",
+                            required = true,
+                            defaultValue = "",
+                            options = emptyList(),
+                        ),
+                        QuickCreationServiceField(
+                            fieldKey = "resolution",
+                            paramKey = "resolution",
+                            fieldType = "LIST",
+                            required = true,
+                            defaultValue = "2k",
+                            options = emptyList(),
+                        ),
+                    )
+                )
+            }
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+
+        val request = repository.feePreviewRequests.single()
+        assertEquals("1K", request.resolution)
+        assertEquals("2k", request.quickCreationParams["resolution"])
     }
 
     @Test

@@ -719,7 +719,7 @@ class QuickCreateScreenModel(
         _uiState.update {
             it.copy(
                 currentMode = mode,
-                tuneSheetVisible = if (mode == QuickCreateMode.CREATION) it.tuneSheetVisible else false,
+                activeSheet = if (mode == QuickCreateMode.CREATION) it.activeSheet else null,
             )
         }
         if (mode == QuickCreateMode.INSPIRATION && _uiState.value.inspirationTemplates.isEmpty()) {
@@ -739,7 +739,8 @@ class QuickCreateScreenModel(
 
             _uiState.update { state ->
                 val tags = tagsResult.getOrElse { emptyList() }
-                val templates = templatesResult.getOrElse { emptyList() }
+                val templatePage = templatesResult.getOrNull()
+                val templates = templatePage?.items.orEmpty()
                 val error = tagsResult.exceptionOrNull()?.message
                     ?: templatesResult.exceptionOrNull()?.message
 
@@ -748,8 +749,8 @@ class QuickCreateScreenModel(
                     inspirationTags = tags,
                     inspirationTemplates = templates,
                     inspirationTemplatesLoadingMore = false,
-                    inspirationTemplatesPage = if (templatesResult.isSuccess) 1 else 0,
-                    inspirationTemplatesHasMore = templates.size >= INSPIRATION_TEMPLATE_PAGE_SIZE,
+                    inspirationTemplatesPage = templatePage?.page ?: 0,
+                    inspirationTemplatesHasMore = templatePage?.hasNext ?: false,
                     error = error,
                 )
             }
@@ -777,13 +778,13 @@ class QuickCreateScreenModel(
 
             _uiState.update { state ->
                 result.fold(
-                    onSuccess = { nextTemplates ->
+                    onSuccess = { nextPageResult ->
                         state.copy(
-                            inspirationTemplates = (state.inspirationTemplates + nextTemplates)
+                            inspirationTemplates = (state.inspirationTemplates + nextPageResult.items)
                                 .distinctBy { it.templateId },
                             inspirationTemplatesLoadingMore = false,
-                            inspirationTemplatesPage = nextPage,
-                            inspirationTemplatesHasMore = nextTemplates.size >= INSPIRATION_TEMPLATE_PAGE_SIZE,
+                            inspirationTemplatesPage = nextPageResult.page,
+                            inspirationTemplatesHasMore = nextPageResult.hasNext,
                         )
                     },
                     onFailure = { error ->
@@ -873,7 +874,19 @@ class QuickCreateScreenModel(
     // ── Tune Sheet ───────────────────────────────────────────────────────────
 
     fun setTuneSheetVisible(visible: Boolean) {
-        _uiState.update { it.copy(tuneSheetVisible = visible) }
+        _uiState.update { it.copy(activeSheet = if (visible) QuickCreateSheet.PARAMS else null) }
+    }
+
+    fun showModelPickerSheet() {
+        _uiState.update { it.copy(activeSheet = QuickCreateSheet.MODEL_PICKER) }
+    }
+
+    fun showParamsSheet() {
+        _uiState.update { it.copy(activeSheet = QuickCreateSheet.PARAMS) }
+    }
+
+    fun closeActiveSheet() {
+        _uiState.update { it.copy(activeSheet = null) }
     }
 
     // ── Parameters ────────────────────────────────────────────────────────────
@@ -1684,16 +1697,16 @@ class QuickCreateScreenModel(
         serviceParams: Map<String, String>,
     ): Map<String, String> =
         buildMap {
+            put("aspectRatio", config.aspectRatio.apiValue)
+            put("resolution", config.resolution.apiValue)
+            put("quality", config.quality.apiValue)
+
             putAll(model.defaultServiceParams(serviceParams))
             putAll(
                 serviceParams
                     .filterKeys { key -> key in model.activeServiceParamKeys(serviceParams) }
                     .filterValues { it.isNotBlank() }
             )
-
-            put("aspectRatio", config.aspectRatio.apiValue)
-            put("resolution", config.resolution.apiValue)
-            put("quality", config.quality.apiValue)
         }
 
     private fun imageQuickCreationListParams(
@@ -1714,16 +1727,16 @@ class QuickCreateScreenModel(
         serviceParams: Map<String, String>,
     ): Map<String, String> =
         buildMap {
+            put("aspectRatio", config.aspectRatio.apiValue)
+            put("resolution", config.resolution.apiValue)
+            put("duration", config.duration.seconds.toString())
+
             putAll(model.defaultServiceParams(serviceParams))
             putAll(
                 serviceParams
                     .filterKeys { key -> key in model.activeServiceParamKeys(serviceParams) }
                     .filterValues { it.isNotBlank() }
             )
-
-            put("aspectRatio", config.aspectRatio.apiValue)
-            put("resolution", config.resolution.apiValue)
-            put("duration", config.duration.seconds.toString())
         }
 
     private fun videoQuickCreationListParams(
@@ -1848,6 +1861,9 @@ class QuickCreateScreenModel(
         return model?.fields.orEmpty()
             .filter { it.visible }
             .firstNotNullOfOrNull { field ->
+                if (field.isQuickCreationPromptField()) {
+                    return@firstNotNullOfOrNull null
+                }
                 if (field.options.isNotEmpty()) {
                     val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
                     if (field.required && value.isBlank()) {
@@ -1877,6 +1893,12 @@ class QuickCreateScreenModel(
                     }
             }
     }
+
+    private fun QuickCreationServiceField.isQuickCreationPromptField(): Boolean =
+        fieldKey.isQuickCreationPromptParamKey() || paramKey.isQuickCreationPromptParamKey()
+
+    private fun String.isQuickCreationPromptParamKey(): Boolean =
+        equals("prompt", ignoreCase = true) || equals("promptAi", ignoreCase = true)
 
     private fun validateCurrentServiceUploads(state: QuickCreateUiState): String? =
         when (state.currentTab) {

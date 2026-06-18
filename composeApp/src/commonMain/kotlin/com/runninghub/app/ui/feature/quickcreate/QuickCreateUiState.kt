@@ -16,6 +16,11 @@ enum class QuickCreateMode(val displayName: String) {
     INSPIRATION("灵感"),
 }
 
+enum class QuickCreateSheet {
+    MODEL_PICKER,
+    PARAMS,
+}
+
 const val MAX_PROMPT_CHARS = 500
 const val MAX_VISIBLE_CHARS_WARN = 400
 
@@ -348,7 +353,7 @@ data class QuickCreateUiState(
     val estimatedCost: Double = 0.0,
     val feePreviewLoading: Boolean = false,
     val feePreviewError: String? = null,
-    val tuneSheetVisible: Boolean = false,
+    val activeSheet: QuickCreateSheet? = null,
     val inspirationLoading: Boolean = false,
     val inspirationTags: List<QuickCreateInspirationTag> = emptyList(),
     val inspirationTemplates: List<QuickCreateInspirationTemplate> = emptyList(),
@@ -389,6 +394,9 @@ data class QuickCreateUiState(
 
     val hasDraft: Boolean
         get() = draftData != null
+
+    val tuneSheetVisible: Boolean
+        get() = activeSheet == QuickCreateSheet.PARAMS
 }
 
 enum class QuickCreateTaskUiStatus {

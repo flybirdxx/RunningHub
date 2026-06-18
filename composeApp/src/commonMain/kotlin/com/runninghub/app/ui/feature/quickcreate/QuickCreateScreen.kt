@@ -28,6 +28,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -180,7 +181,16 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             )
                         },
                         onRemoveMedia = screenModel::removeMediaReference,
-                        onToggleTune = { screenModel.setTuneSheetVisible(!uiState.tuneSheetVisible) },
+                        onOpenModelSheet = screenModel::showModelPickerSheet,
+                        onOpenParamsSheet = screenModel::showParamsSheet,
+                        onImageRatioChange = screenModel::updateImageAspectRatio,
+                        onImageResChange = screenModel::updateImageResolution,
+                        onImageQualityChange = screenModel::updateImageQuality,
+                        onImageCountChange = screenModel::updateImageCount,
+                        onVideoRatioChange = screenModel::updateVideoAspectRatio,
+                        onVideoResChange = screenModel::updateVideoResolution,
+                        onVideoDurationChange = screenModel::updateVideoDuration,
+                        onToggleAudio = screenModel::toggleGenerateAudio,
                         onRestoreDraft = screenModel::restoreDraft,
                         onDiscardDraft = screenModel::discardDraft,
                         onGenerate = screenModel::generate,
@@ -214,7 +224,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
         }
 
         AnimatedVisibility(
-            visible = uiState.tuneSheetVisible && uiState.showCreationInput,
+            visible = uiState.activeSheet != null && uiState.showCreationInput,
             enter = slideInVertically { it } + fadeIn(animationSpec = tween(220)),
             exit = slideOutVertically { it } + fadeOut(animationSpec = tween(160)),
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -225,39 +235,36 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         .fillMaxWidth()
                         .wrapContentHeight(),
                     color = Color.Black.copy(alpha = 0.5f),
-                    onClick = { screenModel.setTuneSheetVisible(false) },
+                    onClick = screenModel::closeActiveSheet,
                 ) {
                     Spacer(modifier = Modifier.fillMaxWidth().height(1.dp))
                 }
-                TuneBottomSheet(
+                when (uiState.activeSheet) {
+                    QuickCreateSheet.MODEL_PICKER -> QuickCreateModelSheet(
+                        visible = true,
+                        isImage = uiState.currentTab == QuickCreateTab.IMAGE,
+                        uiState = uiState,
+                        onDismiss = screenModel::closeActiveSheet,
+                        onImageServiceModelSelected = {
+                            screenModel.updateImageServiceModel(it)
+                            screenModel.closeActiveSheet()
+                        },
+                        onVideoServiceModelSelected = {
+                            screenModel.updateVideoServiceModel(it)
+                            screenModel.closeActiveSheet()
+                        },
+                    )
+                    QuickCreateSheet.PARAMS -> QuickCreateParamsSheet(
                     visible = true,
                     isImage = uiState.currentTab == QuickCreateTab.IMAGE,
                     uiState = uiState,
-                    onDismiss = { screenModel.setTuneSheetVisible(false) },
+                    onDismiss = screenModel::closeActiveSheet,
                     onImageModelSelected = {
                         screenModel.updateImageModel(it)
                     },
-                    onImageServiceModelSelected = {
-                        screenModel.updateImageServiceModel(it)
-                    },
                     onImageServiceParamChange = screenModel::updateImageServiceParam,
-                    onVideoModelSelected = {
-                        screenModel.updateVideoModel(it)
-                    },
-                    onVideoServiceModelSelected = {
-                        screenModel.updateVideoServiceModel(it)
-                    },
                     onVideoServiceParamChange = screenModel::updateVideoServiceParam,
-                    onImageRatioChange = screenModel::updateImageAspectRatio,
-                    onImageResChange = screenModel::updateImageResolution,
-                    onImageQualityChange = screenModel::updateImageQuality,
-                    onVideoRatioChange = screenModel::updateVideoAspectRatio,
-                    onVideoResChange = screenModel::updateVideoResolution,
-                    onVideoDurationChange = screenModel::updateVideoDuration,
                     onToggleRealistic = screenModel::toggleRealisticMode,
-                    onToggleAudio = screenModel::toggleGenerateAudio,
-                    onImageCountChange = { count -> screenModel.updateImageCount(count.count) },
-                    onVideoCountChange = { count -> screenModel.updateVideoCount(count.count) },
                     onImageSeedChange = screenModel::updateImageSeed,
                     onVideoSeedChange = screenModel::updateVideoSeed,
                     onServiceUploadFieldClick = { mediaType, fieldParamKey ->
@@ -306,6 +313,8 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         screenModel.updateImagePrompt(styleTag + cleanPrompt)
                     },
                 )
+                    null -> Unit
+                }
             }
         }
     }
@@ -1561,7 +1570,16 @@ private fun BottomPromptPanel(
     onLaunchVideoPicker: () -> Unit,
     onLaunchAudioPicker: () -> Unit,
     onRemoveMedia: (String) -> Unit,
-    onToggleTune: () -> Unit,
+    onOpenModelSheet: () -> Unit,
+    onOpenParamsSheet: () -> Unit,
+    onImageRatioChange: (ImageAspectRatio) -> Unit,
+    onImageResChange: (ImageResolution) -> Unit,
+    onImageQualityChange: (ImageQuality) -> Unit,
+    onImageCountChange: (Int) -> Unit,
+    onVideoRatioChange: (VideoAspectRatio) -> Unit,
+    onVideoResChange: (VideoResolution) -> Unit,
+    onVideoDurationChange: (VideoDuration) -> Unit,
+    onToggleAudio: () -> Unit,
     onRestoreDraft: () -> Unit,
     onDiscardDraft: () -> Unit,
     onGenerate: () -> Unit,
@@ -1576,13 +1594,40 @@ private fun BottomPromptPanel(
     val configOverLimit = if (isImage) imageConfig.promptOverLimit else videoConfig.promptOverLimit
     val configMediaRefs = (if (isImage) imageConfig.mediaReferences else videoConfig.mediaReferences)
         .quickCreationGlobalMediaReferences()
+    val selectedServiceModel = if (isImage) uiState.selectedImageServiceModel else uiState.selectedVideoServiceModel
     val isTaskActive = uiState.taskStatus in listOf(
         QuickCreateTaskUiStatus.SUBMITTING,
         QuickCreateTaskUiStatus.QUEUING,
         QuickCreateTaskUiStatus.RUNNING,
     )
 
-    Surface(
+    val useCompactComposer = remember { true }
+    if (useCompactComposer) {
+        CompactCreationComposer(
+            uiState = uiState,
+            isImage = isImage,
+            prompt = configPrompt,
+            onPromptChange = onPromptChange,
+            charCount = configCharCount,
+            nearLimit = configNearLimit,
+            overLimit = configOverLimit,
+            mediaReferences = configMediaRefs,
+            selectedServiceModel = selectedServiceModel,
+            serviceModelsLoading = uiState.serviceModelsLoading,
+            isTaskActive = isTaskActive,
+            canGenerate = !isTaskActive &&
+                configPrompt.isNotBlank() &&
+                !configOverLimit &&
+                !uiState.feePreviewLoading,
+            onTabSwitch = onTabSwitch,
+            onLaunchImagePicker = onLaunchImagePicker,
+            onRemoveMedia = onRemoveMedia,
+            onOpenModelSheet = onOpenModelSheet,
+            onOpenParamsSheet = onOpenParamsSheet,
+            onGenerate = onGenerate,
+        )
+    } else {
+        Surface(
         modifier = Modifier.fillMaxWidth(),
         color = DarkSurface.copy(alpha = 0.97f),
         shape = RoundedCornerShape(topStart = Dimens.RadiusXL, topEnd = Dimens.RadiusXL),
@@ -1595,12 +1640,10 @@ private fun BottomPromptPanel(
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = windowInfo.bottomSheetMaxWidth)
-                    .heightIn(max = windowInfo.windowHeight * windowInfo.bottomPanelMaxHeightFraction)
-                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = Dimens.SpaceMD)
                     .imePadding()
                     .navigationBarsPadding()
-                    .padding(bottom = Dimens.SpaceMD),
+                    .padding(top = Dimens.SpaceSM, bottom = Dimens.SpaceMD),
             ) {
                 if (uiState.hasDraft && !isTaskActive) {
                     DraftResumeRow(
@@ -1621,7 +1664,10 @@ private fun BottomPromptPanel(
                 ServiceModelSummaryRow(
                     model = if (isImage) uiState.selectedImageServiceModel else uiState.selectedVideoServiceModel,
                     loading = uiState.serviceModelsLoading,
-                    onClick = onToggleTune,
+                    feePreviewLoading = uiState.feePreviewLoading,
+                    feePreviewError = uiState.feePreviewError,
+                    cost = uiState.estimatedCost,
+                    onClick = onOpenModelSheet,
                 )
 
                 Spacer(Modifier.height(Dimens.SpaceSM))
@@ -1631,6 +1677,21 @@ private fun BottomPromptPanel(
                     onLaunchImagePicker = onLaunchImagePicker,
                     onLaunchVideoPicker = onLaunchVideoPicker,
                     onLaunchAudioPicker = onLaunchAudioPicker,
+                )
+
+                Spacer(Modifier.height(Dimens.SpaceSM))
+
+                QuickParamChipRow(
+                    uiState = uiState,
+                    isImage = isImage,
+                    onImageRatioChange = onImageRatioChange,
+                    onImageResChange = onImageResChange,
+                    onImageQualityChange = onImageQualityChange,
+                    onImageCountChange = onImageCountChange,
+                    onVideoRatioChange = onVideoRatioChange,
+                    onVideoResChange = onVideoResChange,
+                    onVideoDurationChange = onVideoDurationChange,
+                    onToggleAudio = onToggleAudio,
                 )
 
                 Spacer(Modifier.height(Dimens.SpaceSM))
@@ -1663,11 +1724,11 @@ private fun BottomPromptPanel(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
-                        onClick = onToggleTune,
+                        onClick = onOpenParamsSheet,
                         modifier = Modifier
                             .size(38.dp)
                             .background(
-                                if (uiState.tuneSheetVisible) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
+                                if (uiState.activeSheet == QuickCreateSheet.PARAMS) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
                                 RoundedCornerShape(Dimens.RadiusMD),
                             ),
                         enabled = !isTaskActive,
@@ -1676,7 +1737,7 @@ private fun BottomPromptPanel(
                             Icons.Default.Tune,
                             contentDescription = "创作调优",
                             modifier = Modifier.size(18.dp),
-                            tint = if (uiState.tuneSheetVisible) Primary300 else Neutral400,
+                            tint = if (uiState.activeSheet == QuickCreateSheet.PARAMS) Primary300 else Neutral400,
                         )
                     }
 
@@ -1697,6 +1758,310 @@ private fun BottomPromptPanel(
         }
     }
 }
+}
+
+@Composable
+private fun CompactCreationComposer(
+    uiState: QuickCreateUiState,
+    isImage: Boolean,
+    prompt: String,
+    onPromptChange: (String) -> Unit,
+    charCount: Int,
+    nearLimit: Boolean,
+    overLimit: Boolean,
+    mediaReferences: List<MediaReference>,
+    selectedServiceModel: QuickCreationServiceModel?,
+    serviceModelsLoading: Boolean,
+    isTaskActive: Boolean,
+    canGenerate: Boolean,
+    onTabSwitch: (QuickCreateTab) -> Unit,
+    onLaunchImagePicker: () -> Unit,
+    onRemoveMedia: (String) -> Unit,
+    onOpenModelSheet: () -> Unit,
+    onOpenParamsSheet: () -> Unit,
+    onGenerate: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = Dimens.SpaceMD)
+            .imePadding()
+            .navigationBarsPadding()
+            .padding(bottom = Dimens.SpaceMD),
+        color = DarkSurface.copy(alpha = 0.98f),
+        shape = RoundedCornerShape(Dimens.RadiusXL),
+        border = BorderStroke(1.dp, if (overLimit) ErrorDark else DarkOutlineVariant),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = Dimens.SpaceSM),
+            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            ) {
+                CompactPromptField(
+                    prompt = prompt,
+                    onPromptChange = onPromptChange,
+                    placeholder = if (isImage) "描述你的图片..." else "描述你想生成的视频...",
+                    modifier = Modifier.weight(1f),
+                )
+                CompactIconAction(
+                    icon = if (isImage) Icons.Default.AddPhotoAlternate else Icons.Default.Image,
+                    contentDescription = "添加素材",
+                    highlighted = mediaReferences.isNotEmpty(),
+                    enabled = !isTaskActive,
+                    onClick = onLaunchImagePicker,
+                )
+                CompactGenerateButton(
+                    enabled = canGenerate,
+                    isLoading = isTaskActive,
+                    cost = uiState.estimatedCost,
+                    feePreviewLoading = uiState.feePreviewLoading,
+                    feePreviewError = uiState.feePreviewError,
+                    onClick = onGenerate,
+                )
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            ) {
+                CompactControlPill(
+                    text = if (isImage) "图片" else "视频",
+                    icon = if (isImage) Icons.Default.Image else Icons.Default.Videocam,
+                    selected = true,
+                    onClick = {
+                        onTabSwitch(if (isImage) QuickCreateTab.VIDEO else QuickCreateTab.IMAGE)
+                    },
+                )
+                CompactControlPill(
+                    text = compactServiceModelLabel(
+                        model = selectedServiceModel,
+                        fallback = if (isImage) uiState.imageConfig.model.displayName else uiState.videoConfig.model.displayName,
+                        loading = serviceModelsLoading,
+                    ),
+                    icon = Icons.Default.AutoAwesome,
+                    selected = uiState.activeSheet == QuickCreateSheet.MODEL_PICKER,
+                    onClick = onOpenModelSheet,
+                )
+                CompactControlPill(
+                    text = compactParamsSummary(uiState, isImage),
+                    icon = Icons.Default.Tune,
+                    selected = uiState.activeSheet == QuickCreateSheet.PARAMS,
+                    onClick = onOpenParamsSheet,
+                )
+                if (mediaReferences.isNotEmpty()) {
+                    CompactControlPill(
+                        text = "素材 ${mediaReferences.size}",
+                        icon = Icons.Default.AttachFile,
+                        selected = true,
+                        onClick = {
+                            mediaReferences.firstOrNull()?.let { onRemoveMedia(it.id) }
+                        },
+                    )
+                }
+                if (nearLimit || overLimit) {
+                    Text(
+                        text = "$charCount/$MAX_PROMPT_CHARS",
+                        color = if (overLimit) ErrorDark else WarningDark,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactPromptField(
+    prompt: String,
+    onPromptChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+) {
+    val textStyle = TextStyle(
+        color = Neutral100,
+        fontSize = 15.sp,
+        lineHeight = 20.sp,
+        fontWeight = FontWeight.Normal,
+    )
+
+    Box(
+        modifier = modifier.heightIn(min = 36.dp, max = 72.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (prompt.isEmpty()) {
+            Text(
+                text = placeholder,
+                color = Neutral500,
+                fontSize = 15.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        BasicTextField(
+            value = prompt,
+            onValueChange = { newValue ->
+                if (newValue.length <= MAX_PROMPT_CHARS) {
+                    onPromptChange(newValue)
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            textStyle = textStyle,
+            cursorBrush = SolidColor(Primary300),
+        )
+    }
+}
+
+@Composable
+private fun CompactIconAction(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    contentDescription: String,
+    highlighted: Boolean,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    IconButton(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = Modifier
+            .size(40.dp)
+            .background(
+                color = if (highlighted) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
+                shape = RoundedCornerShape(Dimens.RadiusMD),
+            ),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(19.dp),
+            tint = if (highlighted) Primary300 else Neutral300,
+        )
+    }
+}
+
+@Composable
+private fun CompactGenerateButton(
+    enabled: Boolean,
+    isLoading: Boolean,
+    cost: Double,
+    feePreviewLoading: Boolean,
+    feePreviewError: String?,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = if (enabled && !isLoading) onClick else {{}},
+        enabled = enabled || isLoading,
+        color = if (enabled) Primary300 else DarkSurfaceVariant,
+        shape = RoundedCornerShape(Dimens.RadiusFull),
+        modifier = Modifier.height(40.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(17.dp),
+                    color = Neutral100,
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.Send,
+                    contentDescription = "生成",
+                    modifier = Modifier.size(17.dp),
+                    tint = if (enabled) Color.White else Neutral500,
+                )
+            }
+            Text(
+                text = quickCreateSendButtonLabel(
+                    cost = cost,
+                    feePreviewLoading = feePreviewLoading,
+                    feePreviewError = feePreviewError,
+                ),
+                color = if (enabled) Color.White else Neutral500,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CompactControlPill(
+    text: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        color = if (selected) Primary300.copy(alpha = 0.11f) else DarkSurfaceVariant,
+        shape = RoundedCornerShape(Dimens.RadiusFull),
+        border = BorderStroke(
+            1.dp,
+            if (selected) Primary300.copy(alpha = 0.35f) else DarkOutlineVariant,
+        ),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = if (selected) Primary300 else Neutral400,
+            )
+            Text(
+                text = text,
+                color = if (selected) Neutral100 else Neutral300,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                modifier = Modifier.size(14.dp),
+                tint = Neutral500,
+            )
+        }
+    }
+}
+
+private fun compactServiceModelLabel(
+    model: QuickCreationServiceModel?,
+    fallback: String,
+    loading: Boolean,
+): String {
+    if (loading) return "模型加载中"
+    val raw = model?.name?.takeIf { it.isNotBlank() } ?: fallback
+    return raw
+        .replace("全能图片G-2.0", "G-2.0")
+        .replace("全能图片 G-2.0", "G-2.0")
+        .replace("官方版", "")
+        .trim(' ', '-', '·')
+        .take(18)
+}
+
+private fun compactParamsSummary(uiState: QuickCreateUiState, isImage: Boolean): String =
+    if (isImage) {
+        uiState.imageConfig.aspectRatio.displayName
+    } else {
+        "视频生成"
+    }
 
 @Composable
 private fun DraftResumeRow(
@@ -1788,6 +2153,9 @@ private fun TabPillRow(
 private fun ServiceModelSummaryRow(
     model: QuickCreationServiceModel?,
     loading: Boolean,
+    feePreviewLoading: Boolean,
+    feePreviewError: String?,
+    cost: Double,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -1837,6 +2205,28 @@ private fun ServiceModelSummaryRow(
                     )
                 }
             }
+            val priceText = when {
+                feePreviewLoading -> "价格刷新中"
+                feePreviewError != null -> "价格待确认"
+                cost > 0.0 -> "${formatCashAmount(cost)} CNY"
+                else -> null
+            }
+            priceText?.let {
+                Surface(
+                    color = Primary300.copy(alpha = 0.10f),
+                    shape = RoundedCornerShape(Dimens.RadiusFull),
+                    border = BorderStroke(1.dp, Primary300.copy(alpha = 0.28f)),
+                ) {
+                    Text(
+                        text = it,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = Primary300,
+                        maxLines = 1,
+                    )
+                }
+            }
             Icon(
                 Icons.Default.ChevronRight,
                 contentDescription = null,
@@ -1845,6 +2235,130 @@ private fun ServiceModelSummaryRow(
             )
         }
     }
+}
+
+@Composable
+private fun QuickParamChipRow(
+    uiState: QuickCreateUiState,
+    isImage: Boolean,
+    onImageRatioChange: (ImageAspectRatio) -> Unit,
+    onImageResChange: (ImageResolution) -> Unit,
+    onImageQualityChange: (ImageQuality) -> Unit,
+    onImageCountChange: (Int) -> Unit,
+    onVideoRatioChange: (VideoAspectRatio) -> Unit,
+    onVideoResChange: (VideoResolution) -> Unit,
+    onVideoDurationChange: (VideoDuration) -> Unit,
+    onToggleAudio: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+    ) {
+        if (isImage) {
+            val config = uiState.imageConfig
+            val ratios = ImageAspectRatio.entries.filter { it in config.model.supportedRatios }
+            val resolutions = ImageResolution.entries.filter { it in config.model.supportedResolutions }
+            val qualities = ImageQuality.entries.filter { it in config.model.supportedQualities }
+            CompactParamChip(
+                label = "比例",
+                value = config.aspectRatio.displayName,
+                icon = Icons.Default.Tune,
+                onClick = { onImageRatioChange(nextQuickCreateValue(ratios, config.aspectRatio)) },
+            )
+            CompactParamChip(
+                label = "尺寸",
+                value = config.resolution.displayName,
+                icon = Icons.Default.Tune,
+                onClick = { onImageResChange(nextQuickCreateValue(resolutions, config.resolution)) },
+            )
+            CompactParamChip(
+                label = "质量",
+                value = config.quality.displayName,
+                icon = Icons.Default.Tune,
+                onClick = { onImageQualityChange(nextQuickCreateValue(qualities, config.quality)) },
+            )
+            CompactParamChip(
+                label = "数量",
+                value = config.count.toString(),
+                icon = Icons.Default.Add,
+                onClick = { onImageCountChange(nextQuickCreateValue(listOf(1, 2, 4), config.count)) },
+            )
+        } else {
+            val config = uiState.videoConfig
+            val ratios = VideoAspectRatio.entries.filter { it in config.model.supportedRatios }
+            val resolutions = VideoResolution.entries.filter { it in config.model.supportedResolutions }
+            val durations = VideoDuration.entries.filter { it in config.model.supportedDurations }
+            CompactParamChip(
+                label = "比例",
+                value = config.aspectRatio.displayName,
+                icon = Icons.Default.Tune,
+                onClick = { onVideoRatioChange(nextQuickCreateValue(ratios, config.aspectRatio)) },
+            )
+            CompactParamChip(
+                label = "尺寸",
+                value = config.resolution.displayName,
+                icon = Icons.Default.Tune,
+                onClick = { onVideoResChange(nextQuickCreateValue(resolutions, config.resolution)) },
+            )
+            CompactParamChip(
+                label = "时长",
+                value = config.duration.displayName,
+                icon = Icons.Default.Tune,
+                onClick = { onVideoDurationChange(nextQuickCreateValue(durations, config.duration)) },
+            )
+            CompactParamChip(
+                label = "音频",
+                value = if (config.generateAudio) "开" else "关",
+                icon = Icons.Default.MusicNote,
+                highlighted = config.generateAudio,
+                onClick = onToggleAudio,
+            )
+        }
+    }
+    }
+
+@Composable
+private fun CompactParamChip(
+    label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    highlighted: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        color = if (highlighted) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
+        shape = RoundedCornerShape(Dimens.RadiusSM),
+        border = BorderStroke(1.dp, if (highlighted) Primary300.copy(alpha = 0.42f) else DarkOutlineVariant),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Icon(
+                icon,
+                contentDescription = null,
+                modifier = Modifier.size(13.dp),
+                tint = if (highlighted) Primary300 else Neutral500,
+            )
+            Text(
+                "$label $value",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium,
+                color = if (highlighted) Primary300 else Neutral300,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+private fun <T> nextQuickCreateValue(options: List<T>, current: T): T {
+    if (options.isEmpty()) return current
+    val currentIndex = options.indexOf(current)
+    return options[(if (currentIndex >= 0) currentIndex + 1 else 0) % options.size]
 }
 
 @Composable
@@ -2053,7 +2567,16 @@ private fun QuickCreatePreviewContent(
                         onLaunchVideoPicker = {},
                         onLaunchAudioPicker = {},
                         onRemoveMedia = {},
-                        onToggleTune = {},
+                        onOpenModelSheet = {},
+                        onOpenParamsSheet = {},
+                        onImageRatioChange = {},
+                        onImageResChange = {},
+                        onImageQualityChange = {},
+                        onImageCountChange = {},
+                        onVideoRatioChange = {},
+                        onVideoResChange = {},
+                        onVideoDurationChange = {},
+                        onToggleAudio = {},
                         onRestoreDraft = {},
                         onDiscardDraft = {},
                         onGenerate = {},
@@ -2144,7 +2667,16 @@ private fun QuickCreateBottomPanelAdaptivePreview(
                 onLaunchVideoPicker = {},
                 onLaunchAudioPicker = {},
                 onRemoveMedia = {},
-                onToggleTune = {},
+                onOpenModelSheet = {},
+                onOpenParamsSheet = {},
+                onImageRatioChange = {},
+                onImageResChange = {},
+                onImageQualityChange = {},
+                onImageCountChange = {},
+                onVideoRatioChange = {},
+                onVideoResChange = {},
+                onVideoDurationChange = {},
+                onToggleAudio = {},
                 onRestoreDraft = {},
                 onDiscardDraft = {},
                 onGenerate = {},

@@ -7,6 +7,7 @@ import com.runninghub.app.ui.feature.quickcreate.ImageQuality
 import com.runninghub.app.ui.feature.quickcreate.ImageResolution
 import com.runninghub.app.ui.feature.quickcreate.MediaReference
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateMediaType
+import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheet
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateTab
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
 import com.runninghub.app.ui.feature.quickcreate.UploadStatus
@@ -421,5 +422,5 @@ internal fun previewQuickCreateUiState(
         ),
     ),
     estimatedCost = 2.25,
-    tuneSheetVisible = tuneSheetVisible,
+    activeSheet = if (tuneSheetVisible) QuickCreateSheet.PARAMS else null,
 )

@@ -64,6 +64,383 @@ enum class VideoCount(val displayName: String, val count: Int) {
 }
 
 @Composable
+fun QuickCreateModelSheet(
+    visible: Boolean,
+    isImage: Boolean,
+    uiState: QuickCreateUiState,
+    onDismiss: () -> Unit,
+    onImageServiceModelSelected: (QuickCreationServiceModel) -> Unit,
+    onVideoServiceModelSelected: (QuickCreationServiceModel) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val models = if (isImage) uiState.serviceImageModels else uiState.serviceVideoModels
+    val selected = if (isImage) uiState.selectedImageServiceModel else uiState.selectedVideoServiceModel
+    val onSelect = if (isImage) onImageServiceModelSelected else onVideoServiceModelSelected
+
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically { it } + fadeIn(),
+        exit = slideOutVertically { it } + fadeOut(),
+        modifier = modifier,
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(topStart = Dimens.RadiusXL, topEnd = Dimens.RadiusXL),
+            color = DarkSurface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = Dimens.SpaceLG),
+            ) {
+                SheetHeader(title = "选择模型", onDismiss = onDismiss)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .padding(horizontal = Dimens.SpaceLG),
+                ) {
+                    when {
+                        uiState.serviceModelsLoading -> Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = Dimens.SpaceLG),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = Primary300,
+                                strokeWidth = 2.dp,
+                            )
+                            Text("正在加载模型", fontSize = 13.sp, color = Neutral400)
+                        }
+                        models.isEmpty() -> Text(
+                            "暂未获取到服务端模型，将继续使用本地兼容参数。",
+                            fontSize = 13.sp,
+                            color = Neutral500,
+                            lineHeight = 18.sp,
+                            modifier = Modifier.padding(vertical = Dimens.SpaceLG),
+                        )
+                        else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
+                            models
+                                .groupBy { it.groupName?.takeIf { name -> name.isNotBlank() } ?: "其他模型" }
+                                .forEach { (groupName, groupModels) ->
+                                    item {
+                                        Text(
+                                            text = groupName,
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = Primary300,
+                                            modifier = Modifier.padding(top = Dimens.SpaceSM),
+                                        )
+                                    }
+                                    items(groupModels) { model ->
+                                        ServiceModelListRow(
+                                            model = model,
+                                            selected = model.isSameQuickCreationServiceModel(selected),
+                                            onClick = { onSelect(model) },
+                                        )
+                                    }
+                                }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun QuickCreateParamsSheet(
+    visible: Boolean,
+    isImage: Boolean,
+    uiState: QuickCreateUiState,
+    onDismiss: () -> Unit,
+    onImageModelSelected: (ImageModel) -> Unit,
+    onImageServiceModelSelected: (QuickCreationServiceModel) -> Unit = {},
+    onImageServiceParamChange: (String, String) -> Unit,
+    onVideoModelSelected: (VideoModel) -> Unit = {},
+    onVideoServiceModelSelected: (QuickCreationServiceModel) -> Unit = {},
+    onVideoServiceParamChange: (String, String) -> Unit,
+    onImageRatioChange: (ImageAspectRatio) -> Unit = {},
+    onImageResChange: (ImageResolution) -> Unit = {},
+    onImageQualityChange: (ImageQuality) -> Unit = {},
+    onVideoRatioChange: (VideoAspectRatio) -> Unit = {},
+    onVideoResChange: (VideoResolution) -> Unit = {},
+    onVideoDurationChange: (VideoDuration) -> Unit = {},
+    onToggleRealistic: () -> Unit,
+    onToggleAudio: () -> Unit = {},
+    onImageCountChange: (ImageCount) -> Unit = {},
+    onVideoCountChange: (VideoCount) -> Unit = {},
+    onImageStyleChange: (ImageStylePreset) -> Unit = {},
+    onImageSeedChange: (Int?) -> Unit = {},
+    onVideoSeedChange: (Int?) -> Unit = {},
+    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit = { _, _ -> },
+    onRemoveMedia: (String) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = slideInVertically { it } + fadeIn(),
+        exit = slideOutVertically { it } + fadeOut(),
+        modifier = modifier,
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(topStart = Dimens.RadiusXL, topEnd = Dimens.RadiusXL),
+            color = DarkSurface,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(bottom = Dimens.SpaceLG),
+            ) {
+                SheetHeader(title = "更多参数", onDismiss = onDismiss)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 420.dp)
+                        .padding(horizontal = Dimens.SpaceLG),
+                ) {
+                    if (isImage) {
+                        ImageParamsContent(
+                            models = ImageModel.entries,
+                            selected = uiState.imageConfig.model,
+                            selectedServiceModel = uiState.selectedImageServiceModel,
+                            serviceParams = uiState.imageServiceParams,
+                            mediaReferences = uiState.imageConfig.mediaReferences,
+                            seed = uiState.imageConfig.seed,
+                            onSelect = onImageModelSelected,
+                            onServiceParamChange = onImageServiceParamChange,
+                            onServiceUploadFieldClick = onServiceUploadFieldClick,
+                            onRemoveMedia = onRemoveMedia,
+                            onSeedChange = onImageSeedChange,
+                        )
+                    } else {
+                        VideoParamsContent(
+                            selectedServiceModel = uiState.selectedVideoServiceModel,
+                            serviceParams = uiState.videoServiceParams,
+                            mediaReferences = uiState.videoConfig.mediaReferences,
+                            realistic = uiState.videoConfig.realisticMode,
+                            seed = uiState.videoConfig.seed,
+                            onServiceParamChange = onVideoServiceParamChange,
+                            onServiceUploadFieldClick = onServiceUploadFieldClick,
+                            onRemoveMedia = onRemoveMedia,
+                            onRealisticToggle = onToggleRealistic,
+                            onSeedChange = onVideoSeedChange,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SheetHeader(title: String, onDismiss: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = Dimens.SpaceSM, start = Dimens.SpaceLG, end = Dimens.SpaceLG, bottom = Dimens.SpaceSM),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Bold,
+            color = Neutral100,
+        )
+        Spacer(Modifier.weight(1f))
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier.size(28.dp),
+        ) {
+            Icon(
+                Icons.Default.Close,
+                contentDescription = "关闭",
+                tint = Neutral500,
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ServiceModelListRow(
+    model: QuickCreationServiceModel,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(Dimens.RadiusSM),
+        color = if (selected) Primary300.copy(alpha = 0.10f) else DarkSurfaceVariant,
+        border = BorderStroke(1.dp, if (selected) Primary300 else DarkOutlineVariant),
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(Dimens.SpaceMD),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = model.name,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = if (selected) Primary300 else Neutral100,
+                    maxLines = 1,
+                )
+                model.quickCreationServiceModelSubtitle().takeIf { it.isNotBlank() }?.let { subtitle ->
+                    Text(
+                        text = subtitle,
+                        fontSize = 11.sp,
+                        color = Neutral500,
+                        maxLines = 1,
+                    )
+                }
+            }
+            if (selected) {
+                Icon(
+                    Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Primary300,
+                    modifier = Modifier.size(16.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ImageParamsContent(
+    models: List<ImageModel>,
+    selected: ImageModel,
+    selectedServiceModel: QuickCreationServiceModel?,
+    serviceParams: Map<String, String>,
+    mediaReferences: List<MediaReference>,
+    seed: Int?,
+    onSelect: (ImageModel) -> Unit,
+    onServiceParamChange: (String, String) -> Unit,
+    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
+    onRemoveMedia: (String) -> Unit,
+    onSeedChange: (Int?) -> Unit,
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        selectedServiceModel
+            ?.fields
+            .orEmpty()
+            .filter { it.isQuickCreationServiceFieldRenderable() }
+            .takeIf { it.isNotEmpty() }
+            ?.let { fields ->
+                ServiceFieldOptionsContent(
+                    fields = fields,
+                    params = selectedServiceModel.quickCreationParamsWithFieldAliases(serviceParams),
+                    mediaReferences = mediaReferences,
+                    onParamChange = onServiceParamChange,
+                    onUploadFieldClick = onServiceUploadFieldClick,
+                    onRemoveMedia = onRemoveMedia,
+                )
+                Spacer(Modifier.height(Dimens.SpaceXL))
+            }
+
+        Text(
+            text = "本地兼容模型",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Primary300,
+            modifier = Modifier.padding(bottom = Dimens.SpaceSM),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
+            models.forEach { model ->
+                val isSelected = model == selected
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(Dimens.RadiusSM),
+                    color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
+                    border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
+                    onClick = { onSelect(model) },
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(Dimens.SpaceMD),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = model.displayName,
+                            fontSize = 13.sp,
+                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
+                            color = if (isSelected) Primary300 else Neutral200,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (isSelected) {
+                            Icon(
+                                Icons.Default.Check,
+                                contentDescription = null,
+                                tint = Primary300,
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(Dimens.SpaceXL))
+        SeedInput(seed = seed, onSeedChange = onSeedChange)
+    }
+}
+
+@Composable
+private fun VideoParamsContent(
+    selectedServiceModel: QuickCreationServiceModel?,
+    serviceParams: Map<String, String>,
+    mediaReferences: List<MediaReference>,
+    realistic: Boolean,
+    seed: Int?,
+    onServiceParamChange: (String, String) -> Unit,
+    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
+    onRemoveMedia: (String) -> Unit,
+    onRealisticToggle: () -> Unit,
+    onSeedChange: (Int?) -> Unit,
+) {
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        selectedServiceModel
+            ?.fields
+            .orEmpty()
+            .filter { it.isQuickCreationServiceFieldRenderable() }
+            .takeIf { it.isNotEmpty() }
+            ?.let { fields ->
+                ServiceFieldOptionsContent(
+                    fields = fields,
+                    params = selectedServiceModel.quickCreationParamsWithFieldAliases(serviceParams),
+                    mediaReferences = mediaReferences,
+                    onParamChange = onServiceParamChange,
+                    onUploadFieldClick = onServiceUploadFieldClick,
+                    onRemoveMedia = onRemoveMedia,
+                )
+                Spacer(Modifier.height(Dimens.SpaceXL))
+            }
+
+        ToggleChip(
+            label = "真人模式",
+            enabled = realistic,
+            onClick = onRealisticToggle,
+            modifier = Modifier.fillMaxWidth(),
+        )
+
+        Spacer(Modifier.height(Dimens.SpaceLG))
+        SeedInput(seed = seed, onSeedChange = onSeedChange)
+    }
+}
+
+@Composable
 fun TuneBottomSheet(
     visible: Boolean,
     isImage: Boolean,
