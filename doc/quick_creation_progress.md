@@ -2152,3 +2152,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需验证上传失败或仍在上传中的参考素材存在时，输入 prompt 不会出现“价格确认中”卡住，也不会发出 prompt-only fee-preview。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 上传失败后清理旧价格预览
+
+代码提交 `49e7539 fix(quickcreate): clear preview when upload fails` 已完成，等待本文档提交后一并推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 素材上传失败后会重新调用 `scheduleFeePreviewForMediaReference()`，让当前 tab 的 fee-preview 状态按最新素材状态重评估。
+- `scheduleFeePreviewForMediaReference()` 现在只要目标素材仍属于当前 relevant 素材范围就会触发重评估；是否真正发服务端预览仍由 `hasFeePreviewRequest()` 决定。
+- 修复旧行为：用户先完成 prompt-only 价格预览，再选择参考图且上传失败时，页面可能继续显示旧服务端金额，虽然正式生成已经会被失败素材阻止。
+- 新增回归测试覆盖：旧图片预览金额为 `0.76` 后，参考图上传失败应回退为当前图片配置本地估算价，并清掉 `feePreviewLoading/feePreviewError`。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.failed image upload clears previous image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.failed image upload prevents image fee preview when prompt changes" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.uploading global image media does not refresh image fee preview before remote url exists"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需验证已有服务端价格显示后，选择参考素材并上传失败时，按钮价格不会继续显示旧的 prompt-only 预览价。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
