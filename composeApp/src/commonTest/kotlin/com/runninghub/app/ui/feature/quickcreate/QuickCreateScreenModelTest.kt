@@ -1346,6 +1346,33 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image is blocked when fee preview is not passed`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            feePreviewResult = Result.success(
+                feePreviewResult.getOrThrow().copy(
+                    passed = false,
+                    insufficientType = "cash",
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("green icon")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("余额不足或价格预览未通过", model.uiState.value.feePreviewError)
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("价格待确认", model.uiState.value.error)
+    }
+
+    @Test
     fun `image fee preview failure falls back from previous server amount to local estimate`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
@@ -1386,6 +1413,34 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         assertEquals("preview unavailable", model.uiState.value.feePreviewError)
+        assertEquals(null, repository.lastVideoRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("价格待确认", model.uiState.value.error)
+    }
+
+    @Test
+    fun `generate video is blocked when fee preview is not passed`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            videoFeePreviewResult = Result.success(
+                videoFeePreviewResult.getOrThrow().copy(
+                    passed = false,
+                    insufficientType = "cash",
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("green icon animation")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("余额不足或价格预览未通过", model.uiState.value.feePreviewError)
         assertEquals(null, repository.lastVideoRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertEquals("价格待确认", model.uiState.value.error)

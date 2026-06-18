@@ -1405,20 +1405,7 @@ class QuickCreateScreenModel(
             }
 
             quickCreateRepository.previewImageQuickCreationFee(latestRequest).fold(
-                onSuccess = { preview ->
-                    val previewCost = when {
-                        preview.free -> 0.0
-                        preview.requiredCashAmount > 0.0 -> preview.requiredCashAmount
-                        else -> preview.requiredRhAmount
-                    }
-                    _uiState.update {
-                        it.copy(
-                            estimatedCost = previewCost,
-                            feePreviewLoading = false,
-                            feePreviewError = null,
-                        )
-                    }
-                },
+                onSuccess = ::applyFeePreview,
                 onFailure = { error ->
                     _uiState.update {
                         it.copy(
@@ -1469,11 +1456,16 @@ class QuickCreateScreenModel(
             preview.requiredCashAmount > 0.0 -> preview.requiredCashAmount
             else -> preview.requiredRhAmount
         }
+        val previewError = if (!preview.passed || preview.insufficientType != null) {
+            "余额不足或价格预览未通过"
+        } else {
+            null
+        }
         _uiState.update {
             it.copy(
                 estimatedCost = previewCost,
                 feePreviewLoading = false,
-                feePreviewError = null,
+                feePreviewError = previewError,
             )
         }
     }
