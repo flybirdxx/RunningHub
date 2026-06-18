@@ -1516,6 +1516,30 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image is blocked when upload stays pending past wait window`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            uploadDelayMillis = 120_000L
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.pickImageReference("content://image/slow")
+        runCurrent()
+        model.generate()
+        advanceTimeBy(60_000)
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("素材上传超时: test.jpg", model.uiState.value.error)
+    }
+
+    @Test
     fun `remove media reference removes image media after switching to video tab`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)

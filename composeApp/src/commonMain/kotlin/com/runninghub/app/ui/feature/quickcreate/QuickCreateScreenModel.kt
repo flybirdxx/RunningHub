@@ -1293,6 +1293,16 @@ class QuickCreateScreenModel(
         if (failed.isNotEmpty()) {
             throw IllegalStateException("素材上传失败: ${failed.joinToString { it.displayName }}")
         }
+        val timedOut = _uiState.value.let { state ->
+            state.currentRelevantMediaReferences()
+                .filter {
+                    it.id in pendingIds &&
+                        (it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING)
+                }
+        }
+        if (timedOut.isNotEmpty()) {
+            throw IllegalStateException("素材上传超时: ${timedOut.joinToString { it.displayName }}")
+        }
     }
 
     private fun QuickCreateUiState.currentRelevantMediaReferences(): List<MediaReference> =
