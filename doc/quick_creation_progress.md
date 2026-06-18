@@ -2362,3 +2362,22 @@ git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/featu
 - 真机仍需复测隐藏字段、inactive child 字段和当前 active 字段混合存在时，只有 active 相关素材的删除会刷新按钮价格。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 视频旧价格预览响应不回写
+代码提交待本文档提交后与测试覆盖交替推送到 `feature/kmp-refactoring`。
+
+已完成：
+- 新增 `stale video fee preview result does not overwrite latest prompt cost` 回归测试。
+- `FakeQuickCreateRepository` 增加 `videoFeePreviewHandler`，用于模拟旧视频 fee-preview 请求忽略协程取消并延迟返回。
+- 覆盖用户先输入 `slow video`、再输入 `fast video` 的场景：旧响应返回 `4.44`，新响应返回 `9.60`，最终 UI 保持最新 prompt 的 `9.60`。
+- 生产代码未改动；当前 `feePreviewRequestSeq` 序号保护已同时覆盖图片和视频 fee-preview 成功/失败回写。
+
+验证命令：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.stale video fee preview result does not overwrite latest prompt cost"
+```
+
+仍未完成：
+- 真机仍需在慢网或代理延迟下复测视频 tab 连续输入 prompt 时，底部按钮价格不会被旧响应回写。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

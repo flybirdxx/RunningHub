@@ -2428,6 +2428,28 @@ git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/featu
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需新的明确授权。
 - 继续避免提交既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
 
+## 2026-06-18 追加交接：视频旧价格预览响应防回写
+
+当前行为：
+- `QuickCreateScreenModel` 的 fee-preview 调度维护 `feePreviewRequestSeq`。
+- 每次重新调度或清理不可预览状态都会递增序号；视频 fee-preview 返回后，只有序号仍是当前最新请求时才允许回写 `estimatedCost/feePreviewLoading/feePreviewError`。
+- 该保护与图片链路一致，覆盖视频 prompt、模型参数和上传状态快速变化时的旧响应竞争。
+
+本轮变更：
+- 新增测试 `stale video fee preview result does not overwrite latest prompt cost`。
+- `FakeQuickCreateRepository` 增加 `videoFeePreviewHandler`，让测试可以用 `NonCancellable` 模拟旧视频 fee-preview 请求晚于新请求返回。
+- 生产代码未改动；测试直接通过，说明当前实现已满足视频侧旧响应防回写边界。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.stale video fee preview result does not overwrite latest prompt cost"
+```
+
+后续建议：
+- 真机慢网或代理延迟下复测视频 prompt 连续输入、模型参数切换和上传状态变化，确认按钮价格不会被旧 fee-preview 响应覆盖。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需新的明确授权。
+- 继续避免提交既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
+
 ## 2026-06-18 追加交接：非激活 child 字段素材移除的价格预览边界
 
 当前行为：
