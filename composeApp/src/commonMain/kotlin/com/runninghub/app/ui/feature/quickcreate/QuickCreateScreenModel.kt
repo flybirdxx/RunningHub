@@ -1206,6 +1206,7 @@ class QuickCreateScreenModel(
             _uiState.update {
                 it.copy(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
+                    statusText = null,
                     error = "价格确认中",
                 )
             }
@@ -1215,6 +1216,7 @@ class QuickCreateScreenModel(
             _uiState.update {
                 it.copy(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
+                    statusText = null,
                     error = "价格待确认",
                 )
             }
@@ -1224,6 +1226,7 @@ class QuickCreateScreenModel(
             _uiState.update {
                 it.copy(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
+                    statusText = null,
                     error = error,
                 )
             }
@@ -1243,7 +1246,11 @@ class QuickCreateScreenModel(
                 awaitPendingUploads()
             } catch (e: IllegalStateException) {
                 _uiState.update {
-                    it.copy(taskStatus = QuickCreateTaskUiStatus.IDLE, error = e.message)
+                    it.copy(
+                        taskStatus = QuickCreateTaskUiStatus.IDLE,
+                        statusText = null,
+                        error = e.message,
+                    )
                 }
                 return@launch
             }
@@ -1251,6 +1258,7 @@ class QuickCreateScreenModel(
                 _uiState.update {
                     it.copy(
                         taskStatus = QuickCreateTaskUiStatus.IDLE,
+                        statusText = null,
                         error = error,
                     )
                 }

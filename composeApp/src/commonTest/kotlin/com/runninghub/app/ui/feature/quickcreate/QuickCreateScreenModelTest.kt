@@ -1002,6 +1002,47 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `fee preview failure clears previous task status text when generate is blocked`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskStatuses = listOf(
+                QuickCreateTaskStatus.Success(
+                    taskId = "task-1",
+                    results = listOf(
+                        QuickCreateResultItem(
+                            url = "https://example.com/result.png",
+                            type = "png",
+                        )
+                    ),
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("first prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+        assertEquals(QuickCreateTaskUiStatus.SUCCESS, model.uiState.value.taskStatus)
+        assertNotNull(model.uiState.value.statusText)
+
+        repository.lastImageRequest = null
+        repository.feePreviewResult = Result.failure(IllegalStateException("preview unavailable"))
+        model.updateImagePrompt("second prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals(null, model.uiState.value.statusText)
+    }
+
+    @Test
     fun `generate video is blocked while fee preview is loading`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
