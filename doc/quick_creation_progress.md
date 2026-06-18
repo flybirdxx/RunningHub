@@ -1312,6 +1312,7 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机仍需复测通用 `listParams` key 绑定到视频/音频字段时，Tune 字段素材卡片、删除动作和最终 `quickCreationListParams` 是否都按服务字段媒体类型展示和提交。
 - 完整视频 `prepare/commit/list/detail` 扣费链路本轮未触发；本轮没有点击真实生成、没有新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
 ## 2026-06-18 草稿恢复后刷新 fee-preview
 
 代码提交 `1814fc7 fix(quickcreate): refresh fee preview after draft restore` 已推送到 `feature/kmp-refactoring`。
@@ -1376,5 +1377,28 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 
 仍未完成：
 - 真机仍需复测损坏草稿或旧版本草稿存在时，入口 UI 不应展示可恢复旧内容；当前 `hasDraft/draftData` 仍是非响应式字段，后续若接入 UI 入口需要一起迁移到 `QuickCreateUiState`。
+- 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 空草稿不会保留旧内存状态
+
+代码提交 `c10c3ea fix(quickcreate): clear stale missing draft state` 已推送到 `feature/kmp-refactoring`。
+
+已完成：
+- `checkForDraft()` 在持久化草稿为空或缺失时也会同步清掉内存里的 `draftData` 和 `hasDraft`。
+- 修复同一个 `QuickCreateScreenModel` 先加载过有效草稿、后续草稿被清空时，内存仍保留旧草稿并可能被 `restoreDraft()` 恢复的问题。
+- 这与上一轮损坏 JSON 草稿清理规则保持一致：持久化草稿不可用时，内存状态也不可恢复。
+- 新增回归测试覆盖：先加载有效图片草稿，再清空存储，重新检查后调用恢复，不应恢复旧 prompt，也不应触发 fee-preview。
+
+TDD 与验证命令：
+
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.checkForDraft clears stale in memory draft when stored draft is empty"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+仍未完成：
+- 真机仍需复测草稿被用户丢弃、成功恢复后清空、旧版本草稿缺失等路径下，恢复入口 UI 不应展示旧内容。
 - 本轮没有触发真实生成、`prepare/commit` 或新增扣费。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。

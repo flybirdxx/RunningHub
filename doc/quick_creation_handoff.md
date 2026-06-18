@@ -1472,3 +1472,26 @@ git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/featu
 - 真机复测旧版本/损坏草稿存在时，页面不应展示可恢复入口，也不应恢复旧 prompt。
 - 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
 - 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
+
+## 2026-06-18 追加交接：空草稿清理内存状态
+
+代码提交 `c10c3ea fix(quickcreate): clear stale missing draft state` 已推送到 `feature/kmp-refactoring`。
+
+当前行为：
+- `checkForDraft()` 读取到空字符串或 null 草稿时，会把 `draftData` 置空并设置 `hasDraft=false`。
+- 这避免同一个 ScreenModel 曾经加载过有效草稿后，在持久化草稿已被清空时继续保留旧内存草稿。
+- 损坏 JSON 和空草稿现在都遵循同一原则：不可用的持久化草稿不能留下可恢复的内存状态。
+- `restoreDraft()` 因 `draftData=null` 会直接返回，不会修改 prompt/tab，也不会触发 fee-preview。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.checkForDraft clears stale in memory draft when stored draft is empty"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest"
+git diff --check -- composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+下一步建议：
+- 真机复测用户丢弃草稿、成功恢复后清空、旧版本缺失草稿等路径，恢复入口不应展示旧内容。
+- 如果后续把草稿恢复入口接到真实 UI，仍建议把 `hasDraft/draftData` 迁移到 `QuickCreateUiState`，让入口展示随检查结果响应式刷新。
+- 本轮没有触发真实生成或扣费；完整视频 `prepare/commit/list/detail` 仍需新的明确授权。
+- 后续提交继续避开已有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 证据目录。
