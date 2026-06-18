@@ -244,7 +244,11 @@ class QuickCreateScreenModel(
     fun selectProject(projectId: String) {
         if (projectId.isBlank() || _uiState.value.selectedProjectId == projectId) return
 
-        screenModelScope.launch {
+        loadSelectedProjectTasks(projectId, clearExisting = true)
+    }
+
+    private fun loadSelectedProjectTasks(projectId: String, clearExisting: Boolean) {
+        if (clearExisting) {
             _uiState.update {
                 it.copy(
                     selectedProjectId = projectId,
@@ -256,6 +260,16 @@ class QuickCreateScreenModel(
                     error = null,
                 )
             }
+        } else {
+            _uiState.update {
+                it.copy(
+                    projectTasksLoading = true,
+                    error = null,
+                )
+            }
+        }
+
+        screenModelScope.launch {
             val tasks = quickCreateRepository.listQuickCreationProjectTasks(
                 projectId = projectId,
                 page = 1,
@@ -283,6 +297,15 @@ class QuickCreateScreenModel(
                     }
                 },
             )
+        }
+    }
+
+    private fun refreshCurrentHistoryArea() {
+        val selectedProjectId = _uiState.value.selectedProjectId
+        if (selectedProjectId.isNullOrBlank()) {
+            loadQuickCreationHistory()
+        } else {
+            loadSelectedProjectTasks(selectedProjectId, clearExisting = false)
         }
     }
 
@@ -2059,6 +2082,7 @@ class QuickCreateScreenModel(
         if (status is QuickCreateTaskStatus.Queuing) {
             clearDraft()
         }
+        var refreshHistory = false
         _uiState.update {
             when (status) {
                 is QuickCreateTaskStatus.Submitting -> it.copy(
@@ -2084,7 +2108,7 @@ class QuickCreateScreenModel(
                             duration = item.duration,
                         )
                     }
-                    screenModelScope.launch { loadQuickCreationHistory() }
+                    refreshHistory = true
                     it.copy(
                         taskStatus = QuickCreateTaskUiStatus.SUCCESS,
                         statusText = "生成完成",
@@ -2101,6 +2125,9 @@ class QuickCreateScreenModel(
                     error = status.message,
                 )
             }
+        }
+        if (refreshHistory) {
+            refreshCurrentHistoryArea()
         }
     }
 }

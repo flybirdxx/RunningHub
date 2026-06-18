@@ -483,6 +483,40 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `successful generation refreshes selected project tasks`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskStatuses = listOf(
+                QuickCreateTaskStatus.Success(
+                    taskId = "task-1",
+                    results = listOf(
+                        QuickCreateResultItem(
+                            url = "https://example.com/result.png",
+                            type = "png",
+                        )
+                    ),
+                )
+            )
+        }
+        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.selectProject("project-1")
+        runCurrent()
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("project-1", model.uiState.value.selectedProjectId)
+        assertEquals(listOf("project-1" to 1, "project-1" to 1), repository.requestedProjectTaskPages)
+        assertEquals(listOf(1), repository.requestedHistoryPages)
+        assertEquals("project-task-1", model.uiState.value.historyItems.single().taskId)
+    }
+
+    @Test
     fun `toggling project pin calls repository and updates project state`() {
         val repository = FakeQuickCreateRepository()
         val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
