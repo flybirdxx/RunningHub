@@ -2428,6 +2428,31 @@ git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/featu
 - 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需新的明确授权。
 - 继续避免提交既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
 
+## 2026-06-18 追加交接：视频隐藏上传字段的价格预览边界
+
+当前行为：
+- 视频 tab 与图片 tab 共用 `currentRelevantMediaReferences()` 相关素材判断。
+- 隐藏 `VIDEO_UPLOAD` 服务端字段素材不属于视频 fee-preview 的相关素材集合；选择或移除这类素材不会让当前视频 prompt 重新发起 fee-preview。
+- 这与图片隐藏上传字段边界一致，避免不可见字段影响底部按钮价格。
+
+本轮变更：
+- 新增测试 `hidden service upload field media does not refresh video fee preview`。
+- 新增测试 `removing hidden service upload field media does not refresh video fee preview`。
+- 生产代码未改动；测试直接通过，说明当前实现已满足视频隐藏上传字段的选择/移除边界。
+
+验证记录：
+```powershell
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh video fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh image fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.hidden service upload field media does not refresh video fee preview" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.removing hidden service upload field media does not refresh video fee preview"
+.\gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUiModelTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateBillingUiTextTest" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskStatusUiTest"
+git diff --check -- composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt
+```
+
+后续建议：
+- 真机复测视频隐藏上传字段、inactive child 字段和 active 字段混合场景，确认 UI 删除动作和 fee-preview 请求边界一致。
+- 本轮没有触发真实生成或扣费；完整 `prepare/commit/list/detail` 仍需新的明确授权。
+- 继续避免提交既有 `shared/src/commonMain/kotlin/com/runninghub/shared/data/repository/AuthRepositoryImpl.kt` 修改和未跟踪 `output/` 目录。
+
 ## 2026-06-18 追加交接：视频旧价格预览响应防回写
 
 当前行为：
