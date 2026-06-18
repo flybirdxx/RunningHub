@@ -1366,6 +1366,7 @@ class QuickCreateScreenModelTest {
         model.generate()
         runCurrent()
 
+        assertEquals(model.uiState.value.imageConfig.estimatedCost, model.uiState.value.estimatedCost)
         assertEquals("余额不足或价格预览未通过", model.uiState.value.feePreviewError)
         assertEquals(null, repository.lastImageRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
@@ -1440,6 +1441,7 @@ class QuickCreateScreenModelTest {
         model.generate()
         runCurrent()
 
+        assertEquals(model.uiState.value.videoConfig.estimatedCost, model.uiState.value.estimatedCost)
         assertEquals("余额不足或价格预览未通过", model.uiState.value.feePreviewError)
         assertEquals(null, repository.lastVideoRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)

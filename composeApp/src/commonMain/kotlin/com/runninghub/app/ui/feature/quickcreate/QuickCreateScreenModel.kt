@@ -1465,7 +1465,7 @@ class QuickCreateScreenModel(
         }
         _uiState.update {
             it.copy(
-                estimatedCost = previewCost,
+                estimatedCost = if (previewError == null) previewCost else it.currentLocalEstimatedCost(),
                 feePreviewLoading = false,
                 feePreviewError = previewError,
             )
