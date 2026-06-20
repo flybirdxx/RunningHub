@@ -3,2366 +3,514 @@ package com.runninghub.app.ui.feature.quickcreate
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
-import com.runninghub.shared.domain.repository.ImageGenerationRequest
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
+import com.runninghub.shared.domain.repository.QuickCreateDraftRepository
 import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
-import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
-import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
-import com.runninghub.shared.domain.repository.QuickCreationServiceField
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
-import com.runninghub.shared.domain.repository.SettingsRepository
-import com.runninghub.shared.domain.repository.VideoGenerationRequest
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.datetime.Clock
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.put
 
-private fun debug(tag: String, msg: String) {
-    println("[$tag] $msg")
-}
-
-data class DraftData(
-    val currentTab: String = "IMAGE",
-    val imagePrompt: String = "",
-    val videoPrompt: String = "",
-)
-
-private val DraftData.hasPromptContent: Boolean
-    get() = imagePrompt.isNotBlank() || videoPrompt.isNotBlank()
-
-private val DraftData.restorableTab: QuickCreateTab
-    get() = when {
-        currentTab == "VIDEO" && videoPrompt.isNotBlank() -> QuickCreateTab.VIDEO
-        currentTab != "VIDEO" && imagePrompt.isNotBlank() -> QuickCreateTab.IMAGE
-        imagePrompt.isNotBlank() -> QuickCreateTab.IMAGE
-        videoPrompt.isNotBlank() -> QuickCreateTab.VIDEO
-        else -> QuickCreateTab.IMAGE
-    }
-
-internal fun DraftData.resumeSummaryText(): String {
-    val tab = restorableTab
-    val tabLabel = if (tab == QuickCreateTab.VIDEO) "视频" else "图片"
-    val promptLength = if (tab == QuickCreateTab.VIDEO) videoPrompt.length else imagePrompt.length
-    return "上次草稿 · $tabLabel · $promptLength 字"
-}
-
-private val draftJson = Json { encodeDefaults = true }
-private const val HISTORY_REFRESH_INTERVAL_MS = 5_000L
-private const val FEE_PREVIEW_DEBOUNCE_MS = 500L
-private const val FEE_PREVIEW_NOT_PASSED_ERROR = "余额不足或价格预览未通过"
-private const val PROJECT_CREATE_MUTATION_ID = "__create_project__"
-private const val INSPIRATION_TEMPLATE_PAGE_SIZE = 20
-private val supportedImageCounts = setOf(1, 2, 4)
-private val supportedVideoCounts = setOf(1, 2)
-private val terminalHistoryStatuses = setOf("SUCCESS", "FAILED", "FAIL", "ERROR", "CANCELED", "CANCELLED")
-private fun sanitizedSeed(seed: Int?): Int? = seed?.takeIf { it >= 0 }
-
-private val QuickCreationHistoryItem.needsHistoryRefresh: Boolean
-    get() = status.isNotBlank() && status.uppercase() !in terminalHistoryStatuses
-
-private fun DraftData.toJsonString(): String =
-    buildJsonObject {
-        put("currentTab", currentTab)
-        put("imagePrompt", imagePrompt)
-        put("videoPrompt", videoPrompt)
-    }.toString()
-
-private fun parseDraftData(raw: String): DraftData {
-    val json = draftJson.parseToJsonElement(raw).jsonObject
-    return DraftData(
-        currentTab = json["currentTab"]?.jsonPrimitive?.contentOrNull ?: "IMAGE",
-        imagePrompt = json["imagePrompt"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-        videoPrompt = json["videoPrompt"]?.jsonPrimitive?.contentOrNull.orEmpty(),
-    )
-}
-
+/**
+ * 快捷创作页面的 Voyager ScreenModel 门面。
+ *
+ * 本类现在只保留 Presentation 层的页面生命周期边界、依赖注入入口、唯一 [QuickCreateUiState]
+ * 所有权以及 UI Action 方法外观。草稿、模型目录、媒体上传、计费预览、任务生成、轮询、
+ * 历史、项目和灵感模板的跨流程编排已经下沉到 [QuickCreateCoordinator]。
+ *
+ * 这样做的目的是让 ScreenModel 不再继续膨胀为事实上的业务协调器，同时保持现有 UI 和测试调用
+ * 的公开方法签名不变，降低迁移过程中的行为风险。
+ *
+ * @param quickCreateRepository 快捷创作业务仓库，作为 Domain Repository 接口注入，不在 ScreenModel 中直接访问 DataSource。
+ * @param mediaResolver 跨平台媒体读取能力，用于把本地 URI 转交给上传协调器处理。
+ * @param draftRepository 快捷创作草稿领域仓库，只保存和清理可恢复编辑草稿快照。
+ * @param ioDispatcher 媒体字节读取使用的调度器；生产环境使用 IO，测试环境可替换为测试调度器。
+ */
 class QuickCreateScreenModel(
     private val quickCreateRepository: QuickCreateRepository,
     private val mediaResolver: MediaResolver,
-    private val settingsRepository: SettingsRepository,
+    private val draftRepository: QuickCreateDraftRepository,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ScreenModel {
 
     private val _uiState = MutableStateFlow(QuickCreateUiState())
+
+    /**
+     * 页面唯一只读状态流。
+     *
+     * UI 只能观察该 StateFlow 并通过本类公开 action 回传用户操作；实际状态修改由 Coordinator
+     * 和局部 StateHolder / Interactor 完成，避免 Composable 直接接触仓库或存储。
+     */
     val uiState: StateFlow<QuickCreateUiState> = _uiState.asStateFlow()
 
-    private var generationJob: Job? = null
-    private val uploadJobs = mutableMapOf<String, Job>()
-    private var draftSaveJob: Job? = null
-    private var historyRefreshJob: Job? = null
-    private var feePreviewJob: Job? = null
-    private var feePreviewRequestSeq: Long = 0L
+    private val coordinator = QuickCreateCoordinator(
+        quickCreateRepository = quickCreateRepository,
+        mediaResolver = mediaResolver,
+        draftRepository = draftRepository,
+        scope = screenModelScope,
+        uiState = _uiState,
+        ioDispatcher = ioDispatcher,
+    )
 
+    /**
+     * 当前是否存在可恢复草稿。
+     *
+     * 该属性保留给旧 UI 和测试读取；数据来源仍是 [QuickCreateUiState.draftData]，
+     * 不直接访问持久化存储。
+     */
     val hasDraft: Boolean
         get() = _uiState.value.hasDraft
+
+    /**
+     * 当前内存中的可恢复草稿数据。
+     *
+     * `null` 表示没有可恢复草稿，或草稿已经被恢复、放弃、提交进入队列后清理。
+     */
     val draftData: DraftData?
         get() = _uiState.value.draftData
 
     init {
-        checkForDraft()
-        loadServiceModels()
-        loadQuickCreationHistory()
-        loadQuickCreationProjects()
+        coordinator.initialize()
     }
 
+    /**
+     * 释放页面级长生命周期任务。
+     *
+     * Voyager 会在页面离开导航栈时调用该方法；实际释放顺序由 [QuickCreateCoordinator.dispose]
+     * 统一维护，确保生成轮询、历史轮询、计费防抖、媒体上传和草稿自动保存都被取消。
+     */
+    override fun onDispose() {
+        coordinator.dispose()
+    }
+
+    /** 重新加载服务端快捷创作模型目录。 */
     fun loadServiceModels() {
-        screenModelScope.launch {
-            _uiState.update { it.copy(serviceModelsLoading = true) }
-
-            val imageModels = quickCreateRepository.getModels("IMAGE")
-            val videoModels = quickCreateRepository.getModels("VIDEO")
-
-            _uiState.update { state ->
-                val images = imageModels.getOrElse { emptyList() }
-                val videos = videoModels.getOrElse { emptyList() }
-                val selectedImage = state.selectedImageServiceModel
-                    ?.let { selected -> images.firstOrNull { it.matchesServiceIdentity(selected) } }
-                    ?: images.firstOrNull()
-                val selectedVideo = state.selectedVideoServiceModel
-                    ?.let { selected -> videos.firstOrNull { it.matchesServiceIdentity(selected) } }
-                    ?: videos.firstOrNull()
-                state.copy(
-                    serviceModelsLoading = false,
-                    serviceImageModels = images,
-                    serviceVideoModels = videos,
-                    selectedImageServiceModel = selectedImage,
-                    selectedVideoServiceModel = selectedVideo,
-                    imageServiceParams = if (hasSameServiceIdentity(selectedImage, state.selectedImageServiceModel)) {
-                        state.imageServiceParams
-                    } else {
-                        selectedImage.defaultServiceParams()
-                    },
-                    videoServiceParams = if (hasSameServiceIdentity(selectedVideo, state.selectedVideoServiceModel)) {
-                        state.videoServiceParams
-                    } else {
-                        selectedVideo.defaultServiceParams()
-                    },
-                )
-            }
-            scheduleFeePreview()
-        }
+        coordinator.loadServiceModels()
     }
 
+    /** 加载最近快捷创作历史首页。 */
     fun loadQuickCreationHistory() {
-        screenModelScope.launch {
-            _uiState.update { it.copy(historyLoading = true) }
-            val history = quickCreateRepository.listQuickCreationHistory(page = 1, size = 10)
-            history.fold(
-                onSuccess = { page ->
-                    _uiState.update { state ->
-                        state.copy(
-                            historyLoading = false,
-                            historyPage = page.page,
-                            historyTotal = page.total,
-                            historyHasMore = page.items.size < page.total,
-                            historyItems = page.items,
-                        )
-                    }
-                    updateHistoryRefreshJob(page.items)
-                },
-                onFailure = {
-                    _uiState.update { state -> state.copy(historyLoading = false) }
-                },
-            )
-        }
+        coordinator.loadQuickCreationHistory()
     }
 
+    /** 加载快捷创作项目列表首页。 */
     fun loadQuickCreationProjects() {
-        screenModelScope.launch {
-            _uiState.update { it.copy(projectsLoading = true) }
-            val projects = quickCreateRepository.listQuickCreationProjects(page = 1, size = 20)
-            projects.fold(
-                onSuccess = { page ->
-                    _uiState.update { state ->
-                        state.copy(
-                            projectsLoading = false,
-                            projectsLoadingMore = false,
-                            projects = page.items,
-                            projectsPage = page.page,
-                            projectsHasMore = page.hasNext,
-                        )
-                    }
-                },
-                onFailure = {
-                    _uiState.update { state -> state.copy(projectsLoading = false, projectsLoadingMore = false) }
-                },
-            )
-        }
+        coordinator.loadQuickCreationProjects()
     }
 
+    /** 加载更多快捷创作项目。 */
     fun loadMoreQuickCreationProjects() {
-        val state = _uiState.value
-        if (state.projectsLoading || state.projectsLoadingMore || !state.projectsHasMore) return
-
-        screenModelScope.launch {
-            val nextPage = _uiState.value.projectsPage + 1
-            _uiState.update { it.copy(projectsLoadingMore = true, error = null) }
-            val projects = quickCreateRepository.listQuickCreationProjects(page = nextPage, size = 20)
-            projects.fold(
-                onSuccess = { page ->
-                    _uiState.update { current ->
-                        current.copy(
-                            projectsLoadingMore = false,
-                            projects = (current.projects + page.items).distinctBy { it.projectId },
-                            projectsPage = page.page,
-                            projectsHasMore = page.hasNext,
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update { current ->
-                        current.copy(
-                            projectsLoadingMore = false,
-                            error = error.message ?: "项目加载失败",
-                        )
-                    }
-                },
-            )
-        }
+        coordinator.loadMoreQuickCreationProjects()
     }
 
+    /** 加载更多当前历史区域，可能是最近历史或当前项目任务。 */
     fun loadMoreQuickCreationHistory() {
-        val state = _uiState.value
-        if (state.historyLoading || state.historyLoadingMore || !state.historyHasMore) return
-
-        screenModelScope.launch {
-            val nextPage = _uiState.value.historyPage + 1
-            _uiState.update { it.copy(historyLoadingMore = true) }
-            val selectedProjectId = _uiState.value.selectedProjectId
-            val history = if (selectedProjectId.isNullOrBlank()) {
-                quickCreateRepository.listQuickCreationHistory(page = nextPage, size = 10)
-            } else {
-                quickCreateRepository.listQuickCreationProjectTasks(
-                    projectId = selectedProjectId,
-                    page = nextPage,
-                    size = 10,
-                )
-            }
-            history.fold(
-                onSuccess = { page ->
-                    var mergedItems: List<QuickCreationHistoryItem> = emptyList()
-                    _uiState.update { current ->
-                        val merged = (current.historyItems + page.items).distinctBy { it.taskId }
-                        mergedItems = merged
-                        current.copy(
-                            historyLoadingMore = false,
-                            historyPage = page.page,
-                            historyTotal = page.total,
-                            historyHasMore = merged.size < page.total,
-                            historyItems = merged,
-                        )
-                    }
-                    updateHistoryRefreshJob(mergedItems)
-                },
-                onFailure = { error ->
-                    _uiState.update { current ->
-                        current.copy(
-                            historyLoadingMore = false,
-                            error = error.message ?: "历史加载失败",
-                        )
-                    }
-                },
-            )
-        }
+        coordinator.loadMoreQuickCreationHistory()
     }
 
+    /**
+     * 选择项目并将历史区域切换为该项目任务。
+     *
+     * @param projectId 项目稳定标识；空值和重复选择由 Coordinator 下游忽略。
+     */
     fun selectProject(projectId: String) {
-        if (projectId.isBlank() || _uiState.value.selectedProjectId == projectId) return
-
-        loadSelectedProjectTasks(projectId, clearExisting = true)
+        coordinator.selectProject(projectId)
     }
 
-    private fun loadSelectedProjectTasks(projectId: String, clearExisting: Boolean) {
-        if (clearExisting) {
-            _uiState.update {
-                it.copy(
-                    selectedProjectId = projectId,
-                    projectTasksLoading = true,
-                    historyItems = emptyList(),
-                    historyPage = 0,
-                    historyTotal = 0,
-                    historyHasMore = false,
-                    error = null,
-                )
-            }
-        } else {
-            _uiState.update {
-                it.copy(
-                    projectTasksLoading = true,
-                    error = null,
-                )
-            }
-        }
-
-        screenModelScope.launch {
-            val tasks = quickCreateRepository.listQuickCreationProjectTasks(
-                projectId = projectId,
-                page = 1,
-                size = 10,
-            )
-            tasks.fold(
-                onSuccess = { page ->
-                    _uiState.update { state ->
-                        state.copy(
-                            projectTasksLoading = false,
-                            historyPage = page.page,
-                            historyTotal = page.total,
-                            historyHasMore = page.items.size < page.total,
-                            historyItems = page.items,
-                        )
-                    }
-                    updateHistoryRefreshJob(page.items)
-                },
-                onFailure = { error ->
-                    _uiState.update { state ->
-                        state.copy(
-                            projectTasksLoading = false,
-                            error = error.message ?: "椤圭洰浠诲姟鍔犺浇澶辫触",
-                        )
-                    }
-                },
-            )
-        }
-    }
-
-    private fun refreshCurrentHistoryArea() {
-        val selectedProjectId = _uiState.value.selectedProjectId
-        if (selectedProjectId.isNullOrBlank()) {
-            loadQuickCreationHistory()
-        } else {
-            loadSelectedProjectTasks(selectedProjectId, clearExisting = false)
-        }
-    }
-
+    /** 清除当前项目筛选并恢复最近历史。 */
     fun clearSelectedProject() {
-        if (_uiState.value.selectedProjectId == null) return
-        _uiState.update {
-            it.copy(
-                selectedProjectId = null,
-                projectTasksLoading = false,
-                historyItems = emptyList(),
-                historyPage = 0,
-                historyTotal = 0,
-                historyHasMore = false,
-            )
-        }
-        loadQuickCreationHistory()
+        coordinator.clearSelectedProject()
     }
 
+    /**
+     * 切换项目置顶状态。
+     *
+     * @param projectId 需要置顶或取消置顶的项目稳定标识。
+     */
     fun toggleProjectPin(projectId: String) {
-        val project = _uiState.value.projects.firstOrNull { it.projectId == projectId } ?: return
-        if (projectId in _uiState.value.projectPinningIds) return
-
-        val targetPinned = !project.pinned
-        screenModelScope.launch {
-            _uiState.update { state ->
-                state.copy(projectPinningIds = state.projectPinningIds + projectId)
-            }
-            val result = quickCreateRepository.pinQuickCreationProject(projectId = projectId, pinned = targetPinned)
-            result.fold(
-                onSuccess = {
-                    _uiState.update { state ->
-                        state.copy(
-                            projectPinningIds = state.projectPinningIds - projectId,
-                            projects = state.projects.map { item ->
-                                if (item.projectId == projectId) item.copy(pinned = targetPinned) else item
-                            },
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update { state ->
-                        state.copy(
-                            projectPinningIds = state.projectPinningIds - projectId,
-                            error = error.message ?: "项目置顶失败",
-                        )
-                    }
-                },
-            )
-        }
+        coordinator.toggleProjectPin(projectId)
     }
 
+    /**
+     * 创建快捷创作项目。
+     *
+     * @param name 用户输入的新项目名称。
+     */
     fun createProject(name: String) {
-        val trimmedName = name.trim()
-        if (trimmedName.isBlank()) return
-
-        val mutationId = PROJECT_CREATE_MUTATION_ID
-        if (mutationId in _uiState.value.projectMutatingIds) return
-
-        screenModelScope.launch {
-            _uiState.update { state ->
-                state.copy(projectMutatingIds = state.projectMutatingIds + mutationId)
-            }
-            val result = quickCreateRepository.createQuickCreationProject(trimmedName)
-            result.fold(
-                onSuccess = { project ->
-                    _uiState.update { state ->
-                        state.copy(
-                            projectMutatingIds = state.projectMutatingIds - mutationId,
-                            projects = (listOf(project) + state.projects)
-                                .distinctBy { it.projectId },
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update { state ->
-                        state.copy(
-                            projectMutatingIds = state.projectMutatingIds - mutationId,
-                            error = error.message ?: "项目创建失败",
-                        )
-                    }
-                },
-            )
-        }
+        coordinator.createProject(name)
     }
 
+    /**
+     * 重命名快捷创作项目。
+     *
+     * @param projectId 需要重命名的项目稳定标识。
+     * @param name 用户输入的新名称。
+     */
     fun renameProject(projectId: String, name: String) {
-        val trimmedName = name.trim()
-        if (projectId.isBlank() || trimmedName.isBlank()) return
-        if (projectId in _uiState.value.projectMutatingIds) return
-
-        screenModelScope.launch {
-            _uiState.update { state ->
-                state.copy(projectMutatingIds = state.projectMutatingIds + projectId)
-            }
-            val result = quickCreateRepository.renameQuickCreationProject(
-                projectId = projectId,
-                name = trimmedName,
-            )
-            result.fold(
-                onSuccess = {
-                    _uiState.update { state ->
-                        state.copy(
-                            projectMutatingIds = state.projectMutatingIds - projectId,
-                            projects = state.projects.map { project ->
-                                if (project.projectId == projectId) project.copy(name = trimmedName) else project
-                            },
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update { state ->
-                        state.copy(
-                            projectMutatingIds = state.projectMutatingIds - projectId,
-                            error = error.message ?: "项目重命名失败",
-                        )
-                    }
-                },
-            )
-        }
+        coordinator.renameProject(projectId, name)
     }
 
+    /**
+     * 删除快捷创作项目。
+     *
+     * 如果删除的是当前选中项目，Coordinator 会恢复最近历史，避免 UI 停留在已删除项目的任务列表。
+     */
     fun deleteProject(projectId: String) {
-        if (projectId.isBlank()) return
-        if (projectId in _uiState.value.projectMutatingIds) return
-
-        val wasSelected = _uiState.value.selectedProjectId == projectId
-        screenModelScope.launch {
-            _uiState.update { state ->
-                state.copy(projectMutatingIds = state.projectMutatingIds + projectId)
-            }
-            val result = quickCreateRepository.deleteQuickCreationProject(projectId)
-            result.fold(
-                onSuccess = {
-                    _uiState.update { state ->
-                        state.copy(
-                            projectMutatingIds = state.projectMutatingIds - projectId,
-                            projects = state.projects.filterNot { it.projectId == projectId },
-                            selectedProjectId = if (wasSelected) null else state.selectedProjectId,
-                            projectTasksLoading = if (wasSelected) false else state.projectTasksLoading,
-                            historyItems = if (wasSelected) emptyList() else state.historyItems,
-                            historyPage = if (wasSelected) 0 else state.historyPage,
-                            historyTotal = if (wasSelected) 0 else state.historyTotal,
-                            historyHasMore = if (wasSelected) false else state.historyHasMore,
-                        )
-                    }
-                    if (wasSelected) {
-                        loadQuickCreationHistory()
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update { state ->
-                        state.copy(
-                            projectMutatingIds = state.projectMutatingIds - projectId,
-                            error = error.message ?: "项目删除失败",
-                        )
-                    }
-                },
-            )
-        }
+        coordinator.deleteProject(projectId)
     }
 
+    /**
+     * 打开项目详情。
+     *
+     * @param projectId 要查看详情的项目稳定标识。
+     */
     fun selectProjectDetail(projectId: String) {
-        if (projectId.isBlank()) return
-
-        screenModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    projectDetailLoading = true,
-                    selectedProjectDetail = null,
-                    error = null,
-                )
-            }
-            val detail = quickCreateRepository.getQuickCreationProjectDetail(projectId)
-            detail.fold(
-                onSuccess = { project ->
-                    _uiState.update {
-                        it.copy(
-                            projectDetailLoading = false,
-                            selectedProjectDetail = project,
-                        )
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            projectDetailLoading = false,
-                            error = error.message ?: "项目详情加载失败",
-                        )
-                    }
-                },
-            )
-        }
+        coordinator.selectProjectDetail(projectId)
     }
 
+    /** 关闭项目详情。 */
     fun dismissProjectDetail() {
-        _uiState.update {
-            it.copy(
-                projectDetailLoading = false,
-                selectedProjectDetail = null,
-            )
-        }
+        coordinator.dismissProjectDetail()
     }
 
-    private fun updateHistoryRefreshJob(items: List<QuickCreationHistoryItem>) {
-        if (items.none { it.needsHistoryRefresh }) {
-            historyRefreshJob?.cancel()
-            historyRefreshJob = null
-            return
-        }
-        if (historyRefreshJob?.isActive == true) return
-
-        historyRefreshJob = screenModelScope.launch {
-            while (_uiState.value.historyItems.any { it.needsHistoryRefresh }) {
-                delay(HISTORY_REFRESH_INTERVAL_MS)
-                refreshLoadedQuickCreationHistory()
-            }
-            historyRefreshJob = null
-        }
-    }
-
-    private suspend fun refreshLoadedQuickCreationHistory() {
-        val size = maxOf(10, _uiState.value.historyItems.size)
-        val selectedProjectId = _uiState.value.selectedProjectId
-        val history = if (selectedProjectId.isNullOrBlank()) {
-            quickCreateRepository.listQuickCreationHistory(page = 1, size = size)
-        } else {
-            quickCreateRepository.listQuickCreationProjectTasks(
-                projectId = selectedProjectId,
-                page = 1,
-                size = size,
-            )
-        }
-        history.fold(
-            onSuccess = { page -> applyHistoryRefreshPage(page) },
-            onFailure = { error ->
-                _uiState.update { state ->
-                    state.copy(error = error.message ?: "历史刷新失败")
-                }
-            },
-        )
-    }
-
-    private fun applyHistoryRefreshPage(page: QuickCreationHistoryPage) {
-        _uiState.update { state ->
-            state.copy(
-                historyTotal = page.total,
-                historyHasMore = page.items.size < page.total,
-                historyItems = page.items,
-            )
-        }
-        updateHistoryRefreshJob(page.items)
-    }
-
+    /**
+     * 取消历史中的远端任务。
+     *
+     * @param taskId 服务端任务标识。
+     */
     fun cancelHistoryTask(taskId: String) {
-        if (taskId.isBlank() || taskId in _uiState.value.historyCancellingTaskIds) return
-
-        screenModelScope.launch {
-            _uiState.update { state ->
-                state.copy(historyCancellingTaskIds = state.historyCancellingTaskIds + taskId)
-            }
-            val result = quickCreateRepository.cancelQuickCreationTask(taskId)
-            result.fold(
-                onSuccess = {
-                    refreshLoadedQuickCreationHistory()
-                    _uiState.update { state ->
-                        state.copy(historyCancellingTaskIds = state.historyCancellingTaskIds - taskId)
-                    }
-                },
-                onFailure = { error ->
-                    _uiState.update { state ->
-                        state.copy(
-                            historyCancellingTaskIds = state.historyCancellingTaskIds - taskId,
-                            error = error.message ?: "取消任务失败",
-                        )
-                    }
-                },
-            )
-        }
+        coordinator.cancelHistoryTask(taskId)
     }
 
+    /**
+     * 选择历史输出并加载详情。
+     *
+     * @param outputId 历史输出项标识。
+     */
     fun selectHistoryOutput(outputId: String) {
-        screenModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    historyDetailLoading = true,
-                    selectedHistoryDetail = null,
-                )
-            }
-            val detail = quickCreateRepository.getQuickCreationHistoryDetail(outputId)
-            _uiState.update { state ->
-                detail.fold(
-                    onSuccess = { item ->
-                        state.copy(
-                            historyDetailLoading = false,
-                            selectedHistoryDetail = item,
-                        )
-                    },
-                    onFailure = { error ->
-                        state.copy(
-                            historyDetailLoading = false,
-                            error = error.message ?: "历史详情加载失败",
-                        )
-                    },
-                )
-            }
-        }
+        coordinator.selectHistoryOutput(outputId)
     }
 
+    /** 关闭历史输出详情。 */
     fun dismissHistoryDetail() {
-        _uiState.update {
-            it.copy(
-                historyDetailLoading = false,
-                selectedHistoryDetail = null,
-            )
-        }
+        coordinator.dismissHistoryDetail()
     }
 
+    /** 检查本地是否存在可恢复草稿。 */
     fun checkForDraft() {
-        screenModelScope.launch {
-            val raw = settingsRepository.getQuickCreateDraft()
-            if (!raw.isNullOrEmpty()) {
-                try {
-                    val draft = parseDraftData(raw)
-                    if (draft.hasPromptContent) {
-                        setDraftData(draft)
-                    } else {
-                        setDraftData(null)
-                        settingsRepository.clearQuickCreateDraft()
-                    }
-                } catch (_: Exception) {
-                    setDraftData(null)
-                    settingsRepository.clearQuickCreateDraft()
-                }
-            } else {
-                setDraftData(null)
-            }
-        }
+        coordinator.checkForDraft()
     }
 
+    /** 将当前草稿恢复到图片或视频编辑区，并重新调度价格预览。 */
     fun restoreDraft() {
-        val draft = _uiState.value.draftData ?: return
-        val restoredTab = draft.restorableTab
-        _uiState.update {
-            it.copy(
-                currentTab = restoredTab,
-                imageConfig = it.imageConfig.copy(prompt = draft.imagePrompt),
-                videoConfig = it.videoConfig.copy(prompt = draft.videoPrompt),
-            )
-        }
-        clearDraft()
-        scheduleFeePreview()
+        coordinator.restoreDraft()
     }
 
+    /** 放弃当前可恢复草稿。 */
     fun discardDraft() {
-        clearDraft()
+        coordinator.discardDraft()
     }
 
-    private fun clearDraft() {
-        draftSaveJob?.cancel()
-        draftSaveJob = null
-        setDraftData(null)
-        screenModelScope.launch { settingsRepository.clearQuickCreateDraft() }
-    }
-
-    private fun setDraftData(draft: DraftData?) {
-        _uiState.update { it.copy(draftData = draft) }
-    }
-
-    // ── Tab & Prompt ──────────────────────────────────────────────────────────
-
+    /**
+     * 切换快捷创作一级模式。
+     *
+     * @param mode 目标模式，普通创作或灵感模板模式。
+     */
     fun switchMode(mode: QuickCreateMode) {
-        _uiState.update {
-            it.copy(
-                currentMode = mode,
-                activeSheet = if (mode == QuickCreateMode.CREATION) it.activeSheet else null,
-            )
-        }
-        if (mode == QuickCreateMode.INSPIRATION && _uiState.value.inspirationTemplates.isEmpty()) {
-            loadInspiration()
-        }
+        coordinator.switchMode(mode)
     }
 
+    /** 加载灵感模板首页。 */
     fun loadInspiration() {
-        screenModelScope.launch {
-            _uiState.update { it.copy(inspirationLoading = true, error = null) }
-
-            val tagsResult = quickCreateRepository.getInspirationTags()
-            val templatesResult = quickCreateRepository.getInspirationTemplates(
-                page = 1,
-                size = INSPIRATION_TEMPLATE_PAGE_SIZE,
-            )
-
-            _uiState.update { state ->
-                val tags = tagsResult.getOrElse { emptyList() }
-                val templatePage = templatesResult.getOrNull()
-                val templates = templatePage?.items.orEmpty()
-                val error = tagsResult.exceptionOrNull()?.message
-                    ?: templatesResult.exceptionOrNull()?.message
-
-                state.copy(
-                    inspirationLoading = false,
-                    inspirationTags = tags,
-                    inspirationTemplates = templates,
-                    inspirationTemplatesLoadingMore = false,
-                    inspirationTemplatesPage = templatePage?.page ?: 0,
-                    inspirationTemplatesHasMore = templatePage?.hasNext ?: false,
-                    error = error,
-                )
-            }
-        }
+        coordinator.loadInspiration()
     }
 
+    /** 加载更多灵感模板。 */
     fun loadMoreInspirationTemplates() {
-        val current = _uiState.value
-        if (
-            current.inspirationLoading ||
-            current.inspirationTemplatesLoadingMore ||
-            !current.inspirationTemplatesHasMore
-        ) {
-            return
-        }
-
-        val nextPage = current.inspirationTemplatesPage + 1
-        screenModelScope.launch {
-            _uiState.update { it.copy(inspirationTemplatesLoadingMore = true, error = null) }
-
-            val result = quickCreateRepository.getInspirationTemplates(
-                page = nextPage,
-                size = INSPIRATION_TEMPLATE_PAGE_SIZE,
-            )
-
-            _uiState.update { state ->
-                result.fold(
-                    onSuccess = { nextPageResult ->
-                        state.copy(
-                            inspirationTemplates = (state.inspirationTemplates + nextPageResult.items)
-                                .distinctBy { it.templateId },
-                            inspirationTemplatesLoadingMore = false,
-                            inspirationTemplatesPage = nextPageResult.page,
-                            inspirationTemplatesHasMore = nextPageResult.hasNext,
-                        )
-                    },
-                    onFailure = { error ->
-                        state.copy(
-                            inspirationTemplatesLoadingMore = false,
-                            error = error.message,
-                        )
-                    },
-                )
-            }
-        }
+        coordinator.loadMoreInspirationTemplates()
     }
 
+    /**
+     * 应用灵感模板到编辑区。
+     *
+     * @param templateId 模板稳定标识，来源于灵感模板列表。
+     */
     fun applyInspirationTemplate(templateId: String) {
-        if (templateId.isBlank()) return
-        screenModelScope.launch {
-            _uiState.update { it.copy(inspirationLoading = true, error = null) }
-            val result = quickCreateRepository.getInspirationTemplateDetail(templateId)
-            result.fold(
-                onSuccess = { detail ->
-                    _uiState.update { state ->
-                        state.applyTemplateDetail(detail)
-                    }
-                    scheduleFeePreview()
-                },
-                onFailure = { error ->
-                    _uiState.update {
-                        it.copy(
-                            inspirationLoading = false,
-                            error = error.message ?: "模板详情加载失败",
-                        )
-                    }
-                },
-            )
-        }
+        coordinator.applyInspirationTemplate(templateId)
     }
 
+    /**
+     * 切换图片 / 视频编辑 Tab。
+     *
+     * 切换会通过 Coordinator 触发计费预览和草稿自动保存。
+     */
     fun switchTab(tab: QuickCreateTab) {
-        val cost = when (tab) {
-            QuickCreateTab.IMAGE -> _uiState.value.imageConfig.estimatedCost
-            QuickCreateTab.VIDEO -> _uiState.value.videoConfig.estimatedCost
-        }
-        _uiState.update {
-            it.copy(
-                currentTab = tab,
-                estimatedCost = cost,
-                feePreviewLoading = false,
-                feePreviewError = null,
-            )
-        }
-        scheduleFeePreview()
-        autoSaveDraft()
+        coordinator.switchTab(tab)
     }
 
+    /**
+     * 更新图片 Prompt。
+     *
+     * @param prompt 用户输入的图片提示词；空字符串表示清空输入。
+     */
     fun updateImagePrompt(prompt: String) {
-        _uiState.update { it.copy(imageConfig = it.imageConfig.copy(prompt = prompt)) }
-        scheduleFeePreview()
-        autoSaveDraft()
+        coordinator.updateImagePrompt(prompt)
     }
 
+    /**
+     * 更新视频 Prompt。
+     *
+     * @param prompt 用户输入的视频提示词；空字符串表示清空输入。
+     */
     fun updateVideoPrompt(prompt: String) {
-        _uiState.update { it.copy(videoConfig = it.videoConfig.copy(prompt = prompt)) }
-        scheduleFeePreview()
-        autoSaveDraft()
+        coordinator.updateVideoPrompt(prompt)
     }
 
-    /** Debounced auto-save (500ms after last keystroke). */
-    private fun autoSaveDraft() {
-        draftSaveJob?.cancel()
-        draftSaveJob = screenModelScope.launch {
-            delay(500)
-            val state = _uiState.value
-            val draft = DraftData(
-                currentTab = state.currentTab.name,
-                imagePrompt = state.imageConfig.prompt,
-                videoPrompt = state.videoConfig.prompt,
-            )
-            if (draft.hasPromptContent) {
-                settingsRepository.saveQuickCreateDraft(draft.toJsonString())
-            } else {
-                settingsRepository.clearQuickCreateDraft()
-            }
-            setDraftData(null)
-        }
-    }
-
-    // ── Tune Sheet ───────────────────────────────────────────────────────────
-
-    fun setTuneSheetVisible(visible: Boolean) {
-        _uiState.update { it.copy(activeSheet = if (visible) QuickCreateSheet.PARAMS else null) }
-    }
-
+    /** 打开模型选择弹层。 */
     fun showModelPickerSheet() {
-        _uiState.update { it.copy(activeSheet = QuickCreateSheet.MODEL_PICKER) }
+        coordinator.showModelPickerSheet()
     }
 
+    /** 打开参数调节弹层。 */
     fun showParamsSheet() {
-        _uiState.update { it.copy(activeSheet = QuickCreateSheet.PARAMS) }
+        coordinator.showParamsSheet()
     }
 
+    /** 关闭当前模型或参数弹层。 */
     fun closeActiveSheet() {
-        _uiState.update { it.copy(activeSheet = null) }
+        coordinator.closeActiveSheet()
     }
 
-    // ── Parameters ────────────────────────────────────────────────────────────
-
+    /**
+     * 切换图片本地模型。
+     *
+     * @param model 图片本地兜底模型枚举。
+     */
     fun updateImageModel(model: ImageModel) {
-        _uiState.update {
-            val newConfig = it.imageConfig.copy(
-                model = model,
-                aspectRatio = model.defaultAspectRatio,
-                resolution = model.defaultResolution,
-                quality = model.defaultQuality,
-            )
-            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
-        }
-        scheduleFeePreview()
+        coordinator.updateImageModel(model)
     }
 
+    /**
+     * 切换图片服务模型。
+     *
+     * @param model 来自当前图片服务模型目录的模型对象。
+     */
     fun updateImageServiceModel(model: QuickCreationServiceModel) {
-        val selectedModel = _uiState.value.serviceImageModels.firstOrNull { it.matchesServiceIdentity(model) } ?: return
-        _uiState.update {
-            it.copy(
-                selectedImageServiceModel = selectedModel,
-                imageServiceParams = selectedModel.defaultServiceParams(),
-            )
-        }
-        scheduleFeePreview()
+        coordinator.updateImageServiceModel(model)
     }
 
+    /**
+     * 通过 UI 模型身份键切换图片服务模型。
+     *
+     * @param identityKey 模型选择面板回传的稳定身份键，格式由 Presentation 映射层生成。
+     */
+    fun updateImageServiceModel(identityKey: String) {
+        coordinator.updateImageServiceModel(identityKey)
+    }
+
+    /**
+     * 切换视频服务模型。
+     *
+     * @param model 来自当前视频服务模型目录的模型对象。
+     */
     fun updateVideoServiceModel(model: QuickCreationServiceModel) {
-        val selectedModel = _uiState.value.serviceVideoModels.firstOrNull { it.matchesServiceIdentity(model) } ?: return
-        _uiState.update {
-            it.copy(
-                selectedVideoServiceModel = selectedModel,
-                videoServiceParams = selectedModel.defaultServiceParams(),
-            )
-        }
-        scheduleFeePreview()
+        coordinator.updateVideoServiceModel(model)
     }
 
+    /**
+     * 通过 UI 模型身份键切换视频服务模型。
+     *
+     * @param identityKey 模型选择面板回传的稳定身份键，空白或过期 key 会被忽略。
+     */
+    fun updateVideoServiceModel(identityKey: String) {
+        coordinator.updateVideoServiceModel(identityKey)
+    }
+
+    /**
+     * 更新图片服务字段参数。
+     *
+     * @param paramKey 服务字段参数名。
+     * @param value 用户选择或输入的字段值。
+     */
     fun updateImageServiceParam(paramKey: String, value: String) {
-        if (paramKey.isBlank()) return
-        val selectedModel = _uiState.value.selectedImageServiceModel
-        if (selectedModel?.hasFieldParam(paramKey) != true) return
-        val nextParams = _uiState.value.imageServiceParams + (paramKey to value)
-        _uiState.update {
-            it.copy(imageServiceParams = nextParams)
-        }
-        if (paramKey in selectedModel.activeServiceParamKeys(nextParams)) {
-            scheduleFeePreview()
-        }
+        coordinator.updateImageServiceParam(paramKey, value)
     }
 
+    /**
+     * 更新视频服务字段参数。
+     *
+     * @param paramKey 服务字段参数名。
+     * @param value 用户选择或输入的字段值。
+     */
     fun updateVideoServiceParam(paramKey: String, value: String) {
-        if (paramKey.isBlank()) return
-        val selectedModel = _uiState.value.selectedVideoServiceModel
-        if (selectedModel?.hasFieldParam(paramKey) != true) return
-        val nextParams = _uiState.value.videoServiceParams + (paramKey to value)
-        _uiState.update {
-            it.copy(videoServiceParams = nextParams)
-        }
-        if (paramKey in selectedModel.activeServiceParamKeys(nextParams)) {
-            scheduleFeePreview()
-        }
+        coordinator.updateVideoServiceParam(paramKey, value)
     }
 
+    /**
+     * 切换视频本地模型。
+     *
+     * @param model 视频本地兜底模型枚举。
+     */
     fun updateVideoModel(model: VideoModel) {
-        _uiState.update {
-            val newConfig = it.videoConfig.copy(
-                model = model,
-                aspectRatio = model.defaultAspectRatio,
-                resolution = model.defaultResolution,
-                duration = model.defaultDuration,
-                generateAudio = model.supportsGenerateAudio && it.videoConfig.generateAudio,
-                realisticMode = model.supportsRealistic && it.videoConfig.realisticMode,
-            )
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
-        }
-        scheduleFeePreview()
+        coordinator.updateVideoModel(model)
     }
 
+    /** 更新图片宽高比。 */
     fun updateImageAspectRatio(ratio: ImageAspectRatio) {
-        if (ratio !in _uiState.value.imageConfig.model.supportedRatios) return
-        _uiState.update { it.copy(imageConfig = it.imageConfig.copy(aspectRatio = ratio)) }
-        scheduleFeePreview()
+        coordinator.updateImageAspectRatio(ratio)
     }
 
+    /** 更新图片分辨率。 */
     fun updateImageResolution(res: ImageResolution) {
-        if (res !in _uiState.value.imageConfig.model.supportedResolutions) return
-        _uiState.update {
-            val newConfig = it.imageConfig.copy(resolution = res)
-            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
-        }
-        scheduleFeePreview()
+        coordinator.updateImageResolution(res)
     }
 
+    /** 更新图片质量档位。 */
     fun updateImageQuality(quality: ImageQuality) {
-        if (quality !in _uiState.value.imageConfig.model.supportedQualities) return
-        _uiState.update {
-            val newConfig = it.imageConfig.copy(quality = quality)
-            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
-        }
-        scheduleFeePreview()
+        coordinator.updateImageQuality(quality)
     }
 
+    /**
+     * 更新图片生成数量。
+     *
+     * @param count 生成数量，只接受当前模型支持的固定值。
+     */
     fun updateImageCount(count: Int) {
-        if (count !in supportedImageCounts) return
-        _uiState.update {
-            val newConfig = it.imageConfig.copy(count = count)
-            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
-        }
-        scheduleFeePreview()
+        coordinator.updateImageCount(count)
     }
 
+    /**
+     * 更新图片随机种子。
+     *
+     * @param seed 非负整数表示固定种子，`null` 或负数表示交给服务端随机。
+     */
     fun updateImageSeed(seed: Int?) {
-        _uiState.update { it.copy(imageConfig = it.imageConfig.copy(seed = sanitizedSeed(seed))) }
-        scheduleFeePreview()
+        coordinator.updateImageSeed(seed)
     }
 
+    /** 更新视频宽高比。 */
     fun updateVideoAspectRatio(ratio: VideoAspectRatio) {
-        if (ratio !in _uiState.value.videoConfig.model.supportedRatios) return
-        _uiState.update { it.copy(videoConfig = it.videoConfig.copy(aspectRatio = ratio)) }
-        scheduleFeePreview()
+        coordinator.updateVideoAspectRatio(ratio)
     }
 
+    /** 更新视频分辨率。 */
     fun updateVideoResolution(res: VideoResolution) {
-        if (res !in _uiState.value.videoConfig.model.supportedResolutions) return
-        _uiState.update {
-            val newConfig = it.videoConfig.copy(resolution = res)
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
-        }
-        scheduleFeePreview()
+        coordinator.updateVideoResolution(res)
     }
 
+    /** 更新视频时长。 */
     fun updateVideoDuration(duration: VideoDuration) {
-        if (duration !in _uiState.value.videoConfig.model.supportedDurations) return
-        _uiState.update {
-            val newConfig = it.videoConfig.copy(duration = duration)
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
-        }
-        scheduleFeePreview()
+        coordinator.updateVideoDuration(duration)
     }
 
+    /**
+     * 更新视频生成数量。
+     *
+     * @param count 生成数量，只接受当前模型支持的固定值。
+     */
     fun updateVideoCount(count: Int) {
-        if (count !in supportedVideoCounts) return
-        _uiState.update {
-            val newConfig = it.videoConfig.copy(count = count)
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
-        }
-        scheduleFeePreview()
+        coordinator.updateVideoCount(count)
     }
 
+    /**
+     * 更新视频随机种子。
+     *
+     * @param seed 非负整数表示固定种子，`null` 或负数表示交给服务端随机。
+     */
     fun updateVideoSeed(seed: Int?) {
-        _uiState.update { it.copy(videoConfig = it.videoConfig.copy(seed = sanitizedSeed(seed))) }
-        scheduleFeePreview()
+        coordinator.updateVideoSeed(seed)
     }
 
+    /** 切换视频真实模式。 */
     fun toggleRealisticMode() {
-        if (!_uiState.value.videoConfig.model.supportsRealistic) return
-        _uiState.update {
-            it.copy(videoConfig = it.videoConfig.copy(realisticMode = !it.videoConfig.realisticMode))
-        }
-        scheduleFeePreview()
+        coordinator.toggleRealisticMode()
     }
 
+    /** 切换视频生成音频开关。 */
     fun toggleGenerateAudio() {
-        if (!_uiState.value.videoConfig.model.supportsGenerateAudio) return
-        _uiState.update {
-            val newConfig = it.videoConfig.copy(generateAudio = !it.videoConfig.generateAudio)
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
-        }
-        scheduleFeePreview()
+        coordinator.toggleGenerateAudio()
     }
 
-    // ── Media References ─────────────────────────────────────────────────────
-
+    /**
+     * 添加图片 Tab 的全局参考图片。
+     *
+     * @param uriString 用户从平台文件选择器返回的本地 URI 字符串。
+     */
     fun pickImageReference(uriString: String) {
-        if (uriString.isBlank()) return
-        addMediaReference(uriString, QuickCreateMediaType.IMAGE, fieldParamKey = null)
+        coordinator.pickImageReference(uriString)
     }
 
+    /**
+     * 添加视频 Tab 的全局参考视频。
+     *
+     * @param uriString 用户从平台文件选择器返回的本地 URI 字符串。
+     */
     fun pickVideoReference(uriString: String) {
-        if (uriString.isBlank()) return
-        addMediaReference(uriString, QuickCreateMediaType.VIDEO, fieldParamKey = null)
+        coordinator.pickVideoReference(uriString)
     }
 
+    /**
+     * 添加视频 Tab 的全局参考音频。
+     *
+     * @param uriString 用户从平台文件选择器返回的本地 URI 字符串。
+     */
     fun pickAudioReference(uriString: String) {
-        if (uriString.isBlank()) return
-        addMediaReference(uriString, QuickCreateMediaType.AUDIO, fieldParamKey = null)
+        coordinator.pickAudioReference(uriString)
     }
 
+    /**
+     * 为动态服务字段添加图片素材。
+     *
+     * @param uriString 用户选择的本地图片 URI。
+     * @param fieldParamKey 服务字段参数名。
+     */
     fun pickImageReferenceForField(uriString: String, fieldParamKey: String) {
-        if (uriString.isBlank() || fieldParamKey.isBlank()) return
-        addMediaReference(uriString, QuickCreateMediaType.IMAGE, fieldParamKey = fieldParamKey)
+        coordinator.pickImageReferenceForField(uriString, fieldParamKey)
     }
 
+    /**
+     * 为动态服务字段添加视频素材。
+     *
+     * @param uriString 用户选择的本地视频 URI。
+     * @param fieldParamKey 服务字段参数名。
+     */
     fun pickVideoReferenceForField(uriString: String, fieldParamKey: String) {
-        if (uriString.isBlank() || fieldParamKey.isBlank()) return
-        addMediaReference(uriString, QuickCreateMediaType.VIDEO, fieldParamKey = fieldParamKey)
+        coordinator.pickVideoReferenceForField(uriString, fieldParamKey)
     }
 
+    /**
+     * 为动态服务字段添加音频素材。
+     *
+     * @param uriString 用户选择的本地音频 URI。
+     * @param fieldParamKey 服务字段参数名。
+     */
     fun pickAudioReferenceForField(uriString: String, fieldParamKey: String) {
-        if (uriString.isBlank() || fieldParamKey.isBlank()) return
-        addMediaReference(uriString, QuickCreateMediaType.AUDIO, fieldParamKey = fieldParamKey)
+        coordinator.pickAudioReferenceForField(uriString, fieldParamKey)
     }
 
-    private fun addMediaReference(
-        uriString: String,
-        type: QuickCreateMediaType,
-        fieldParamKey: String?,
-    ) {
-        val TAG = "QCScreenModel"
-        val now = Clock.System.now().toEpochMilliseconds()
-        val targetTab = _uiState.value.currentTab
-        val id = "${targetTab.name}_${type.name}_$now"
-        debug(TAG, "addMediaReference: uri=$uriString type=$type")
-        val fileName = mediaResolver.getDisplayName(uriString) ?: "${type.name.lowercase()}_$now"
-        val fileSize = mediaResolver.getFileSizeBytes(uriString)
-        debug(TAG, "addMediaReference: displayName=$fileName size=$fileSize bytes")
-
-        val newRef = MediaReference(
-            id = id,
-            type = type,
-            uri = uriString,
-            displayName = fileName,
-            fileSizeBytes = fileSize,
-            fieldParamKey = fieldParamKey,
-            uploadStatus = UploadStatus.UPLOADING,
-            uploadProgress = 0f,
-        )
-        _uiState.update { state ->
-            if (targetTab == QuickCreateTab.IMAGE) {
-                state.copy(
-                    imageConfig = state.imageConfig.copy(
-                        mediaReferences = state.imageConfig.mediaReferences + newRef
-                    )
-                )
-            } else {
-                state.copy(
-                    videoConfig = state.videoConfig.copy(
-                        mediaReferences = state.videoConfig.mediaReferences + newRef
-                    )
-                )
-            }
-        }
-
-        uploadReference(id, uriString, type, fileName, targetTab)
-    }
-
-    private fun uploadReference(
-        id: String,
-        uriString: String,
-        type: QuickCreateMediaType,
-        fileName: String,
-        targetTab: QuickCreateTab,
-    ) {
-        val TAG = "QCScreenModel"
-        debug(TAG, "uploadReference: START")
-        debug(TAG, "  id       = $id")
-        debug(TAG, "  uri      = $uriString")
-        debug(TAG, "  type     = $type")
-        debug(TAG, "  fileName = $fileName")
-        uploadJobs[id]?.cancel()
-        uploadJobs[id] = screenModelScope.launch {
-            val mimeType = when (type) {
-                QuickCreateMediaType.IMAGE -> "image/jpeg"
-                QuickCreateMediaType.VIDEO -> "video/mp4"
-                QuickCreateMediaType.AUDIO -> "audio/mpeg"
-            }
-            val ext = when (type) {
-                QuickCreateMediaType.IMAGE -> "jpg"
-                QuickCreateMediaType.VIDEO -> "mp4"
-                QuickCreateMediaType.AUDIO -> "mp3"
-            }
-            val actualFileName = "${type.name.lowercase()}_${Clock.System.now().toEpochMilliseconds()}.$ext"
-
-            try {
-                updateReferenceStatus(id, UploadStatus.UPLOADING, 0.1f, targetTab)
-                debug(TAG, "uploadReference: reading bytes from URI...")
-                val bytes = withContext(Dispatchers.IO) {
-                    mediaResolver.readBytes(uriString)
-                }
-                debug(TAG, "uploadReference: read ${bytes.size} bytes")
-                updateReferenceStatus(id, UploadStatus.UPLOADING, 0.7f, targetTab)
-
-                debug(TAG, "uploadReference: calling repository.uploadMedia...")
-                val remoteUrl = quickCreateRepository.uploadMedia(
-                    fileBytes = bytes,
-                    fileName = actualFileName,
-                    mimeType = mimeType
-                ).getOrElse { e ->
-                    debug(TAG, "uploadReference: FAILED - ${e::class.simpleName}: ${e.message}")
-                    throw e
-                }
-
-                debug(TAG, "uploadReference: SUCCESS, remoteUrl = $remoteUrl")
-                updateReferenceStatus(id, UploadStatus.PROCESSING, 0.85f, targetTab)
-
-                _uiState.update { state ->
-                    if (targetTab == QuickCreateTab.IMAGE) {
-                        state.copy(
-                            imageConfig = state.imageConfig.copy(
-                                mediaReferences = state.imageConfig.mediaReferences.map { ref ->
-                                    if (ref.id == id) ref.copy(
-                                        uploadStatus = UploadStatus.DONE,
-                                        uploadProgress = 1f,
-                                        remoteUrl = remoteUrl,
-                                    ) else ref
-                                }
-                            )
-                        )
-                    } else {
-                        state.copy(
-                            videoConfig = state.videoConfig.copy(
-                                mediaReferences = state.videoConfig.mediaReferences.map { ref ->
-                                    if (ref.id == id) ref.copy(
-                                        uploadStatus = UploadStatus.DONE,
-                                        uploadProgress = 1f,
-                                        remoteUrl = remoteUrl,
-                                    ) else ref
-                                }
-                            )
-                        )
-                    }
-                }
-                scheduleFeePreviewForMediaReference(id)
-            } catch (e: Exception) {
-                debug(TAG, "uploadReference: CATCH - ${e::class.simpleName}: ${e.message}")
-                _uiState.update { state ->
-                    if (targetTab == QuickCreateTab.IMAGE) {
-                        state.copy(
-                            imageConfig = state.imageConfig.copy(
-                                mediaReferences = state.imageConfig.mediaReferences.map { ref ->
-                                    if (ref.id == id) ref.copy(uploadStatus = UploadStatus.FAILED) else ref
-                                }
-                            )
-                        )
-                    } else {
-                        state.copy(
-                            videoConfig = state.videoConfig.copy(
-                                mediaReferences = state.videoConfig.mediaReferences.map { ref ->
-                                    if (ref.id == id) ref.copy(uploadStatus = UploadStatus.FAILED) else ref
-                                }
-                            )
-                        )
-                    }
-                }
-                scheduleFeePreviewForMediaReference(id)
-            }
-        }
-    }
-
-    private fun scheduleFeePreviewForMediaReference(id: String) {
-        if (_uiState.value.currentRelevantMediaReferences().any { it.id == id }) {
-            scheduleFeePreview()
-        }
-    }
-
-    private fun MediaReference.affectsFeePreviewRequest(): Boolean =
-        uploadStatus == UploadStatus.DONE && !remoteUrl.isNullOrBlank()
-
-    private fun updateReferenceStatus(
-        id: String,
-        status: UploadStatus,
-        progress: Float,
-        targetTab: QuickCreateTab,
-    ) {
-        _uiState.update { state ->
-            if (targetTab == QuickCreateTab.IMAGE) {
-                state.copy(
-                    imageConfig = state.imageConfig.copy(
-                        mediaReferences = state.imageConfig.mediaReferences.map { ref ->
-                            if (ref.id == id) ref.copy(uploadStatus = status, uploadProgress = progress) else ref
-                        }
-                    )
-                )
-            } else {
-                state.copy(
-                    videoConfig = state.videoConfig.copy(
-                        mediaReferences = state.videoConfig.mediaReferences.map { ref ->
-                            if (ref.id == id) ref.copy(uploadStatus = status, uploadProgress = progress) else ref
-                        }
-                    )
-                )
-            }
-        }
-        scheduleFeePreviewForMediaReference(id)
-    }
-
+    /**
+     * 删除指定媒体引用。
+     *
+     * @param id 媒体引用在页面状态中的稳定标识。
+     */
     fun removeMediaReference(id: String) {
-        val shouldRefreshFeePreview = _uiState.value.currentRelevantMediaReferences()
-            .any { it.id == id }
-        uploadJobs[id]?.cancel()
-        uploadJobs.remove(id)
-        _uiState.update { state ->
-            state.copy(
-                imageConfig = state.imageConfig.copy(
-                    mediaReferences = state.imageConfig.mediaReferences.filter { it.id != id }
-                ),
-                videoConfig = state.videoConfig.copy(
-                    mediaReferences = state.videoConfig.mediaReferences.filter { it.id != id }
-                ),
-            )
-        }
-        if (shouldRefreshFeePreview) {
-            scheduleFeePreview()
-        }
+        coordinator.removeMediaReference(id)
     }
 
-    // ── Error / Results ───────────────────────────────────────────────────────
-
+    /** 清除页面当前错误提示。 */
     fun dismissError() {
-        _uiState.update { it.copy(error = null) }
+        coordinator.dismissError()
     }
 
+    /** 清空当前生成结果并恢复任务展示区域。 */
     fun clearResults() {
-        _uiState.update {
-            it.copy(
-                results = emptyList(),
-                taskStatus = QuickCreateTaskUiStatus.IDLE,
-                statusText = null,
-            )
-        }
+        coordinator.clearResults()
     }
 
-    // ── Generate ──────────────────────────────────────────────────────────────
-
+    /** 提交当前快捷创作任务。 */
     fun generate() {
-        if (_uiState.value.feePreviewLoading) {
-            _uiState.update {
-                it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.IDLE,
-                    statusText = null,
-                    error = "价格确认中",
-                )
-            }
-            return
-        }
-        if (_uiState.value.feePreviewError != null) {
-            val feePreviewError = _uiState.value.feePreviewError
-            _uiState.update {
-                it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.IDLE,
-                    statusText = null,
-                    error = feePreviewError.toGenerateBlockedMessage(),
-                )
-            }
-            return
-        }
-        validateCurrentServiceFields(_uiState.value)?.let { error ->
-            _uiState.update {
-                it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.IDLE,
-                    statusText = null,
-                    error = error,
-                )
-            }
-            return
-        }
-        generationJob?.cancel()
-        generationJob = screenModelScope.launch {
-            _uiState.update {
-                it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
-                    statusText = "正在提交任务...",
-                    error = null,
-                    results = emptyList(),
-                )
-            }
-            try {
-                awaitPendingUploads()
-            } catch (e: IllegalStateException) {
-                _uiState.update {
-                    it.copy(
-                        taskStatus = QuickCreateTaskUiStatus.IDLE,
-                        statusText = null,
-                        error = e.message,
-                    )
-                }
-                return@launch
-            }
-            validateCurrentServiceUploads(_uiState.value)?.let { error ->
-                _uiState.update {
-                    it.copy(
-                        taskStatus = QuickCreateTaskUiStatus.IDLE,
-                        statusText = null,
-                        error = error,
-                    )
-                }
-                return@launch
-            }
-            when (_uiState.value.currentTab) {
-                QuickCreateTab.IMAGE -> generateImage()
-                QuickCreateTab.VIDEO -> generateVideo()
-            }
-        }
-    }
-
-    private suspend fun awaitPendingUploads() {
-        val mediaRefs = _uiState.value.currentRelevantMediaReferences()
-        val alreadyFailed = mediaRefs.filter { it.uploadStatus == UploadStatus.FAILED }
-        if (alreadyFailed.isNotEmpty()) {
-            throw IllegalStateException("素材上传失败: ${alreadyFailed.joinToString { it.displayName }}")
-        }
-        val pending = mediaRefs.filter { it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING }
-        if (pending.isEmpty()) return
-
-        _uiState.update { it.copy(statusText = "正在上传素材(${pending.size})...") }
-
-        val pendingIds = pending.map { it.id }.toSet()
-        var waited = 0
-        while (waited < 120) {
-            delay(500)
-            waited++
-            val stillPending = _uiState.value.let { state ->
-                state.currentRelevantMediaReferences().filter {
-                    it.id in pendingIds &&
-                        (it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING)
-                }
-                    .map { it.id }
-                    .toSet()
-            }
-            if (stillPending.isEmpty()) return
-        }
-
-        val failed = _uiState.value.let { state ->
-            state.currentRelevantMediaReferences()
-                .filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
-        }
-        if (failed.isNotEmpty()) {
-            throw IllegalStateException("素材上传失败: ${failed.joinToString { it.displayName }}")
-        }
-        val timedOut = _uiState.value.let { state ->
-            state.currentRelevantMediaReferences()
-                .filter {
-                    it.id in pendingIds &&
-                        (it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING)
-                }
-        }
-        if (timedOut.isNotEmpty()) {
-            throw IllegalStateException("素材上传超时: ${timedOut.joinToString { it.displayName }}")
-        }
-    }
-
-    private fun QuickCreateUiState.currentRelevantMediaReferences(): List<MediaReference> =
-        when (currentTab) {
-            QuickCreateTab.IMAGE -> imageConfig.mediaReferences.quickCreationRelevantMediaReferences(
-                activeFieldParamKeys = selectedImageServiceModel.quickCreationActiveUploadParamKeys(imageServiceParams),
-            )
-            QuickCreateTab.VIDEO -> videoConfig.mediaReferences.quickCreationRelevantMediaReferences(
-                activeFieldParamKeys = selectedVideoServiceModel.quickCreationActiveUploadParamKeys(videoServiceParams),
-            )
-        }
-
-    private suspend fun generateImage() {
-        val config = _uiState.value.imageConfig
-        val prompt = config.prompt.trim()
-        val promptError = when {
-            prompt.isEmpty() -> "请输入描述词"
-            config.promptOverLimit -> "描述词不能超过 $MAX_PROMPT_CHARS 个字符"
-            else -> null
-        }
-        if (promptError != null) {
-            _uiState.update {
-                it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.IDLE,
-                    statusText = null,
-                    error = promptError,
-                )
-            }
-            return
-        }
-
-        quickCreateRepository.generateImage(
-            buildImageGenerationRequest(_uiState.value, requirePrompt = true) ?: return
-        ).collect { status ->
-            handleTaskStatus(status)
-        }
-    }
-
-    private fun scheduleFeePreview() {
-        feePreviewJob?.cancel()
-        val requestSeq = ++feePreviewRequestSeq
-        if (!hasFeePreviewRequest(_uiState.value)) {
-            _uiState.update {
-                it.copy(
-                    feePreviewLoading = false,
-                    feePreviewError = null,
-                    estimatedCost = it.currentLocalEstimatedCost(),
-                )
-            }
-            return
-        }
-
-        _uiState.update { it.copy(feePreviewLoading = true, feePreviewError = null) }
-        feePreviewJob = screenModelScope.launch {
-            delay(FEE_PREVIEW_DEBOUNCE_MS)
-            if (_uiState.value.currentTab == QuickCreateTab.VIDEO) {
-                val latestRequest = buildVideoGenerationRequest(_uiState.value, requirePrompt = true)
-                if (latestRequest == null) {
-                    if (isCurrentFeePreviewRequest(requestSeq)) {
-                        clearFeePreviewState()
-                    }
-                    return@launch
-                }
-                quickCreateRepository.previewVideoQuickCreationFee(latestRequest).fold(
-                    onSuccess = { preview ->
-                        if (isCurrentFeePreviewRequest(requestSeq)) {
-                            applyFeePreview(preview)
-                        }
-                    },
-                    onFailure = { error ->
-                        if (isCurrentFeePreviewRequest(requestSeq)) {
-                            applyFeePreviewError(error)
-                        }
-                    },
-                )
-                return@launch
-            }
-            val latestRequest = buildImageGenerationRequest(_uiState.value, requirePrompt = true)
-            if (latestRequest == null) {
-                if (isCurrentFeePreviewRequest(requestSeq)) {
-                    clearFeePreviewState()
-                }
-                return@launch
-            }
-
-            quickCreateRepository.previewImageQuickCreationFee(latestRequest).fold(
-                onSuccess = { preview ->
-                    if (isCurrentFeePreviewRequest(requestSeq)) {
-                        applyFeePreview(preview)
-                    }
-                },
-                onFailure = { error ->
-                    if (!isCurrentFeePreviewRequest(requestSeq)) return@fold
-                    _uiState.update {
-                        it.copy(
-                            estimatedCost = it.currentLocalEstimatedCost(),
-                            feePreviewLoading = false,
-                            feePreviewError = error.message ?: "价格预览失败",
-                        )
-                    }
-                },
-            )
-        }
-    }
-
-    private fun isCurrentFeePreviewRequest(requestSeq: Long): Boolean =
-        requestSeq == feePreviewRequestSeq
-
-    private fun hasFeePreviewRequest(state: QuickCreateUiState): Boolean {
-        val canBuildRequest = when (state.currentTab) {
-            QuickCreateTab.IMAGE -> buildImageGenerationRequest(state, requirePrompt = true) != null
-            QuickCreateTab.VIDEO -> buildVideoGenerationRequest(state, requirePrompt = true) != null
-        }
-        return canBuildRequest &&
-            validateCurrentServiceFields(state) == null &&
-            validateCurrentServiceUploads(state) == null &&
-            !state.hasUnreadyFeePreviewMediaReferences()
-    }
-
-    private fun QuickCreateUiState.hasUnreadyFeePreviewMediaReferences(): Boolean =
-        currentRelevantMediaReferences().any { reference ->
-            reference.uploadStatus == UploadStatus.FAILED ||
-                reference.uploadStatus == UploadStatus.UPLOADING ||
-                reference.uploadStatus == UploadStatus.PROCESSING
-        }
-
-    private fun QuickCreateUiState.currentLocalEstimatedCost(): Double =
-        if (currentTab == QuickCreateTab.IMAGE) {
-            imageConfig.estimatedCost
-        } else {
-            videoConfig.estimatedCost
-        }
-
-    private fun clearFeePreviewState() {
-        _uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null) }
-    }
-
-    private fun applyFeePreview(
-        preview: com.runninghub.shared.domain.repository.QuickCreationFeePreview,
-    ) {
-        val previewCost = when {
-            preview.free -> 0.0
-            preview.requiredCashAmount > 0.0 -> preview.requiredCashAmount
-            else -> preview.requiredRhAmount
-        }
-        val previewError = if (!preview.passed || preview.insufficientType != null) {
-            FEE_PREVIEW_NOT_PASSED_ERROR
-        } else {
-            null
-        }
-        _uiState.update {
-            it.copy(
-                estimatedCost = if (previewError == null) previewCost else it.currentLocalEstimatedCost(),
-                feePreviewLoading = false,
-                feePreviewError = previewError,
-            )
-        }
-    }
-
-    private fun String?.toGenerateBlockedMessage(): String =
-        if (this == FEE_PREVIEW_NOT_PASSED_ERROR) {
-            this
-        } else {
-            "价格待确认"
-        }
-
-    private fun applyFeePreviewError(error: Throwable) {
-        _uiState.update {
-            it.copy(
-                estimatedCost = it.currentLocalEstimatedCost(),
-                feePreviewLoading = false,
-                feePreviewError = error.message ?: "价格预览失败",
-            )
-        }
-    }
-
-    private fun buildImageGenerationRequest(
-        state: QuickCreateUiState,
-        requirePrompt: Boolean,
-    ): ImageGenerationRequest? {
-        if (state.currentTab != QuickCreateTab.IMAGE) return null
-        val config = state.imageConfig
-        val prompt = config.prompt.trim()
-        if ((requirePrompt && prompt.isEmpty()) || config.promptOverLimit) return null
-        val globalMediaReferences = config.mediaReferences.quickCreationGlobalMediaReferences()
-        val imageRef = globalMediaReferences
-            .filter { it.type == QuickCreateMediaType.IMAGE && it.uploadStatus == UploadStatus.DONE }
-            .firstOrNull { it.remoteUrl != null }
-
-        return ImageGenerationRequest(
-            prompt = prompt,
-            model = config.model.apiValue,
-            aspectRatio = config.aspectRatio.apiValue,
-            resolution = config.resolution.apiValue,
-            quality = config.quality.apiValue,
-            referenceImageUri = imageRef?.remoteUrl,
-            numImages = config.count,
-            seed = config.seed,
-            quickCreationCategoryId = state.selectedImageServiceModel?.categoryId,
-            quickCreationBindingId = state.selectedImageServiceModel?.bindingId,
-            quickCreationSkuId = state.selectedImageServiceModel?.skuId,
-            quickCreationParams = imageQuickCreationParams(
-                model = state.selectedImageServiceModel,
-                config = config,
-                serviceParams = state.imageServiceParams,
-            ),
-            quickCreationListParams = imageQuickCreationListParams(
-                model = state.selectedImageServiceModel,
-                config = config,
-                serviceParams = state.imageServiceParams,
-            ),
-        )
-    }
-
-    private fun buildVideoGenerationRequest(
-        state: QuickCreateUiState,
-        requirePrompt: Boolean,
-    ): VideoGenerationRequest? {
-        if (state.currentTab != QuickCreateTab.VIDEO) return null
-        val config = state.videoConfig
-        val prompt = config.prompt.trim()
-        if ((requirePrompt && prompt.isEmpty()) || config.promptOverLimit) return null
-        val globalMediaReferences = config.mediaReferences.quickCreationGlobalMediaReferences()
-        val imageRef = globalMediaReferences
-            .filter { it.type == QuickCreateMediaType.IMAGE && it.uploadStatus == UploadStatus.DONE }
-            .firstOrNull { it.remoteUrl != null }
-        val videoRef = globalMediaReferences
-            .filter { it.type == QuickCreateMediaType.VIDEO && it.uploadStatus == UploadStatus.DONE }
-            .firstOrNull { it.remoteUrl != null }
-        val audioRef = globalMediaReferences
-            .filter { it.type == QuickCreateMediaType.AUDIO && it.uploadStatus == UploadStatus.DONE }
-            .firstOrNull { it.remoteUrl != null }
-
-        return VideoGenerationRequest(
-            prompt = prompt,
-            model = config.model.apiValue,
-            apiTier = config.model.apiTier.name,
-            aspectRatio = config.aspectRatio.apiValue,
-            duration = config.duration.seconds,
-            resolution = config.resolution.apiValue,
-            referenceImageUri = imageRef?.remoteUrl,
-            referenceVideoUri = videoRef?.remoteUrl,
-            referenceAudioUri = audioRef?.remoteUrl,
-            realistic = config.realisticMode,
-            generateAudio = config.generateAudio,
-            numVideos = config.count,
-            seed = config.seed,
-            quickCreationCategoryId = state.selectedVideoServiceModel?.categoryId,
-            quickCreationBindingId = state.selectedVideoServiceModel?.bindingId,
-            quickCreationSkuId = state.selectedVideoServiceModel?.skuId,
-            quickCreationParams = videoQuickCreationParams(
-                model = state.selectedVideoServiceModel,
-                config = config,
-                serviceParams = state.videoServiceParams,
-            ),
-            quickCreationListParams = videoQuickCreationListParams(
-                model = state.selectedVideoServiceModel,
-                config = config,
-                serviceParams = state.videoServiceParams,
-            ),
-        )
-    }
-
-    private fun imageQuickCreationParams(
-        model: QuickCreationServiceModel?,
-        config: ImageConfig,
-        serviceParams: Map<String, String>,
-    ): Map<String, String> =
-        buildMap {
-            put("aspectRatio", config.aspectRatio.apiValue)
-            put("resolution", config.resolution.apiValue)
-            put("quality", config.quality.apiValue)
-
-            putAll(model.defaultServiceParams(serviceParams))
-            putAll(
-                serviceParams
-                    .filterKeys { key -> key in model.activeServiceParamKeys(serviceParams) }
-                    .filterValues { it.isNotBlank() }
-            )
-        }
-
-    private fun imageQuickCreationListParams(
-        model: QuickCreationServiceModel?,
-        config: ImageConfig,
-        serviceParams: Map<String, String>,
-    ): Map<String, List<String>> =
-        quickCreationListParams(
-            model = model,
-            mediaReferences = config.mediaReferences,
-            fallbackMediaType = QuickCreateMediaType.IMAGE,
-            serviceParams = serviceParams,
-        )
-
-    private fun videoQuickCreationParams(
-        model: QuickCreationServiceModel?,
-        config: VideoConfig,
-        serviceParams: Map<String, String>,
-    ): Map<String, String> =
-        buildMap {
-            put("aspectRatio", config.aspectRatio.apiValue)
-            put("resolution", config.resolution.apiValue)
-            put("duration", config.duration.seconds.toString())
-
-            putAll(model.defaultServiceParams(serviceParams))
-            putAll(
-                serviceParams
-                    .filterKeys { key -> key in model.activeServiceParamKeys(serviceParams) }
-                    .filterValues { it.isNotBlank() }
-            )
-        }
-
-    private fun videoQuickCreationListParams(
-        model: QuickCreationServiceModel?,
-        config: VideoConfig,
-        serviceParams: Map<String, String>,
-    ): Map<String, List<String>> =
-        quickCreationListParams(
-            model = model,
-            mediaReferences = config.mediaReferences,
-            fallbackMediaType = null,
-            serviceParams = serviceParams,
-        )
-
-    private fun quickCreationListParams(
-        model: QuickCreationServiceModel?,
-        mediaReferences: List<MediaReference>,
-        fallbackMediaType: QuickCreateMediaType?,
-        serviceParams: Map<String, String>,
-    ): Map<String, List<String>> {
-        val urlsByType = mediaReferences
-            .filter { it.uploadStatus == UploadStatus.DONE }
-            .filter { it.fieldParamKey.isNullOrBlank() }
-            .groupBy { it.type }
-            .mapValues { (_, refs) ->
-                refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
-            }
-        val urlsByField = mediaReferences
-            .filter { it.uploadStatus == UploadStatus.DONE }
-            .filter { !it.fieldParamKey.isNullOrBlank() }
-            .groupBy { it.fieldParamKey.orEmpty() }
-            .mapValues { (_, refs) ->
-                refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
-            }
-        val uploadFieldCountByType = model.uploadFieldCountByType(serviceParams, fallbackMediaType)
-
-        return buildMap {
-            model.uploadFields().forEach { field ->
-                val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@forEach
-                val urls = urlsByField[field.paramKey].orEmpty().ifEmpty {
-                    urlsByType.fallbackUrlsForSingleUploadField(mediaType, uploadFieldCountByType)
-                }
-                if (urls.isNotEmpty()) {
-                    val maxCount = field.maxUploadCount ?: urls.size
-                    put(field.paramKey, urls.take(maxCount))
-                }
-            }
-            model.activeChildUploadFields(serviceParams).forEach { child ->
-                val mediaType = child.uploadMediaType() ?: fallbackMediaType ?: return@forEach
-                val urls = urlsByField[child.paramKey].orEmpty().ifEmpty {
-                    urlsByType.fallbackUrlsForSingleUploadField(mediaType, uploadFieldCountByType)
-                }
-                if (urls.isNotEmpty()) {
-                    val maxCount = child.maxInputCount ?: urls.size
-                    put(child.paramKey, urls.take(maxCount))
-                }
-            }
-        }
-    }
-
-    private fun QuickCreationServiceModel?.defaultServiceParams(
-        activeParams: Map<String, String> = emptyMap(),
-    ): Map<String, String> {
-        val visibleFields = this?.fields.orEmpty()
-            .filter { it.visible }
-        val topLevelDefaults = visibleFields
-            .mapNotNull { field ->
-                val value = field.defaultValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                field.paramKey to value
-            }
-            .toMap()
-        val aliasedDefaults = quickCreationParamsWithFieldAliases(topLevelDefaults + activeParams)
-        return buildMap {
-            putAll(topLevelDefaults)
-            visibleFields.forEach { field ->
-                field.quickCreationActiveInputChildren(aliasedDefaults)
-                    .mapNotNull { child ->
-                        val value = child.defaultValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
-                        child.paramKey to value
-                    }
-                    .forEach { (paramKey, value) -> put(paramKey, value) }
-            }
-        }
-    }
-
-    private fun QuickCreationServiceModel.hasFieldParam(paramKey: String): Boolean =
-        fields.any { field ->
-            field.paramKey == paramKey ||
-                field.inputExtra?.inputChildren.orEmpty().any { child -> child.paramKey == paramKey }
-        }
-
-    private fun QuickCreationServiceModel?.activeServiceParamKeys(
-        serviceParams: Map<String, String>,
-    ): Set<String> {
-        val aliasedParams = quickCreationParamsWithFieldAliases(serviceParams)
-        return this?.fields.orEmpty()
-            .filter { it.visible }
-            .flatMap { field ->
-                listOf(field.paramKey) + field.quickCreationActiveInputChildren(aliasedParams).map { it.paramKey }
-            }
-            .toSet()
-    }
-
-    private fun validateCurrentServiceFields(state: QuickCreateUiState): String? =
-        when (state.currentTab) {
-            QuickCreateTab.IMAGE -> validateServiceFields(
-                model = state.selectedImageServiceModel,
-                serviceParams = state.imageServiceParams,
-            )
-            QuickCreateTab.VIDEO -> validateServiceFields(
-                model = state.selectedVideoServiceModel,
-                serviceParams = state.videoServiceParams,
-            )
-        }
-
-    private fun validateServiceFields(
-        model: QuickCreationServiceModel?,
-        serviceParams: Map<String, String>,
-    ): String? {
-        val defaults = model.defaultServiceParams(serviceParams)
-        val aliasedParams = model.quickCreationParamsWithFieldAliases(serviceParams)
-        return model?.fields.orEmpty()
-            .filter { it.visible }
-            .firstNotNullOfOrNull { field ->
-                if (field.isQuickCreationPromptField()) {
-                    return@firstNotNullOfOrNull null
-                }
-                if (field.options.isNotEmpty()) {
-                    val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
-                    if (field.required && value.isBlank()) {
-                        return@firstNotNullOfOrNull "${field.quickCreationFieldTitle()} 不能为空"
-                    }
-                    if (value.isNotBlank() && field.options.none { option -> option.value == value }) {
-                        return@firstNotNullOfOrNull "${field.quickCreationFieldTitle()} 选项无效"
-                    }
-                }
-                if (field.supportsQuickCreationTextEntry()) {
-                    val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
-                    field.quickCreationTextValidationError(value)?.let { return@firstNotNullOfOrNull it }
-                }
-                field.quickCreationActiveInputChildren(aliasedParams)
-                    .firstNotNullOfOrNull { child ->
-                        val value = serviceParams[child.paramKey] ?: child.defaultValue.orEmpty()
-                        if (child.options.isNotEmpty() && child.required && value.isBlank()) {
-                            return@firstNotNullOfOrNull "${child.quickCreationFieldTitle()} 不能为空"
-                        }
-                        if (child.options.isNotEmpty() && value.isNotBlank() && child.options.none { option -> option.value == value }) {
-                            return@firstNotNullOfOrNull "${child.quickCreationFieldTitle()} 选项无效"
-                        }
-                        if (child.supportsQuickCreationTextEntry()) {
-                            return@firstNotNullOfOrNull child.quickCreationTextValidationError(value)
-                        }
-                        null
-                    }
-            }
-    }
-
-    private fun QuickCreationServiceField.isQuickCreationPromptField(): Boolean =
-        fieldKey.isQuickCreationPromptParamKey() || paramKey.isQuickCreationPromptParamKey()
-
-    private fun String.isQuickCreationPromptParamKey(): Boolean =
-        equals("prompt", ignoreCase = true) || equals("promptAi", ignoreCase = true)
-
-    private fun validateCurrentServiceUploads(state: QuickCreateUiState): String? =
-        when (state.currentTab) {
-            QuickCreateTab.IMAGE -> validateServiceUploads(
-                model = state.selectedImageServiceModel,
-                mediaReferences = state.imageConfig.mediaReferences,
-                fallbackMediaType = QuickCreateMediaType.IMAGE,
-                serviceParams = state.imageServiceParams,
-            )
-            QuickCreateTab.VIDEO -> validateServiceUploads(
-                model = state.selectedVideoServiceModel,
-                mediaReferences = state.videoConfig.mediaReferences,
-                fallbackMediaType = null,
-                serviceParams = state.videoServiceParams,
-            )
-        }
-
-    private fun validateServiceUploads(
-        model: QuickCreationServiceModel?,
-        mediaReferences: List<MediaReference>,
-        fallbackMediaType: QuickCreateMediaType?,
-        serviceParams: Map<String, String>,
-    ): String? {
-        val urlsByType = mediaReferences
-            .filter { it.uploadStatus == UploadStatus.DONE }
-            .filter { it.fieldParamKey.isNullOrBlank() }
-            .groupBy { it.type }
-            .mapValues { (_, refs) ->
-                refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
-            }
-        val urlsByField = mediaReferences
-            .filter { it.uploadStatus == UploadStatus.DONE }
-            .filter { !it.fieldParamKey.isNullOrBlank() }
-            .groupBy { it.fieldParamKey.orEmpty() }
-            .mapValues { (_, refs) ->
-                refs.mapNotNull { it.remoteUrl?.takeIf { url -> url.isNotBlank() } }
-            }
-        val uploadFieldCountByType = model.uploadFieldCountByType(serviceParams, fallbackMediaType)
-        model.uploadFields()
-            .firstNotNullOfOrNull { field ->
-                val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@firstNotNullOfOrNull null
-                val uploadedCount = urlsByField[field.paramKey].orEmpty()
-                    .ifEmpty { urlsByType.fallbackUrlsForSingleUploadField(mediaType, uploadFieldCountByType) }
-                    .size
-                field.quickCreationUploadValidationError(uploadedCount)
-            }
-            ?.let { return it }
-        return model.activeChildUploadFields(serviceParams)
-            .firstNotNullOfOrNull { child ->
-                val mediaType = child.uploadMediaType() ?: fallbackMediaType ?: return@firstNotNullOfOrNull null
-                val uploadedCount = urlsByField[child.paramKey].orEmpty()
-                    .ifEmpty { urlsByType.fallbackUrlsForSingleUploadField(mediaType, uploadFieldCountByType) }
-                    .size
-                child.quickCreationUploadValidationError(uploadedCount)
-            }
-    }
-
-    private fun QuickCreationServiceModel?.uploadFieldCountByType(
-        serviceParams: Map<String, String>,
-        fallbackMediaType: QuickCreateMediaType?,
-    ): Map<QuickCreateMediaType, Int> =
-        buildMap {
-            this@uploadFieldCountByType.uploadFields().forEach { field ->
-                val mediaType = field.uploadMediaType() ?: fallbackMediaType ?: return@forEach
-                put(mediaType, getOrDefault(mediaType, 0) + 1)
-            }
-            this@uploadFieldCountByType.activeChildUploadFields(serviceParams).forEach { child ->
-                val mediaType = child.uploadMediaType() ?: fallbackMediaType ?: return@forEach
-                put(mediaType, getOrDefault(mediaType, 0) + 1)
-            }
-        }
-
-    private fun Map<QuickCreateMediaType, List<String>>.fallbackUrlsForSingleUploadField(
-        mediaType: QuickCreateMediaType,
-        uploadFieldCountByType: Map<QuickCreateMediaType, Int>,
-    ): List<String> =
-        if (uploadFieldCountByType[mediaType] == 1) {
-            get(mediaType).orEmpty()
-        } else {
-            emptyList()
-        }
-
-    private fun QuickCreationServiceModel?.uploadFields(): List<QuickCreationServiceField> =
-        this?.fields.orEmpty().filter { it.isQuickCreationServiceFieldRenderable() && it.isQuickCreationUploadField() }
-
-    private fun QuickCreationServiceModel?.activeChildUploadFields(
-        serviceParams: Map<String, String>,
-    ): List<QuickCreationServiceFieldInputChild> {
-        val aliasedParams = quickCreationParamsWithFieldAliases(serviceParams)
-        return this?.fields.orEmpty()
-            .filter { it.visible }
-            .flatMap { field -> field.quickCreationActiveInputChildren(aliasedParams) }
-            .filter { it.isQuickCreationUploadField() }
-    }
-
-    private fun QuickCreationServiceField.uploadMediaType(): QuickCreateMediaType? {
-        return quickCreationUploadMediaType()
-    }
-
-    private fun QuickCreationServiceFieldInputChild.uploadMediaType(): QuickCreateMediaType? {
-        return quickCreationUploadMediaType()
-    }
-
-    private fun QuickCreationServiceModel.matchesServiceIdentity(other: QuickCreationServiceModel?): Boolean =
-        other != null && bindingId == other.bindingId && skuId == other.skuId
-
-    private fun hasSameServiceIdentity(
-        first: QuickCreationServiceModel?,
-        second: QuickCreationServiceModel?,
-    ): Boolean =
-        first != null && first.matchesServiceIdentity(second)
-
-    private fun QuickCreateUiState.applyTemplateDetail(
-        detail: QuickCreateInspirationTemplateDetail,
-    ): QuickCreateUiState {
-        val category = detail.categoryId?.uppercase()
-        return when (category) {
-            "VIDEO" -> applyVideoTemplateDetail(detail)
-            else -> applyImageTemplateDetail(detail)
-        }
-    }
-
-    private fun QuickCreateUiState.applyImageTemplateDetail(
-        detail: QuickCreateInspirationTemplateDetail,
-    ): QuickCreateUiState {
-        val selectedModel = serviceImageModels.matchTemplateModel(detail) ?: selectedImageServiceModel
-        val templateParams = selectedModel.canonicalTemplateParams(detail.params)
-        val serviceParams = selectedModel.defaultServiceParams(templateParams) + templateParams
-        val imageModel = imageConfig.model
-        val templateAspectRatio = detail.params.templateImageAspectRatio()
-            ?.takeIf { it in imageModel.supportedRatios }
-        val templateResolution = detail.params.templateImageResolution()
-            ?.takeIf { it in imageModel.supportedResolutions }
-        val templateQuality = detail.params.templateImageQuality()
-            ?.takeIf { it in imageModel.supportedQualities }
-        val nextConfig = imageConfig.copy(
-            prompt = detail.prompt ?: imageConfig.prompt,
-            aspectRatio = templateAspectRatio ?: imageConfig.aspectRatio,
-            resolution = templateResolution ?: imageConfig.resolution,
-            quality = templateQuality ?: imageConfig.quality,
-            mediaReferences = detail.templateMediaReferences(
-                activeFieldParamAliases = selectedModel.quickCreationActiveUploadParamAliases(serviceParams),
-                declaredFieldParamAliases = selectedModel.quickCreationDeclaredUploadParamAliases(),
-            ),
-        )
-        return copy(
-            currentMode = QuickCreateMode.CREATION,
-            currentTab = QuickCreateTab.IMAGE,
-            inspirationLoading = false,
-            selectedImageServiceModel = selectedModel,
-            imageConfig = nextConfig,
-            imageServiceParams = serviceParams,
-            estimatedCost = nextConfig.estimatedCost,
-        )
-    }
-
-    private fun QuickCreateUiState.applyVideoTemplateDetail(
-        detail: QuickCreateInspirationTemplateDetail,
-    ): QuickCreateUiState {
-        val selectedModel = serviceVideoModels.matchTemplateModel(detail) ?: selectedVideoServiceModel
-        val templateParams = selectedModel.canonicalTemplateParams(detail.params)
-        val serviceParams = selectedModel.defaultServiceParams(templateParams) + templateParams
-        val videoModel = videoConfig.model
-        val templateAspectRatio = detail.params.templateVideoAspectRatio()
-            ?.takeIf { it in videoModel.supportedRatios }
-        val templateResolution = detail.params.templateVideoResolution()
-            ?.takeIf { it in videoModel.supportedResolutions }
-        val templateDuration = detail.params.templateVideoDuration()
-            ?.takeIf { it in videoModel.supportedDurations }
-        val templateGenerateAudio = detail.params.templateBoolean("generateAudio")
-            ?: videoConfig.generateAudio
-        val templateRealisticMode = detail.params.templateBoolean("realPersonMode")
-            ?: videoConfig.realisticMode
-        val nextConfig = videoConfig.copy(
-            prompt = detail.prompt ?: videoConfig.prompt,
-            aspectRatio = templateAspectRatio ?: videoConfig.aspectRatio,
-            resolution = templateResolution ?: videoConfig.resolution,
-            duration = templateDuration ?: videoConfig.duration,
-            generateAudio = videoModel.supportsGenerateAudio && templateGenerateAudio,
-            realisticMode = videoModel.supportsRealistic && templateRealisticMode,
-            mediaReferences = detail.templateMediaReferences(
-                activeFieldParamAliases = selectedModel.quickCreationActiveUploadParamAliases(serviceParams),
-                declaredFieldParamAliases = selectedModel.quickCreationDeclaredUploadParamAliases(),
-            ),
-        )
-        return copy(
-            currentMode = QuickCreateMode.CREATION,
-            currentTab = QuickCreateTab.VIDEO,
-            inspirationLoading = false,
-            selectedVideoServiceModel = selectedModel,
-            videoConfig = nextConfig,
-            videoServiceParams = serviceParams,
-            estimatedCost = nextConfig.estimatedCost,
-        )
-    }
-
-    private fun List<QuickCreationServiceModel>.matchTemplateModel(
-        detail: QuickCreateInspirationTemplateDetail,
-    ): QuickCreationServiceModel? =
-        firstOrNull { model ->
-            (detail.bindingId != null && model.bindingId == detail.bindingId) ||
-                (detail.skuId != null && model.skuId == detail.skuId)
-        }
-
-    private fun QuickCreateInspirationTemplateDetail.templateMediaReferences(
-        activeFieldParamAliases: Map<String, QuickCreationUploadFieldAlias>,
-        declaredFieldParamAliases: Map<String, String>,
-    ): List<MediaReference> =
-        listParams.entries.flatMapIndexed { fieldIndex, (key, values) ->
-            val activeFieldAlias = activeFieldParamAliases[key]
-            val mediaType = activeFieldAlias?.mediaType ?: key.templateMediaType()
-            val fieldParamKey = when {
-                activeFieldAlias != null -> activeFieldAlias.paramKey
-                key in declaredFieldParamAliases -> return@flatMapIndexed emptyList()
-                else -> null
-            }
-            values.mapIndexed { index, url ->
-                MediaReference(
-                    id = "template_${categoryId.templateCategoryIdPart()}_${templateId}_${fieldIndex}_${key.templateReferenceIdPart()}_${mediaType.name}_$index",
-                    type = mediaType,
-                    uri = url,
-                    displayName = url.substringAfterLast('/').ifBlank { "${mediaType.name.lowercase()}_$index" },
-                    fileSizeBytes = 0L,
-                    fieldParamKey = fieldParamKey,
-                    uploadStatus = UploadStatus.DONE,
-                    uploadProgress = 1f,
-                    remoteUrl = url,
-                )
-            }
-        }
-
-    private fun QuickCreationServiceModel?.quickCreationActiveUploadParamAliases(
-        serviceParams: Map<String, String>,
-    ): Map<String, QuickCreationUploadFieldAlias> {
-        val aliasedParams = quickCreationParamsWithFieldAliases(serviceParams)
-        return buildMap {
-            this@quickCreationActiveUploadParamAliases?.fields.orEmpty()
-                .filter { it.visible }
-                .forEach { field ->
-                    if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {
-                        putActiveUploadAliases(
-                            fieldKey = field.fieldKey,
-                            paramKey = field.paramKey,
-                            mediaType = field.quickCreationUploadMediaType(),
-                        )
-                    }
-                    field.quickCreationActiveInputChildren(aliasedParams)
-                        .filter { it.isQuickCreationUploadField() }
-                        .forEach { child ->
-                            putActiveUploadAliases(
-                                fieldKey = child.fieldKey,
-                                paramKey = child.paramKey,
-                                mediaType = child.quickCreationUploadMediaType(),
-                            )
-                        }
-                }
-        }
-    }
-
-    private fun QuickCreationServiceModel?.quickCreationDeclaredUploadParamAliases(): Map<String, String> =
-        buildMap {
-            this@quickCreationDeclaredUploadParamAliases?.fields.orEmpty()
-                .filter { it.visible }
-                .forEach { field ->
-                    if (field.isQuickCreationServiceFieldRenderable() && field.isQuickCreationUploadField()) {
-                        putDeclaredUploadAliases(field.fieldKey, field.paramKey)
-                    }
-                    field.inputExtra?.inputChildren.orEmpty()
-                        .filter { it.isQuickCreationServiceFieldRenderable() && it.isQuickCreationUploadField() }
-                        .forEach { child -> putDeclaredUploadAliases(child.fieldKey, child.paramKey) }
-                }
-        }
-
-    private data class QuickCreationUploadFieldAlias(
-        val paramKey: String,
-        val mediaType: QuickCreateMediaType?,
-    )
-
-    private fun MutableMap<String, QuickCreationUploadFieldAlias>.putActiveUploadAliases(
-        fieldKey: String,
-        paramKey: String,
-        mediaType: QuickCreateMediaType?,
-    ) {
-        val alias = QuickCreationUploadFieldAlias(paramKey = paramKey, mediaType = mediaType)
-        if (fieldKey.isNotBlank()) put(fieldKey, alias)
-        if (paramKey.isNotBlank()) put(paramKey, alias)
-    }
-
-    private fun MutableMap<String, String>.putDeclaredUploadAliases(fieldKey: String, paramKey: String) {
-        if (fieldKey.isNotBlank()) put(fieldKey, paramKey)
-        if (paramKey.isNotBlank()) put(paramKey, paramKey)
-    }
-
-    private fun QuickCreationServiceModel?.canonicalTemplateParams(
-        params: Map<String, String>,
-    ): Map<String, String> {
-        val aliases = quickCreationServiceParamAliases()
-        return buildMap {
-            params.forEach { (key, value) ->
-                put(aliases[key] ?: key, value)
-            }
-            params.forEach { (key, value) ->
-                if (aliases[key] == key) {
-                    put(key, value)
-                }
-            }
-        }
-    }
-
-    private fun QuickCreationServiceModel?.quickCreationServiceParamAliases(): Map<String, String> =
-        buildMap {
-            this@quickCreationServiceParamAliases?.fields.orEmpty()
-                .filter { it.visible }
-                .forEach { field ->
-                    putParamAliases(field.fieldKey, field.paramKey)
-                    field.inputExtra?.inputChildren.orEmpty()
-                        .filter { it.isQuickCreationServiceFieldRenderable() }
-                        .forEach { child -> putParamAliases(child.fieldKey, child.paramKey) }
-                }
-        }
-
-    private fun MutableMap<String, String>.putParamAliases(fieldKey: String, paramKey: String) {
-        if (fieldKey.isNotBlank()) put(fieldKey, paramKey)
-        if (paramKey.isNotBlank()) put(paramKey, paramKey)
-    }
-
-    private fun String.templateReferenceIdPart(): String =
-        map { char ->
-            when (char) {
-                in 'A'..'Z', in 'a'..'z', in '0'..'9' -> char
-                else -> '_'
-            }
-        }.joinToString("").ifBlank { "field" }
-
-    private fun String?.templateCategoryIdPart(): String =
-        this?.templateReferenceIdPart() ?: "unknown"
-
-    private fun String.templateMediaType(): QuickCreateMediaType {
-        val marker = uppercase()
-        return when {
-            marker.contains("AUDIO") -> QuickCreateMediaType.AUDIO
-            marker.contains("VIDEO") -> QuickCreateMediaType.VIDEO
-            else -> QuickCreateMediaType.IMAGE
-        }
-    }
-
-    private fun Map<String, String>.templateImageAspectRatio(): ImageAspectRatio? =
-        (this["aspectRatio"] ?: this["ratio"])?.let { value ->
-            ImageAspectRatio.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
-        }
-
-    private fun Map<String, String>.templateVideoAspectRatio(): VideoAspectRatio? =
-        (this["aspectRatio"] ?: this["ratio"])?.let { value ->
-            VideoAspectRatio.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
-        }
-
-    private fun Map<String, String>.templateImageResolution(): ImageResolution? =
-        this["resolution"]?.let { value ->
-            ImageResolution.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
-        }
-
-    private fun Map<String, String>.templateVideoResolution(): VideoResolution? =
-        this["resolution"]?.let { value ->
-            VideoResolution.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
-        }
-
-    private fun Map<String, String>.templateImageQuality(): ImageQuality? =
-        this["quality"]?.let { value ->
-            ImageQuality.entries.firstOrNull { it.apiValue.equals(value, ignoreCase = true) }
-        }
-
-    private fun Map<String, String>.templateVideoDuration(): VideoDuration? =
-        (this["duration"] ?: this["videoDuration"])?.toIntOrNull()?.let { seconds ->
-            VideoDuration.entries.minByOrNull { duration ->
-                kotlin.math.abs(duration.seconds - seconds)
-            }
-        }
-
-    private fun Map<String, String>.templateBoolean(key: String): Boolean? =
-        this[key]?.let { value ->
-            when (value.lowercase()) {
-                "true" -> true
-                "false" -> false
-                else -> null
-            }
-        }
-
-    private suspend fun generateVideo() {
-        val config = _uiState.value.videoConfig
-        val prompt = config.prompt.trim()
-        val promptError = when {
-            prompt.isEmpty() -> "请输入描述词"
-            config.promptOverLimit -> "描述词不能超过 $MAX_PROMPT_CHARS 个字符"
-            else -> null
-        }
-        if (promptError != null) {
-            _uiState.update {
-                it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.IDLE,
-                    statusText = null,
-                    error = promptError,
-                )
-            }
-            return
-        }
-
-        quickCreateRepository.generateVideo(
-            buildVideoGenerationRequest(_uiState.value, requirePrompt = true) ?: return
-        ).collect { status ->
-            handleTaskStatus(status)
-        }
-    }
-
-    private fun handleTaskStatus(status: QuickCreateTaskStatus) {
-        if (status is QuickCreateTaskStatus.Queuing) {
-            clearDraft()
-        }
-        var refreshHistory = false
-        _uiState.update {
-            when (status) {
-                is QuickCreateTaskStatus.Submitting -> it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.SUBMITTING, statusText = "正在提交..."
-                )
-                is QuickCreateTaskStatus.Queuing -> {
-                    it.copy(
-                        taskStatus = QuickCreateTaskUiStatus.QUEUING, statusText = "排队中..."
-                    )
-                }
-                is QuickCreateTaskStatus.Running -> it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.RUNNING,
-                    statusText = "生成中... ${status.progress}%"
-                )
-                is QuickCreateTaskStatus.Success -> {
-                    val results = status.results.map { item ->
-                        QuickCreateResultUi(
-                            url = item.url,
-                            type = item.type,
-                            thumbnailUrl = item.thumbnailUrl,
-                            width = item.width,
-                            height = item.height,
-                            duration = item.duration,
-                        )
-                    }
-                    refreshHistory = true
-                    it.copy(
-                        taskStatus = QuickCreateTaskUiStatus.SUCCESS,
-                        statusText = "生成完成",
-                        results = results,
-                    )
-                }
-                is QuickCreateTaskStatus.Failed -> it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.FAILED,
-                    statusText = status.errorMessage,
-                    error = status.errorMessage,
-                )
-                is QuickCreateTaskStatus.Error -> it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.IDLE,
-                    statusText = null,
-                    error = status.message,
-                )
-            }
-        }
-        if (refreshHistory) {
-            refreshCurrentHistoryArea()
-        }
+        coordinator.generate()
     }
 }

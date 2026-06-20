@@ -1,6 +1,8 @@
 package com.runninghub.app.ui.feature.quickcreate
 
 import com.runninghub.app.platform.MediaResolver
+import com.runninghub.shared.domain.repository.QuickCreateDraftRepository
+import com.runninghub.shared.domain.repository.QuickCreateDraftSnapshot
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
 import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
@@ -20,7 +22,7 @@ import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChi
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldOption
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
-import com.runninghub.shared.domain.repository.SettingsRepository
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
@@ -29,6 +31,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -37,10 +40,18 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import kotlin.test.*
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QuickCreateScreenModelTest {
+    private val createdModels = mutableListOf<QuickCreateScreenModel>()
+
     @BeforeTest
     fun setUpMainDispatcher() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
@@ -48,8 +59,25 @@ class QuickCreateScreenModelTest {
 
     @AfterTest
     fun resetMainDispatcher() {
+        // 测试会触发媒体上传协程；先释放 ScreenModel，再重置 Main dispatcher，
+        // 避免后台上传恢复到已经被清理的测试调度器。
+        createdModels.asReversed().forEach { it.onDispose() }
+        createdModels.clear()
         Dispatchers.resetMain()
     }
+
+    private fun createModel(
+        quickCreateRepository: QuickCreateRepository,
+        mediaResolver: MediaResolver,
+        draftRepository: QuickCreateDraftRepository,
+        ioDispatcher: CoroutineDispatcher = Dispatchers.Main,
+    ): QuickCreateScreenModel =
+        QuickCreateScreenModel(
+            quickCreateRepository = quickCreateRepository,
+            mediaResolver = mediaResolver,
+            draftRepository = draftRepository,
+            ioDispatcher = ioDispatcher,
+        ).also { createdModels += it }
 
     class FakeQuickCreateRepository : QuickCreateRepository {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
@@ -135,6 +163,7 @@ class QuickCreateScreenModelTest {
             ),
         )
         var historyPages: Map<Int, QuickCreationHistoryPage>? = null
+        var projectTaskPages: Map<Int, QuickCreationHistoryPage>? = null
         var projectTaskPage = QuickCreationHistoryPage(
             page = 1,
             size = 10,
@@ -174,6 +203,10 @@ class QuickCreateScreenModelTest {
         )
         var projectPages: Map<Int, QuickCreationProjectPage>? = null
         var overrideHistoryList: ((page: Int, size: Int) -> QuickCreationHistoryPage)? = null
+        var overrideProjectTaskList:
+            ((projectId: String, page: Int, size: Int) -> QuickCreationHistoryPage)? = null
+        val requestedTemplateDetailIds = mutableListOf<String>()
+        var templateDetailResult: Result<QuickCreateInspirationTemplateDetail>? = null
         var historyDetail = QuickCreationHistoryItem(
             taskId = "history-task-detail",
             status = "SUCCESS",
@@ -359,7 +392,10 @@ class QuickCreateScreenModelTest {
             }
         override suspend fun getInspirationTemplateDetail(
             templateId: String,
-        ): Result<QuickCreateInspirationTemplateDetail> = Result.success(templateDetail.copy(templateId = templateId))
+        ): Result<QuickCreateInspirationTemplateDetail> =
+            (templateDetailResult ?: Result.success(templateDetail.copy(templateId = templateId))).also {
+                requestedTemplateDetailIds += templateId
+            }
         override suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>> =
             Result.success((models + videoModels).filter { it.categoryId == categoryId })
 
@@ -391,7 +427,10 @@ class QuickCreateScreenModelTest {
             page: Int,
             size: Int,
         ): Result<QuickCreationHistoryPage> =
-            Result.success(projectTaskPage.copy(page = page, size = size)).also {
+            Result.success(
+                overrideProjectTaskList?.invoke(projectId, page, size)
+                    ?: (projectTaskPages?.get(page) ?: projectTaskPage).copy(page = page, size = size)
+            ).also {
                 requestedProjectTaskPages += projectId to page
             }
 
@@ -427,59 +466,105 @@ class QuickCreateScreenModelTest {
         override fun getFileSizeBytes(uri: String): Long = 1024L
     }
 
-    class FakeSettingsRepo : SettingsRepository {
+    class FakeSettingsRepo : QuickCreateDraftRepository {
         private var draft: String? = null
-        override suspend fun getQuickCreateDraft() = draft
-        override suspend fun saveQuickCreateDraft(json: String) { draft = json }
-        override suspend fun clearQuickCreateDraft() { draft = null }
-        override suspend fun getApiKey() = null
-        override suspend fun setApiKey(key: String) {}
-        override suspend fun clearApiKey() {}
-        override suspend fun getEnterpriseApiKey() = null
-        override suspend fun setEnterpriseApiKey(key: String) {}
-        override suspend fun clearEnterpriseApiKey() {}
-        override suspend fun getCookie() = null
-        override suspend fun setCookie(cookie: String) {}
-        override suspend fun clearCookie() {}
-        override suspend fun getAuthToken() = null
-        override suspend fun setAuthToken(token: String) {}
-        override suspend fun clearAuthToken() {}
-        override suspend fun getRefreshToken() = null
-        override suspend fun setRefreshToken(token: String) {}
-        override suspend fun clearRefreshToken() {}
-        override suspend fun isLoggedIn() = false
-        override suspend fun getLastKnownCoins() = null
-        override suspend fun setLastKnownCoins(coins: String) {}
-        override suspend fun clearLastKnownCoins() {}
-        override suspend fun clearAll() {}
+
+        suspend fun getQuickCreateDraft() = draft
+
+        suspend fun saveQuickCreateDraft(json: String) {
+            draft = json
+        }
+
+        suspend fun clearQuickCreateDraft() {
+            draft = null
+        }
+
+        override suspend fun getRestorableDraft(): QuickCreateDraftSnapshot? {
+            val raw = draft
+            if (raw.isNullOrEmpty()) return null
+
+            val snapshot = runCatching { raw.toDraftSnapshot() }.getOrElse {
+                draft = null
+                return null
+            }
+
+            return if (snapshot.hasPromptContent) {
+                snapshot
+            } else {
+                draft = null
+                null
+            }
+        }
+
+        override suspend fun saveDraft(snapshot: QuickCreateDraftSnapshot) {
+            draft = if (snapshot.hasPromptContent) snapshot.toJsonString() else null
+        }
+
+        override suspend fun clearDraft() {
+            draft = null
+        }
+
+        private val QuickCreateDraftSnapshot.hasPromptContent: Boolean
+            get() = imagePrompt.isNotBlank() || videoPrompt.isNotBlank()
+
+        private fun String.toDraftSnapshot(): QuickCreateDraftSnapshot {
+            val element = draftJson.parseToJsonElement(this).jsonObject
+            return QuickCreateDraftSnapshot(
+                currentTab = element["currentTab"]?.jsonPrimitive?.contentOrNull ?: "IMAGE",
+                imagePrompt = element["imagePrompt"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                videoPrompt = element["videoPrompt"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            )
+        }
+
+        private fun QuickCreateDraftSnapshot.toJsonString(): String =
+            buildJsonObject {
+                put("currentTab", currentTab)
+                put("imagePrompt", imagePrompt)
+                put("videoPrompt", videoPrompt)
+            }.toString()
+
+        private companion object {
+            val draftJson: Json = Json { encodeDefaults = true }
+        }
     }
 
     @Test
     fun `initial state is IDLE with default IMAGE tab`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         assertEquals(QuickCreateTab.IMAGE, model.uiState.value.currentTab)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
     }
 
     @Test
     fun `initialization loads quick creation history`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
 
         assertEquals(false, model.uiState.value.historyLoading)
+        assertEquals("history-task-1", model.uiState.value.historyItems.single().source.taskId)
         assertEquals("history-task-1", model.uiState.value.historyItems.single().taskId)
-        assertEquals("https://example.com/result.png", model.uiState.value.historyItems.single().outputs.single().url)
+        assertEquals("green icon", model.uiState.value.historyItems.single().title)
+        assertEquals("IMAGE · SUCCESS · PNG", model.uiState.value.historyItems.single().metadataText)
+        assertEquals("0.76 CNY", model.uiState.value.historyItems.single().cashText)
+        assertEquals("https://example.com/result.png", model.uiState.value.historyItems.single().primaryOutput?.source?.url)
+        assertEquals("output-1", model.uiState.value.historyItems.single().primaryOutput?.outputId)
+        assertEquals("https://example.com/preview.png", model.uiState.value.historyItems.single().primaryOutput?.previewUrl)
+        assertEquals(QuickCreateHistoryOutputMediaType.IMAGE, model.uiState.value.historyItems.single().primaryOutput?.mediaType)
     }
 
     @Test
     fun `initialization loads quick creation projects`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         assertEquals(listOf(1), repository.requestedProjectPages)
         assertEquals(false, model.uiState.value.projectsLoading)
         assertEquals("project-1", model.uiState.value.projects.single().projectId)
         assertEquals("世界杯广告", model.uiState.value.projects.single().name)
-        assertEquals(true, model.uiState.value.projects.single().pinned)
+        assertEquals(true, model.uiState.value.projects.single().isPinned)
+        assertEquals("取消置顶项目", model.uiState.value.projects.single().pinContentDescription)
+        assertEquals("3 个任务", model.uiState.value.projects.single().taskCountText)
+        assertEquals("https://example.com/project.png", model.uiState.value.projects.single().coverUrl)
+        assertEquals("删除「世界杯广告」后，项目入口会从当前列表移除。", model.uiState.value.projects.single().deleteConfirmationText)
         assertEquals(false, model.uiState.value.projectsHasMore)
     }
 
@@ -513,7 +598,7 @@ class QuickCreateScreenModelTest {
                 ),
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.loadMoreQuickCreationProjects()
 
@@ -527,28 +612,28 @@ class QuickCreateScreenModelTest {
     @Test
     fun `selecting project loads project tasks into history area`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.selectProject("project-1")
 
         assertEquals(listOf("project-1" to 1), repository.requestedProjectTaskPages)
         assertEquals("project-1", model.uiState.value.selectedProjectId)
         assertEquals(false, model.uiState.value.projectTasksLoading)
-        assertEquals("project-task-1", model.uiState.value.historyItems.single().taskId)
+        assertEquals("project-task-1", model.uiState.value.historyItems.single().source.taskId)
         assertEquals(false, model.uiState.value.historyHasMore)
     }
 
     @Test
     fun `clearing selected project reloads recent history`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         model.selectProject("project-1")
 
         model.clearSelectedProject()
 
         assertEquals(null, model.uiState.value.selectedProjectId)
         assertEquals(listOf(1, 1), repository.requestedHistoryPages)
-        assertEquals("history-task-1", model.uiState.value.historyItems.single().taskId)
+        assertEquals("history-task-1", model.uiState.value.historyItems.single().source.taskId)
     }
 
     @Test
@@ -568,7 +653,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.selectProject("project-1")
@@ -582,38 +667,41 @@ class QuickCreateScreenModelTest {
         assertEquals("project-1", model.uiState.value.selectedProjectId)
         assertEquals(listOf("project-1" to 1, "project-1" to 1), repository.requestedProjectTaskPages)
         assertEquals(listOf(1), repository.requestedHistoryPages)
-        assertEquals("project-task-1", model.uiState.value.historyItems.single().taskId)
+        assertEquals("project-task-1", model.uiState.value.historyItems.single().source.taskId)
     }
 
     @Test
     fun `toggling project pin calls repository and updates project state`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.toggleProjectPin("project-1")
 
         assertEquals(listOf("project-1" to false), repository.pinnedProjectRequests)
-        assertEquals(false, model.uiState.value.projects.single().pinned)
+        assertEquals(false, model.uiState.value.projects.single().isPinned)
+        assertEquals("置顶项目", model.uiState.value.projects.single().pinContentDescription)
+        assertEquals("未置顶", model.uiState.value.projects.single().pinStatusText)
         assertEquals(emptySet(), model.uiState.value.projectPinningIds)
     }
 
     @Test
     fun `creating project calls repository and prepends project`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.createProject("新项目")
 
         assertEquals(listOf("新项目"), repository.createdProjectNames)
         assertEquals("project-new", model.uiState.value.projects.first().projectId)
         assertEquals("新项目", model.uiState.value.projects.first().name)
+        assertEquals("0 个任务", model.uiState.value.projects.first().taskCountText)
         assertEquals(emptySet(), model.uiState.value.projectMutatingIds)
     }
 
     @Test
     fun `renaming project calls repository and updates project name`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.renameProject("project-1", "新名称")
 
@@ -625,7 +713,7 @@ class QuickCreateScreenModelTest {
     @Test
     fun `deleting selected project removes it and reloads recent history`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         model.selectProject("project-1")
 
         model.deleteProject("project-1")
@@ -640,7 +728,7 @@ class QuickCreateScreenModelTest {
     @Test
     fun `selecting project detail loads detail into state`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.selectProjectDetail("project-1")
 
@@ -648,20 +736,52 @@ class QuickCreateScreenModelTest {
         assertEquals(false, model.uiState.value.projectDetailLoading)
         assertEquals("项目详情", model.uiState.value.selectedProjectDetail?.name)
         assertEquals("https://example.com/project-detail.png", model.uiState.value.selectedProjectDetail?.coverUrl)
-        assertEquals(9, model.uiState.value.selectedProjectDetail?.taskCount)
+        assertEquals(
+            listOf("任务数量" to "9", "置顶状态" to "已置顶"),
+            model.uiState.value.selectedProjectDetail?.rows?.map { it.label to it.value },
+        )
     }
 
     @Test
     fun `selecting history output loads detail into state`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.selectHistoryOutput("output-1")
 
         assertEquals("output-1", repository.lastHistoryDetailOutputId)
         assertEquals(false, model.uiState.value.historyDetailLoading)
-        assertEquals("history-task-detail", model.uiState.value.selectedHistoryDetail?.taskId)
-        assertEquals("https://example.com/detail.png", model.uiState.value.selectedHistoryDetail?.outputs?.single()?.url)
+        assertEquals("history-task-detail", model.uiState.value.selectedHistoryDetail?.source?.taskId)
+        assertEquals("detail prompt", model.uiState.value.selectedHistoryDetail?.title)
+        assertEquals("IMAGE · SUCCESS · PNG · 1024x1024", model.uiState.value.selectedHistoryDetail?.metadataText)
+        assertEquals(null, model.uiState.value.selectedHistoryDetail?.cashText)
+        assertEquals("https://example.com/detail.png", model.uiState.value.selectedHistoryDetail?.primaryOutput?.source?.url)
+        assertEquals(QuickCreateHistoryOutputMediaType.IMAGE, model.uiState.value.selectedHistoryDetail?.primaryOutput?.mediaType)
+    }
+
+    @Test
+    fun `selecting history output maps video detail media type`() {
+        val repository = FakeQuickCreateRepository().apply {
+            historyDetail = historyDetail.copy(
+                outputs = listOf(
+                    QuickCreationHistoryOutput(
+                        outputId = "output-video",
+                        url = "https://example.com/detail.mp4?download=1",
+                        type = "file",
+                        thumbnailUrl = "https://example.com/detail-cover.png",
+                        width = 1920,
+                        height = 1080,
+                    )
+                ),
+            )
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.selectHistoryOutput("output-video")
+
+        assertEquals("output-video", repository.lastHistoryDetailOutputId)
+        assertEquals("https://example.com/detail-cover.png", model.uiState.value.selectedHistoryDetail?.primaryOutput?.previewUrl)
+        assertEquals(QuickCreateHistoryOutputMediaType.VIDEO, model.uiState.value.selectedHistoryDetail?.primaryOutput?.mediaType)
     }
 
     @Test
@@ -697,8 +817,9 @@ class QuickCreateScreenModelTest {
                             outputs = listOf(
                                 QuickCreationHistoryOutput(
                                     outputId = "output-2",
-                                    url = "https://example.com/two.png",
-                                    type = "png",
+                                    url = "https://example.com/two.mp4?download=1",
+                                    type = "file",
+                                    thumbnailUrl = "https://example.com/two-cover.png",
                                 )
                             ),
                         )
@@ -706,14 +827,56 @@ class QuickCreateScreenModelTest {
                 ),
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.loadMoreQuickCreationHistory()
 
         assertEquals(listOf(1, 2), repository.requestedHistoryPages)
+        assertEquals(listOf("history-task-1", "history-task-2"), model.uiState.value.historyItems.map { it.source.taskId })
         assertEquals(listOf("history-task-1", "history-task-2"), model.uiState.value.historyItems.map { it.taskId })
+        assertEquals(QuickCreateHistoryOutputMediaType.VIDEO, model.uiState.value.historyItems.last().primaryOutput?.mediaType)
+        assertEquals("https://example.com/two-cover.png", model.uiState.value.historyItems.last().primaryOutput?.previewUrl)
         assertEquals(false, model.uiState.value.historyHasMore)
         assertEquals(false, model.uiState.value.historyLoadingMore)
+    }
+
+    @Test
+    fun `loading more selected project tasks appends next page`() {
+        val repository = FakeQuickCreateRepository().apply {
+            projectTaskPages = mapOf(
+                1 to QuickCreationHistoryPage(
+                    page = 1,
+                    size = 1,
+                    total = 2,
+                    items = listOf(
+                        QuickCreationHistoryItem(
+                            taskId = "project-task-1",
+                            status = "SUCCESS",
+                        )
+                    ),
+                ),
+                2 to QuickCreationHistoryPage(
+                    page = 2,
+                    size = 1,
+                    total = 2,
+                    items = listOf(
+                        QuickCreationHistoryItem(
+                            taskId = "project-task-2",
+                            status = "SUCCESS",
+                        )
+                    ),
+                ),
+            )
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        model.selectProject("project-1")
+
+        model.loadMoreQuickCreationHistory()
+
+        assertEquals(listOf("project-1" to 1, "project-1" to 2), repository.requestedProjectTaskPages)
+        assertEquals(listOf(1), repository.requestedHistoryPages)
+        assertEquals(listOf("project-task-1", "project-task-2"), model.uiState.value.historyItems.map { it.source.taskId })
+        assertEquals(false, model.uiState.value.historyHasMore)
     }
 
     @Test
@@ -751,15 +914,60 @@ class QuickCreateScreenModelTest {
             }
         }
 
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
-        assertEquals("PREPAID", model.uiState.value.historyItems.single().status)
+        assertEquals("PREPAID", model.uiState.value.historyItems.single().source.status)
+        assertEquals(true, model.uiState.value.historyItems.single().canCancelTask)
+        assertEquals(true, model.uiState.value.historyItems.single().needsRefresh)
 
         advanceTimeBy(5_000)
         runCurrent()
 
         assertEquals(listOf(1, 1), repository.requestedHistoryPages)
-        assertEquals("SUCCESS", model.uiState.value.historyItems.single().status)
+        assertEquals("SUCCESS", model.uiState.value.historyItems.single().source.status)
+        assertEquals(false, model.uiState.value.historyItems.single().canCancelTask)
+        assertEquals(false, model.uiState.value.historyItems.single().needsRefresh)
+    }
+
+    @Test
+    fun `running selected project task refreshes project tasks until terminal status`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            var requestCount = 0
+            overrideProjectTaskList = { projectId, page, size ->
+                requestCount += 1
+                val status = if (requestCount == 1) "PREPAID" else "SUCCESS"
+                QuickCreationHistoryPage(
+                    page = page,
+                    size = size,
+                    total = 1,
+                    items = listOf(
+                        QuickCreationHistoryItem(
+                            taskId = "$projectId-task-1",
+                            status = status,
+                        )
+                    ),
+                )
+            }
+        }
+
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+        model.selectProject("project-1")
+        runCurrent()
+        assertEquals("PREPAID", model.uiState.value.historyItems.single().source.status)
+        assertEquals(true, model.uiState.value.historyItems.single().canCancelTask)
+        assertEquals(true, model.uiState.value.historyItems.single().needsRefresh)
+
+        advanceTimeBy(5_000)
+        runCurrent()
+
+        assertEquals(listOf("project-1" to 1, "project-1" to 1), repository.requestedProjectTaskPages)
+        assertEquals(listOf(1), repository.requestedHistoryPages)
+        assertEquals("SUCCESS", model.uiState.value.historyItems.single().source.status)
+        assertEquals(false, model.uiState.value.historyItems.single().canCancelTask)
+        assertEquals(false, model.uiState.value.historyItems.single().needsRefresh)
     }
 
     @Test
@@ -781,26 +989,72 @@ class QuickCreateScreenModelTest {
                 )
             }
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.cancelHistoryTask("history-task-1")
 
         assertEquals(listOf("history-task-1"), repository.cancelledTaskIds)
         assertEquals(listOf(1, 1), repository.requestedHistoryPages)
-        assertEquals("CANCELED", model.uiState.value.historyItems.single().status)
+        assertEquals("CANCELED", model.uiState.value.historyItems.single().source.status)
+        assertEquals(false, model.uiState.value.historyItems.single().canCancelTask)
         assertEquals(false, model.uiState.value.historyCancellingTaskIds.contains("history-task-1"))
     }
 
     @Test
+    fun `cancelling terminal history task is ignored`() {
+        val repository = FakeQuickCreateRepository()
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.cancelHistoryTask("history-task-1")
+
+        assertEquals(emptyList(), repository.cancelledTaskIds)
+        assertEquals(listOf(1), repository.requestedHistoryPages)
+        assertEquals("SUCCESS", model.uiState.value.historyItems.single().source.status)
+        assertEquals(false, model.uiState.value.historyItems.single().canCancelTask)
+    }
+
+    @Test
+    fun `cancelling selected project task refreshes project tasks`() {
+        val repository = FakeQuickCreateRepository().apply {
+            var requestCount = 0
+            overrideProjectTaskList = { projectId, page, size ->
+                requestCount += 1
+                QuickCreationHistoryPage(
+                    page = page,
+                    size = size,
+                    total = 1,
+                    items = listOf(
+                        QuickCreationHistoryItem(
+                            taskId = "$projectId-task-1",
+                            status = if (requestCount == 1) "PREPAID" else "CANCELED",
+                        )
+                    ),
+                )
+            }
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        model.selectProject("project-1")
+
+        model.cancelHistoryTask("project-1-task-1")
+
+        assertEquals(listOf("project-1-task-1"), repository.cancelledTaskIds)
+        assertEquals(listOf("project-1" to 1, "project-1" to 1), repository.requestedProjectTaskPages)
+        assertEquals(listOf(1), repository.requestedHistoryPages)
+        assertEquals("CANCELED", model.uiState.value.historyItems.single().source.status)
+        assertEquals(false, model.uiState.value.historyItems.single().canCancelTask)
+        assertEquals(false, model.uiState.value.historyCancellingTaskIds.contains("project-1-task-1"))
+    }
+
+    @Test
     fun `switchTab updates tab and cost`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.switchTab(QuickCreateTab.VIDEO)
         assertEquals(QuickCreateTab.VIDEO, model.uiState.value.currentTab)
     }
 
     @Test
     fun `switchMode toggles creation and inspiration surfaces`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
 
         model.switchMode(QuickCreateMode.INSPIRATION)
         assertEquals(QuickCreateMode.INSPIRATION, model.uiState.value.currentMode)
@@ -813,7 +1067,7 @@ class QuickCreateScreenModelTest {
 
     @Test
     fun `quick create sheets are mutually exclusive and close outside creation`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
 
         model.showModelPickerSheet()
         assertEquals(QuickCreateSheet.MODEL_PICKER, model.uiState.value.activeSheet)
@@ -832,12 +1086,21 @@ class QuickCreateScreenModelTest {
     @Test
     fun `switchMode to inspiration loads tags and templates`() {
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.switchMode(QuickCreateMode.INSPIRATION)
 
-        assertEquals(listOf("热门"), model.uiState.value.inspirationTags.map { it.name })
-        assertEquals("tpl-1", model.uiState.value.inspirationTemplates.single().templateId)
+        assertEquals(listOf("hot"), model.uiState.value.inspirationTags.map { it.id })
+        assertEquals(listOf("热门"), model.uiState.value.inspirationTags.map { it.label })
+        assertEquals(listOf(true), model.uiState.value.inspirationTags.map { it.selected })
+        val template = model.uiState.value.inspirationTemplates.single()
+        assertEquals("tpl-1", template.id)
+        assertEquals("赛博城市漫游", template.title)
+        assertEquals("IMAGE", template.categoryLabel)
+        val preview = assertIs<QuickCreateInspirationPreviewUi.Image>(template.preview)
+        assertEquals("https://example.com/cover.png", preview.url)
+        assertEquals(listOf("HOT"), template.badges.map { it.label })
+        assertEquals(listOf(QuickCreateInspirationBadgeTone.HOT), template.badges.map { it.tone })
         assertEquals(false, model.uiState.value.inspirationLoading)
     }
 
@@ -885,24 +1148,129 @@ class QuickCreateScreenModelTest {
                 ),
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
         model.switchMode(QuickCreateMode.INSPIRATION)
         model.loadMoreInspirationTemplates()
 
         assertEquals(listOf(1, 2), repository.requestedTemplatePages)
-        assertEquals((1..21).map { "tpl-$it" }, model.uiState.value.inspirationTemplates.map { it.templateId })
+        assertEquals((1..21).map { "tpl-$it" }, model.uiState.value.inspirationTemplates.map { it.id })
+        val videoTemplate = model.uiState.value.inspirationTemplates.last()
+        val videoPreview = assertIs<QuickCreateInspirationPreviewUi.Video>(videoTemplate.preview)
+        assertEquals("https://example.com/preview-21.mp4", videoPreview.url)
+        assertEquals(listOf("NEW"), videoTemplate.badges.map { it.label })
+        assertEquals(listOf(QuickCreateInspirationBadgeTone.NEW), videoTemplate.badges.map { it.tone })
         assertEquals(2, model.uiState.value.inspirationTemplatesPage)
         assertEquals(false, model.uiState.value.inspirationTemplatesHasMore)
         assertEquals(false, model.uiState.value.inspirationTemplatesLoadingMore)
     }
 
     @Test
+    fun `loading more inspiration templates deduplicates by template id`() {
+        val repository = FakeQuickCreateRepository().apply {
+            inspirationTemplatePages = mapOf(
+                1 to QuickCreateInspirationTemplatePage(
+                    page = 1,
+                    size = 20,
+                    total = 3,
+                    pages = 2,
+                    hasNext = true,
+                    hasPrevious = false,
+                    items = listOf(
+                        QuickCreateInspirationTemplate(
+                            templateId = "tpl-1",
+                            title = "Template 1",
+                            categoryId = "IMAGE",
+                            coverUrl = "https://example.com/cover-1.png",
+                            videoUrl = null,
+                            tagHot = true,
+                            tagNew = false,
+                        ),
+                        QuickCreateInspirationTemplate(
+                            templateId = "tpl-2",
+                            title = "Template 2",
+                            categoryId = "IMAGE",
+                            coverUrl = null,
+                            videoUrl = null,
+                            tagHot = false,
+                            tagNew = false,
+                        ),
+                    ),
+                ),
+                2 to QuickCreateInspirationTemplatePage(
+                    page = 2,
+                    size = 20,
+                    total = 3,
+                    pages = 2,
+                    hasNext = false,
+                    hasPrevious = true,
+                    items = listOf(
+                        QuickCreateInspirationTemplate(
+                            templateId = "tpl-2",
+                            title = "Template 2 duplicate",
+                            categoryId = "IMAGE",
+                            coverUrl = "https://example.com/cover-2b.png",
+                            videoUrl = null,
+                            tagHot = false,
+                            tagNew = false,
+                        ),
+                        QuickCreateInspirationTemplate(
+                            templateId = "tpl-3",
+                            title = "Template 3",
+                            categoryId = "VIDEO",
+                            coverUrl = "https://example.com/cover-3.png",
+                            videoUrl = "https://example.com/preview-3.mp4",
+                            tagHot = false,
+                            tagNew = true,
+                        ),
+                    ),
+                ),
+            )
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+
+        model.switchMode(QuickCreateMode.INSPIRATION)
+        model.loadMoreInspirationTemplates()
+
+        assertEquals(listOf("tpl-1", "tpl-2", "tpl-3"), model.uiState.value.inspirationTemplates.map { it.id })
+        assertEquals("Template 2", model.uiState.value.inspirationTemplates[1].title)
+        val placeholder = assertIs<QuickCreateInspirationPreviewUi.Placeholder>(
+            model.uiState.value.inspirationTemplates[1].preview,
+        )
+        assertEquals(QuickCreateInspirationPlaceholderMediaType.IMAGE, placeholder.mediaType)
+        assertEquals(emptyList(), model.uiState.value.inspirationTemplates[1].badges)
+        assertEquals(2, model.uiState.value.inspirationTemplatesPage)
+        assertEquals(false, model.uiState.value.inspirationTemplatesHasMore)
+    }
+
+    @Test
+    fun `apply inspiration template failure clears loading and keeps creation state`() {
+        val repository = FakeQuickCreateRepository().apply {
+            templateDetailResult = Result.failure(IllegalStateException("模板不存在"))
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        model.updateImagePrompt("original prompt")
+
+        model.applyInspirationTemplate("missing-template")
+
+        assertEquals(listOf("missing-template"), repository.requestedTemplateDetailIds)
+        assertEquals(false, model.uiState.value.inspirationLoading)
+        assertEquals("模板不存在", model.uiState.value.error)
+        assertEquals(QuickCreateMode.CREATION, model.uiState.value.currentMode)
+        assertEquals(QuickCreateTab.IMAGE, model.uiState.value.currentTab)
+        assertEquals("original prompt", model.uiState.value.imageConfig.prompt)
+    }
+
+    @Test
     fun `init loads service driven image models`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
 
         assertEquals("全能图片G-2.0-官方版", model.uiState.value.serviceImageModels.single().name)
         assertEquals("binding-1", model.uiState.value.selectedImageServiceModel?.bindingId)
+        assertEquals("全能图片G-2.0-官方版", model.uiState.value.serviceImageModelItems.single().displayName)
+        assertEquals("G-2.0", model.uiState.value.selectedImageServiceModelUi?.compactName)
+        assertEquals("全能图片 · 4 个参数", model.uiState.value.selectedImageServiceModelUi?.subtitle)
+        assertEquals(true, model.uiState.value.selectedImageServiceModelUi?.selected)
         assertEquals("photoreal", model.uiState.value.imageServiceParams["style"])
         assertEquals(false, model.uiState.value.serviceModelsLoading)
     }
@@ -912,7 +1280,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -931,7 +1299,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImageServiceModel(repository.videoModels.single())
@@ -948,11 +1316,59 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `selecting image service model by identity key updates model and ui summary`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val secondModel = repository.models.single().copy(
+            bindingId = "binding-key",
+            skuId = "sku-key",
+            name = "身份键图片模型",
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "style",
+                    paramKey = "style",
+                    fieldType = "LIST",
+                    required = false,
+                    defaultValue = "sketch",
+                    options = emptyList(),
+                ),
+            ),
+        )
+        repository.models = repository.models + secondModel
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImageServiceModel("binding-key|sku-key")
+
+        assertEquals("binding-key", model.uiState.value.selectedImageServiceModel?.bindingId)
+        assertEquals("binding-key|sku-key", model.uiState.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals("身份键图片模型", model.uiState.value.selectedImageServiceModelUi?.displayName)
+        assertEquals(mapOf("style" to "sketch"), model.uiState.value.imageServiceParams)
+        assertEquals(listOf(false, true), model.uiState.value.serviceImageModelItems.map { it.selected })
+    }
+
+    @Test
+    fun `selecting image service model by stale identity key keeps current model`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImageServiceModel("missing|sku")
+
+        assertEquals("binding-1", model.uiState.value.selectedImageServiceModel?.bindingId)
+        assertEquals("binding-1|sku-1", model.uiState.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals(mapOf("style" to "photoreal", "aspectRatio" to "1:1"), model.uiState.value.imageServiceParams)
+    }
+
+    @Test
     fun `generate video keeps selected video service model when image service model is requested`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -974,7 +1390,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         repository.models = listOf(repository.models.single().copy(name = "Updated image model"))
@@ -982,6 +1398,8 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         assertEquals("Updated image model", model.uiState.value.selectedImageServiceModel?.name)
+        assertEquals("Updated image model", model.uiState.value.selectedImageServiceModelUi?.displayName)
+        assertEquals(true, model.uiState.value.serviceImageModelItems.single().selected)
     }
 
     @Test
@@ -989,7 +1407,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         repository.videoModels = listOf(repository.videoModels.single().copy(name = "Updated video model"))
@@ -997,6 +1415,85 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         assertEquals("Updated video model", model.uiState.value.selectedVideoServiceModel?.name)
+        assertEquals("Updated video model", model.uiState.value.selectedVideoServiceModelUi?.displayName)
+        assertEquals(true, model.uiState.value.serviceVideoModelItems.single().selected)
+    }
+
+    @Test
+    fun `switching image service model resets params to selected model defaults`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val secondModel = repository.models.single().copy(
+            bindingId = "binding-2",
+            skuId = "sku-2",
+            name = "第二图片模型",
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "style",
+                    paramKey = "style",
+                    fieldType = "LIST",
+                    required = false,
+                    defaultValue = "watercolor",
+                    options = emptyList(),
+                ),
+            ),
+        )
+        repository.models = repository.models + secondModel
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImageServiceParam("negativePrompt", "old value")
+        model.updateImageServiceModel(secondModel)
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals("binding-2", model.uiState.value.selectedImageServiceModel?.bindingId)
+        assertEquals("binding-2|sku-2", model.uiState.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals("第二图片模型", model.uiState.value.selectedImageServiceModelUi?.displayName)
+        assertEquals(listOf(false, true), model.uiState.value.serviceImageModelItems.map { it.selected })
+        assertEquals(mapOf("style" to "watercolor"), model.uiState.value.imageServiceParams)
+        assertEquals("watercolor", repository.lastImageRequest?.quickCreationParams?.get("style"))
+        assertEquals(null, repository.lastImageRequest?.quickCreationParams?.get("negativePrompt"))
+    }
+
+    @Test
+    fun `service model reload falls back to first image model when selected identity disappears`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImageServiceParam("negativePrompt", "old value")
+        repository.models = listOf(
+            repository.models.single().copy(
+                bindingId = "binding-new",
+                skuId = "sku-new",
+                name = "新默认图片模型",
+                fields = listOf(
+                    QuickCreationServiceField(
+                        fieldKey = "style",
+                        paramKey = "style",
+                        fieldType = "LIST",
+                        required = false,
+                        defaultValue = "line-art",
+                        options = emptyList(),
+                    ),
+                ),
+            ),
+        )
+        model.loadServiceModels()
+        runCurrent()
+
+        assertEquals("binding-new", model.uiState.value.selectedImageServiceModel?.bindingId)
+        assertEquals("新默认图片模型", model.uiState.value.selectedImageServiceModel?.name)
+        assertEquals("新默认图片模型", model.uiState.value.selectedImageServiceModelUi?.displayName)
+        assertEquals(true, model.uiState.value.serviceImageModelItems.single().selected)
+        assertEquals(mapOf("style" to "line-art"), model.uiState.value.imageServiceParams)
     }
 
     @Test
@@ -1004,7 +1501,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -1022,7 +1519,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -1042,7 +1539,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1063,7 +1560,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -1083,7 +1580,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1104,7 +1601,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -1125,11 +1622,30 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate image uses updated quality when model supports it`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        model.updateImageQuality(ImageQuality.QUALITY_HIGH)
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(ImageQuality.QUALITY_HIGH, model.uiState.value.imageConfig.quality)
+        assertEquals("high", repository.lastImageRequest?.quality)
+    }
+
+    @Test
     fun `generate video keeps previous model params when unsupported video params are requested`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1154,7 +1670,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1174,7 +1690,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1191,11 +1707,31 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `generate video uses audio toggle when model supports it`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository()
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchTab(QuickCreateTab.VIDEO)
+        model.updateVideoPrompt("prompt")
+        model.toggleGenerateAudio()
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(true, model.uiState.value.videoConfig.generateAudio)
+        assertEquals(true, repository.lastVideoRequest?.generateAudio)
+    }
+
+    @Test
     fun `image prompt refreshes server fee preview into estimated cost`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1240,7 +1776,7 @@ class QuickCreateScreenModelTest {
                 )
             }
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1286,7 +1822,7 @@ class QuickCreateScreenModelTest {
                 }
             }
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("slow prompt")
@@ -1327,7 +1863,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1360,7 +1896,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1392,7 +1928,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1427,7 +1963,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1461,7 +1997,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1512,7 +2048,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1550,7 +2086,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1584,7 +2120,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1636,7 +2172,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1683,7 +2219,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1735,7 +2271,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1776,9 +2312,15 @@ class QuickCreateScreenModelTest {
     @Test
     fun `uploading global image media does not refresh image fee preview before remote url exists`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
+        val uploadDispatcher = StandardTestDispatcher(TestCoroutineScheduler())
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(
+            repository,
+            FakeMediaResolver(),
+            FakeSettingsRepo(),
+            ioDispatcher = uploadDispatcher,
+        )
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1802,7 +2344,7 @@ class QuickCreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             uploadResult = Result.failure(IllegalStateException("upload unavailable"))
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.pickImageReference("content://image/fail")
@@ -1821,7 +2363,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1843,7 +2385,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1872,7 +2414,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1924,7 +2466,7 @@ class QuickCreateScreenModelTest {
                 }
             }
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -1952,7 +2494,7 @@ class QuickCreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             feePreviewResult = Result.failure(IllegalStateException("preview unavailable"))
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -1979,7 +2521,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -2000,7 +2542,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -2025,7 +2567,7 @@ class QuickCreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             videoFeePreviewResult = Result.failure(IllegalStateException("preview unavailable"))
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -2053,7 +2595,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -2075,7 +2617,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("green icon")
@@ -2106,7 +2648,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("first prompt")
@@ -2135,7 +2677,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -2155,7 +2697,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.generate()
@@ -2172,7 +2714,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -2191,7 +2733,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("x".repeat(MAX_PROMPT_CHARS + 1))
@@ -2210,7 +2752,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -2230,7 +2772,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2248,7 +2790,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2290,7 +2832,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2335,7 +2877,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2391,7 +2933,7 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.applyInspirationTemplate("tpl-image")
@@ -2424,7 +2966,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2460,7 +3002,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2495,7 +3037,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2543,7 +3085,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2593,7 +3135,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2643,7 +3185,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2691,7 +3233,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2735,7 +3277,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2769,7 +3311,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2801,7 +3343,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2833,7 +3375,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2850,7 +3392,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2872,7 +3414,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2898,7 +3440,7 @@ class QuickCreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             uploadDelayMillis = 120_000L
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2922,7 +3464,7 @@ class QuickCreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             uploadResult = Result.failure(IllegalStateException("upload unavailable"))
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2944,7 +3486,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -2981,7 +3523,7 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.applyInspirationTemplate("shared-template")
@@ -3034,7 +3576,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -3081,7 +3623,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -3123,7 +3665,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -3175,7 +3717,7 @@ class QuickCreateScreenModelTest {
             )
         }
         val mediaResolver = FakeMediaResolver()
-        val model = QuickCreateScreenModel(repository, mediaResolver, FakeSettingsRepo())
+        val model = createModel(repository, mediaResolver, FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -3219,7 +3761,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -3253,7 +3795,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -3285,7 +3827,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -3328,7 +3870,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -3375,7 +3917,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -3394,7 +3936,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -3425,7 +3967,7 @@ class QuickCreateScreenModelTest {
     fun `apply inspiration video template fills creation state from detail`() {
         runBlocking {
             val repository = FakeQuickCreateRepository()
-            val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+            val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
 
             model.switchMode(QuickCreateMode.INSPIRATION)
             model.applyInspirationTemplate("tpl-video")
@@ -3451,7 +3993,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchMode(QuickCreateMode.INSPIRATION)
@@ -3475,7 +4017,7 @@ class QuickCreateScreenModelTest {
                 listParams = mapOf("referenceVideo" to listOf("https://example.com/template-video.mp4")),
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchMode(QuickCreateMode.INSPIRATION)
@@ -3514,7 +4056,7 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImageModel(ImageModel.SEEDREAM_4)
@@ -3545,7 +4087,7 @@ class QuickCreateScreenModelTest {
                 ),
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateVideoModel(VideoModel.SEEDANCE_2_FAST)
@@ -3590,7 +4132,7 @@ class QuickCreateScreenModelTest {
                 listParams = mapOf("reference" to listOf("https://example.com/template-reference.mp4")),
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchMode(QuickCreateMode.INSPIRATION)
@@ -3644,7 +4186,7 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.applyInspirationTemplate("tpl-image")
@@ -3706,7 +4248,7 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.applyInspirationTemplate("tpl-image")
@@ -3762,7 +4304,7 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.applyInspirationTemplate("tpl-image")
@@ -3817,7 +4359,7 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchMode(QuickCreateMode.INSPIRATION)
@@ -3876,7 +4418,7 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchMode(QuickCreateMode.INSPIRATION)
@@ -3941,7 +4483,7 @@ class QuickCreateScreenModelTest {
                 videoUrl = null,
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.switchMode(QuickCreateMode.INSPIRATION)
@@ -3961,7 +4503,7 @@ class QuickCreateScreenModelTest {
 
     @Test
     fun `updateImagePrompt changes prompt`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.updateImagePrompt("test prompt")
         assertEquals("test prompt", model.uiState.value.imageConfig.prompt)
     }
@@ -3971,7 +4513,7 @@ class QuickCreateScreenModelTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val settings = FakeSettingsRepo()
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         runCurrent()
 
         model.updateImagePrompt("draft prompt")
@@ -3992,7 +4534,7 @@ class QuickCreateScreenModelTest {
         Dispatchers.setMain(dispatcher)
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"old draft","videoPrompt":""}""")
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         runCurrent()
         assertEquals(true, model.uiState.value.hasDraft)
 
@@ -4005,14 +4547,14 @@ class QuickCreateScreenModelTest {
 
     @Test
     fun `updateVideoPrompt changes prompt`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.updateVideoPrompt("video prompt")
         assertEquals("video prompt", model.uiState.value.videoConfig.prompt)
     }
 
     @Test
     fun `hasDraft false initially`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         assertEquals(false, model.hasDraft)
     }
 
@@ -4022,7 +4564,7 @@ class QuickCreateScreenModelTest {
         Dispatchers.setMain(dispatcher)
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"hello","videoPrompt":""}""")
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         runCurrent()
 
         model.checkForDraft()
@@ -4038,7 +4580,7 @@ class QuickCreateScreenModelTest {
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"hello","videoPrompt":""}""")
 
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         runCurrent()
 
         assertEquals(true, model.uiState.value.hasDraft)
@@ -4051,7 +4593,7 @@ class QuickCreateScreenModelTest {
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"","videoPrompt":""}""")
 
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         runCurrent()
 
         assertEquals(false, model.uiState.value.hasDraft)
@@ -4085,7 +4627,7 @@ class QuickCreateScreenModelTest {
         runBlocking {
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"hello","videoPrompt":""}""")
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         model.checkForDraft()
         // async — draft loaded in coroutine
         assertTrue(true) // basic sanity
@@ -4099,7 +4641,7 @@ class QuickCreateScreenModelTest {
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"draft prompt","videoPrompt":""}""")
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), settings)
+        val model = createModel(repository, FakeMediaResolver(), settings)
         runCurrent()
 
         model.checkForDraft()
@@ -4119,7 +4661,7 @@ class QuickCreateScreenModelTest {
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"image draft","videoPrompt":""}""")
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), settings)
+        val model = createModel(repository, FakeMediaResolver(), settings)
         runCurrent()
 
         model.switchTab(QuickCreateTab.VIDEO)
@@ -4143,7 +4685,7 @@ class QuickCreateScreenModelTest {
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"VIDEO","imagePrompt":"image draft","videoPrompt":""}""")
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), settings)
+        val model = createModel(repository, FakeMediaResolver(), settings)
         runCurrent()
 
         model.restoreDraft()
@@ -4162,7 +4704,7 @@ class QuickCreateScreenModelTest {
         Dispatchers.setMain(dispatcher)
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"VIDEO","imagePrompt":"","videoPrompt":"video draft"}""")
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         runCurrent()
 
         model.updateImagePrompt("existing image prompt")
@@ -4181,7 +4723,7 @@ class QuickCreateScreenModelTest {
         Dispatchers.setMain(dispatcher)
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"VIDEO","imagePrompt":"","videoPrompt":"video draft"}""")
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         runCurrent()
 
         model.updateImagePrompt("existing image prompt")
@@ -4195,12 +4737,29 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `dispose cancels pending draft autosave`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val settings = FakeSettingsRepo()
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        runCurrent()
+
+        model.updateImagePrompt("draft that should not be saved")
+        runCurrent()
+        model.onDispose()
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(null, settings.getQuickCreateDraft())
+    }
+
+    @Test
     fun `successful submit clears in memory draft entry`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"old draft","videoPrompt":""}""")
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), settings)
         runCurrent()
         assertEquals(true, model.uiState.value.hasDraft)
 
@@ -4225,7 +4784,7 @@ class QuickCreateScreenModelTest {
                 QuickCreateTaskStatus.Failed("task-1", "render failed"),
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -4249,7 +4808,7 @@ class QuickCreateScreenModelTest {
                 QuickCreateTaskStatus.Error("network unavailable"),
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -4261,6 +4820,132 @@ class QuickCreateScreenModelTest {
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertEquals("network unavailable", model.uiState.value.error)
         assertEquals(null, model.uiState.value.statusText)
+    }
+
+    @Test
+    fun `queued image task exposes queuing status text`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskStatuses = listOf(QuickCreateTaskStatus.Queuing("task-1"))
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(QuickCreateTaskUiStatus.QUEUING, model.uiState.value.taskStatus)
+        assertEquals("排队中...", model.uiState.value.statusText)
+        assertEquals(emptyList(), model.uiState.value.results)
+    }
+
+    @Test
+    fun `running image task exposes progress status text`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskStatuses = listOf(QuickCreateTaskStatus.Running("task-1", progress = 42))
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(QuickCreateTaskUiStatus.RUNNING, model.uiState.value.taskStatus)
+        assertEquals("生成中... 42%", model.uiState.value.statusText)
+        assertEquals(emptyList(), model.uiState.value.results)
+    }
+
+    @Test
+    fun `successful image task maps results and refreshes recent history`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskStatuses = listOf(
+                QuickCreateTaskStatus.Success(
+                    taskId = "task-1",
+                    results = listOf(
+                        QuickCreateResultItem(
+                            url = "https://example.com/result.png",
+                            type = "png",
+                            thumbnailUrl = "https://example.com/thumb.png",
+                            width = 1024,
+                            height = 768,
+                            duration = 6,
+                        )
+                    ),
+                )
+            )
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        val result = model.uiState.value.results.single()
+        assertEquals(QuickCreateTaskUiStatus.SUCCESS, model.uiState.value.taskStatus)
+        assertEquals("生成完成", model.uiState.value.statusText)
+        assertEquals("https://example.com/result.png", result.url)
+        assertEquals("png", result.type)
+        assertEquals(QuickCreateResultMediaType.IMAGE, result.mediaType)
+        assertEquals("https://example.com/thumb.png", result.thumbnailUrl)
+        assertEquals(1024, result.width)
+        assertEquals(768, result.height)
+        assertEquals(6, result.duration)
+        assertEquals(listOf(1, 1), repository.requestedHistoryPages)
+    }
+
+    @Test
+    fun `successful task maps video media type from result type or url suffix`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskStatuses = listOf(
+                QuickCreateTaskStatus.Success(
+                    taskId = "task-1",
+                    results = listOf(
+                        QuickCreateResultItem(
+                            url = "https://example.com/result.mp4?download=1",
+                            type = "file",
+                            thumbnailUrl = "https://example.com/thumb.jpg",
+                        ),
+                        QuickCreateResultItem(
+                            url = "https://example.com/result-output",
+                            type = "video",
+                        ),
+                    ),
+                )
+            )
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        val results = model.uiState.value.results
+        assertEquals("file", results[0].type)
+        assertEquals(QuickCreateResultMediaType.VIDEO, results[0].mediaType)
+        assertEquals("https://example.com/result.mp4?download=1", results[0].url)
+        assertEquals("https://example.com/thumb.jpg", results[0].thumbnailUrl)
+        assertEquals("video", results[1].type)
+        assertEquals(QuickCreateResultMediaType.VIDEO, results[1].mediaType)
+        assertEquals("https://example.com/result-output", results[1].url)
     }
 
     @Test
@@ -4280,7 +4965,7 @@ class QuickCreateScreenModelTest {
                 )
             )
         }
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
         runCurrent()
 
         model.updateImagePrompt("prompt")
@@ -4302,7 +4987,7 @@ class QuickCreateScreenModelTest {
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"old draft","videoPrompt":""}""")
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), settings)
+        val model = createModel(repository, FakeMediaResolver(), settings)
         runCurrent()
 
         model.checkForDraft()
@@ -4328,7 +5013,7 @@ class QuickCreateScreenModelTest {
         val settings = FakeSettingsRepo()
         settings.saveQuickCreateDraft("""{"currentTab":"IMAGE","imagePrompt":"old draft","videoPrompt":""}""")
         val repository = FakeQuickCreateRepository()
-        val model = QuickCreateScreenModel(repository, FakeMediaResolver(), settings)
+        val model = createModel(repository, FakeMediaResolver(), settings)
         runCurrent()
 
         model.checkForDraft()
@@ -4350,7 +5035,7 @@ class QuickCreateScreenModelTest {
     @Test
     fun `generate without prompt shows error`() {
         runBlocking {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.generate()
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertNotNull(model.uiState.value.error)
@@ -4359,7 +5044,7 @@ class QuickCreateScreenModelTest {
 
     @Test
     fun `reset restores to idle`() {
-        val model = QuickCreateScreenModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
+        val model = createModel(FakeQuickCreateRepository(), FakeMediaResolver(), FakeSettingsRepo())
         model.clearResults()
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertEquals(0, model.uiState.value.results.size)

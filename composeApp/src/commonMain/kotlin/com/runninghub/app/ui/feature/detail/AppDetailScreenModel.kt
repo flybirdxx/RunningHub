@@ -8,7 +8,6 @@ import com.runninghub.app.ui.component.MediaType
 import com.runninghub.shared.domain.model.AppDetail
 import com.runninghub.shared.domain.model.InputNode
 import com.runninghub.shared.domain.model.TaskOutput
-import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.WebAppRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -20,6 +19,22 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/**
+ * WebApp 详情页页面状态。
+ *
+ * @property isLoading 是否正在加载详情。
+ * @property detail 当前 WebApp 详情。
+ * @property inputValues 用户在任务输入表单中编辑的节点值。
+ * @property isRunningTask 是否已有任务提交或轮询正在进行。
+ * @property taskStep 任务执行阶段，用于驱动进度展示。
+ * @property taskElapsedSeconds 当前任务从提交开始的已耗时秒数。
+ * @property taskOutputs 已完成任务的输出文件。
+ * @property taskError 任务提交或轮询失败时的用户可见错误。
+ * @property uploadingNodes 正在上传或上传失败的输入节点状态。
+ * @property localUris 用户选择的本地媒体 URI。
+ * @property pendingMediaPick 等待平台媒体选择器回填的节点信息。
+ * @property error 详情加载失败时的页面级错误。
+ */
 data class AppDetailUiState(
     val isLoading: Boolean = true,
     val detail: AppDetail? = null,
@@ -35,12 +50,27 @@ data class AppDetailUiState(
     val error: String? = null
 )
 
+/**
+ * 单个输入节点的上传状态。
+ *
+ * @property localUri 用户选择的本地媒体 URI。
+ * @property progress 上传进度，范围 0.0 到 1.0。
+ * @property isError 上传是否已经失败。
+ */
 data class UploadingState(
     val localUri: String,
     val progress: Float = 0f,
     val isError: Boolean = false
 )
 
+/**
+ * 等待平台媒体选择结果的节点信息。
+ *
+ * @property nodeId 目标输入节点 ID。
+ * @property fieldName 目标输入字段名。
+ * @property mediaType 期望选择的媒体类型。
+ * @property requestId 本次选择请求序号，用于区分连续选择动作。
+ */
 data class PendingMediaPick(
     val nodeId: String,
     val fieldName: String,
@@ -48,9 +78,17 @@ data class PendingMediaPick(
     val requestId: Long
 )
 
+/**
+ * WebApp 详情页的 ScreenModel。
+ *
+ * 页面负责详情展示、输入状态、文件选择上传和任务轮询。API Key 等敏感凭据不在本类读取或保存，
+ * 需要凭据的调用统一交给 [WebAppRepository] 的 Data 层实现处理。
+ *
+ * @param webAppRepository WebApp 业务仓库，封装详情、上传、任务提交和输出轮询。
+ * @param mediaResolver 跨平台媒体读取能力，用于把本地 URI 转换为上传文件。
+ */
 class AppDetailScreenModel(
     private val webAppRepository: WebAppRepository,
-    private val settingsRepository: SettingsRepository,
     private val mediaResolver: MediaResolver
 ) : ScreenModel {
 
@@ -95,10 +133,7 @@ class AppDetailScreenModel(
 
             val detail = webAppRepository.getAppDetail(appId).getOrNull()
                 ?: run {
-                    val apiKey = settingsRepository.getApiKey().orEmpty()
-                    if (apiKey.isNotBlank()) {
-                        webAppRepository.getApiCallDemo(apiKey, appId).getOrNull()
-                    } else null
+                    webAppRepository.getApiCallDemo(appId).getOrNull()
                 }
 
             if (detail != null) {
@@ -147,14 +182,6 @@ class AppDetailScreenModel(
                 )
             }
 
-            val apiKey = settingsRepository.getApiKey().orEmpty()
-            if (apiKey.isBlank()) {
-                _uiState.update {
-                    it.copy(uploadingNodes = it.uploadingNodes + (nodeId to UploadingState(localUri = localUri, progress = 0f, isError = true)))
-                }
-                return@launch
-            }
-
             try {
                 val displayName = mediaResolver.getDisplayName(localUri)
                 val fileName = displayName
@@ -180,7 +207,6 @@ class AppDetailScreenModel(
                 }
 
                 val result = webAppRepository.uploadFile(
-                    apiKey = apiKey,
                     fileType = mimeType,
                     fileBytes = fileBytes,
                     fileName = fileName
@@ -232,18 +258,6 @@ class AppDetailScreenModel(
                 )
             }
 
-            val apiKey = settingsRepository.getApiKey().orEmpty()
-            if (apiKey.isBlank()) {
-                _uiState.update {
-                    it.copy(
-                        isRunningTask = false,
-                        taskStep = com.runninghub.app.ui.component.TaskStep.FAILED,
-                        taskError = "请先在设置中绑定 API Key"
-                    )
-                }
-                return@launch
-            }
-
             val inputNodes = detail.inputNodes.map { node ->
                 node.copy(
                     fieldValue = _uiState.value.inputValues[inputKey(node)] ?: node.fieldValue
@@ -252,10 +266,9 @@ class AppDetailScreenModel(
 
             webAppRepository.runTask(
                 webappId = detail.id.toLongOrNull() ?: 0L,
-                apiKey = apiKey,
                 nodeInfoList = inputNodes
             ).onSuccess {
-                pollTaskOutputs(it.taskId, apiKey)
+                pollTaskOutputs(it.taskId)
             }.onFailure { e ->
                 _uiState.update {
                     it.copy(
@@ -268,7 +281,7 @@ class AppDetailScreenModel(
         }
     }
 
-    private fun pollTaskOutputs(taskId: Long, apiKey: String) {
+    private fun pollTaskOutputs(taskId: Long) {
         screenModelScope.launch {
             var attempts = 0
             val maxAttempts = 120
@@ -290,7 +303,7 @@ class AppDetailScreenModel(
                 delay(5_000)
                 attempts++
 
-                webAppRepository.getTaskOutputs(taskId, apiKey)
+                webAppRepository.getTaskOutputs(taskId)
                     .onSuccess { outputs ->
                         if (outputs.isEmpty()) return@onSuccess
 

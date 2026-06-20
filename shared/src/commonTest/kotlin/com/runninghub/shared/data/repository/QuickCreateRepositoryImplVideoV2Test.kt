@@ -1,9 +1,9 @@
 package com.runninghub.shared.data.repository
 
+import com.runninghub.core.storage.CredentialStore
 import com.runninghub.shared.data.remote.api.QuickCreateApi
 import com.runninghub.shared.domain.repository.ImageGenerationRequest
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
-import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.VideoGenerationRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -81,7 +81,7 @@ class QuickCreateRepositoryImplVideoV2Test {
         }
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
-            settingsRepository = FakeSettingsRepository(),
+            credentialStore = FakeSettingsRepository(),
         )
 
         val statuses = repository.generateVideo(
@@ -167,7 +167,7 @@ class QuickCreateRepositoryImplVideoV2Test {
         }
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
-            settingsRepository = FakeSettingsRepository(),
+            credentialStore = FakeSettingsRepository(),
         )
 
         val statuses = repository.generateImage(
@@ -259,7 +259,7 @@ class QuickCreateRepositoryImplVideoV2Test {
         }
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
-            settingsRepository = FakeSettingsRepository(),
+            credentialStore = FakeSettingsRepository(),
         )
 
         val statuses = repository.generateImage(
@@ -310,7 +310,7 @@ class QuickCreateRepositoryImplVideoV2Test {
         }
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
-            settingsRepository = FakeSettingsRepository(),
+            credentialStore = FakeSettingsRepository(),
         )
 
         val statuses = repository.generateImage(
@@ -332,7 +332,7 @@ class QuickCreateRepositoryImplVideoV2Test {
         assertEquals("余额不足或价格预览未通过", error.message)
     }
 
-    private class FakeSettingsRepository : SettingsRepository {
+    private class FakeSettingsRepository : CredentialStore {
         override suspend fun getApiKey(): String? = null
         override suspend fun setApiKey(key: String) {}
         override suspend fun clearApiKey() {}
@@ -349,12 +349,6 @@ class QuickCreateRepositoryImplVideoV2Test {
         override suspend fun setRefreshToken(token: String) {}
         override suspend fun clearRefreshToken() {}
         override suspend fun isLoggedIn(): Boolean = false
-        override suspend fun getLastKnownCoins(): String? = null
-        override suspend fun setLastKnownCoins(coins: String) {}
-        override suspend fun clearLastKnownCoins() {}
-        override suspend fun saveQuickCreateDraft(json: String) {}
-        override suspend fun getQuickCreateDraft(): String? = null
-        override suspend fun clearQuickCreateDraft() {}
         override suspend fun clearAll() {}
     }
 }

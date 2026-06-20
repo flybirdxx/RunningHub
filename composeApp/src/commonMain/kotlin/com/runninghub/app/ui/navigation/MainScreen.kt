@@ -65,7 +65,7 @@ import com.runninghub.app.ui.theme.RhAppBackground
 import com.runninghub.app.ui.theme.RhAppMuted
 import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
-import com.runninghub.shared.domain.repository.SettingsRepository
+import com.runninghub.shared.domain.usecase.GetLastKnownBalanceUseCase
 import org.koin.compose.koinInject
 
 enum class BottomNavTab(
@@ -89,19 +89,24 @@ private val BottomNavTab.displayLabel: String
         BottomNavTab.Profile -> "Profile"
     }
 
+/**
+ * 应用主导航容器。
+ *
+ * 该 Screen 只负责 Tab 选择和首页壳层展示；余额角标通过 [GetLastKnownBalanceUseCase]
+ * 读取弱缓存，不直接依赖 storage 或 DataStore 边界。
+ */
 class MainVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
 
     @Composable
     override fun Content() {
         var selectedTab by rememberSaveable { mutableStateOf(BottomNavTab.Discovery) }
-        val settingsRepository = koinInject<SettingsRepository>()
+        val getLastKnownBalance = koinInject<GetLastKnownBalanceUseCase>()
         var creditCoins by rememberSaveable { mutableStateOf("--") }
 
-        var isLoggedIn by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) {
-            creditCoins = settingsRepository.getLastKnownCoins() ?: "--"
-            isLoggedIn = settingsRepository.isLoggedIn()
+            // 主导航只展示最近一次余额快照；实时余额仍由 Profile/账户接口负责刷新。
+            creditCoins = getLastKnownBalance() ?: "--"
         }
 
         val sizeClass = rememberWindowSizeClass()

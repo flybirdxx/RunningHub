@@ -7,7 +7,6 @@ import com.runninghub.app.ui.feature.quickcreate.ImageQuality
 import com.runninghub.app.ui.feature.quickcreate.ImageResolution
 import com.runninghub.app.ui.feature.quickcreate.MediaReference
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateMediaType
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheet
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateTab
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
 import com.runninghub.app.ui.feature.quickcreate.UploadStatus
@@ -405,9 +404,7 @@ private fun previewTaskHistoryOutputs(seed: String): List<TaskHistoryOutput> = l
     ),
 )
 
-internal fun previewQuickCreateUiState(
-    tuneSheetVisible: Boolean = false,
-): QuickCreateUiState = QuickCreateUiState(
+internal fun previewQuickCreateUiState(): QuickCreateUiState = QuickCreateUiState(
     currentTab = QuickCreateTab.IMAGE,
     imageConfig = ImageConfig(
         prompt = "Build a cinematic portrait with clean skin texture, glass reflections, and a restrained studio palette.",
@@ -439,5 +436,4 @@ internal fun previewQuickCreateUiState(
         ),
     ),
     estimatedCost = 2.25,
-    activeSheet = if (tuneSheetVisible) QuickCreateSheet.PARAMS else null,
 )

@@ -15,13 +15,19 @@ import com.nareshchocha.filepickerlibrary.models.FilePickerResult
 import com.nareshchocha.filepickerlibrary.models.PickMediaConfig
 import com.nareshchocha.filepickerlibrary.models.PickMediaType
 import com.runninghub.app.ui.component.MediaType
-import com.runninghub.shared.data.local.PermissionDataStore
 import com.runninghub.shared.domain.model.Permission
 import com.runninghub.shared.domain.model.PermissionStatus
+import com.runninghub.shared.domain.permission.PermissionStateStore
 import kotlinx.coroutines.launch
 
+/**
+ * Android 平台的权限申请与媒体选择控制器。
+ *
+ * 本实现持有 ActivityResult launcher，并通过 [PermissionStateStore] 记录权限申请轨迹。
+ * 状态写入跟随 Activity 生命周期作用域，避免页面销毁后继续更新 UI 回调。
+ */
 private class PermissionControllerImpl(
-    private val dataStore: PermissionDataStore,
+    private val permissionStateStore: PermissionStateStore,
     private val activity: ComponentActivity,
 ) : PermissionController {
 
@@ -40,15 +46,15 @@ private class PermissionControllerImpl(
         val granted = permissions[manifest] == true
         scope.launch {
             if (granted) {
-                dataStore.markGranted(manifest)
+                permissionStateStore.markGranted(manifest)
                 pendingMediaType?.let { type -> launchMediaPicker(type) }
             } else {
                 val shouldShowRationale = activity.shouldShowRequestPermissionRationale(manifest)
                 if (!shouldShowRationale) {
-                    dataStore.markPermanentlyDenied(manifest)
+                    permissionStateStore.markPermanentlyDenied(manifest)
                     pendingMediaDeniedCallback?.invoke()
                 } else {
-                    dataStore.markDenied(manifest)
+                    permissionStateStore.markDenied(manifest)
                     pendingMediaDeniedCallback?.invoke()
                 }
                 pendingMediaCallback = null
@@ -132,7 +138,7 @@ private class PermissionControllerImpl(
             }
             MediaType.AUDIO -> {
                 scope.launch {
-                    when (dataStore.getCurrentStatus(mediaPermission)) {
+                    when (permissionStateStore.getCurrentStatus(mediaPermission)) {
                         PermissionStatus.GRANTED -> {
                             launchAudioPicker()
                         }
@@ -173,7 +179,7 @@ private class PermissionControllerImpl(
         onPermanentlyDenied: () -> Unit,
     ) {
         scope.launch {
-            when (dataStore.getCurrentStatus(permission)) {
+            when (permissionStateStore.getCurrentStatus(permission)) {
                 PermissionStatus.GRANTED -> onGranted()
                 PermissionStatus.PERMANENTLY_DENIED -> onPermanentlyDenied()
                 else -> {
@@ -194,12 +200,17 @@ private class PermissionControllerImpl(
     }
 }
 
+/**
+ * 创建 Android 平台权限控制器。
+ *
+ * @param permissionStateStore 权限状态存储边界，用于记录系统回调后的授权结果。
+ */
 @Composable
 actual fun rememberPermissionController(
-    dataStore: PermissionDataStore,
+    permissionStateStore: PermissionStateStore,
 ): PermissionController {
     val activity = LocalContext.current as ComponentActivity
-    return remember(dataStore, activity) {
-        PermissionControllerImpl(dataStore, activity)
+    return remember(permissionStateStore, activity) {
+        PermissionControllerImpl(permissionStateStore, activity)
     }
 }

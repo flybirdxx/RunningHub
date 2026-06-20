@@ -1,10 +1,10 @@
 package com.runninghub.shared.data.repository
 
+import com.runninghub.core.storage.CredentialStore
 import com.runninghub.shared.data.remote.api.QuickCreateApi
 import com.runninghub.shared.domain.model.User
 import com.runninghub.shared.domain.repository.AuthRepository
 import com.runninghub.shared.domain.repository.ImageGenerationRequest
-import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.VideoGenerationRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -56,7 +56,7 @@ class QuickCreateRepositoryImplFeePreviewTest {
         }
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
-            settingsRepository = FakeSettingsRepository(),
+            credentialStore = FakeSettingsRepository(),
         )
 
         val preview = repository.previewImageQuickCreationFee(
@@ -113,7 +113,7 @@ class QuickCreateRepositoryImplFeePreviewTest {
         }
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
-            settingsRepository = FakeSettingsRepository(),
+            credentialStore = FakeSettingsRepository(),
         )
 
         val preview = repository.previewVideoQuickCreationFee(
@@ -176,7 +176,7 @@ class QuickCreateRepositoryImplFeePreviewTest {
         val authRepository = FakeAuthRepository()
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
-            settingsRepository = FakeSettingsRepository(),
+            credentialStore = FakeSettingsRepository(),
             authRepository = authRepository,
         )
 
@@ -198,7 +198,7 @@ class QuickCreateRepositoryImplFeePreviewTest {
         assertEquals(0.76, preview.requiredCashAmount)
     }
 
-    private class FakeSettingsRepository : SettingsRepository {
+    private class FakeSettingsRepository : CredentialStore {
         override suspend fun getApiKey(): String? = null
         override suspend fun setApiKey(key: String) {}
         override suspend fun clearApiKey() {}
@@ -215,12 +215,6 @@ class QuickCreateRepositoryImplFeePreviewTest {
         override suspend fun setRefreshToken(token: String) {}
         override suspend fun clearRefreshToken() {}
         override suspend fun isLoggedIn(): Boolean = false
-        override suspend fun getLastKnownCoins(): String? = null
-        override suspend fun setLastKnownCoins(coins: String) {}
-        override suspend fun clearLastKnownCoins() {}
-        override suspend fun saveQuickCreateDraft(json: String) {}
-        override suspend fun getQuickCreateDraft(): String? = null
-        override suspend fun clearQuickCreateDraft() {}
         override suspend fun clearAll() {}
     }
 

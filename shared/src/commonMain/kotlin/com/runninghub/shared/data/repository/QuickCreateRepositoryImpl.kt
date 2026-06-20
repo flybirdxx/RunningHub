@@ -1,5 +1,6 @@
 package com.runninghub.shared.data.repository
 
+import com.runninghub.core.storage.CredentialStore
 import com.runninghub.shared.data.remote.api.QuickCreateApi
 import com.runninghub.shared.data.remote.dto.*
 import com.runninghub.shared.domain.repository.AuthRepository
@@ -18,7 +19,6 @@ import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
 import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
 import com.runninghub.shared.domain.repository.QuickCreationProject
 import com.runninghub.shared.domain.repository.QuickCreationProjectPage
-import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.VideoGenerationRequest
 import com.runninghub.shared.domain.repository.VideoModel
 import kotlinx.coroutines.delay
@@ -261,7 +261,7 @@ private val ImageGenerationRequest.hasQuickCreationIdentity: Boolean
 
 class QuickCreateRepositoryImpl(
     private val quickCreateApi: QuickCreateApi,
-    private val settingsRepository: SettingsRepository,
+    private val credentialStore: CredentialStore,
     private val authRepository: AuthRepository? = null,
 ) : QuickCreateRepository {
 
@@ -1257,7 +1257,7 @@ class QuickCreateRepositoryImpl(
         debug(TAG, "  mimeType  = $mimeType")
         debug(TAG, "  fileBytes = ${fileBytes.size} bytes")
 
-        val apiKey = settingsRepository.getApiKey()
+        val apiKey = credentialStore.getApiKey()
         debug(TAG, "  apiKey found = ${!apiKey.isNullOrBlank()}")
         if (apiKey.isNullOrBlank()) {
             throw IllegalStateException("请先登录获取 API Key")

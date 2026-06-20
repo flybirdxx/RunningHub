@@ -2,23 +2,100 @@ package com.runninghub.feature.auth.domain
 
 import com.runninghub.core.model.User
 
-sealed class SmsError(message: String) : RuntimeException(message) {
-    class WrongCode : SmsError("楠岃瘉鐮侀敊璇紝璇烽噸鏂拌緭鍏?")
-    class CodeExpired : SmsError("楠岃瘉鐮佸凡杩囨湡锛岃閲嶆柊鑾峰彇")
-    class AccountNotFound : SmsError("璇ユ墜鏈哄彿鏈敞鍐?RunningHub 璐﹀彿锛岃鍓嶅線 runninghub.cn 娉ㄥ唽")
-    class RateLimited : SmsError("鍙戦€佽繃浜庨绻侊紝璇风◢鍚庡啀璇?")
-    class DailyLimit : SmsError("浠婃棩鍙戦€佹鏁板凡杈句笂闄愶紝璇锋槑鏃ュ啀璇?")
-    class Network(message: String) : SmsError(message)
-    class Unknown(message: String) : SmsError(message)
+/**
+ * 描述通用认证链路的稳定业务错误。
+ *
+ * 该类型用于密码登录、令牌恢复等非短信专属流程。它只表达错误语义，
+ * 不包含最终用户可见中文文案；Presentation 层负责根据页面上下文映射提示。
+ *
+ * @property code 稳定错误码，用于测试、日志分类和 Presentation 分支判断。
+ * @property serverMessage 服务端原始消息或客户端诊断信息，仅用于降级和排查。
+ */
+sealed class AuthError(
+    val code: String,
+    val serverMessage: String? = null,
+) : RuntimeException(serverMessage ?: code) {
+    /** 网络不可用、连接超时或 DNS 解析失败，调用方通常应保留用户输入以便重试。 */
+    class Network : AuthError("NETWORK_UNAVAILABLE")
+
+    /**
+     * 未被客户端稳定分类的认证失败。
+     *
+     * @param serverMessage 服务端原始消息或客户端诊断信息，不应直接视为最终 UI 文案。
+     */
+    class Unknown(serverMessage: String?) : AuthError("UNKNOWN_AUTH_ERROR", serverMessage)
 }
 
+/**
+ * 描述短信登录链路的稳定业务错误。
+ *
+ * 该类型位于 Auth Domain 层，只表达服务端返回的错误语义，不携带最终用户可见中文文案。
+ * Presentation 层应根据具体页面和资源体系把错误映射成展示文本，避免 Domain 反向依赖 UI 文案。
+ *
+ * @property code 稳定错误码，用于日志、测试和 Presentation 层分支判断。
+ * 该值不包含敏感凭据，可以安全用于非用户可见的状态判断。
+ * @property serverMessage 服务端原始消息，仅作为诊断信息保留。
+ * `null` 表示客户端已能通过 [code] 完整表达错误语义；调用方不能把它视为最终 UI 文案。
+ */
+sealed class SmsError(
+    val code: String,
+    val serverMessage: String? = null,
+) : RuntimeException(serverMessage ?: code) {
+    /** 验证码错误，Presentation 层通常需要清空已输入验证码。 */
+    class WrongCode : SmsError("SMS_CODE_INVALID")
+
+    /** 验证码过期，Presentation 层通常需要停止倒计时并允许重新获取验证码。 */
+    class CodeExpired : SmsError("SMS_CODE_EXPIRED")
+
+    /** 手机号未绑定 RunningHub 账号。 */
+    class AccountNotFound : SmsError("ACCOUNT_NOT_FOUND")
+
+    /** 短时间内请求短信过于频繁。 */
+    class RateLimited : SmsError("SMS_SEND_TOO_FREQUENT")
+
+    /** 当日短信发送次数达到服务端限制。 */
+    class DailyLimit : SmsError("SMS_DAILY_LIMIT")
+
+    /** 网络不可用、超时或 DNS 解析失败，调用方应保留用户输入以便重试。 */
+    class Network : SmsError("NETWORK_UNAVAILABLE")
+
+    /**
+     * 服务端返回了未被客户端识别的登录错误。
+     *
+     * @param serverMessage 服务端原始错误消息，仅用于诊断或降级展示。
+     */
+    class Unknown(serverMessage: String?) : SmsError("UNKNOWN_AUTH_ERROR", serverMessage)
+}
+
+/**
+ * Auth 功能的 Domain Repository 契约。
+ *
+ * 接口只描述登录、短信验证码、令牌刷新和当前会话查询能力；具体网络请求、
+ * 凭证持久化和错误映射由 Data 层实现。调用方应通过 Result 处理业务失败，
+ * 不应假设实现会抛出平台或网络库的具体异常。
+ */
 interface AuthRepository {
+    /** 使用手机号和密码登录，成功时返回当前用户信息；失败时可能返回 [AuthError]。 */
     suspend fun login(phone: String, password: String): Result<User>
+
+    /** 请求发送短信验证码，失败时可能返回 [SmsError]。 */
     suspend fun sendSmsCode(phone: String): Result<Unit>
+
+    /** 使用手机号和短信验证码登录，成功后由实现层持久化访问令牌和刷新令牌。 */
     suspend fun smsLogin(phone: String, code: String): Result<User>
+
+    /** 注销当前会话，并清理本地认证凭证。 */
     suspend fun logout()
+
+    /** 返回本地是否存在可用于会话恢复的认证令牌。 */
     suspend fun isLoggedIn(): Boolean
+
+    /** 在访问令牌过期或即将过期时刷新令牌，成功时返回可用访问令牌。 */
     suspend fun refreshTokenIfNeeded(): Result<String>
+
+    /** 读取当前访问令牌；调用方不得把返回值写入日志或 UI。 */
     suspend fun getCurrentAuthToken(): String?
+
+    /** 从当前令牌中解析用户 ID，解析失败时返回 null。 */
     suspend fun getCurrentUserId(): String?
 }

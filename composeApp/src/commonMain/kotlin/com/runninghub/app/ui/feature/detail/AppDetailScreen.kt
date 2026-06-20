@@ -74,7 +74,6 @@ import com.runninghub.app.ui.component.MediaType
 import com.runninghub.app.platform.PermissionController
 import com.runninghub.app.platform.rememberPermissionController
 import com.runninghub.app.ui.component.PermissionBottomSheet
-import com.runninghub.shared.data.local.PermissionDataStore
 import org.koin.compose.koinInject
 import com.runninghub.app.ui.component.CollapsibleSection
 import com.runninghub.app.ui.component.ErrorState
@@ -104,6 +103,7 @@ import com.runninghub.shared.domain.model.InputNode
 import com.runninghub.shared.domain.model.Permission
 import com.runninghub.shared.domain.model.StatisticsInfo
 import com.runninghub.shared.domain.model.TaskOutput
+import com.runninghub.shared.domain.permission.PermissionStateStore
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /* ═══════════════════════════════════════════════════
@@ -121,8 +121,9 @@ data class AppDetailScreen(val appId: String) : Screen {
         val uiState by screenModel.uiState.collectAsState()
         val navigator = LocalNavigator.currentOrThrow
 
-        val dataStore: PermissionDataStore = koinInject()
-        val controller: PermissionController = rememberPermissionController(dataStore)
+        // 文件选择流程只需要权限领域边界，避免详情页直接依赖 data/local 存储类型。
+        val permissionStateStore: PermissionStateStore = koinInject()
+        val controller: PermissionController = rememberPermissionController(permissionStateStore)
 
         var pendingPermission by remember { mutableStateOf<Permission?>(null) }
 

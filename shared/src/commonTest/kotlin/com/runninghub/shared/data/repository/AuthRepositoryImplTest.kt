@@ -1,7 +1,11 @@
 package com.runninghub.shared.data.repository
 
+import com.runninghub.core.network.auth.TokenRefresher
+import com.runninghub.core.storage.CredentialStore
+import com.runninghub.feature.auth.domain.AuthError
 import com.runninghub.shared.data.remote.api.RunningHubApi
-import com.runninghub.shared.domain.repository.SettingsRepository
+import com.runninghub.shared.domain.session.SessionManager
+import com.runninghub.shared.domain.session.SessionState
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -17,6 +21,7 @@ import kotlin.io.encoding.Base64
 import kotlin.io.encoding.ExperimentalEncodingApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class AuthRepositoryImplTest {
     private val json = Json {
@@ -32,6 +37,7 @@ class AuthRepositoryImplTest {
             authToken = expiredToken,
             refreshToken = "refresh-token",
         )
+        val sessionManager = SessionManager()
         var refreshCalls = 0
         val engine = MockEngine { request ->
             refreshCalls += 1
@@ -56,7 +62,15 @@ class AuthRepositoryImplTest {
                 json(json)
             }
         }
-        val repository = AuthRepositoryImpl(RunningHubApi(client), settings)
+        val repository = AuthRepositoryImpl(
+            api = RunningHubApi(client),
+            credentialStore = settings,
+            sessionManager = sessionManager,
+            tokenRefresher = TokenRefresher(
+                refreshClient = client,
+                credentialStore = settings,
+            ),
+        )
 
         val token = repository.refreshTokenIfNeeded().getOrThrow()
 
@@ -64,6 +78,80 @@ class AuthRepositoryImplTest {
         assertEquals(freshToken, token)
         assertEquals(freshToken, settings.authToken)
         assertEquals("new-refresh-token", settings.refreshToken)
+        assertEquals(SessionState.Authenticated, sessionManager.state.value)
+    }
+
+    @Test
+    fun `refreshTokenIfNeeded marks session expired when refresh response fails`() = runBlocking {
+        val expiredToken = jwtWithExp(Clock.System.now().epochSeconds - 60)
+        val settings = FakeSettingsRepository(
+            authToken = expiredToken,
+            refreshToken = "refresh-token",
+        )
+        val sessionManager = SessionManager()
+        val engine = MockEngine { request ->
+            assertEquals("/uc/token/refresh", request.url.encodedPath)
+            respond(
+                content = """
+                    {
+                      "code": 401,
+                      "msg": "TOKEN_EXPIRED",
+                      "data": null
+                    }
+                """.trimIndent(),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = AuthRepositoryImpl(
+            api = RunningHubApi(client),
+            credentialStore = settings,
+            sessionManager = sessionManager,
+            tokenRefresher = TokenRefresher(
+                refreshClient = client,
+                credentialStore = settings,
+            ),
+        )
+
+        val result = repository.refreshTokenIfNeeded()
+
+        assertTrue(result.isFailure)
+        assertTrue(sessionManager.isExpired.value)
+        assertEquals(SessionState.Expired, sessionManager.state.value)
+    }
+
+    @Test
+    fun `login maps network failure through core network mapper`() = runBlocking {
+        val settings = FakeSettingsRepository(
+            authToken = null,
+            refreshToken = null,
+        )
+        val engine = MockEngine {
+            error("Unable to resolve host www.runninghub.cn")
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = AuthRepositoryImpl(
+            api = RunningHubApi(client),
+            credentialStore = settings,
+            sessionManager = SessionManager(),
+            tokenRefresher = TokenRefresher(
+                refreshClient = client,
+                credentialStore = settings,
+            ),
+        )
+
+        val result = repository.login(phone = "13800000000", password = "password")
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is AuthError.Network)
     }
 
     @OptIn(ExperimentalEncodingApi::class)
@@ -83,7 +171,7 @@ class AuthRepositoryImplTest {
     private class FakeSettingsRepository(
         var authToken: String?,
         var refreshToken: String?,
-    ) : SettingsRepository {
+    ) : CredentialStore {
         override suspend fun getApiKey(): String? = null
         override suspend fun setApiKey(key: String) {}
         override suspend fun clearApiKey() {}
@@ -108,12 +196,6 @@ class AuthRepositoryImplTest {
             refreshToken = null
         }
         override suspend fun isLoggedIn(): Boolean = authToken != null
-        override suspend fun getLastKnownCoins(): String? = null
-        override suspend fun setLastKnownCoins(coins: String) {}
-        override suspend fun clearLastKnownCoins() {}
-        override suspend fun saveQuickCreateDraft(json: String) {}
-        override suspend fun getQuickCreateDraft(): String? = null
-        override suspend fun clearQuickCreateDraft() {}
         override suspend fun clearAll() {
             authToken = null
             refreshToken = null

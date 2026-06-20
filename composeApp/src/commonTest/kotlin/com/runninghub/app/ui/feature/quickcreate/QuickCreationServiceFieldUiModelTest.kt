@@ -3,13 +3,109 @@ package com.runninghub.app.ui.feature.quickcreate
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
+import com.runninghub.shared.domain.repository.QuickCreationServiceFieldOption
 import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
 import com.runninghub.shared.domain.repository.QuickCreationServiceModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 
 class QuickCreationServiceFieldUiModelTest {
+    @Test
+    fun `service field ui items map selected option text upload and active children`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "IMAGE",
+            groupName = null,
+            bindingId = "binding-1",
+            skuId = "sku-1",
+            name = "Image model",
+            description = null,
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "style",
+                    paramKey = "style",
+                    fieldType = "LIST",
+                    required = false,
+                    defaultValue = "realistic",
+                    options = listOf(
+                        QuickCreationServiceFieldOption(label = "写实", value = "realistic"),
+                        QuickCreationServiceFieldOption(label = "水彩", value = "watercolor"),
+                    ),
+                    inputExtra = QuickCreationServiceFieldExtra(title = "风格"),
+                ),
+                QuickCreationServiceField(
+                    fieldKey = "tagline",
+                    paramKey = "tagline",
+                    fieldType = "STRING",
+                    required = false,
+                    defaultValue = null,
+                    options = emptyList(),
+                    inputExtra = QuickCreationServiceFieldExtra(
+                        title = "短标题",
+                        placeholder = "输入短标题",
+                        maxLength = 5,
+                    ),
+                ),
+                QuickCreationServiceField(
+                    fieldKey = "referenceMode",
+                    paramKey = "referenceMode",
+                    fieldType = "LIST",
+                    required = false,
+                    defaultValue = "none",
+                    options = listOf(QuickCreationServiceFieldOption(label = "参考图", value = "image")),
+                    inputExtra = QuickCreationServiceFieldExtra(
+                        inputChildren = listOf(
+                            QuickCreationServiceFieldInputChild(
+                                fieldKey = "referenceImage",
+                                paramKey = "referenceImages",
+                                fieldType = "IMAGE_UPLOAD",
+                                title = "参考图片",
+                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
+                                    fieldKey = "referenceMode",
+                                    values = listOf("image"),
+                                ),
+                            )
+                        ),
+                    ),
+                ),
+                QuickCreationServiceField(
+                    fieldKey = "upload",
+                    paramKey = "uploadImages",
+                    fieldType = "IMAGE_UPLOAD",
+                    required = false,
+                    defaultValue = null,
+                    options = emptyList(),
+                    maxUploadSize = 10L * 1024 * 1024,
+                    inputExtra = QuickCreationServiceFieldExtra(
+                        title = "上传图片",
+                        acceptFormats = listOf("PNG"),
+                        maxInputCount = 2,
+                    ),
+                ),
+            ),
+        )
+
+        val fields = model.quickCreationServiceFieldUiItems(
+            params = mapOf(
+                "style" to "watercolor",
+                "tagline" to "abcdef",
+                "referenceMode" to "image",
+            ),
+        )
+
+        assertEquals(4, fields.size)
+        assertEquals(QuickCreationServiceFieldControlType.OPTIONS, fields[0].controlType)
+        assertEquals(listOf(false, true), fields[0].options.map { it.selected })
+        assertEquals("短标题", fields[1].title)
+        assertEquals(QuickCreationServiceFieldControlType.TEXT, fields[1].controlType)
+        assertEquals("abcde", fields[1].constrainTextInput("abcdef"))
+        assertEquals("5/5", fields[1].textLimitCounter)
+        assertEquals("参考图片", fields[2].childFields.single().title)
+        assertEquals(1, fields[2].childFields.single().indentLevel)
+        assertEquals(QuickCreationServiceFieldControlType.UPLOAD, fields[3].controlType)
+        assertEquals(QuickCreateMediaType.IMAGE, fields[3].uploadMediaType)
+        assertEquals("PNG · 最多 2 个文件 · 单文件 10MB", fields[3].uploadHint)
+    }
+
     @Test
     fun `global media references exclude field bound uploads`() {
         val globalRef = mediaReference(id = "global", fieldParamKey = null)
@@ -34,250 +130,6 @@ class QuickCreationServiceFieldUiModelTest {
     }
 
     @Test
-    fun `active upload param keys include visible parent and active child upload fields`() {
-        val model = QuickCreationServiceModel(
-            categoryId = "IMAGE",
-            groupName = null,
-            bindingId = "binding-1",
-            skuId = "sku-1",
-            name = "Image model",
-            description = null,
-            fields = listOf(
-                QuickCreationServiceField(
-                    fieldKey = "referenceImage",
-                    paramKey = "referenceImages",
-                    fieldType = "IMAGE_UPLOAD",
-                    required = false,
-                    defaultValue = null,
-                    options = emptyList(),
-                ),
-                QuickCreationServiceField(
-                    fieldKey = "hiddenImage",
-                    paramKey = "hiddenImages",
-                    fieldType = "IMAGE_UPLOAD",
-                    required = false,
-                    defaultValue = null,
-                    options = emptyList(),
-                    visible = false,
-                ),
-                QuickCreationServiceField(
-                    fieldKey = "creationMode",
-                    paramKey = "creationMode",
-                    fieldType = "LIST",
-                    required = true,
-                    defaultValue = "text",
-                    options = emptyList(),
-                    inputExtra = QuickCreationServiceFieldExtra(
-                        inputChildren = listOf(
-                            QuickCreationServiceFieldInputChild(
-                                fieldKey = "alwaysImage",
-                                paramKey = "alwaysImages",
-                                fieldType = "IMAGE_UPLOAD",
-                            ),
-                            QuickCreationServiceFieldInputChild(
-                                fieldKey = "maskImage",
-                                paramKey = "maskImages",
-                                fieldType = "IMAGE_UPLOAD",
-                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
-                                    fieldKey = "creationMode",
-                                    values = listOf("withMask"),
-                                ),
-                            ),
-                            QuickCreationServiceFieldInputChild(
-                                fieldKey = "hiddenChildImage",
-                                paramKey = "hiddenChildImages",
-                                fieldType = "IMAGE_UPLOAD",
-                                visible = false,
-                            ),
-                        ),
-                    ),
-                ),
-                QuickCreationServiceField(
-                    fieldKey = "hiddenMode",
-                    paramKey = "hiddenMode",
-                    fieldType = "LIST",
-                    required = false,
-                    defaultValue = "imageReference",
-                    options = emptyList(),
-                    visible = false,
-                    inputExtra = QuickCreationServiceFieldExtra(
-                        inputChildren = listOf(
-                            QuickCreationServiceFieldInputChild(
-                                fieldKey = "hiddenParentImage",
-                                paramKey = "hiddenParentImages",
-                                fieldType = "IMAGE_UPLOAD",
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        assertEquals(
-            setOf("referenceImages", "alwaysImages"),
-            model.quickCreationActiveUploadParamKeys(serviceParams = emptyMap()),
-        )
-        assertEquals(
-            setOf("referenceImages", "alwaysImages", "maskImages"),
-            model.quickCreationActiveUploadParamKeys(serviceParams = mapOf("creationMode" to "withMask")),
-        )
-    }
-
-    @Test
-    fun `active upload param keys resolve sibling field key conditions from param key values`() {
-        val model = QuickCreationServiceModel(
-            categoryId = "IMAGE",
-            groupName = null,
-            bindingId = "binding-1",
-            skuId = "sku-1",
-            name = "Image model",
-            description = null,
-            fields = listOf(
-                QuickCreationServiceField(
-                    fieldKey = "creationMode",
-                    paramKey = "creation_mode",
-                    fieldType = "LIST",
-                    required = false,
-                    defaultValue = "text",
-                    options = emptyList(),
-                ),
-                QuickCreationServiceField(
-                    fieldKey = "referenceGroup",
-                    paramKey = "reference_group",
-                    fieldType = "LIST",
-                    required = false,
-                    defaultValue = null,
-                    options = emptyList(),
-                    inputExtra = QuickCreationServiceFieldExtra(
-                        inputChildren = listOf(
-                            QuickCreationServiceFieldInputChild(
-                                fieldKey = "referenceImage",
-                                paramKey = "reference_images",
-                                fieldType = "IMAGE_UPLOAD",
-                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
-                                    fieldKey = "creationMode",
-                                    values = listOf("imageReference"),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        assertEquals(
-            setOf("reference_images"),
-            model.quickCreationActiveUploadParamKeys(
-                serviceParams = mapOf("creation_mode" to "imageReference"),
-            ),
-        )
-    }
-
-    @Test
-    fun `inactive child defaults do not activate sibling upload fields`() {
-        val model = QuickCreationServiceModel(
-            categoryId = "IMAGE",
-            groupName = null,
-            bindingId = "binding-1",
-            skuId = "sku-1",
-            name = "Image model",
-            description = null,
-            fields = listOf(
-                QuickCreationServiceField(
-                    fieldKey = "creationMode",
-                    paramKey = "creationMode",
-                    fieldType = "LIST",
-                    required = false,
-                    defaultValue = "text",
-                    options = emptyList(),
-                    inputExtra = QuickCreationServiceFieldExtra(
-                        inputChildren = listOf(
-                            QuickCreationServiceFieldInputChild(
-                                fieldKey = "referenceStrength",
-                                paramKey = "referenceStrength",
-                                fieldType = "NUMBER",
-                                defaultValue = "0.65",
-                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
-                                    fieldKey = "creationMode",
-                                    values = listOf("imageReference"),
-                                ),
-                            ),
-                            QuickCreationServiceFieldInputChild(
-                                fieldKey = "derivedImage",
-                                paramKey = "derivedImages",
-                                fieldType = "IMAGE_UPLOAD",
-                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
-                                    fieldKey = "referenceStrength",
-                                    values = listOf("0.65"),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        assertEquals(
-            emptySet(),
-            model.quickCreationActiveUploadParamKeys(serviceParams = emptyMap()),
-        )
-    }
-
-    @Test
-    fun `inactive child explicit values do not activate sibling upload fields`() {
-        val model = QuickCreationServiceModel(
-            categoryId = "IMAGE",
-            groupName = null,
-            bindingId = "binding-1",
-            skuId = "sku-1",
-            name = "Image model",
-            description = null,
-            fields = listOf(
-                QuickCreationServiceField(
-                    fieldKey = "creationMode",
-                    paramKey = "creationMode",
-                    fieldType = "LIST",
-                    required = false,
-                    defaultValue = "text",
-                    options = emptyList(),
-                    inputExtra = QuickCreationServiceFieldExtra(
-                        inputChildren = listOf(
-                            QuickCreationServiceFieldInputChild(
-                                fieldKey = "referenceStrength",
-                                paramKey = "referenceStrength",
-                                fieldType = "NUMBER",
-                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
-                                    fieldKey = "creationMode",
-                                    values = listOf("imageReference"),
-                                ),
-                            ),
-                            QuickCreationServiceFieldInputChild(
-                                fieldKey = "derivedImage",
-                                paramKey = "derivedImages",
-                                fieldType = "IMAGE_UPLOAD",
-                                visibleWhen = QuickCreationServiceFieldVisibilityCondition(
-                                    fieldKey = "referenceStrength",
-                                    values = listOf("0.65"),
-                                ),
-                            ),
-                        ),
-                    ),
-                ),
-            ),
-        )
-
-        assertEquals(
-            emptySet(),
-            model.quickCreationActiveUploadParamKeys(
-                serviceParams = mapOf(
-                    "creationMode" to "text",
-                    "referenceStrength" to "0.65",
-                ),
-            ),
-        )
-    }
-
-    @Test
     fun `relevant media references keep global uploads and active field uploads only`() {
         val globalRef = mediaReference(id = "global", fieldParamKey = null)
         val activeFieldRef = mediaReference(id = "active", fieldParamKey = "imageUrls")
@@ -290,282 +142,6 @@ class QuickCreationServiceFieldUiModelTest {
         )
     }
 
-    @Test
-    fun `media service fields are renderable`() {
-        listOf("IMAGE", "VIDEO", "AUDIO", "UPLOAD").forEach { fieldType ->
-            val field = QuickCreationServiceField(
-                fieldKey = "media",
-                paramKey = "mediaUrls",
-                fieldType = fieldType,
-                required = true,
-                defaultValue = null,
-                options = emptyList(),
-            )
-
-            assertTrue(field.isQuickCreationServiceFieldRenderable(), "$fieldType should be renderable")
-        }
-    }
-
-    @Test
-    fun `upload hint parts use extra metadata before broad defaults`() {
-        val field = QuickCreationServiceField(
-            fieldKey = "imageUrls",
-            paramKey = "imageUrls",
-            fieldType = "IMAGE",
-            required = true,
-            defaultValue = null,
-            options = emptyList(),
-            maxUploadCount = 10,
-            maxUploadSize = 10L * 1024 * 1024,
-            inputExtra = QuickCreationServiceFieldExtra(
-                acceptFormats = listOf("JPG", "PNG"),
-                maxInputCount = 4,
-            ),
-        )
-
-        assertEquals(
-            listOf("JPG/PNG", "最多 4 个文件", "单文件 10MB"),
-            field.quickCreationUploadHintParts(),
-        )
-    }
-
-    @Test
-    fun `required upload validation uses service metadata`() {
-        val field = QuickCreationServiceField(
-            fieldKey = "imageUrls",
-            paramKey = "imageUrls",
-            fieldType = "IMAGE",
-            required = true,
-            defaultValue = null,
-            options = emptyList(),
-            inputExtra = QuickCreationServiceFieldExtra(title = "Reference image"),
-        )
-
-        assertEquals("Reference image 不能为空", field.quickCreationUploadValidationError(uploadedCount = 0))
-        assertEquals(null, field.quickCreationUploadValidationError(uploadedCount = 1))
-    }
-
-    @Test
-    fun `upload max count validation uses extra metadata before broad defaults`() {
-        val field = QuickCreationServiceField(
-            fieldKey = "imageUrls",
-            paramKey = "imageUrls",
-            fieldType = "IMAGE",
-            required = false,
-            defaultValue = null,
-            options = emptyList(),
-            maxUploadCount = 10,
-            inputExtra = QuickCreationServiceFieldExtra(title = "Reference image", maxInputCount = 4),
-        )
-
-        assertEquals("Reference image 最多 4 个文件", field.quickCreationUploadValidationError(uploadedCount = 5))
-        assertEquals(null, field.quickCreationUploadValidationError(uploadedCount = 4))
-    }
-
-    @Test
-    fun `invisible service fields are not renderable in tune panel`() {
-        val field = QuickCreationServiceField(
-            fieldKey = "internalMode",
-            paramKey = "internalMode",
-            fieldType = "STRING",
-            required = false,
-            defaultValue = "stable",
-            options = emptyList(),
-            visible = false,
-        )
-
-        assertEquals(false, field.isQuickCreationServiceFieldRenderable())
-    }
-
-    @Test
-    fun `text input is constrained by max length metadata`() {
-        val field = QuickCreationServiceField(
-            fieldKey = "prompt",
-            paramKey = "prompt",
-            fieldType = "STRING",
-            required = true,
-            defaultValue = null,
-            options = emptyList(),
-            inputExtra = QuickCreationServiceFieldExtra(maxLength = 5),
-        )
-
-        assertEquals("abcde", field.constrainQuickCreationTextInput("abcdefg"))
-        assertEquals("abc", field.constrainQuickCreationTextInput("abc"))
-    }
-
-    @Test
-    fun `text limit counter uses max length metadata`() {
-        val field = QuickCreationServiceField(
-            fieldKey = "prompt",
-            paramKey = "prompt",
-            fieldType = "STRING",
-            required = true,
-            defaultValue = null,
-            options = emptyList(),
-            inputExtra = QuickCreationServiceFieldExtra(maxLength = 5),
-        )
-
-        assertEquals("3/5", field.quickCreationTextLimitCounter("abc"))
-    }
-
-    @Test
-    fun `required text validation uses service metadata`() {
-        val field = QuickCreationServiceField(
-            fieldKey = "tagline",
-            paramKey = "tagline",
-            fieldType = "STRING",
-            required = true,
-            defaultValue = null,
-            options = emptyList(),
-            inputExtra = QuickCreationServiceFieldExtra(title = "Tagline"),
-        )
-
-        assertEquals("Tagline 不能为空", field.quickCreationTextValidationError(""))
-    }
-
-    @Test
-    fun `min length validation uses service metadata`() {
-        val field = QuickCreationServiceField(
-            fieldKey = "tagline",
-            paramKey = "tagline",
-            fieldType = "STRING",
-            required = true,
-            defaultValue = null,
-            options = emptyList(),
-            inputExtra = QuickCreationServiceFieldExtra(title = "Tagline", minLength = 3),
-        )
-
-        assertEquals("Tagline 至少 3 个字符", field.quickCreationTextValidationError("ab"))
-        assertEquals(null, field.quickCreationTextValidationError("abc"))
-    }
-
-    @Test
-    fun `active child inputs follow parent selection metadata`() {
-        val field = QuickCreationServiceField(
-            fieldKey = "creationMode",
-            paramKey = "creationMode",
-            fieldType = "LIST",
-            required = true,
-            defaultValue = "text",
-            options = emptyList(),
-            inputExtra = QuickCreationServiceFieldExtra(
-                inputChildren = listOf(
-                    QuickCreationServiceFieldInputChild(
-                        fieldKey = "alwaysVisible",
-                        paramKey = "alwaysVisible",
-                        fieldType = "STRING",
-                    ),
-                    QuickCreationServiceFieldInputChild(
-                        fieldKey = "referenceStrength",
-                        paramKey = "referenceStrength",
-                        fieldType = "NUMBER",
-                        visibleWhen = QuickCreationServiceFieldVisibilityCondition(
-                            fieldKey = "creationMode",
-                            values = listOf("imageReference"),
-                        ),
-                    ),
-                )
-            ),
-        )
-
-        assertEquals(
-            listOf("alwaysVisible"),
-            field.quickCreationActiveInputChildren(params = emptyMap()).map { it.paramKey },
-        )
-        assertEquals(
-            listOf("alwaysVisible", "referenceStrength"),
-            field.quickCreationActiveInputChildren(params = mapOf("creationMode" to "imageReference"))
-                .map { it.paramKey },
-        )
-    }
-
-    @Test
-    fun `required child text validation uses child metadata`() {
-        val child = QuickCreationServiceFieldInputChild(
-            fieldKey = "referenceStrength",
-            paramKey = "referenceStrength",
-            fieldType = "NUMBER",
-            required = true,
-            title = "Reference strength",
-        )
-
-        assertEquals("Reference strength 不能为空", child.quickCreationTextValidationError(""))
-        assertEquals(null, child.quickCreationTextValidationError("0.65"))
-    }
-
-    @Test
-    fun `child min length validation uses child metadata`() {
-        val child = QuickCreationServiceFieldInputChild(
-            fieldKey = "subPrompt",
-            paramKey = "subPrompt",
-            fieldType = "STRING",
-            required = true,
-            title = "Sub prompt",
-            minLength = 3,
-        )
-
-        assertEquals("Sub prompt 至少 3 个字符", child.quickCreationTextValidationError("ab"))
-        assertEquals(null, child.quickCreationTextValidationError("abc"))
-    }
-
-    @Test
-    fun `child text input is constrained by max length metadata`() {
-        val child = QuickCreationServiceFieldInputChild(
-            fieldKey = "subPrompt",
-            paramKey = "subPrompt",
-            fieldType = "STRING",
-            maxLength = 5,
-        )
-
-        assertEquals("abcde", child.constrainQuickCreationTextInput("abcdefg"))
-        assertEquals("abc", child.constrainQuickCreationTextInput("abc"))
-    }
-
-    @Test
-    fun `child text limit counter uses max length metadata`() {
-        val child = QuickCreationServiceFieldInputChild(
-            fieldKey = "subPrompt",
-            paramKey = "subPrompt",
-            fieldType = "STRING",
-            maxLength = 5,
-        )
-
-        assertEquals("3/5", child.quickCreationTextLimitCounter("abc"))
-    }
-
-    @Test
-    fun `required child upload validation uses child metadata`() {
-        val child = QuickCreationServiceFieldInputChild(
-            fieldKey = "referenceImage",
-            paramKey = "referenceImages",
-            fieldType = "IMAGE",
-            required = true,
-            title = "Reference image",
-        )
-
-        assertEquals(
-            true,
-            child.quickCreationUploadValidationError(uploadedCount = 0)?.startsWith("Reference image"),
-        )
-        assertEquals(null, child.quickCreationUploadValidationError(uploadedCount = 1))
-    }
-
-    @Test
-    fun `child upload max count validation uses child metadata`() {
-        val child = QuickCreationServiceFieldInputChild(
-            fieldKey = "referenceImage",
-            paramKey = "referenceImages",
-            fieldType = "IMAGE",
-            title = "Reference image",
-            maxInputCount = 1,
-        )
-
-        assertEquals(
-            true,
-            child.quickCreationUploadValidationError(uploadedCount = 2)?.startsWith("Reference image"),
-        )
-        assertEquals(null, child.quickCreationUploadValidationError(uploadedCount = 1))
-    }
 }
 
 private fun mediaReference(

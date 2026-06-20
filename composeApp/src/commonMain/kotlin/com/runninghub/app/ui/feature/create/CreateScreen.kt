@@ -80,8 +80,8 @@ import com.runninghub.app.ui.theme.RhAppMuted
 import com.runninghub.app.ui.theme.RhAppSurface
 import com.runninghub.app.ui.theme.RhAppText
 import com.runninghub.app.ui.theme.StatusError
-import com.runninghub.shared.data.local.PermissionDataStore
 import com.runninghub.shared.domain.model.Permission
+import com.runninghub.shared.domain.permission.PermissionStateStore
 import com.runninghub.shared.domain.repository.QuickCreationFeePreview
 import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
 import com.runninghub.shared.domain.repository.QuickCreationServiceField
@@ -96,8 +96,9 @@ class CreateVoyagerScreen : Screen {
     override fun Content() {
         val screenModel: CreateScreenModel = koinScreenModel()
         val uiState by screenModel.uiState.collectAsState()
-        val dataStore: PermissionDataStore = koinInject()
-        val permissionController = rememberPermissionController(dataStore)
+        // 创建页只关心权限状态，不关心底层持久化实现是否为 DataStore。
+        val permissionStateStore: PermissionStateStore = koinInject()
+        val permissionController = rememberPermissionController(permissionStateStore)
 
         LaunchedEffect(Unit) { screenModel.loadModels() }
 
