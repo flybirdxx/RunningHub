@@ -1,4 +1,6 @@
 pluginManagement {
+    includeBuild("build-logic")
+
     repositories {
         google()
         mavenCentral()
@@ -17,5 +19,11 @@ dependencyResolutionManagement {
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 rootProject.name = "RunningHub"
+include(":core:model")
+include(":core:common")
+include(":core:network")
+include(":core:storage")
+include(":core:designsystem")
+include(":feature:auth:domain")
 include(":shared")
 include(":composeApp")

@@ -1,10 +1,7 @@
 .gradle
 .kotlin
-/build
-/app/build
-/compileApp/build
-/composeApp/build
-/shared/build
+build/
+**/build/
 *.iml
 .idea
 local.properties

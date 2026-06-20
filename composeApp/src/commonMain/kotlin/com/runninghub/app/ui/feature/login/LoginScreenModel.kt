@@ -4,7 +4,7 @@ import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.shared.domain.model.User
 import com.runninghub.shared.domain.repository.AuthRepository
-import com.runninghub.shared.domain.repository.SmsError
+import com.runninghub.feature.auth.domain.SmsError
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

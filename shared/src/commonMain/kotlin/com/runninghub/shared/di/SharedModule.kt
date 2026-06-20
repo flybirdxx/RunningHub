@@ -1,5 +1,6 @@
 package com.runninghub.shared.di
 
+import com.runninghub.core.storage.CredentialStore
 import com.runninghub.shared.data.local.SettingsRepositoryImpl
 import com.runninghub.shared.data.local.createDataStore
 import com.runninghub.shared.data.remote.api.AudioApi
@@ -57,6 +58,7 @@ val sharedModule = module {
     single { createDataStore() }
 
     single<SettingsRepository> { SettingsRepositoryImpl(get()) }
+    single<CredentialStore> { get<SettingsRepository>() }
 
     // Dedicated non-Auth HttpClient for token refresh (prevents infinite 401 loop)
     single<HttpClient>(named("refreshClient")) {
