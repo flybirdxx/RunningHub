@@ -3,15 +3,25 @@ package com.runninghub.shared.di
 import com.runninghub.shared.data.local.SettingsRepositoryImpl
 import com.runninghub.shared.data.local.createDataStore
 import com.runninghub.shared.data.remote.api.AudioApi
+import com.runninghub.shared.data.remote.api.ModelCatalogApi
+import com.runninghub.shared.data.remote.api.PlazaApi
 import com.runninghub.shared.data.remote.api.QuickCreateApi
 import com.runninghub.shared.data.remote.api.RunningHubApi
 import com.runninghub.shared.data.repository.AudioRepositoryImpl
 import com.runninghub.shared.data.repository.AuthRepositoryImpl
+import com.runninghub.shared.data.repository.GenerationHistoryRepositoryImpl
+import com.runninghub.shared.data.repository.ModelCatalogRepositoryImpl
+import com.runninghub.shared.data.repository.ModelInvocationRepositoryImpl
+import com.runninghub.shared.data.repository.PlazaRepositoryImpl
 import com.runninghub.shared.data.repository.QuickCreateRepositoryImpl
 import com.runninghub.shared.data.repository.UserRepositoryImpl
 import com.runninghub.shared.data.repository.WebAppRepositoryImpl
 import com.runninghub.shared.domain.repository.AudioRepository
 import com.runninghub.shared.domain.repository.AuthRepository
+import com.runninghub.shared.domain.repository.GenerationHistoryRepository
+import com.runninghub.shared.domain.repository.ModelCatalogRepository
+import com.runninghub.shared.domain.repository.ModelInvocationRepository
+import com.runninghub.shared.domain.repository.PlazaRepository
 import com.runninghub.shared.domain.repository.QuickCreateRepository
 import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.UserRepository
@@ -146,10 +156,16 @@ val sharedModule = module {
     single { RunningHubApi(get()) }
     single { AudioApi(get()) }
     single { QuickCreateApi(get(), get()) }
+    single { ModelCatalogApi(get()) }
+    single { PlazaApi(get()) }
 
     single<WebAppRepository> { WebAppRepositoryImpl(get()) }
     single<UserRepository> { UserRepositoryImpl(get()) }
     single<AudioRepository> { AudioRepositoryImpl(get()) }
     single<AuthRepository> { AuthRepositoryImpl(get(), get()) }
     single<QuickCreateRepository> { QuickCreateRepositoryImpl(get(), get(), get()) }
+    single<ModelCatalogRepository> { ModelCatalogRepositoryImpl(get(), get()) }
+    single<ModelInvocationRepository> { ModelInvocationRepositoryImpl(get(), get()) }
+    single<GenerationHistoryRepository> { GenerationHistoryRepositoryImpl(get()) }
+    single<PlazaRepository> { PlazaRepositoryImpl(get()) }
 }

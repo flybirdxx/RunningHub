@@ -64,23 +64,13 @@ class DiscoveryScreenModel(
                 val categoriesDeferred = launch { loadCategories() }
                 categoriesDeferred.join()
 
-                val bannersDeferred = launch { loadCustomMade() }
                 val appsDeferred = launch { loadApps(page = 1, reset = true) }
 
-                bannersDeferred.join()
                 appsDeferred.join()
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
             }
         }
-    }
-
-    private suspend fun loadCustomMade() {
-        val tags = selectedTags()
-        webAppRepository.getCustomMadeWebappList(tags)
-            .onSuccess { banners ->
-                _uiState.update { it.copy(banners = banners) }
-            }
     }
 
     private suspend fun loadCategories() {
@@ -143,7 +133,6 @@ class DiscoveryScreenModel(
         }
 
         screenModelScope.launch {
-            loadCustomMade()
             loadApps(page = 1, reset = true)
             _uiState.update { it.copy(isLoadingApps = false) }
         }
@@ -182,7 +171,6 @@ class DiscoveryScreenModel(
             }
             try {
                 loadCategories()
-                loadCustomMade()
                 loadApps(page = 1, reset = true)
             } finally {
                 _uiState.update { it.copy(isRefreshing = false) }

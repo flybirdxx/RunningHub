@@ -34,7 +34,7 @@ fun App() {
             .build()
     }
     KoinContext {
-        RunningHubTheme {
+        RunningHubTheme(darkTheme = true) {
             val authRepository = koinInject<AuthRepository>()
             var startScreen by remember { mutableStateOf<cafe.adriel.voyager.core.screen.Screen?>(null) }
 

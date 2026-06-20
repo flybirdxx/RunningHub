@@ -2,7 +2,33 @@ package com.runninghub.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Primary — Electric Violet 蓝紫色阶
+// RunningHub web brand palette captured from runninghub.cn on 2026-06-19.
+val BrandLime = Color(0xFFB6FF00)
+val BaseBlack = Color(0xFF000000)
+val Surface900 = Color(0xFF080808)
+val Surface850 = Color(0xFF09090B)
+val Surface800 = Color(0xFF18181B)
+val Surface700 = Color(0xFF27272A)
+
+val TextPrimaryDark = Color(0xFFFFFFFF)
+val TextDefaultDark = Color(0xFFEFEFEF)
+val TextSecondaryDark = Color(0xFFD8D8D8)
+val TextMutedDark = Color(0xFF9DA2A8)
+val StatusError = Color(0xFFFF4144)
+val ControlTeal = Color(0xFF02DBA3)
+val ControlTealActive = Color(0xFF01A47A)
+
+// Shared app chrome colors used by the branded dark UI.
+val RhAppBackground = BaseBlack
+val RhAppSurface = Surface850
+val RhAppCard = Surface800
+val RhAppSelected = Color(0xFF202515)
+val RhAppLine = Color(0xFF30363A)
+val RhAppText = TextPrimaryDark
+val RhAppMuted = TextMutedDark
+val RhAppBottomBar = Color(0xF209090B)
+
+// Primary 鈥?Electric Violet 钃濈传鑹查樁
 val Primary50 = Color(0xFFF3F1FF)
 val Primary100 = Color(0xFFE0DBFF)
 val Primary200 = Color(0xFFC4B5FD)
@@ -14,7 +40,7 @@ val Primary700 = Color(0xFF4C3EC0)
 val Primary800 = Color(0xFF3D31A8)
 val Primary900 = Color(0xFF2E2490)
 
-// Secondary — Cyan 青蓝色阶
+// Secondary 鈥?Cyan 闈掕摑鑹查樁
 val Secondary50 = Color(0xFFE8FBFF)
 val Secondary100 = Color(0xFFBFF3FF)
 val Secondary200 = Color(0xFF80E7FF)
@@ -26,7 +52,7 @@ val Secondary700 = Color(0xFF009EC0)
 val Secondary800 = Color(0xFF0084A0)
 val Secondary900 = Color(0xFF006A80)
 
-// Neutral 灰度色阶
+// Neutral 鐏板害鑹查樁
 val Neutral50 = Color(0xFFF8FAFC)
 val Neutral100 = Color(0xFFF1F5F9)
 val Neutral200 = Color(0xFFE2E8F0)
@@ -38,7 +64,7 @@ val Neutral700 = Color(0xFF334155)
 val Neutral800 = Color(0xFF1E293B)
 val Neutral900 = Color(0xFF0F172A)
 
-// Semantic 语义色
+// Semantic colors
 val SuccessLight = Color(0xFF16A34A)
 val SuccessDark = Color(0xFF4ADE80)
 val WarningLight = Color(0xFFD97706)
@@ -49,10 +75,10 @@ val InfoLight = Color(0xFF2563EB)
 val InfoDark = Color(0xFF60A5FA)
 
 // Light ColorScheme tokens
-val LightPrimary = Primary500
-val LightOnPrimary = Color.White
-val LightPrimaryContainer = Primary100
-val LightOnPrimaryContainer = Color(0xFF1A0045)
+val LightPrimary = Color(0xFF4E6200)
+val LightOnPrimary = Color.Black
+val LightPrimaryContainer = BrandLime
+val LightOnPrimaryContainer = Color.Black
 
 val LightSecondary = Color(0xFF0084A0)
 val LightOnSecondary = Color.White
@@ -79,15 +105,15 @@ val LightOutline = Neutral400
 val LightOutlineVariant = Neutral200
 val LightInverseSurface = Neutral800
 val LightInverseOnSurface = Neutral100
-val LightInversePrimary = Primary200
-val LightSurfaceTint = Primary500
+val LightInversePrimary = BrandLime
+val LightSurfaceTint = LightPrimary
 val LightScrim = Color.Black
 
 // Dark ColorScheme tokens
-val DarkPrimary = Primary300
-val DarkOnPrimary = Color(0xFF1A0045)
-val DarkPrimaryContainer = Primary800
-val DarkOnPrimaryContainer = Primary100
+val DarkPrimary = BrandLime
+val DarkOnPrimary = Color.Black
+val DarkPrimaryContainer = Color(0xFF334000)
+val DarkOnPrimaryContainer = BrandLime
 
 val DarkSecondary = Secondary200
 val DarkOnSecondary = Color(0xFF003544)
@@ -99,21 +125,21 @@ val DarkOnTertiary = Color(0xFF5C1900)
 val DarkTertiaryContainer = Color(0xFF7A2E15)
 val DarkOnTertiaryContainer = Color(0xFFFFDBD1)
 
-val DarkError = ErrorDark
+val DarkError = StatusError
 val DarkOnError = Color(0xFF410002)
 val DarkErrorContainer = Color(0xFF93000A)
 val DarkOnErrorContainer = Color(0xFFFFDAD6)
 
-val DarkBackground = Color(0xFF0B0F1A)
-val DarkOnBackground = Neutral200
-val DarkSurface = Color(0xFF141929)
-val DarkOnSurface = Neutral200
-val DarkSurfaceVariant = Color(0xFF1E2438)
-val DarkOnSurfaceVariant = Neutral300
-val DarkOutline = Neutral500
-val DarkOutlineVariant = Neutral700
+val DarkBackground = RhAppBackground
+val DarkOnBackground = RhAppText
+val DarkSurface = RhAppSurface
+val DarkOnSurface = RhAppText
+val DarkSurfaceVariant = RhAppCard
+val DarkOnSurfaceVariant = RhAppMuted
+val DarkOutline = RhAppLine
+val DarkOutlineVariant = Color(0x14FFFFFF)
 val DarkInverseSurface = Neutral200
 val DarkInverseOnSurface = Neutral800
-val DarkInversePrimary = Primary500
-val DarkSurfaceTint = Primary300
+val DarkInversePrimary = BrandLime
+val DarkSurfaceTint = BrandLime
 val DarkScrim = Color.Black

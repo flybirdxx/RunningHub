@@ -2,18 +2,53 @@ package com.runninghub.app.ui.feature.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.MonetizationOn
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.WorkspacePremium
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -25,21 +60,22 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
-import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.previewProfileUiState
+import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.feature.login.LoginVoyagerScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
+import com.runninghub.shared.domain.model.MemberInfo
 import com.runninghub.shared.domain.model.User
+import com.runninghub.shared.domain.model.WalletInfo
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class ProfileVoyagerScreen : Screen {
@@ -50,7 +86,7 @@ class ProfileVoyagerScreen : Screen {
         val uiState by screenModel.uiState.collectAsState()
         val navigator = LocalNavigator.currentOrThrow
 
-        // Voyager rule: no suspend in ScreenModel.init{} — load here
+        // Voyager rule: no suspend in ScreenModel.init{} - load here.
         LaunchedEffect(Unit) {
             screenModel.loadUserData()
         }
@@ -58,12 +94,6 @@ class ProfileVoyagerScreen : Screen {
         ProfileScreenContent(
             uiState = uiState,
             onRefresh = screenModel::refreshUserData,
-            onBindApiKey = screenModel::bindApiKey,
-            onBindCookie = screenModel::bindCookie,
-            onShowApiKeyDialog = screenModel::showApiKeyDialog,
-            onDismissApiKeyDialog = screenModel::dismissApiKeyDialog,
-            onShowCookieDialog = screenModel::showCookieDialog,
-            onDismissCookieDialog = screenModel::dismissCookieDialog,
             onLogout = {
                 screenModel.logout {
                     navigator.replaceAll(LoginVoyagerScreen())
@@ -79,12 +109,6 @@ fun ProfileScreenContent(
     modifier: Modifier = Modifier,
     uiState: ProfileUiState,
     onRefresh: () -> Unit = {},
-    onBindApiKey: (String) -> Unit = {},
-    onBindCookie: (String) -> Unit = {},
-    onShowApiKeyDialog: () -> Unit = {},
-    onDismissApiKeyDialog: () -> Unit = {},
-    onShowCookieDialog: () -> Unit = {},
-    onDismissCookieDialog: () -> Unit = {},
     onLogout: () -> Unit = {},
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
@@ -122,16 +146,9 @@ fun ProfileScreenContent(
                         ) {
                             ProfileHeader(user = uiState.user)
                             Spacer(Modifier.height(16.dp))
-                            AssetsSection(user = uiState.user)
+                            AccountSummarySection(user = uiState.user)
                             Spacer(Modifier.height(16.dp))
-                            QuickActionsGrid(
-                                onApiKey = onShowApiKeyDialog,
-                                onCookie = onShowCookieDialog,
-                            )
-                            Spacer(Modifier.height(16.dp))
-                            StatsRow(user = uiState.user)
-                            Spacer(Modifier.height(16.dp))
-                            SettingsSection(onLogout = onLogout)
+                            ProfileMenuSection(onLogout = onLogout)
                             Spacer(Modifier.height(32.dp))
                         }
                     }
@@ -139,81 +156,7 @@ fun ProfileScreenContent(
             }
         }
     }
-
-    // API Key binding dialog
-    if (uiState.showApiKeyDialog) {
-        val apiKeyBuffer = remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = onDismissApiKeyDialog,
-            title = { Text("绑定 API Key") },
-            text = {
-                Column {
-                    Text(
-                        "输入来自 RunningHub 网站的 API Key，用于访问 AI 应用。",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = apiKeyBuffer.value,
-                        onValueChange = { apiKeyBuffer.value = it },
-                        label = { Text("API Key") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { onBindApiKey(apiKeyBuffer.value) }) {
-                    Text("绑定", color = MaterialTheme.colorScheme.primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismissApiKeyDialog) {
-                    Text("取消")
-                }
-            },
-        )
-    }
-
-    // Cookie binding dialog
-    if (uiState.showCookieDialog) {
-        val cookieBuffer = remember { mutableStateOf("") }
-        AlertDialog(
-            onDismissRequest = onDismissCookieDialog,
-            title = { Text("绑定 Cookie") },
-            text = {
-                Column {
-                    Text(
-                        "输入来自 RunningHub 网站的 Cookie，用于高级功能访问。",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = cookieBuffer.value,
-                        onValueChange = { cookieBuffer.value = it },
-                        label = { Text("Cookie") },
-                        singleLine = false,
-                        maxLines = 3,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { onBindCookie(cookieBuffer.value) }) {
-                    Text("绑定", color = MaterialTheme.colorScheme.primary)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = onDismissCookieDialog) {
-                    Text("取消")
-                }
-            },
-        )
-    }
 }
-
 
 @Composable
 private fun ProfileHeader(user: User?) {
@@ -229,64 +172,34 @@ private fun ProfileHeader(user: User?) {
                 )
             )
             .statusBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 20.dp)
+            .padding(horizontal = 20.dp, vertical = 22.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-                contentAlignment = Alignment.Center
-            ) {
-                if (!user?.headIcon.isNullOrEmpty()) {
-                    AsyncImage(
-                        model = user?.headIcon,
-                        contentDescription = user?.nickName ?: "头像",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.Person,
-                        contentDescription = "默认头像",
-                        modifier = Modifier.size(32.dp),
-                        tint = MaterialTheme.colorScheme.outline
-                    )
-                }
-            }
+            ProfileAvatar(user = user)
 
             Spacer(Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = user?.nickName ?: "RunningHub 用户",
-                    style = MaterialTheme.typography.titleLarge,
+                    text = user?.nickName?.takeIf { it.isNotBlank() } ?: "RunningHub 用户",
+                    style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(4.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (!user?.mobile.isNullOrEmpty()) {
-                        val maskedPhone = user?.mobile?.let {
-                            if (it.length >= 7) "${it.substring(0, 3)}****${it.substring(it.length - 4)}"
-                            else it
-                        } ?: ""
-                        Text(
-                            text = "Tel: $maskedPhone",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-                if (user?.memberInfo != null) {
-                    Spacer(Modifier.height(6.dp))
-                    MemberBadge(memberName = user.memberInfo?.memberName)
-                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = maskPhone(user?.mobile),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                MemberBadge(memberInfo = user?.memberInfo, modifier = Modifier.padding(top = 8.dp))
             }
 
             Icon(
@@ -295,7 +208,34 @@ private fun ProfileHeader(user: User?) {
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .size(24.dp)
-                    .clickable { }
+                    .clickable { },
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileAvatar(user: User?) {
+    Box(
+        modifier = Modifier
+            .size(76.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (!user?.headIcon.isNullOrEmpty()) {
+            AsyncImage(
+                model = user.headIcon,
+                contentDescription = user.nickName ?: "头像",
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Icon(
+                Icons.Default.Person,
+                contentDescription = "默认头像",
+                modifier = Modifier.size(34.dp),
+                tint = MaterialTheme.colorScheme.outline,
             )
         }
     }
@@ -303,285 +243,42 @@ private fun ProfileHeader(user: User?) {
 
 @Composable
 private fun MemberBadge(
-    memberName: String?,
+    memberInfo: MemberInfo?,
     modifier: Modifier = Modifier,
 ) {
-    if (memberName.isNullOrEmpty()) return
+    val memberName = memberInfo?.memberName?.takeIf { it.isNotBlank() } ?: return
     Surface(
         modifier = modifier.widthIn(max = 240.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f),
+        shape = RoundedCornerShape(999.dp),
+        color = RunningHubThemeExt.colors.premiumGold.copy(alpha = 0.14f),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 Icons.Default.Star,
                 contentDescription = "会员等级",
                 tint = RunningHubThemeExt.colors.premiumGold,
-                modifier = Modifier.size(14.dp)
+                modifier = Modifier.size(14.dp),
             )
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(5.dp))
             Text(
-                text = memberName,
+                text = buildString {
+                    append(memberName)
+                    remainingDays(memberInfo)?.let { append(" · $it") }
+                },
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primaryContainer,
+                color = RunningHubThemeExt.colors.premiumGold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
             )
         }
     }
 }
 
 @Composable
-private fun AssetsSection(user: User?) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(Dimens.RadiusLG),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "我的资产",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-                TextButton(
-                    onClick = {},
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
-                    colors = ButtonDefaults.textButtonColors(contentColor = RunningHubThemeExt.colors.premiumOrange),
-                ) {
-                    Text("充值", style = MaterialTheme.typography.bodyMedium)
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                AssetItem(
-                    label = "RH币余额",
-                    value = formatNumber(user?.totalCoin ?: "0"),
-                    icon = Icons.Default.MonetizationOn,
-                    iconTint = RunningHubThemeExt.colors.premiumGold,
-                    modifier = Modifier.weight(1f),
-                )
-                Box(
-                    Modifier
-                        .width(1.dp)
-                        .height(50.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant)
-                )
-                AssetItem(
-                    label = "钱包余额",
-                    value = "${user?.walletInfo?.currencySymbol ?: "¥"}${user?.walletInfo?.balance ?: "0.00"}",
-                    icon = Icons.Default.AccountBalanceWallet,
-                    iconTint = MaterialTheme.colorScheme.secondary,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-
-            if (user?.memberInfo != null) {
-                Spacer(Modifier.height(16.dp))
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color.Transparent,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(
-                                Brush.horizontalGradient(
-                                    colors = listOf(
-                                        Color(0xFF2D2411),
-                                        Color(0xFF3D3015),
-                                    )
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                            )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Row(
-                                modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Icon(
-                                    Icons.Default.WorkspacePremium,
-                                    contentDescription = "会员权益",
-                                    tint = RunningHubThemeExt.colors.premiumGold,
-                                    modifier = Modifier.size(22.dp),
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = user.memberInfo?.memberName ?: "会员",
-                                        style = MaterialTheme.typography.titleSmall,
-                                        color = RunningHubThemeExt.colors.premiumGold,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                    val expiry = user.memberInfo?.memberExpiredTime?.split(" ")?.firstOrNull() ?: ""
-                                    val remaining = user.memberInfo?.memberRemainingDays
-                                    val expiryText = if (!remaining.isNullOrEmpty() && remaining != "0") {
-                                        "还有${remaining}天到期"
-                                    } else if (expiry.isNotEmpty()) {
-                                        "${expiry} 到期"
-                                    } else ""
-                                    if (expiryText.isNotEmpty()) {
-                                        Text(
-                                            text = expiryText,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = Color(0xFFBFA76A),
-                                            maxLines = 1,
-                                            overflow = TextOverflow.Ellipsis,
-                                        )
-                                    }
-                                }
-                            }
-                            Button(
-                                onClick = {},
-                                shape = RoundedCornerShape(8.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = RunningHubThemeExt.colors.premiumOrange,
-                                    contentColor = MaterialTheme.colorScheme.onSurface,
-                                ),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                            ) {
-                                Text("续费", style = MaterialTheme.typography.bodyMedium)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AssetItem(
-    modifier: Modifier = Modifier,
-    label: String,
-    value: String,
-    icon: ImageVector,
-    iconTint: Color,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = iconTint,
-            modifier = Modifier.size(24.dp),
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.outline,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun QuickActionsGrid(
-    onApiKey: () -> Unit = {},
-    onCookie: () -> Unit = {},
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(Dimens.RadiusLG),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(modifier = Modifier.padding(vertical = 12.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                QuickActionItem(Icons.Default.Campaign, "网站公告", modifier = Modifier.weight(1f))
-                QuickActionItem(Icons.Default.Folder, "作品管理", modifier = Modifier.weight(1f))
-                QuickActionItem(Icons.Default.Api, "API 管理", modifier = Modifier.weight(1f), onClick = onApiKey)
-                QuickActionItem(Icons.Default.Groups, "开发者社区", modifier = Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(4.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                QuickActionItem(Icons.Default.CardMembership, "会员权益", modifier = Modifier.weight(1f))
-                QuickActionItem(Icons.Default.Science, "创新实验", modifier = Modifier.weight(1f))
-                QuickActionItem(Icons.Default.PrivacyTip, "隐私政策", modifier = Modifier.weight(1f))
-                QuickActionItem(Icons.Default.History, "历史记录", modifier = Modifier.weight(1f))
-            }
-        }
-    }
-}
-
-@Composable
-private fun QuickActionItem(
-    icon: ImageVector,
-    label: String,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
-) {
-    Column(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp, vertical = 12.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            icon,
-            contentDescription = label,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(24.dp),
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-@Composable
-private fun StatsRow(user: User?) {
+private fun AccountSummarySection(user: User?) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -592,30 +289,58 @@ private fun StatsRow(user: User?) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(vertical = 16.dp),
+                .padding(horizontal = 12.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            StatItem(label = "获赞", value = formatNumber(user?.likeCount ?: "0"), modifier = Modifier.weight(1f))
-            StatItem(label = "收藏", value = formatNumber(user?.collectCount ?: "0"), modifier = Modifier.weight(1f))
-            StatItem(label = "关注", value = formatNumber(user?.followCount ?: "0"), modifier = Modifier.weight(1f))
-            StatItem(label = "粉丝", value = formatNumber(user?.fanCount ?: "0"), modifier = Modifier.weight(1f))
+            AccountSummaryItem(
+                label = "RH 币",
+                value = formatNumber(user?.totalCoin ?: "0"),
+                icon = Icons.Default.MonetizationOn,
+                tint = RunningHubThemeExt.colors.premiumGold,
+                modifier = Modifier.weight(1f),
+            )
+            AccountSummaryItem(
+                label = "钱包",
+                value = walletBalance(user?.walletInfo),
+                icon = Icons.Default.AccountBalanceWallet,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.weight(1f),
+            )
+            AccountSummaryItem(
+                label = "会员剩余",
+                value = remainingDays(user?.memberInfo) ?: "--",
+                icon = Icons.Default.WorkspacePremium,
+                tint = RunningHubThemeExt.colors.premiumOrange,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
 
 @Composable
-private fun StatItem(
+private fun AccountSummaryItem(
     label: String,
     value: String,
+    icon: ImageVector,
+    tint: Color,
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.padding(horizontal = 2.dp),
+        modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = label,
+            tint = tint,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(Modifier.height(8.dp))
         Text(
             text = value,
-            style = MaterialTheme.typography.headlineSmall,
+            style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurface,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
@@ -635,7 +360,7 @@ private fun StatItem(
 }
 
 @Composable
-private fun SettingsSection(onLogout: () -> Unit) {
+private fun ProfileMenuSection(onLogout: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -644,23 +369,23 @@ private fun SettingsSection(onLogout: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column {
-            SettingsMenuItem(
-                icon = Icons.Default.Info,
-                title = "关于 RunningHub",
-                onClick = {}
-            )
+            ProfileMenuItem(icon = Icons.Default.Edit, title = "编辑资料", onClick = {})
             MenuDivider()
-            SettingsMenuItem(
-                icon = Icons.Default.DeleteOutline,
-                title = "清除缓存",
-                onClick = {}
-            )
+            ProfileMenuItem(icon = Icons.Default.WorkspacePremium, title = "会员续费", onClick = {})
             MenuDivider()
-            SettingsMenuItem(
+            ProfileMenuItem(icon = Icons.Default.MonetizationOn, title = "充值中心", onClick = {})
+            MenuDivider()
+            ProfileMenuItem(icon = Icons.Default.AccountBalanceWallet, title = "钱包明细", onClick = {})
+            MenuDivider()
+            ProfileMenuItem(icon = Icons.Default.DeleteOutline, title = "清除缓存", onClick = {})
+            MenuDivider()
+            ProfileMenuItem(icon = Icons.Default.Info, title = "关于 RunningHub", onClick = {})
+            MenuDivider()
+            ProfileMenuItem(
                 icon = Icons.AutoMirrored.Filled.ExitToApp,
                 title = "退出登录",
                 titleColor = MaterialTheme.colorScheme.error,
-                onClick = onLogout
+                onClick = onLogout,
             )
         }
     }
@@ -676,7 +401,7 @@ private fun MenuDivider() {
 }
 
 @Composable
-private fun SettingsMenuItem(
+private fun ProfileMenuItem(
     icon: ImageVector,
     title: String,
     titleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -686,7 +411,7 @@ private fun SettingsMenuItem(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 20.dp, vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -755,6 +480,38 @@ private fun NotLoggedInContent(modifier: Modifier = Modifier) {
     }
 }
 
+private fun maskPhone(mobile: String?): String {
+    val value = mobile?.takeIf { it.isNotBlank() } ?: return "未绑定手机号"
+    return if (value.length >= 7) {
+        "${value.take(3)}****${value.takeLast(4)}"
+    } else {
+        value
+    }
+}
+
+private fun remainingDays(memberInfo: MemberInfo?): String? {
+    val days = memberInfo?.memberRemainingDays?.takeIf { it.isNotBlank() && it != "0" }
+    if (days != null) return "${days}天"
+
+    val expiry = memberInfo?.memberExpiredTime
+        ?.takeIf { it.isNotBlank() }
+        ?.substringBefore(" ")
+    return expiry?.let { "$it 到期" }
+}
+
+private fun walletBalance(walletInfo: WalletInfo?): String {
+    val balance = walletInfo?.balance ?: 0.0
+    return "${currencySymbol(walletInfo)}${formatMoney(balance)}"
+}
+
+private fun formatMoney(value: Double): String {
+    return if (value % 1.0 == 0.0) {
+        value.toInt().toString()
+    } else {
+        value.toString()
+    }
+}
+
 private fun formatNumber(value: String): String {
     val num = value.replace(",", "").toDoubleOrNull() ?: return value
     return when {
@@ -764,18 +521,24 @@ private fun formatNumber(value: String): String {
     }
 }
 
+private fun currencySymbol(walletInfo: WalletInfo?): String {
+    val symbol = walletInfo?.currencySymbol
+        ?.takeIf { it.isNotBlank() && !it.contains('\uFFFD') && !it.contains('\u951F') }
+    if (symbol != null) return symbol
+
+    return when (walletInfo?.currency?.uppercase()) {
+        "CNY", "RMB" -> "\u00A5"
+        "USD" -> "$"
+        else -> "\u00A5"
+    }
+}
+
 @Composable
 private fun ProfileAdaptivePreview(spec: RhPreviewSpec) {
     RhAdaptivePreview(spec = spec) {
         ProfileScreenContent(
             uiState = previewProfileUiState(),
             onRefresh = {},
-            onBindApiKey = {},
-            onBindCookie = {},
-            onShowApiKeyDialog = {},
-            onDismissApiKeyDialog = {},
-            onShowCookieDialog = {},
-            onDismissCookieDialog = {},
             onLogout = {},
         )
     }
@@ -795,36 +558,6 @@ private fun ProfilePhone360Preview() {
 
 @Preview
 @Composable
-private fun ProfilePhone430Preview() {
-    ProfileAdaptivePreview(RhPreviewSpec.Phone430)
-}
-
-@Preview
-@Composable
-private fun ProfileMedium600Preview() {
+private fun ProfileTabletPreview() {
     ProfileAdaptivePreview(RhPreviewSpec.Medium600)
-}
-
-@Preview
-@Composable
-private fun ProfileExpanded840Preview() {
-    ProfileAdaptivePreview(RhPreviewSpec.Expanded840)
-}
-
-@Preview
-@Composable
-private fun ProfileLandscapePreview() {
-    ProfileAdaptivePreview(RhPreviewSpec.Landscape800)
-}
-
-@Preview
-@Composable
-private fun ProfileFontScale13Preview() {
-    ProfileAdaptivePreview(RhPreviewSpec.FontScale13)
-}
-
-@Preview
-@Composable
-private fun ProfileFontScale15Preview() {
-    ProfileAdaptivePreview(RhPreviewSpec.FontScale15)
 }

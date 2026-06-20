@@ -1,6 +1,5 @@
 package com.runninghub.app.ui.component
 
-import android.view.TextureView
 import android.view.ViewGroup
 import androidx.annotation.OptIn
 import androidx.compose.foundation.layout.Box
@@ -24,6 +23,8 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 
 @OptIn(UnstableApi::class)
 @Composable
@@ -101,16 +102,20 @@ actual fun VideoThumbnail(
 
             AndroidView(
                 factory = { viewContext ->
-                    TextureView(viewContext).apply {
-                        isOpaque = false
+                    PlayerView(viewContext).apply {
+                        useController = false
+                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                        player = exoPlayer
                         layoutParams = ViewGroup.LayoutParams(
                             ViewGroup.LayoutParams.MATCH_PARENT,
                             ViewGroup.LayoutParams.MATCH_PARENT,
                         )
                     }
                 },
-                update = { textureView ->
-                    exoPlayer.setVideoTextureView(textureView)
+                update = { playerView ->
+                    if (playerView.player !== exoPlayer) {
+                        playerView.player = exoPlayer
+                    }
                     if (exoPlayer.playbackState == Player.STATE_IDLE) {
                         exoPlayer.prepare()
                     }

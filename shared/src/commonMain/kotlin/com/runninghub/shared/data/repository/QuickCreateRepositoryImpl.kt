@@ -256,6 +256,9 @@ private fun pollQuickCreationTaskStatus(
     emit(QuickCreateTaskStatus.Error("任务超时"))
 }
 
+private val ImageGenerationRequest.hasQuickCreationIdentity: Boolean
+    get() = !quickCreationBindingId.isNullOrBlank() && !quickCreationSkuId.isNullOrBlank()
+
 class QuickCreateRepositoryImpl(
     private val quickCreateApi: QuickCreateApi,
     private val settingsRepository: SettingsRepository,
@@ -269,12 +272,63 @@ class QuickCreateRepositoryImpl(
         if (!first.isTokenInvalid()) return first
 
         val refreshed = authRepository?.refreshTokenIfNeeded()?.isSuccess == true
+        debug("QuickCreationV2", "token refresh retry refreshed=$refreshed")
         return if (refreshed) request() else first
     }
 
     private fun QuickCreationEnvelopeDto<*>.isTokenInvalid(): Boolean =
         code == 412 && (msg.equals("TOKEN_INVALID", ignoreCase = true) ||
             message.equals("TOKEN_INVALID", ignoreCase = true))
+
+    private fun QuickCreationEnvelopeDto<*>.isPrepareTokenExpired(): Boolean {
+        val text = listOfNotNull(msg, message).joinToString(" ").lowercase()
+        return (text.contains("prepare") || text.contains("token")) &&
+            (text.contains("expire") ||
+                text.contains("expired") ||
+                text.contains("invalid") ||
+                text.contains("过期") ||
+                text.contains("失效"))
+    }
+
+    private suspend fun commitQuickCreationWithPrepareRetry(
+        createRequest: QuickCreationCreateRequestDto,
+        prepareToken: String,
+    ): QuickCreationEnvelopeDto<QuickCreationCommitDataDto> {
+        debug("QuickCreationV2", "commit start")
+        val firstCommit = quickCreationRequestWithTokenRetry {
+            quickCreateApi.commitQuickCreation(
+                QuickCreationCommitRequestDto(
+                    prepareToken = prepareToken,
+                    createRequest = createRequest,
+                )
+            )
+        }
+        debug("QuickCreationV2", "commit response code=${firstCommit.code}")
+        if (!firstCommit.isPrepareTokenExpired()) return firstCommit
+
+        debug("QuickCreationV2", "commit prepare-token expired; re-prepare")
+        val refreshedPrepare = quickCreationRequestWithTokenRetry {
+            quickCreateApi.prepareQuickCreation(createRequest)
+        }
+        debug("QuickCreationV2", "re-prepare response code=${refreshedPrepare.code}")
+        if (refreshedPrepare.code != 0 || refreshedPrepare.data == null) {
+            return QuickCreationEnvelopeDto(
+                code = refreshedPrepare.code,
+                msg = refreshedPrepare.msg ?: refreshedPrepare.message ?: "任务预提交失败",
+                data = null,
+            )
+        }
+        debug("QuickCreationV2", "commit retry start")
+
+        return quickCreationRequestWithTokenRetry {
+            quickCreateApi.commitQuickCreation(
+                QuickCreationCommitRequestDto(
+                    prepareToken = refreshedPrepare.data.prepareToken,
+                    createRequest = createRequest,
+                )
+            )
+        }
+    }
 
     override suspend fun previewImageQuickCreationFee(
         request: ImageGenerationRequest,
@@ -310,6 +364,7 @@ class QuickCreateRepositoryImpl(
         val feePreview = quickCreationRequestWithTokenRetry {
             quickCreateApi.previewQuickCreationFee(createRequest)
         }
+        debug("QuickCreationV2", "image fee-preview response code=${feePreview.code}")
         if (feePreview.code != 0) {
             emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: "价格预览失败"))
             return@flow
@@ -323,25 +378,23 @@ class QuickCreateRepositoryImpl(
         val prepare = quickCreationRequestWithTokenRetry {
             quickCreateApi.prepareQuickCreation(createRequest)
         }
+        debug("QuickCreationV2", "image prepare response code=${prepare.code}")
         if (prepare.code != 0 || prepare.data == null) {
             emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: "任务预提交失败"))
             return@flow
         }
 
-        val commit = quickCreationRequestWithTokenRetry {
-            quickCreateApi.commitQuickCreation(
-                QuickCreationCommitRequestDto(
-                    prepareToken = prepare.data.prepareToken,
-                    createRequest = createRequest,
-                )
-            )
-        }
+        val commit = commitQuickCreationWithPrepareRetry(
+            createRequest = createRequest,
+            prepareToken = prepare.data.prepareToken,
+        )
         if (commit.code != 0 || commit.data == null) {
             emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: "任务提交失败"))
             return@flow
         }
 
         val taskId = commit.data.taskId
+        debug("QuickCreationV2", "image commit success taskId=$taskId")
         emit(QuickCreateTaskStatus.Queuing(taskId))
         pollQuickCreationTaskStatus(quickCreateApi, taskId).collect { emit(it) }
     }
@@ -354,6 +407,7 @@ class QuickCreateRepositoryImpl(
         val feePreview = quickCreationRequestWithTokenRetry {
             quickCreateApi.previewQuickCreationFee(createRequest)
         }
+        debug("QuickCreationV2", "video fee-preview response code=${feePreview.code}")
         if (feePreview.code != 0) {
             emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: "Fee preview failed"))
             return@flow
@@ -367,25 +421,23 @@ class QuickCreateRepositoryImpl(
         val prepare = quickCreationRequestWithTokenRetry {
             quickCreateApi.prepareQuickCreation(createRequest)
         }
+        debug("QuickCreationV2", "video prepare response code=${prepare.code}")
         if (prepare.code != 0 || prepare.data == null) {
             emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: "Prepare failed"))
             return@flow
         }
 
-        val commit = quickCreationRequestWithTokenRetry {
-            quickCreateApi.commitQuickCreation(
-                QuickCreationCommitRequestDto(
-                    prepareToken = prepare.data.prepareToken,
-                    createRequest = createRequest,
-                )
-            )
-        }
+        val commit = commitQuickCreationWithPrepareRetry(
+            createRequest = createRequest,
+            prepareToken = prepare.data.prepareToken,
+        )
         if (commit.code != 0 || commit.data == null) {
             emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: "Commit failed"))
             return@flow
         }
 
         val taskId = commit.data.taskId
+        debug("QuickCreationV2", "video commit success taskId=$taskId")
         emit(QuickCreateTaskStatus.Queuing(taskId))
         pollQuickCreationTaskStatus(quickCreateApi, taskId).collect { emit(it) }
     }
@@ -395,7 +447,7 @@ class QuickCreateRepositoryImpl(
         emit(QuickCreateTaskStatus.Submitting)
 
         try {
-            if (request.model == "all-power-image-g2") {
+            if (request.hasQuickCreationIdentity || request.model == "all-power-image-g2") {
                 generateImageWithQuickCreationV2(request).collect { emit(it) }
                 return@flow
             }
@@ -1324,6 +1376,7 @@ class QuickCreateRepositoryImpl(
     override suspend fun getModels(categoryId: String): Result<List<com.runninghub.shared.domain.repository.QuickCreationServiceModel>> =
         runCatching {
             val response = quickCreateApi.getQuickCreationModels(listOf(categoryId))
+            debug("QuickCreationV2", "models response category=$categoryId code=${response.code}")
             if (response.code != 0) {
                 throw IllegalStateException(response.msg ?: response.message ?: "模型列表加载失败")
             }
@@ -1335,6 +1388,7 @@ class QuickCreateRepositoryImpl(
         size: Int,
     ): Result<QuickCreationHistoryPage> = runCatching {
         val response = quickCreateApi.listQuickCreationTasks(page = page, size = size)
+        debug("QuickCreationV2", "history list response code=${response.code}")
         if (response.code != 0 || response.data == null) {
             throw IllegalStateException(response.msg ?: response.message ?: "History load failed")
         }
@@ -1344,6 +1398,7 @@ class QuickCreateRepositoryImpl(
     override suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem> =
         runCatching {
             val response = quickCreateApi.getQuickCreationTaskDetail(outputId)
+            debug("QuickCreationV2", "history detail response code=${response.code}")
             if (response.code != 0 || response.data == null) {
                 throw IllegalStateException(response.msg ?: response.message ?: "History detail load failed")
             }

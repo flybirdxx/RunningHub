@@ -20,14 +20,24 @@ class AuthRepositoryImpl(
 
     override suspend fun login(phone: String, password: String): Result<User> = runCatching {
         val hashedPassword = md5(password)
-        val response = api.pwdLogin(PwdLoginRequest(mobile = phone, password = hashedPassword))
+        val response = try {
+            api.pwdLogin(PwdLoginRequest(mobile = phone, password = hashedPassword))
+        } catch (e: Exception) {
+            if (!isNetworkError(e)) throw e
+            throw RuntimeException(mapNetworkError(e))
+        }
         check(response.code == 0) { response.msg.ifEmpty { "Login failed" } }
 
         val tokenData = response.data ?: throw IllegalStateException("Empty login response")
         check(tokenData.accessToken.isNotEmpty()) { "No access token received" }
 
         persistTokens(tokenData)
-        fetchAndCacheUser(tokenData.accessToken)
+        try {
+            fetchAndCacheUser(tokenData.accessToken)
+        } catch (e: Exception) {
+            if (!isNetworkError(e)) throw e
+            throw RuntimeException(mapNetworkError(e))
+        }
     }
 
     override suspend fun sendSmsCode(phone: String): Result<Unit> = runCatching {
@@ -146,15 +156,19 @@ class AuthRepositoryImpl(
     }
 
     private fun mapNetworkError(e: Throwable): String {
-        val msg = e.message?.lowercase() ?: ""
         return when {
-            msg.contains("unable to resolve host")
-                || msg.contains("unknownhost")
-                || msg.contains("network")
-                || msg.contains("connect")
-                || msg.contains("timeout") -> "网络连接失败，请检查网络后重试"
+            isNetworkError(e) -> "网络连接失败，请检查网络后重试"
             else -> "登录失败，请稍后重试"
         }
+    }
+
+    private fun isNetworkError(e: Throwable): Boolean {
+        val msg = e.message?.lowercase() ?: ""
+        return msg.contains("unable to resolve host")
+            || msg.contains("unknownhost")
+            || msg.contains("network")
+            || msg.contains("connect")
+            || msg.contains("timeout")
     }
 
     private fun extractUserIdFromJwt(jwt: String): String {

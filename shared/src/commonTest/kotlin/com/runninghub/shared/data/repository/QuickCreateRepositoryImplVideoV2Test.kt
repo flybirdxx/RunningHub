@@ -1,6 +1,7 @@
 package com.runninghub.shared.data.repository
 
 import com.runninghub.shared.data.remote.api.QuickCreateApi
+import com.runninghub.shared.domain.repository.ImageGenerationRequest
 import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
 import com.runninghub.shared.domain.repository.SettingsRepository
 import com.runninghub.shared.domain.repository.VideoGenerationRequest
@@ -109,6 +110,226 @@ class QuickCreateRepositoryImplVideoV2Test {
         assertIs<QuickCreateTaskStatus.Queuing>(statuses[1])
         val success = assertIs<QuickCreateTaskStatus.Success>(statuses.last())
         assertEquals("https://example.com/result.mp4", success.results.single().url)
+    }
+
+    @Test
+    fun `image request with quick creation ids uses v2 even when model is service identity`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val response = when (path) {
+                QuickCreateApi.QC_FEE_PREVIEW -> """
+                    {"code":0,"msg":"success","data":{"passed":true,"requiredCashAmount":0.76,"cashCurrency":"CNY"}}
+                """
+                QuickCreateApi.QC_PREPARE -> """
+                    {"code":0,"msg":"success","data":{"prepareToken":"image-token","ttlSeconds":120,"skuId":"image-sku"}}
+                """
+                QuickCreateApi.QC_COMMIT -> """
+                    {"code":0,"msg":"success","data":{"taskId":"image-task-1","skuId":"image-sku","taskStatus":"QUEUED","cashAmount":0.76}}
+                """
+                QuickCreateApi.QC_TASK_LIST -> """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "page": 1,
+                        "size": 10,
+                        "total": 1,
+                        "list": [
+                          {
+                            "taskId": "image-task-1",
+                            "taskStatus": "SUCCESS",
+                            "outputList": [
+                              {
+                                "id": "out-1",
+                                "outputType": "png",
+                                "fileUrl": "https://example.com/result.png",
+                                "filePreviewUrl": "https://example.com/preview.png"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                """
+                else -> """{"code":404,"msg":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            settingsRepository = FakeSettingsRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "image-binding:image-sku",
+                aspectRatio = "1:1",
+                resolution = "2k",
+                quality = "medium",
+                quickCreationCategoryId = "IMAGE",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+            )
+        ).toList()
+
+        assertEquals(
+            listOf(
+                QuickCreateApi.QC_FEE_PREVIEW,
+                QuickCreateApi.QC_PREPARE,
+                QuickCreateApi.QC_COMMIT,
+                QuickCreateApi.QC_TASK_LIST,
+            ),
+            paths,
+        )
+        assertIs<QuickCreateTaskStatus.Submitting>(statuses[0])
+        assertIs<QuickCreateTaskStatus.Queuing>(statuses[1])
+        val success = assertIs<QuickCreateTaskStatus.Success>(statuses.last())
+        assertEquals("https://example.com/result.png", success.results.single().url)
+    }
+
+    @Test
+    fun `image generation re-prepares when commit reports expired prepare token`() = runBlocking {
+        val paths = mutableListOf<String>()
+        var commitCalls = 0
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val response = when (path) {
+                QuickCreateApi.QC_FEE_PREVIEW -> """
+                    {"code":0,"msg":"success","data":{"passed":true,"requiredCashAmount":0.76,"cashCurrency":"CNY"}}
+                """
+                QuickCreateApi.QC_PREPARE -> """
+                    {"code":0,"msg":"success","data":{"prepareToken":"image-token-${paths.count { it == QuickCreateApi.QC_PREPARE }}","ttlSeconds":120,"skuId":"image-sku"}}
+                """
+                QuickCreateApi.QC_COMMIT -> {
+                    commitCalls += 1
+                    if (commitCalls == 1) {
+                        """{"code":409,"msg":"PREPARE_TOKEN_EXPIRED","data":null}"""
+                    } else {
+                        """{"code":0,"msg":"success","data":{"taskId":"image-task-1","skuId":"image-sku","taskStatus":"QUEUED","cashAmount":0.76}}"""
+                    }
+                }
+                QuickCreateApi.QC_TASK_LIST -> """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "page": 1,
+                        "size": 10,
+                        "total": 1,
+                        "list": [
+                          {
+                            "taskId": "image-task-1",
+                            "taskStatus": "SUCCESS",
+                            "outputList": [
+                              {
+                                "id": "out-1",
+                                "outputType": "png",
+                                "fileUrl": "https://example.com/result.png",
+                                "filePreviewUrl": "https://example.com/preview.png"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                """
+                else -> """{"code":404,"msg":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            settingsRepository = FakeSettingsRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "image-binding:image-sku",
+                aspectRatio = "1:1",
+                resolution = "2k",
+                quality = "medium",
+                quickCreationCategoryId = "IMAGE",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+            )
+        ).toList()
+
+        assertEquals(
+            listOf(
+                QuickCreateApi.QC_FEE_PREVIEW,
+                QuickCreateApi.QC_PREPARE,
+                QuickCreateApi.QC_COMMIT,
+                QuickCreateApi.QC_PREPARE,
+                QuickCreateApi.QC_COMMIT,
+                QuickCreateApi.QC_TASK_LIST,
+            ),
+            paths,
+        )
+        val success = assertIs<QuickCreateTaskStatus.Success>(statuses.last())
+        assertEquals("https://example.com/result.png", success.results.single().url)
+    }
+
+    @Test
+    fun `image generation stops before prepare when fee preview fails balance check`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            respond(
+                content = """
+                    {"code":0,"msg":"success","data":{"passed":false,"insufficientType":"CASH","requiredCashAmount":0.76,"cashCurrency":"CNY"}}
+                """.trimIndent(),
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            settingsRepository = FakeSettingsRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "image-binding:image-sku",
+                aspectRatio = "1:1",
+                resolution = "2k",
+                quality = "medium",
+                quickCreationCategoryId = "IMAGE",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+            )
+        ).toList()
+
+        assertEquals(listOf(QuickCreateApi.QC_FEE_PREVIEW), paths)
+        assertIs<QuickCreateTaskStatus.Submitting>(statuses[0])
+        val error = assertIs<QuickCreateTaskStatus.Error>(statuses.last())
+        assertEquals("余额不足或价格预览未通过", error.message)
     }
 
     private class FakeSettingsRepository : SettingsRepository {

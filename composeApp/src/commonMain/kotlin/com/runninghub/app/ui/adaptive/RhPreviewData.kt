@@ -13,6 +13,7 @@ import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
 import com.runninghub.app.ui.feature.quickcreate.UploadStatus
 import com.runninghub.app.ui.feature.discovery.DiscoveryUiState
 import com.runninghub.app.ui.feature.discovery.SortOption
+import com.runninghub.app.ui.feature.history.TaskHistoryEntry
 import com.runninghub.app.ui.feature.history.TaskHistoryFilter
 import com.runninghub.app.ui.feature.history.TaskHistoryUiState
 import com.runninghub.app.ui.feature.profile.ProfileUiState
@@ -277,7 +278,7 @@ internal fun previewAppDetail(): AppDetail = AppDetail(
             fieldValue = null,
             fieldData = null,
             fieldType = "LIST",
-            description = "上传视频（选填）",
+            description = "Upload video optional",
         ),
         InputNode(
             nodeId = "audio",
@@ -286,7 +287,7 @@ internal fun previewAppDetail(): AppDetail = AppDetail(
             fieldValue = null,
             fieldData = null,
             fieldType = "LIST",
-            description = "上传音频（选填）",
+            description = "Upload audio optional",
         ),
     ),
     covers = listOf(
@@ -333,10 +334,26 @@ internal fun previewTaskHistoryUiState(
     filter: TaskHistoryFilter = TaskHistoryFilter.ALL,
 ): TaskHistoryUiState = TaskHistoryUiState(
     isLoading = false,
-    items = previewTaskHistoryItems(),
+    items = previewTaskHistoryEntries(),
     filter = filter,
 )
 
+internal fun previewTaskHistoryEntries(): List<TaskHistoryEntry> = previewTaskHistoryItems().map { item ->
+    TaskHistoryEntry(
+        taskId = item.taskId ?: "${item.taskName}-${item.createTime}",
+        title = item.taskName ?: "Generation task",
+        status = item.taskStatus ?: "unknown",
+        costTime = item.taskCostTime,
+        source = item.webappId ?: "legacy_history",
+        outputId = item.outputs.firstOrNull()?.id,
+        thumbnailUrl = item.outputs.firstOrNull()?.filePreviewUrl ?: item.outputs.firstOrNull()?.fileUrl,
+        outputCount = item.outputs.size,
+        canViewOutput = item.outputs.isNotEmpty(),
+        canReuseParams = false,
+        canRetry = item.taskStatus.equals("failed", ignoreCase = true),
+        canCancel = item.taskStatus?.lowercase() !in setOf("success", "completed", "done", "failed", "fail", "error", "canceled", "cancelled"),
+    )
+}
 internal fun previewTaskHistoryItems(): List<TaskHistoryItem> = listOf(
     TaskHistoryItem(
         taskId = "task-10001",
@@ -344,7 +361,7 @@ internal fun previewTaskHistoryItems(): List<TaskHistoryItem> = listOf(
         taskStatus = "completed",
         taskCostTime = "00:00:28",
         createTime = "2026-06-16 10:32:18",
-        taskName = "电影感人像生成工作流 - 超长标题用于小屏截断检查",
+        taskName = "Cinematic portrait workflow long preview title",
         webappId = "webapp-1",
     ),
     TaskHistoryItem(
@@ -353,7 +370,7 @@ internal fun previewTaskHistoryItems(): List<TaskHistoryItem> = listOf(
         taskStatus = "failed",
         taskCostTime = "00:00:07",
         createTime = "2026-06-16 11:05:44",
-        taskName = "商品图高清修复",
+        taskName = "Product image upscale",
         webappId = "webapp-2",
     ),
     TaskHistoryItem(
@@ -371,7 +388,7 @@ internal fun previewTaskHistoryItems(): List<TaskHistoryItem> = listOf(
         taskStatus = "waiting_for_gpu_capacity",
         taskCostTime = "--",
         createTime = "2026-06-16 12:18:27",
-        taskName = "复杂空间光影重绘与局部材质替换",
+        taskName = "Complex interior lighting relight",
         webappId = "webapp-4",
     ),
 )

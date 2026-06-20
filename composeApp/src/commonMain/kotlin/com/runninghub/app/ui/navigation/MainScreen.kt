@@ -20,10 +20,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.Explore
+import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Icon
@@ -44,6 +46,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,10 +55,14 @@ import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
-import com.runninghub.app.ui.feature.community.CommunityVoyagerScreen
+import com.runninghub.app.ui.feature.create.CreateVoyagerScreen
 import com.runninghub.app.ui.feature.discovery.DiscoveryVoyagerScreen
+import com.runninghub.app.ui.feature.history.TaskHistoryVoyagerScreen
+import com.runninghub.app.ui.feature.plaza.PlazaVoyagerScreen
 import com.runninghub.app.ui.feature.profile.ProfileVoyagerScreen
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateVoyagerScreen
+import com.runninghub.app.ui.theme.BrandLime
+import com.runninghub.app.ui.theme.RhAppBackground
+import com.runninghub.app.ui.theme.RhAppMuted
 import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.shared.domain.repository.SettingsRepository
@@ -66,11 +73,21 @@ enum class BottomNavTab(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
 ) {
-    Discovery("发现", Icons.Filled.Explore, Icons.Outlined.Explore),
-    QuickCreate("创作", Icons.Filled.Star, Icons.Outlined.Star),
-    Studio("工坊", Icons.Filled.Build, Icons.Outlined.Build),
-    Profile("我的", Icons.Filled.Person, Icons.Outlined.Person),
+    Discovery("鍙戠幇", Icons.Filled.Explore, Icons.Outlined.Explore),
+    QuickCreate("鍒涗綔", Icons.Filled.Star, Icons.Outlined.Star),
+    Studio("宸ュ潑", Icons.Filled.Build, Icons.Outlined.Build),
+    History("History", Icons.Filled.History, Icons.Outlined.History),
+    Profile("鎴戠殑", Icons.Filled.Person, Icons.Outlined.Person),
 }
+
+private val BottomNavTab.displayLabel: String
+    get() = when (this) {
+        BottomNavTab.Discovery -> "Discover"
+        BottomNavTab.QuickCreate -> "Create"
+        BottomNavTab.Studio -> "Plaza"
+        BottomNavTab.History -> "History"
+        BottomNavTab.Profile -> "Profile"
+    }
 
 class MainVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
@@ -90,7 +107,7 @@ class MainVoyagerScreen : Screen {
         val sizeClass = rememberWindowSizeClass()
 
         // Guest mode banner (dismissible)
-        var showGuestBanner by rememberSaveable { mutableStateOf(!isLoggedIn) }
+        var showGuestBanner by rememberSaveable { mutableStateOf(false) }
         if (showGuestBanner) {
             Row(
                 modifier = Modifier
@@ -100,13 +117,13 @@ class MainVoyagerScreen : Screen {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "您正在以游客模式浏览，部分功能受限",
+                    text = "Guest mode: some features are limited",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = "✕",
+                    text = "OK",
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier
                         .clickable { showGuestBanner = false }
@@ -126,10 +143,10 @@ class MainVoyagerScreen : Screen {
                             icon = {
                                 Icon(
                                     imageVector = if (selectedTab == tab) tab.selectedIcon else tab.unselectedIcon,
-                                    contentDescription = tab.label,
+                                    contentDescription = tab.displayLabel,
                                 )
                             },
-                            label = { Text(tab.label) },
+                            label = { Text(tab.displayLabel) },
                             colors = NavigationRailItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -166,19 +183,22 @@ class MainVoyagerScreen : Screen {
 
     @Composable
     private fun TabContent(tab: BottomNavTab) {
-        // Use AnimatedVisibility to keep all tabs in composition — preserves scroll position and input state
+        // Use AnimatedVisibility to keep all tabs in composition 鈥?preserves scroll position and input state
         Box(Modifier.fillMaxSize()) {
             AnimatedVisibility(tab == BottomNavTab.Discovery, enter = fadeIn(), exit = fadeOut()) {
-                DiscoveryVoyagerScreen().Content()
+                remember { DiscoveryVoyagerScreen() }.Content()
             }
             AnimatedVisibility(tab == BottomNavTab.QuickCreate, enter = fadeIn(), exit = fadeOut()) {
-                QuickCreateVoyagerScreen().Content()
+                remember { CreateVoyagerScreen() }.Content()
             }
             AnimatedVisibility(tab == BottomNavTab.Studio, enter = fadeIn(), exit = fadeOut()) {
-                CommunityVoyagerScreen().Content()
+                remember { PlazaVoyagerScreen() }.Content()
+            }
+            AnimatedVisibility(tab == BottomNavTab.History, enter = fadeIn(), exit = fadeOut()) {
+                remember { TaskHistoryVoyagerScreen() }.Content()
             }
             AnimatedVisibility(tab == BottomNavTab.Profile, enter = fadeIn(), exit = fadeOut()) {
-                ProfileVoyagerScreen().Content()
+                remember { ProfileVoyagerScreen() }.Content()
             }
         }
     }
@@ -192,10 +212,10 @@ private fun CompactBottomBar(
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .height(64.dp),
-        color = MaterialTheme.colorScheme.surface,
+            .height(72.dp),
+        color = RhAppBackground,
         tonalElevation = 0.dp,
-        shadowElevation = 8.dp,
+        shadowElevation = 0.dp,
     ) {
         Row(
             modifier = Modifier
@@ -223,11 +243,8 @@ private fun CompactBottomBarItem(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val contentColor = if (selected) {
-        MaterialTheme.colorScheme.primary
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
+    val labelColor = if (selected) BrandLime else RhAppMuted
+    val iconColor = if (selected) Color.Black else RhAppMuted
 
     Column(
         modifier = modifier
@@ -240,21 +257,21 @@ private fun CompactBottomBarItem(
             modifier = Modifier
                 .size(width = 44.dp, height = 28.dp)
                 .background(
-                    color = if (selected) MaterialTheme.colorScheme.primaryContainer else androidx.compose.ui.graphics.Color.Transparent,
+                    color = if (selected) BrandLime else Color.Transparent,
                     shape = RoundedCornerShape(18.dp),
                 ),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                contentDescription = tab.label,
-                tint = contentColor,
+                contentDescription = tab.displayLabel,
+                tint = iconColor,
                 modifier = Modifier.size(20.dp),
             )
         }
         Text(
-            text = tab.label,
-            color = contentColor,
+            text = tab.displayLabel,
+            color = labelColor,
             fontSize = 11.sp,
             lineHeight = 12.sp,
             maxLines = 1,
@@ -280,7 +297,7 @@ private fun CreditIndicator(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "🪙",
+                text = "馃獧",
                 fontSize = 14.sp,
             )
             Spacer(Modifier.width(4.dp))

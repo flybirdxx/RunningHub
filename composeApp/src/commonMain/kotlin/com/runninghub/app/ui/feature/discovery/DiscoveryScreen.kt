@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -108,6 +109,7 @@ class DiscoveryVoyagerScreen : Screen {
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
+        val uriHandler = LocalUriHandler.current
         val screenModel = koinScreenModel<DiscoveryScreenModel>()
         val uiState by screenModel.uiState.collectAsState()
 
@@ -121,6 +123,7 @@ class DiscoveryVoyagerScreen : Screen {
             onSearchSubmit = screenModel::searchSubmit,
             onLoadMoreSearchResults = screenModel::loadMoreSearchResults,
             onAppClick = { appId -> navigator.push(AppDetailScreen(appId)) },
+            onModelBannerClick = { skuId -> uriHandler.openUri("$CALL_API_DETAIL_BASE_URL$skuId") },
             onCategorySelected = screenModel::selectCategory,
             onSortSelected = screenModel::selectSort,
             onRefresh = screenModel::refresh,
@@ -140,6 +143,7 @@ private fun DiscoveryContent(
     onSearchSubmit: (String) -> Unit = {},
     onLoadMoreSearchResults: () -> Unit = {},
     onAppClick: (String) -> Unit = {},
+    onModelBannerClick: (String) -> Unit = {},
     onCategorySelected: (Int) -> Unit = {},
     onSortSelected: (SortOption) -> Unit = {},
     onRefresh: () -> Unit = {},
@@ -241,7 +245,7 @@ private fun DiscoveryContent(
                 contentPadding = PaddingValues(
                     start = padding.calculateStartPadding(LayoutDirection.Ltr),
                     end = padding.calculateEndPadding(LayoutDirection.Ltr),
-                    top = gridSpacing,
+                    top = 0.dp,
                     bottom = Dimens.Space3XL
                 ),
                 horizontalArrangement = Arrangement.spacedBy(gridSpacing),
@@ -260,14 +264,11 @@ private fun DiscoveryContent(
                     }
                 } else {
                     // ── Normal Discovery Content ──
-                    if (uiState.banners.isNotEmpty()) {
-                        item(key = "featured_section", span = { GridItemSpan(maxLineSpan) }) {
-                            FeaturedAppsSection(
-                                banners = uiState.banners,
-                                windowSizeClass = windowSizeClass,
-                                onAppClick = onAppClick,
-                            )
-                        }
+                    item(key = "home_model_banner", span = { GridItemSpan(maxLineSpan) }) {
+                        HomeModelBannerSection(
+                            windowSizeClass = windowSizeClass,
+                            onModelClick = onModelBannerClick,
+                        )
                     }
 
                     item(key = "categories", span = { GridItemSpan(maxLineSpan) }) {
@@ -473,73 +474,123 @@ private fun InlineSearchResults(
     }
 }
 
-// region Featured Apps
+// region Home Model Banner
+
+private const val CALL_API_DETAIL_BASE_URL = "https://www.runninghub.cn/call-api/api-detail/"
+
+private enum class ModelBannerMediaType {
+    IMAGE,
+    VIDEO,
+}
+
+private data class HomeModelBannerTile(
+    val skuId: String,
+    val title: String,
+    val mediaUrl: String,
+    val mediaType: ModelBannerMediaType,
+)
+
+private val homeModelBannerTiles = listOf(
+    HomeModelBannerTile(
+        skuId = "2031354034474311686",
+        title = "Qwen Image 2.0",
+        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-12/f889a4e2d48abe14e07346396c888af1.png",
+        mediaType = ModelBannerMediaType.IMAGE,
+    ),
+    HomeModelBannerTile(
+        skuId = "2026215209183760386",
+        title = "Seedream V5 Lite",
+        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-12/51c0e118e907ef0b0cafea99667eba6d.png",
+        mediaType = ModelBannerMediaType.IMAGE,
+    ),
+    HomeModelBannerTile(
+        skuId = "2039648613636050946",
+        title = "WAN 2.7",
+        mediaUrl = "https://rh-images.xiaoyaoyou.com/fae338274c9053123688d63ac419cd59/2026-04-27/aaeffcd7ce935afdcd816327b4e86a04.png",
+        mediaType = ModelBannerMediaType.IMAGE,
+    ),
+    HomeModelBannerTile(
+        skuId = "2034917373414539277",
+        title = "Seedance 2.0",
+        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-15/7f4f309e26148d357fa9d461e25ddcc5.mp4",
+        mediaType = ModelBannerMediaType.VIDEO,
+    ),
+    HomeModelBannerTile(
+        skuId = "2019623243725737985",
+        title = "Kling o3-pro",
+        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-15/593abc725f555ef4d79fae1981bb83bc.mp4",
+        mediaType = ModelBannerMediaType.VIDEO,
+    ),
+    HomeModelBannerTile(
+        skuId = "2039648613636050945",
+        title = "WAN 2.7 Video",
+        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-15/29449b321bfd27201b18dd189dc30d93.mp4",
+        mediaType = ModelBannerMediaType.VIDEO,
+    ),
+)
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun FeaturedAppsSection(
-    banners: List<WebApp>,
+private fun HomeModelBannerSection(
     windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier,
-    onAppClick: (String) -> Unit = {},
+    onModelClick: (String) -> Unit = {},
 ) {
-    val pagerState = rememberPagerState(pageCount = { banners.size })
     val spacing = adaptiveGridSpacing(windowSizeClass)
+    val pageCount = homeModelBannerTiles.size + 1
+    val pagerState = rememberPagerState(pageCount = { pageCount })
 
-    Column(modifier = modifier) {
-        var isUserInteracting by remember { mutableStateOf(false) }
-        LaunchedEffect(banners.size, isUserInteracting) {
-            if (banners.size <= 1 || isUserInteracting) return@LaunchedEffect
-            while (true) {
-                delay(4000)
-                val nextPage = (pagerState.currentPage + 1) % banners.size
-                pagerState.animateScrollToPage(nextPage)
-            }
+    LaunchedEffect(pageCount) {
+        while (true) {
+            delay(5_000)
+            pagerState.animateScrollToPage((pagerState.currentPage + 1) % pageCount)
         }
+    }
 
-        Text(
-            text = "推荐应用",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            modifier = Modifier.padding(horizontal = 4.dp, vertical = spacing),
-        )
-
+    Column(modifier = modifier.padding(bottom = spacing)) {
         Box(modifier = Modifier.fillMaxWidth()) {
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = spacing * 1.5f),
+                contentPadding = PaddingValues(horizontal = if (windowSizeClass.isWide) spacing else 0.dp),
                 pageSpacing = spacing,
             ) { page ->
-                FeaturedAppBanner(
-                    app = banners[page],
-                    onClick = { onAppClick(banners[page].id) },
-                )
+                if (page == 0) {
+                    HomeModelBannerHeroSlide(
+                        modifier = Modifier.fillMaxWidth().aspectRatio(if (windowSizeClass.isWide) 21f / 9f else 16f / 9f),
+                        onClick = { onModelClick("2034917373414539277") },
+                    )
+                } else {
+                    val tile = homeModelBannerTiles[page - 1]
+                    HomeModelBannerMediaSlide(
+                        tile = tile,
+                        modifier = Modifier.fillMaxWidth().aspectRatio(if (windowSizeClass.isWide) 21f / 9f else 16f / 9f),
+                        onClick = { onModelClick(tile.skuId) },
+                    )
+                }
             }
 
-            if (banners.size > 1) {
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 8.dp)
-                        .background(
-                            color = Color.Black.copy(alpha = 0.4f),
-                            shape = RoundedCornerShape(14.dp),
-                        )
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(5.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    repeat(banners.size) { index ->
-                        Box(
-                            modifier = Modifier
-                                .size(if (index == pagerState.currentPage) 8.dp else 6.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (index == pagerState.currentPage) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
-                                ),
-                        )
-                    }
+            Row(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 10.dp)
+                    .background(
+                        color = Color.Black.copy(alpha = 0.4f),
+                        shape = RoundedCornerShape(14.dp),
+                    )
+                    .padding(horizontal = 10.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(5.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                repeat(pageCount) { index ->
+                    Box(
+                        modifier = Modifier
+                            .size(if (index == pagerState.currentPage) 8.dp else 6.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (index == pagerState.currentPage) Color.White else Color.White.copy(alpha = 0.45f)
+                            ),
+                    )
                 }
             }
         }
@@ -547,39 +598,87 @@ private fun FeaturedAppsSection(
 }
 
 @Composable
-private fun FeaturedAppBanner(
-    app: WebApp,
+private fun HomeModelBannerHeroSlide(
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
+    onClick: () -> Unit,
 ) {
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(16f / 9f)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(18.dp),
-        color = MaterialTheme.colorScheme.primary,
+        modifier = modifier.clickable(onClick = onClick),
+        color = Color(0xFFCCFF00),
+        shape = RoundedCornerShape(0.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.linearGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.secondary,
-                        ),
-                    )
-                ),
+        Column(
+            modifier = Modifier.fillMaxSize().padding(24.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            val displayUrl = app.thumbnailUrl ?: app.coverUrl
-            if (displayUrl != null) {
-                AsyncImage(
-                    model = displayUrl,
-                    contentDescription = app.title,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
+            Column {
+                Text(
+                    text = "EXCLUSIVE ON RUNNINGHUB",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = "SEEDANCE\n2.0",
+                    fontSize = 52.sp,
+                    lineHeight = 56.sp,
+                    fontWeight = FontWeight.Normal,
+                    color = Color.Black,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .background(Color.Black),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "GET OFFER",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White,
+                    letterSpacing = 2.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HomeModelBannerMediaSlide(
+    tile: HomeModelBannerTile,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = modifier.clickable(onClick = onClick),
+        color = Color(0xFF101010),
+        shape = RoundedCornerShape(0.dp),
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            when (tile.mediaType) {
+                ModelBannerMediaType.IMAGE -> {
+                    AsyncImage(
+                        model = tile.mediaUrl,
+                        contentDescription = tile.title,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                    )
+                }
+                ModelBannerMediaType.VIDEO -> {
+                    VideoThumbnail(
+                        url = tile.mediaUrl,
+                        modifier = Modifier.fillMaxSize(),
+                        autoPlay = true,
+                    )
+                }
             }
 
             Box(
@@ -588,27 +687,32 @@ private fun FeaturedAppBanner(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
+                                Color.Black.copy(alpha = 0.08f),
                                 Color.Transparent,
-                                Color.Black.copy(alpha = 0.5f),
+                                Color.Black.copy(alpha = 0.72f),
                             ),
                         )
                     )
             )
 
             Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(18.dp),
+                modifier = Modifier.align(Alignment.BottomStart).padding(18.dp),
             ) {
                 Text(
-                    text = "精选工作流",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.White.copy(alpha = 0.82f),
+                    text = "MODEL API",
+                    fontSize = 10.sp,
+                    lineHeight = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color.White.copy(alpha = 0.78f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Spacer(Modifier.height(6.dp))
+                Spacer(Modifier.height(4.dp))
                 Text(
-                    text = app.title.trim(),
-                    style = MaterialTheme.typography.titleLarge,
+                    text = tile.title,
+                    fontSize = 20.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Bold,
                     color = Color.White,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
