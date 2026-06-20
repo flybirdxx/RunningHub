@@ -97,10 +97,11 @@ import com.runninghub.app.ui.theme.adaptiveAppBarHeight
 import com.runninghub.app.ui.theme.adaptiveGridColumns
 import com.runninghub.app.ui.theme.adaptiveGridSpacing
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
-import com.runninghub.shared.domain.model.CoverMediaType
-import com.runninghub.shared.domain.model.Tag
-import com.runninghub.shared.domain.model.TagSimple
-import com.runninghub.shared.domain.model.WebApp
+import com.runninghub.app.util.formatOneDecimal
+import com.runninghub.core.model.CoverMediaType
+import com.runninghub.core.model.Tag
+import com.runninghub.core.model.TagSimple
+import com.runninghub.core.model.WebApp
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -1083,8 +1084,9 @@ private fun CardStatChip(
 private fun formatCount(raw: String): String {
     val num = raw.toLongOrNull() ?: return raw
     return when {
-        num >= 10_000 -> "%.1fw".format(num / 10_000.0)
-        num >= 1_000 -> "%.1fk".format(num / 1_000.0)
+        // Kotlin/Native 不支持 JVM 的 String.format；使用项目内跨平台格式化保持 iOS 编译稳定。
+        num >= 10_000 -> "${formatOneDecimal(num / 10_000.0)}w"
+        num >= 1_000 -> "${formatOneDecimal(num / 1_000.0)}k"
         else -> raw
     }
 }

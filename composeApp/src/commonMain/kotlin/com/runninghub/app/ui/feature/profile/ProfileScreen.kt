@@ -73,9 +73,10 @@ import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.feature.login.LoginVoyagerScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
-import com.runninghub.shared.domain.model.MemberInfo
-import com.runninghub.shared.domain.model.User
-import com.runninghub.shared.domain.model.WalletInfo
+import com.runninghub.app.util.formatOneDecimal
+import com.runninghub.core.model.MemberInfo
+import com.runninghub.core.model.User
+import com.runninghub.core.model.WalletInfo
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class ProfileVoyagerScreen : Screen {
@@ -515,8 +516,9 @@ private fun formatMoney(value: Double): String {
 private fun formatNumber(value: String): String {
     val num = value.replace(",", "").toDoubleOrNull() ?: return value
     return when {
-        num >= 10000 -> String.format("%.1fw", num / 10000)
-        num >= 1000 -> String.format("%.1fk", num / 1000)
+        // 个人页在 commonMain 渲染，不能依赖 JVM 的 String.format，否则 iOS 目标无法编译。
+        num >= 10000 -> "${formatOneDecimal(num / 10000)}w"
+        num >= 1000 -> "${formatOneDecimal(num / 1000)}k"
         else -> num.toInt().toString()
     }
 }

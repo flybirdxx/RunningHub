@@ -1,4 +1,4 @@
-package com.runninghub.shared.di
+﻿package com.runninghub.shared.di
 
 import com.runninghub.core.network.installRunningHubMainClientDefaults
 import com.runninghub.core.network.installRunningHubRefreshClientDefaults
@@ -7,41 +7,39 @@ import com.runninghub.core.storage.CredentialStore
 import com.runninghub.core.storage.QuickCreateDraftStore
 import com.runninghub.core.network.auth.installRunningHubAuthInterceptors
 import com.runninghub.core.network.auth.TokenRefresher
+import com.runninghub.feature.auth.domain.AuthRepository
+import com.runninghub.feature.auth.domain.BalanceSnapshotRepository
+import com.runninghub.feature.auth.domain.GetLastKnownBalanceUseCase
+import com.runninghub.feature.auth.domain.ProfileCredentialRepository
+import com.runninghub.feature.auth.domain.SessionManager
+import com.runninghub.feature.auth.domain.SessionRestoreRepository
+import com.runninghub.feature.auth.domain.UserRepository
+import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
 import com.runninghub.shared.data.local.SettingsRepositoryImpl
 import com.runninghub.shared.data.local.createDataStore
+import com.runninghub.shared.data.local.createPermissionDataStore
 import com.runninghub.shared.data.remote.api.AudioApi
 import com.runninghub.shared.data.remote.api.ModelCatalogApi
 import com.runninghub.shared.data.remote.api.PlazaApi
-import com.runninghub.shared.data.remote.api.QuickCreateApi
 import com.runninghub.shared.data.remote.api.RunningHubApi
 import com.runninghub.shared.data.repository.AudioRepositoryImpl
 import com.runninghub.shared.data.repository.AuthRepositoryImpl
 import com.runninghub.shared.data.repository.BalanceSnapshotRepositoryImpl
-import com.runninghub.shared.data.repository.GenerationHistoryRepositoryImpl
 import com.runninghub.shared.data.repository.ModelCatalogRepositoryImpl
+import com.runninghub.shared.data.repository.ModelEndpointRegistry
 import com.runninghub.shared.data.repository.ModelInvocationRepositoryImpl
 import com.runninghub.shared.data.repository.PlazaRepositoryImpl
 import com.runninghub.shared.data.repository.ProfileCredentialRepositoryImpl
-import com.runninghub.shared.data.repository.QuickCreateDraftRepositoryImpl
-import com.runninghub.shared.data.repository.QuickCreateRepositoryImpl
 import com.runninghub.shared.data.repository.SessionRestoreRepositoryImpl
 import com.runninghub.shared.data.repository.UserRepositoryImpl
 import com.runninghub.shared.data.repository.WebAppRepositoryImpl
 import com.runninghub.shared.domain.repository.AudioRepository
-import com.runninghub.shared.domain.repository.AuthRepository
-import com.runninghub.shared.domain.repository.BalanceSnapshotRepository
-import com.runninghub.shared.domain.repository.GenerationHistoryRepository
 import com.runninghub.shared.domain.repository.ModelCatalogRepository
 import com.runninghub.shared.domain.repository.ModelInvocationRepository
 import com.runninghub.shared.domain.repository.PlazaRepository
-import com.runninghub.shared.domain.repository.ProfileCredentialRepository
-import com.runninghub.shared.domain.repository.QuickCreateDraftRepository
-import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.UserRepository
-import com.runninghub.shared.domain.repository.WebAppRepository
-import com.runninghub.shared.domain.session.SessionManager
-import com.runninghub.shared.domain.session.SessionRestoreRepository
-import com.runninghub.shared.domain.usecase.GetLastKnownBalanceUseCase
+import com.runninghub.shared.domain.repository.WebAppTaskHistoryRepository
+import com.runninghub.shared.domain.repository.WebAppTaskRepository
+import com.runninghub.shared.domain.permission.PermissionStateStore
 import io.ktor.client.HttpClient
 import kotlinx.serialization.json.Json
 import org.koin.core.qualifier.named
@@ -51,9 +49,10 @@ import org.koin.dsl.module
  * shared 模块的 Koin 依赖图。
  *
  * 该模块集中注册跨平台数据存储、网络客户端、Repository 实现和会话状态对象。
- * Data 层依赖通过接口暴露给上层，认证凭据、余额缓存、草稿和会话状态分别由
- * [CredentialStore]、[BalanceCache]、[QuickCreateDraftRepository] 与 [SessionManager] 承担。
- * [QuickCreateDraftStore] 只作为 Data 实现的原始持久化端口，避免 UI 继续依赖宽泛的设置仓库。
+ * Data 层依赖通过接口暴露给上层，认证凭据、余额缓存和会话状态分别由
+ * [CredentialStore]、[BalanceCache] 与 [SessionManager] 承担。
+ * [QuickCreateDraftStore] 只作为原始持久化端口暴露给 QuickCreate data 模块，避免 shared
+ * 继续持有具体业务 Repository 实现。
  */
 val sharedModule = module {
     single {
@@ -77,8 +76,9 @@ val sharedModule = module {
     single<CredentialStore> { get<SettingsRepositoryImpl>() }
     single<BalanceCache> { get<SettingsRepositoryImpl>() }
     single<QuickCreateDraftStore> { get<SettingsRepositoryImpl>() }
-    single<QuickCreateDraftRepository> { QuickCreateDraftRepositoryImpl(get(), get()) }
     single<SessionRestoreRepository> { SessionRestoreRepositoryImpl(get()) }
+    // 权限申请轨迹属于 shared 的数据能力，通过领域接口暴露给 composeApp，避免 UI 组合根触达 DataStore 实现。
+    single<PermissionStateStore> { createPermissionDataStore() }
     // 会话状态使用可注入单例，避免全局 object 在测试和多入口场景中残留旧状态。
     single { SessionManager(get()) }
 
@@ -116,11 +116,14 @@ val sharedModule = module {
 
     single { RunningHubApi(get()) }
     single { AudioApi(get()) }
-    single { QuickCreateApi(get(), get()) }
     single { ModelCatalogApi(get()) }
     single { PlazaApi(get()) }
+    single { ModelEndpointRegistry() }
 
-    single<WebAppRepository> { WebAppRepositoryImpl(get(), get()) }
+    single { WebAppRepositoryImpl(get(), get()) }
+    single<WebAppCatalogRepository> { get<WebAppRepositoryImpl>() }
+    single<WebAppTaskRepository> { get<WebAppRepositoryImpl>() }
+    single<WebAppTaskHistoryRepository> { get<WebAppRepositoryImpl>() }
     single<UserRepository> { UserRepositoryImpl(get(), get()) }
     single<AudioRepository> { AudioRepositoryImpl(get()) }
     single<AuthRepository> {
@@ -132,10 +135,8 @@ val sharedModule = module {
             balanceCache = get(),
         )
     }
-    single<QuickCreateRepository> { QuickCreateRepositoryImpl(get(), get(), get()) }
-    single<ModelCatalogRepository> { ModelCatalogRepositoryImpl(get(), get()) }
-    single<ModelInvocationRepository> { ModelInvocationRepositoryImpl(get(), get(), get()) }
-    single<GenerationHistoryRepository> { GenerationHistoryRepositoryImpl(get()) }
+    single<ModelCatalogRepository> { ModelCatalogRepositoryImpl(get(), get(), get()) }
+    single<ModelInvocationRepository> { ModelInvocationRepositoryImpl(get(), get(), get(), get()) }
     single<PlazaRepository> { PlazaRepositoryImpl(get()) }
     single<ProfileCredentialRepository> { ProfileCredentialRepositoryImpl(get()) }
     single<BalanceSnapshotRepository> { BalanceSnapshotRepositoryImpl(get()) }

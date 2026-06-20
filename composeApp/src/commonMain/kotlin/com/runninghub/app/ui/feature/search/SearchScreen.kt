@@ -65,7 +65,7 @@ import com.runninghub.app.ui.theme.RunningHubThemeExt
 import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.adaptiveGridColumns
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
-import com.runninghub.shared.domain.model.Tag
+import com.runninghub.core.model.Tag
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class SearchVoyagerScreen : Screen {

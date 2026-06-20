@@ -23,6 +23,9 @@ kotlin {
             implementation(projects.core.model)
             implementation(projects.core.storage)
             implementation(projects.feature.auth.domain)
+            implementation(projects.feature.discovery.domain)
+            implementation(projects.feature.quickcreate.domain)
+            implementation(projects.feature.quickcreate.presentation)
             implementation(project(":shared"))
 
             implementation(compose.runtime)
@@ -48,6 +51,9 @@ kotlin {
         }
 
         androidMain.dependencies {
+            // Android 应用入口负责装配 QuickCreate data 模块；commonMain 只依赖领域接口，
+            // 避免 ScreenModel 或 Composable 直接引用 Data 层实现。
+            implementation(projects.feature.quickcreate.data)
             implementation(libs.koin.android)
             implementation(libs.coil.video)
             implementation(libs.lifecycle.runtime.compose)

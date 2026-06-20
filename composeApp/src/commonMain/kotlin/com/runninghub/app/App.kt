@@ -18,8 +18,8 @@ import com.runninghub.app.ui.adaptive.ProvideRhWindowInfo
 import com.runninghub.app.ui.feature.login.LoginVoyagerScreen
 import com.runninghub.app.ui.navigation.MainVoyagerScreen
 import com.runninghub.app.ui.theme.RunningHubTheme
-import com.runninghub.shared.domain.session.SessionManager
-import com.runninghub.shared.domain.session.SessionState
+import com.runninghub.feature.auth.domain.SessionManager
+import com.runninghub.feature.auth.domain.SessionState
 import org.koin.compose.KoinContext
 import org.koin.compose.koinInject
 

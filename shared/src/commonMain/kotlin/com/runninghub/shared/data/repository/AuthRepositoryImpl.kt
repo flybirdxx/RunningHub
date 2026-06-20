@@ -4,6 +4,8 @@ import com.runninghub.core.network.NetworkErrorMapper
 import com.runninghub.core.network.auth.TokenRefresher
 import com.runninghub.core.storage.BalanceCache
 import com.runninghub.core.storage.CredentialStore
+import com.runninghub.feature.auth.domain.AuthRepository
+import com.runninghub.feature.auth.domain.SessionManager
 import com.runninghub.shared.data.remote.api.RunningHubApi
 import com.runninghub.shared.data.remote.dto.PwdLoginRequest
 import com.runninghub.shared.data.remote.dto.SmsCodeRequest
@@ -11,9 +13,7 @@ import com.runninghub.shared.data.remote.dto.SmsLoginRequest
 import com.runninghub.shared.data.remote.dto.toDomain
 import com.runninghub.feature.auth.domain.AuthError
 import com.runninghub.feature.auth.domain.SmsError
-import com.runninghub.shared.domain.model.User
-import com.runninghub.shared.domain.repository.AuthRepository
-import com.runninghub.shared.domain.session.SessionManager
+import com.runninghub.core.model.User
 import com.runninghub.shared.util.md5
 import kotlinx.datetime.Clock
 

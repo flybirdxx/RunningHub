@@ -1,7 +1,7 @@
 package com.runninghub.shared.data.repository
 
 import com.runninghub.core.storage.CredentialStore
-import com.runninghub.shared.domain.session.SessionRestoreRepository
+import com.runninghub.feature.auth.domain.SessionRestoreRepository
 
 /**
  * 会话恢复仓库的数据层实现。

@@ -1,6 +1,28 @@
 package com.runninghub.shared.data.remote.dto
 
-import com.runninghub.shared.domain.model.*
+import com.runninghub.core.model.AccountStatus
+import com.runninghub.core.model.AppDetail
+import com.runninghub.core.model.Author
+import com.runninghub.core.model.Cover
+import com.runninghub.core.model.CoverMediaType
+import com.runninghub.core.model.InputNode
+import com.runninghub.core.model.MemberInfo
+import com.runninghub.core.model.PageData
+import com.runninghub.core.model.StatisticsInfo
+import com.runninghub.core.model.Tag
+import com.runninghub.core.model.TagSimple
+import com.runninghub.core.model.User
+import com.runninghub.core.model.WalletInfo
+import com.runninghub.core.model.WebApp
+import com.runninghub.shared.domain.model.AudioResult
+import com.runninghub.shared.domain.model.AudioTaskResult
+import com.runninghub.shared.domain.model.TaskExecutionStatus
+import com.runninghub.shared.domain.model.TaskFailedReason
+import com.runninghub.shared.domain.model.TaskHistoryItem
+import com.runninghub.shared.domain.model.TaskHistoryOutput
+import com.runninghub.shared.domain.model.TaskOutput
+import com.runninghub.shared.domain.model.TaskResult
+import com.runninghub.shared.domain.model.UploadResult
 
 fun WebAppDto.toDomain(): WebApp {
     val firstCover = covers?.firstOrNull()
@@ -157,7 +179,8 @@ fun TaskRunResponseDto.toDomain(): TaskResult = TaskResult(
     netWssUrl = netWssUrl,
     taskId = taskId,
     clientId = clientId,
-    taskStatus = taskStatus,
+    // Data 层负责把服务端 taskStatus 协议值收口成领域状态，Presentation 不再判断远端字符串。
+    status = TaskExecutionStatus.fromRaw(taskStatus),
     promptTips = promptTips
 )
 
@@ -168,8 +191,8 @@ fun TaskOutputDto.toDomain(): TaskOutput = TaskOutput(
     failedReason = failedReason?.toDomain()
 )
 
-fun TaskFailedReasonDto.toDomain(): com.runninghub.shared.domain.model.TaskFailedReason =
-    com.runninghub.shared.domain.model.TaskFailedReason(
+fun TaskFailedReasonDto.toDomain(): TaskFailedReason =
+    TaskFailedReason(
         nodeName = nodeName,
         exceptionMessage = exceptionMessage,
         traceback = traceback
@@ -183,7 +206,8 @@ fun UploadResponseDto.toDomain(): UploadResult = UploadResult(
 fun TaskHistoryItemDto.toDomain(): TaskHistoryItem = TaskHistoryItem(
     taskId = taskId,
     outputs = outputList?.map { it.toDomain() } ?: emptyList(),
-    taskStatus = taskStatus,
+    // 旧历史接口仍返回 taskStatus 字段，这里统一转成领域状态以便后续拆分历史仓库。
+    status = TaskExecutionStatus.fromRaw(taskStatus),
     taskCostTime = taskCostTime,
     createTime = createTime,
     taskName = taskName,
@@ -208,8 +232,8 @@ fun PageDataDto<WebAppDto>.toDomain(): PageData<WebApp> = PageData(
     hasNext = hasNext
 )
 
-fun AudioResultDto.toDomain(): com.runninghub.shared.domain.model.AudioResult =
-    com.runninghub.shared.domain.model.AudioResult(
+fun AudioResultDto.toDomain(): AudioResult =
+    AudioResult(
         url = url,
         outputType = outputType,
         text = text

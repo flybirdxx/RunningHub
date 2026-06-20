@@ -3,6 +3,7 @@ package com.runninghub.app
 import android.app.Application
 import com.runninghub.app.di.appModule
 import com.runninghub.app.platform.initMediaResolver
+import com.runninghub.feature.quickcreate.data.di.quickCreateDataModule
 import com.runninghub.shared.data.local.initDataStore
 import com.runninghub.shared.di.sharedModule
 import org.koin.android.ext.koin.androidContext
@@ -17,7 +18,8 @@ class RunningHubApplication : Application() {
         startKoin {
             androidLogger()
             androidContext(this@RunningHubApplication)
-            modules(sharedModule, appModule)
+            // 应用组合根负责装配 feature data 模块，避免 shared 继续反向持有 QuickCreate 远程实现。
+            modules(sharedModule, quickCreateDataModule, appModule)
         }
     }
 }

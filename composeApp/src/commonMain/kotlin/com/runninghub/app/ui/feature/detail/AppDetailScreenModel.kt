@@ -5,10 +5,12 @@ import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.app.ui.component.MediaType
-import com.runninghub.shared.domain.model.AppDetail
-import com.runninghub.shared.domain.model.InputNode
+import com.runninghub.core.model.AppDetail
+import com.runninghub.core.model.InputNode
+import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
 import com.runninghub.shared.domain.model.TaskOutput
-import com.runninghub.shared.domain.repository.WebAppRepository
+import com.runninghub.shared.domain.repository.WebAppTaskRepository
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -82,14 +84,20 @@ data class PendingMediaPick(
  * WebApp 详情页的 ScreenModel。
  *
  * 页面负责详情展示、输入状态、文件选择上传和任务轮询。API Key 等敏感凭据不在本类读取或保存，
- * 需要凭据的调用统一交给 [WebAppRepository] 的 Data 层实现处理。
+ * 公开详情读取通过 [WebAppCatalogRepository] 完成，需要凭据的上传、提交和轮询统一交给
+ * [WebAppTaskRepository] 的 Data 层实现处理。
  *
- * @param webAppRepository WebApp 业务仓库，封装详情、上传、任务提交和输出轮询。
+ * @param webAppCatalogRepository WebApp 目录仓库，只用于读取公开详情。
+ * @param webAppTaskRepository WebApp 任务仓库，封装 API 示例、上传、任务提交和输出轮询。
  * @param mediaResolver 跨平台媒体读取能力，用于把本地 URI 转换为上传文件。
+ * @param ioDispatcher 媒体字节读取使用的调度器；commonMain 默认使用跨平台可用的 Default，
+ * 避免把 Kotlin/Native 不稳定的 IO 调度器暴露给共享代码，测试可注入可控调度器。
  */
 class AppDetailScreenModel(
-    private val webAppRepository: WebAppRepository,
-    private val mediaResolver: MediaResolver
+    private val webAppCatalogRepository: WebAppCatalogRepository,
+    private val webAppTaskRepository: WebAppTaskRepository,
+    private val mediaResolver: MediaResolver,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ScreenModel {
 
     private val _uiState = MutableStateFlow(AppDetailUiState())
@@ -131,9 +139,9 @@ class AppDetailScreenModel(
         screenModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            val detail = webAppRepository.getAppDetail(appId).getOrNull()
+            val detail = webAppCatalogRepository.getAppDetail(appId).getOrNull()
                 ?: run {
-                    webAppRepository.getApiCallDemo(appId).getOrNull()
+                    webAppTaskRepository.getApiCallDemo(appId).getOrNull()
                 }
 
             if (detail != null) {
@@ -198,7 +206,9 @@ class AppDetailScreenModel(
                     it.copy(uploadingNodes = it.uploadingNodes + (nodeId to UploadingState(localUri = localUri, progress = 0.3f)))
                 }
 
-                val fileBytes = withContext(Dispatchers.IO) {
+                // 媒体读取可能触发平台文件访问；通过可注入调度器隔离耗时操作，
+                // 同时避免 commonMain 直接依赖 JVM/Android 才稳定的 Dispatchers.IO。
+                val fileBytes = withContext(ioDispatcher) {
                     mediaResolver.readBytes(localUri)
                 }
 
@@ -206,7 +216,7 @@ class AppDetailScreenModel(
                     it.copy(uploadingNodes = it.uploadingNodes + (nodeId to UploadingState(localUri = localUri, progress = 0.5f)))
                 }
 
-                val result = webAppRepository.uploadFile(
+                val result = webAppTaskRepository.uploadFile(
                     fileType = mimeType,
                     fileBytes = fileBytes,
                     fileName = fileName
@@ -264,7 +274,7 @@ class AppDetailScreenModel(
                 )
             }
 
-            webAppRepository.runTask(
+            webAppTaskRepository.runTask(
                 webappId = detail.id.toLongOrNull() ?: 0L,
                 nodeInfoList = inputNodes
             ).onSuccess {
@@ -303,7 +313,7 @@ class AppDetailScreenModel(
                 delay(5_000)
                 attempts++
 
-                webAppRepository.getTaskOutputs(taskId)
+                webAppTaskRepository.getTaskOutputs(taskId)
                     .onSuccess { outputs ->
                         if (outputs.isEmpty()) return@onSuccess
 

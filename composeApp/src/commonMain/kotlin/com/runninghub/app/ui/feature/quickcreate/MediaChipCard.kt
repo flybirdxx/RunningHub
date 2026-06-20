@@ -23,6 +23,9 @@ import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.theme.*
 import com.runninghub.app.util.formatMinutesSeconds
 import com.runninghub.app.util.formatOneDecimal
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 
 @Composable
 fun MediaChipCard(
@@ -84,9 +87,10 @@ fun MediaChipCard(
                         append(" · ")
                         append(formatFileSize(reference.fileSizeBytes))
                     }
-                    if (reference.type == QuickCreateMediaType.VIDEO && reference.durationSeconds != null) {
+                    val durationSeconds = reference.durationSeconds
+                    if (reference.type == QuickCreateMediaType.VIDEO && durationSeconds != null) {
                         append(" · ")
-                        append(formatDuration(reference.durationSeconds))
+                        append(formatDuration(durationSeconds))
                     }
                 }
                 Text(
@@ -174,7 +178,7 @@ private fun MediaThumb(
     ) {
         when (reference.type) {
             QuickCreateMediaType.IMAGE -> {
-                if (reference.uri.toString().startsWith("content://")) {
+                if (reference.uri.startsWith("content://")) {
                     AsyncImage(
                         model = reference.uri,
                         contentDescription = null,

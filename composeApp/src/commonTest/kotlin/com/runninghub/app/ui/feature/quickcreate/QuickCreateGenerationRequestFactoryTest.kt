@@ -1,15 +1,27 @@
 package com.runninghub.app.ui.feature.quickcreate
 
-import com.runninghub.shared.domain.repository.QuickCreationServiceField
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldOption
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
-import com.runninghub.shared.domain.repository.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
+
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldExtra
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldInputChild
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldOption
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldVisibilityCondition
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.MAX_PROMPT_CHARS
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
+import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 
 class QuickCreateGenerationRequestFactoryTest {
     private val factory = QuickCreateGenerationRequestFactory()

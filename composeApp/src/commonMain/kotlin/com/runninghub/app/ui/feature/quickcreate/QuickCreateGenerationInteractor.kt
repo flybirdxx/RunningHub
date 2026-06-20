@@ -1,13 +1,21 @@
 package com.runninghub.app.ui.feature.quickcreate
 
-import com.runninghub.shared.domain.repository.ImageGenerationRequest
-import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.VideoGenerationRequest
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
+
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+
+import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
+import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
+import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 
 /**
  * 协调快捷创作的正式生成提交流程。
@@ -20,7 +28,7 @@ import kotlinx.coroutines.launch
  * - 同一时间只保留一个生成 Job，新提交会取消上一轮尚未结束的收集任务。
  * - 页面销毁时必须调用 [dispose]，避免任务状态流在 ScreenModel 失效后继续回写。
  *
- * @param quickCreateRepository 快捷创作仓库，负责提交图片和视频生成请求并返回任务状态流。
+ * @param generationRepository 快捷创作生成仓库，只负责提交图片和视频生成请求并返回任务状态流。
  * @param generationRequestFactory 当前页面状态到图片/视频生成请求的构建器，同时提供服务字段校验规则。
  * @param feePreviewInteractor 计费预览协调器，用于把预览错误转换为生成前拦截文案。
  * @param mediaUploadCoordinator 媒体上传协调器，用于生成前等待当前请求相关素材完成上传。
@@ -29,7 +37,7 @@ import kotlinx.coroutines.launch
  * @param uiState 页面状态流，Interactor 只读取编辑状态并更新提交前的阻塞、上传和错误状态。
  */
 internal class QuickCreateGenerationInteractor(
-    private val quickCreateRepository: QuickCreateRepository,
+    private val generationRepository: QuickCreationGenerationRepository,
     private val generationRequestFactory: QuickCreateGenerationRequestFactory,
     private val feePreviewInteractor: QuickCreateFeePreviewInteractor,
     private val mediaUploadCoordinator: QuickCreateMediaUploadCoordinator,
@@ -119,7 +127,7 @@ internal class QuickCreateGenerationInteractor(
     private suspend fun generateImage(
         request: ImageGenerationRequest,
     ) {
-        quickCreateRepository.generateImage(request).let { statuses ->
+        generationRepository.generateImage(request).let { statuses ->
             taskPollingController.collect(statuses)
         }
     }
@@ -127,7 +135,7 @@ internal class QuickCreateGenerationInteractor(
     private suspend fun generateVideo(
         request: VideoGenerationRequest,
     ) {
-        quickCreateRepository.generateVideo(request).let { statuses ->
+        generationRepository.generateVideo(request).let { statuses ->
             taskPollingController.collect(statuses)
         }
     }

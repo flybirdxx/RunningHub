@@ -1,26 +1,26 @@
-package com.runninghub.app.ui.feature.create
+﻿package com.runninghub.app.ui.feature.create
 
 import com.runninghub.app.platform.MediaResolver
-import com.runninghub.shared.domain.repository.ImageGenerationRequest
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplatePage
-import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
-import com.runninghub.shared.domain.repository.QuickCreationFeePreview
-import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
-import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
-import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
-import com.runninghub.shared.domain.repository.QuickCreationProject
-import com.runninghub.shared.domain.repository.QuickCreationProjectPage
-import com.runninghub.shared.domain.repository.QuickCreationServiceField
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldOption
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
-import com.runninghub.shared.domain.repository.QuickCreationServiceModel
-import com.runninghub.shared.domain.repository.VideoGenerationRequest
+import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
+import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryOutput
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryPage
+import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldExtra
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldInputChild
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldOption
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldVisibilityCondition
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
+import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -50,10 +50,24 @@ class CreateScreenModelTest {
         Dispatchers.resetMain()
     }
 
+    private fun createScreenModel(
+        repository: FakeQuickCreateRepository,
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ): CreateScreenModel =
+        CreateScreenModel(
+            historyRepository = repository,
+            mediaResolver = FakeMediaResolver(),
+            ioDispatcher = ioDispatcher,
+            modelCatalogRepository = repository,
+            generationRepository = repository,
+            feePreviewRepository = repository,
+            mediaUploadRepository = repository,
+        )
+
     @Test
     fun `loadModels selects real quick creation model and recent history`() = runTest {
         val repository = FakeQuickCreateRepository()
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -72,7 +86,7 @@ class CreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             historyFailureMessage = "history failed"
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -99,7 +113,7 @@ class CreateScreenModelTest {
                 historyItem(taskId = "image-failed", categoryId = "IMAGE", status = "FAILED", outputType = "png"),
             )
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -133,7 +147,7 @@ class CreateScreenModelTest {
     @Test
     fun `non quick creation category shows explicit unavailable notice`() = runTest {
         val repository = FakeQuickCreateRepository()
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.updateCategory(CreateCategory.AUDIO)
         advanceUntilIdle()
@@ -150,7 +164,7 @@ class CreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             modelFailureMessage = "TOKEN_INVALID Bearer secret-token"
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -165,7 +179,7 @@ class CreateScreenModelTest {
     @Test
     fun `submit blocks missing required prompt before generation`() = runTest {
         val repository = FakeQuickCreateRepository()
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -178,7 +192,7 @@ class CreateScreenModelTest {
     @Test
     fun `submit blocks when fee preview has not been confirmed`() = runTest {
         val repository = FakeQuickCreateRepository()
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -194,7 +208,7 @@ class CreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             previewFailureMessage = "fee-preview failed"
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -213,7 +227,7 @@ class CreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             previewFailureMessage = "TOKEN_INVALID Bearer secret-token cookie=session"
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -232,7 +246,7 @@ class CreateScreenModelTest {
             feePreviewPassed = false
             feePreviewInsufficientType = "CASH"
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -249,7 +263,7 @@ class CreateScreenModelTest {
     @Test
     fun `prompt change refreshes fee preview with selected service model ids`() = runTest {
         val repository = FakeQuickCreateRepository()
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -275,7 +289,7 @@ class CreateScreenModelTest {
             scalarMaxUploadCount = 0
             scalarAcceptFormats = listOf("")
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -293,7 +307,7 @@ class CreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             includeUploadField = true
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver(), UnconfinedTestDispatcher(testScheduler))
+        val screenModel = createScreenModel(repository, UnconfinedTestDispatcher(testScheduler))
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -318,7 +332,7 @@ class CreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             includeConditionalChildField = true
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -340,7 +354,7 @@ class CreateScreenModelTest {
     @Test
     fun `submit after fee preview calls generate and refreshes history`() = runTest {
         val repository = FakeQuickCreateRepository()
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -364,7 +378,7 @@ class CreateScreenModelTest {
     @Test
     fun `select history output loads quick creation detail`() = runTest {
         val repository = FakeQuickCreateRepository()
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         advanceUntilIdle()
@@ -386,7 +400,7 @@ class CreateScreenModelTest {
             historyStatuses.clear()
             historyStatuses += listOf("RUNNING", "SUCCESS")
         }
-        val screenModel = CreateScreenModel(repository, FakeMediaResolver())
+        val screenModel = createScreenModel(repository)
 
         screenModel.loadModels()
         runCurrent()
@@ -411,7 +425,12 @@ class CreateScreenModelTest {
         assertEquals(2, repository.historyListCalls)
     }
 
-    private inner class FakeQuickCreateRepository : QuickCreateRepository {
+    private inner class FakeQuickCreateRepository :
+        QuickCreationTaskHistoryRepository,
+        QuickCreationModelCatalogRepository,
+        QuickCreationGenerationRepository,
+        QuickCreationFeePreviewRepository,
+        QuickCreationMediaUploadRepository {
         val modelCategories = mutableListOf<String>()
         var lastPreviewImageRequest: ImageGenerationRequest? = null
         var lastGenerateImageRequest: ImageGenerationRequest? = null
@@ -472,20 +491,8 @@ class CreateScreenModelTest {
             return Result.success("https://example.com/uploaded.png")
         }
 
-        override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> =
-            Result.success(emptyList())
-
-        override suspend fun getInspirationTemplates(
-            page: Int,
-            size: Int,
-            tagId: String?,
-        ): Result<QuickCreateInspirationTemplatePage> =
-            Result.success(QuickCreateInspirationTemplatePage(page, size, 0, 0, false, false, items = emptyList()))
-
-        override suspend fun getInspirationTemplateDetail(templateId: String): Result<QuickCreateInspirationTemplateDetail> =
-            Result.failure(NotImplementedError())
-
-        override suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>> {
+        override suspend fun getModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> {
+            val categoryId = kind.testCategoryId()
             modelCategories += categoryId
             modelFailureMessage?.let { return Result.failure(IllegalStateException(it)) }
             return Result.success(
@@ -547,31 +554,25 @@ class CreateScreenModelTest {
         override suspend fun cancelQuickCreationTask(taskId: String): Result<Unit> =
             Result.failure(NotImplementedError())
 
-        override suspend fun listQuickCreationProjects(page: Int, size: Int): Result<QuickCreationProjectPage> =
-            Result.success(QuickCreationProjectPage(page, size, 0, 0, false, false, items = emptyList()))
-
         override suspend fun listQuickCreationProjectTasks(
             projectId: String,
             page: Int,
             size: Int,
         ): Result<QuickCreationHistoryPage> =
             Result.failure(NotImplementedError())
-
-        override suspend fun createQuickCreationProject(name: String): Result<QuickCreationProject> =
-            Result.failure(NotImplementedError())
-
-        override suspend fun renameQuickCreationProject(projectId: String, name: String): Result<Unit> =
-            Result.failure(NotImplementedError())
-
-        override suspend fun deleteQuickCreationProject(projectId: String): Result<Unit> =
-            Result.failure(NotImplementedError())
-
-        override suspend fun pinQuickCreationProject(projectId: String, pinned: Boolean): Result<Unit> =
-            Result.failure(NotImplementedError())
-
-        override suspend fun getQuickCreationProjectDetail(projectId: String): Result<QuickCreationProject> =
-            Result.failure(NotImplementedError())
     }
+
+    /**
+     * 测试 fake 使用的远端分类 ID 映射。
+     *
+     * 生产代码中的映射位于 Data 层；测试只需要构造旧创作页依赖的服务模型 fixture，
+     * 因此在测试内局部保留字符串，避免反向污染 Domain 枚举。
+     */
+    private fun QuickCreationServiceKind.testCategoryId(): String =
+        when (this) {
+            QuickCreationServiceKind.IMAGE -> "IMAGE"
+            QuickCreationServiceKind.VIDEO -> "VIDEO"
+        }
 
     private fun historyItem(
         taskId: String,

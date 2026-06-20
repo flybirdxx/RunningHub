@@ -42,12 +42,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.feature.quickcreate.ImageModel
-import com.runninghub.app.ui.feature.quickcreate.MediaReference
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateMediaType
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
-import com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldControlType
-import com.runninghub.app.ui.feature.quickcreate.QuickCreationServiceFieldUi
+import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
+import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.app.ui.feature.quickcreate.presentation.upload.QuickCreateServiceUploadFieldPicker
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
@@ -58,6 +56,11 @@ import com.runninghub.app.ui.theme.Neutral200
 import com.runninghub.app.ui.theme.Neutral300
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldControlType
+import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldUi
+import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceUploadMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
+import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 
 /**
  * 展示当前快捷创作入口使用的“更多参数”底部面板。
@@ -371,7 +374,9 @@ private fun ServiceFieldInput(
             )
             QuickCreationServiceFieldControlType.UPLOAD -> QuickCreateServiceUploadFieldPicker(
                 paramKey = field.paramKey,
-                mediaType = field.uploadMediaType,
+                // 动态字段模型已迁入 feature presentation；composeApp 迁移期只把稳定媒体枚举
+                // 转换为当前上传组件仍在使用的页面状态枚举，避免新模块反向依赖应用层类型。
+                mediaType = field.uploadMediaType.toAppMediaType(),
                 hint = field.uploadHint,
                 mediaReferences = mediaReferences,
                 onUploadFieldClick = onUploadFieldClick,
@@ -389,6 +394,14 @@ private fun ServiceFieldInput(
         }
     }
 }
+
+private fun QuickCreationServiceUploadMediaType?.toAppMediaType(): QuickCreateMediaType? =
+    when (this) {
+        QuickCreationServiceUploadMediaType.IMAGE -> QuickCreateMediaType.IMAGE
+        QuickCreationServiceUploadMediaType.VIDEO -> QuickCreateMediaType.VIDEO
+        QuickCreationServiceUploadMediaType.AUDIO -> QuickCreateMediaType.AUDIO
+        null -> null
+    }
 
 @Composable
 private fun ServiceFieldOptions(

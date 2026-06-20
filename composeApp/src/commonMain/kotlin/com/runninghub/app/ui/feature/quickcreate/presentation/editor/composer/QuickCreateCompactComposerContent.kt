@@ -42,14 +42,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.feature.quickcreate.MAX_PROMPT_CHARS
-import com.runninghub.app.ui.feature.quickcreate.MediaReference
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheet
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateServiceModelUi
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateTab
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
-import com.runninghub.app.ui.feature.quickcreate.quickCreateCompactServiceModelLabel
-import com.runninghub.app.ui.feature.quickcreate.quickCreateSendButtonLabel
+import com.runninghub.feature.quickcreate.presentation.state.MAX_PROMPT_CHARS
+import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
 import com.runninghub.app.ui.theme.DarkSurfaceVariant
@@ -61,6 +58,11 @@ import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.WarningDark
+import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.quickCreateCompactServiceModelLabel
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
+import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 
 /**
  * 渲染快捷创作当前默认启用的紧凑底部输入条。

@@ -17,6 +17,8 @@ import com.nareshchocha.filepickerlibrary.models.PickMediaType
 import com.runninghub.app.ui.component.MediaType
 import com.runninghub.shared.domain.model.Permission
 import com.runninghub.shared.domain.model.PermissionStatus
+import com.runninghub.shared.domain.model.androidManifestPermission
+import com.runninghub.shared.domain.model.fromAndroidManifestPermission
 import com.runninghub.shared.domain.permission.PermissionStateStore
 import kotlinx.coroutines.launch
 
@@ -37,24 +39,31 @@ private class PermissionControllerImpl(
     private var pendingMediaCallback: ((String) -> Unit)? = null
     private var pendingMediaDeniedCallback: (() -> Unit)? = null
     private var pendingMediaType: MediaType? = null
+    private var pendingRequestedPermission: Permission? = null
 
     private val permissionLauncher = activity.activityResultRegistry.register(
         "rh_permission_request",
         ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions: Map<String, Boolean> ->
-        val manifest = permissions.keys.firstOrNull() ?: return@register
+        val manifest = permissions.keys.firstOrNull() ?: run {
+            pendingPermissionCallback = null
+            pendingRequestedPermission = null
+            return@register
+        }
+        val requestedPermission = pendingRequestedPermission ?: Permission.fromAndroidManifestPermission(manifest)
+        val permissionKey = requestedPermission?.key
         val granted = permissions[manifest] == true
         scope.launch {
             if (granted) {
-                permissionStateStore.markGranted(manifest)
+                permissionKey?.let { permissionStateStore.markGranted(it) }
                 pendingMediaType?.let { type -> launchMediaPicker(type) }
             } else {
                 val shouldShowRationale = activity.shouldShowRequestPermissionRationale(manifest)
                 if (!shouldShowRationale) {
-                    permissionStateStore.markPermanentlyDenied(manifest)
+                    permissionKey?.let { permissionStateStore.markPermanentlyDenied(it) }
                     pendingMediaDeniedCallback?.invoke()
                 } else {
-                    permissionStateStore.markDenied(manifest)
+                    permissionKey?.let { permissionStateStore.markDenied(it) }
                     pendingMediaDeniedCallback?.invoke()
                 }
                 pendingMediaCallback = null
@@ -63,6 +72,7 @@ private class PermissionControllerImpl(
             }
             pendingPermissionCallback?.invoke(granted)
             pendingPermissionCallback = null
+            pendingRequestedPermission = null
         }
     }
 
@@ -149,7 +159,8 @@ private class PermissionControllerImpl(
                             pendingMediaType = null
                         }
                         else -> {
-                            permissionLauncher.launch(arrayOf(mediaPermission.androidManifest))
+                            pendingRequestedPermission = mediaPermission
+                            permissionLauncher.launch(arrayOf(mediaPermission.androidManifestPermission))
                         }
                     }
                 }
@@ -186,7 +197,8 @@ private class PermissionControllerImpl(
                     pendingPermissionCallback = { granted ->
                         if (granted) onGranted() else onDenied()
                     }
-                    permissionLauncher.launch(arrayOf(permission.androidManifest))
+                    pendingRequestedPermission = permission
+                    permissionLauncher.launch(arrayOf(permission.androidManifestPermission))
                 }
             }
         }

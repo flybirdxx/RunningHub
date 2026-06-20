@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.theme.*
+import com.runninghub.feature.quickcreate.presentation.state.MAX_PROMPT_CHARS
 
 private const val MIN_HEIGHT_DP = 52
 private const val LINE_HEIGHT_SP = 22

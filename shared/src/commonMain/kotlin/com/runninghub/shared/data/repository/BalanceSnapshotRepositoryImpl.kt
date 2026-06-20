@@ -1,7 +1,7 @@
 package com.runninghub.shared.data.repository
 
 import com.runninghub.core.storage.BalanceCache
-import com.runninghub.shared.domain.repository.BalanceSnapshotRepository
+import com.runninghub.feature.auth.domain.BalanceSnapshotRepository
 
 /**
  * 用户余额快照仓库的数据层实现。

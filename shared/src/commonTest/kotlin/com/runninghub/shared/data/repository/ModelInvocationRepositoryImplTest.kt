@@ -1,13 +1,18 @@
 package com.runninghub.shared.data.repository
 
 import com.runninghub.core.storage.CredentialStore
-import com.runninghub.shared.data.remote.api.QuickCreateApi
+import com.runninghub.shared.data.remote.api.ModelCatalogApi
+import com.runninghub.shared.domain.model.ApiModelField
+import com.runninghub.shared.domain.model.ApiModelFieldType
+import com.runninghub.shared.domain.model.ModelFieldValue
+import com.runninghub.shared.domain.model.ModelInvocationRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.encodedPath
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
@@ -20,6 +25,59 @@ class ModelInvocationRepositoryImplTest {
     private val json = Json {
         ignoreUnknownKeys = true
         explicitNulls = false
+    }
+
+    @Test
+    fun `submitStandardModel resolves endpoint from sku detail by model id`() = runBlocking {
+        val requestedPaths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            requestedPaths += request.url.encodedPath
+            when (request.url.encodedPath) {
+                "/api/sku/detail" -> respond(
+                    content = """
+                        {
+                          "code": 0,
+                          "msg": "success",
+                          "data": {
+                            "id": "sku-1",
+                            "name": "Image V2",
+                            "rhEndpoint": "/rhart-image/text-to-image",
+                            "inputConfigJson": "[]"
+                          }
+                        }
+                    """.trimIndent(),
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+                "/openapi/v2/rhart-image/text-to-image" -> respond(
+                    content = """{"taskId":"task-1","status":"SUBMITTED"}""",
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+                else -> error("Unexpected path: ${request.url.encodedPath}")
+            }
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = ModelInvocationRepositoryImpl(
+            client = client,
+            modelCatalogApi = ModelCatalogApi(client),
+            credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+            endpointRegistry = ModelEndpointRegistry(),
+        )
+
+        val task = repository.submitStandardModel(
+            ModelInvocationRequest(
+                modelId = "sku-1",
+                fields = listOf(ApiModelField("prompt", "prompt", ApiModelFieldType.STRING, required = true)),
+                values = mapOf("prompt" to ModelFieldValue.Text("a cat")),
+            )
+        ).getOrThrow()
+
+        assertEquals("task-1", task.taskId)
+        assertEquals("SUBMITTED", task.status)
+        assertEquals(listOf("/api/sku/detail", "/openapi/v2/rhart-image/text-to-image"), requestedPaths)
     }
 
     @Test
@@ -91,8 +149,9 @@ class ModelInvocationRepositoryImplTest {
         }
         return ModelInvocationRepositoryImpl(
             client = client,
-            quickCreateApi = QuickCreateApi(client, json),
+            modelCatalogApi = ModelCatalogApi(client),
             credentialStore = credentialStore,
+            endpointRegistry = ModelEndpointRegistry(),
         )
     }
 

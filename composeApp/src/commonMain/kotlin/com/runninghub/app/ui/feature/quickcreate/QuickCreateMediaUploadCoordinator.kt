@@ -1,7 +1,11 @@
 package com.runninghub.app.ui.feature.quickcreate
 
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
+
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+
 import com.runninghub.app.platform.MediaResolver
-import com.runninghub.shared.domain.repository.QuickCreateRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -12,6 +16,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
+import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 
 private const val UPLOAD_WAIT_MAX_TICKS = 120
 private const val UPLOAD_WAIT_TICK_MILLIS = 500L
@@ -32,7 +42,7 @@ private fun debugUpload(message: String) {
  * - 页面销毁时必须调用 [dispose]，否则本地文件读取或远程上传可能在页面失效后继续回写状态。
  * - 上传完成、失败或删除与当前计费请求相关的素材后，通过 [onFeePreviewRequired] 触发计费预览刷新。
  *
- * @param quickCreateRepository 快捷创作仓库，提供媒体上传能力。
+ * @param mediaUploadRepository 快捷创作媒体上传仓库，只提供远端媒体上传能力。
  * @param mediaResolver 平台媒体解析器，负责读取 URI 的展示名、大小和字节内容。
  * @param generationRequestFactory 生成请求构建器，用于判断哪些媒体引用会影响当前生成和计费请求。
  * @param scope 页面生命周期作用域，上传 Job 与等待流程都挂在该作用域下。
@@ -41,7 +51,7 @@ private fun debugUpload(message: String) {
  * @param onFeePreviewRequired 当前媒体变化影响计费请求时调用，用于重新安排计费预览。
  */
 internal class QuickCreateMediaUploadCoordinator(
-    private val quickCreateRepository: QuickCreateRepository,
+    private val mediaUploadRepository: QuickCreationMediaUploadRepository,
     private val mediaResolver: MediaResolver,
     private val generationRequestFactory: QuickCreateGenerationRequestFactory,
     private val scope: CoroutineScope,
@@ -215,7 +225,7 @@ internal class QuickCreateMediaUploadCoordinator(
                 }
                 updateReferenceStatus(id, UploadStatus.UPLOADING, 0.7f, targetTab)
 
-                val remoteUrl = quickCreateRepository.uploadMedia(
+                val remoteUrl = mediaUploadRepository.uploadMedia(
                     fileBytes = bytes,
                     fileName = actualFileName,
                     mimeType = mimeType,

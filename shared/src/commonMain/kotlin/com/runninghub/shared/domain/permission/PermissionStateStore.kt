@@ -12,55 +12,55 @@ import kotlinx.coroutines.flow.Flow
  * Compose 页面、平台权限控制器与 data/local 中的存储实现。
  *
  * 并发约束：
- * - 所有写入函数必须保证同一权限 manifest 在三类集合中互斥。
+ * - 所有写入函数必须保证同一权限 key 在三类集合中互斥。
  * - 调用方通过 [Flow] 观察状态变化，不直接读取底层偏好存储。
  * - Android 会持久化真实授权轨迹；iOS 当前实现以系统权限弹窗为准，可能返回降级状态。
  */
 interface PermissionStateStore {
     /**
-     * 已授权权限的 manifest 集合。
+     * 已授权权限的跨平台 key 集合。
      *
      * @return 权限集合流，调用方应按只读状态处理。
      */
     val grantedPermissions: Flow<Set<String>>
 
     /**
-     * 已拒绝但仍可再次申请的权限 manifest 集合。
+     * 已拒绝但仍可再次申请的权限 key 集合。
      */
     val deniedPermissions: Flow<Set<String>>
 
     /**
-     * 已永久拒绝、需要引导用户到系统设置修改的权限 manifest 集合。
+     * 已永久拒绝、需要引导用户到系统设置修改的权限 key 集合。
      */
     val permanentlyDeniedPermissions: Flow<Set<String>>
 
     /**
      * 标记权限已授权。
      *
-     * @param manifest Android 权限 manifest 字符串；非 Android 平台可作为稳定权限标识。
+     * @param permissionKey [Permission.key] 中定义的跨平台稳定权限标识。
      */
-    suspend fun markGranted(manifest: String)
+    suspend fun markGranted(permissionKey: String)
 
     /**
      * 标记权限已拒绝但尚未永久拒绝。
      *
-     * @param manifest Android 权限 manifest 字符串；非 Android 平台可作为稳定权限标识。
+     * @param permissionKey [Permission.key] 中定义的跨平台稳定权限标识。
      */
-    suspend fun markDenied(manifest: String)
+    suspend fun markDenied(permissionKey: String)
 
     /**
      * 标记权限已永久拒绝。
      *
-     * @param manifest Android 权限 manifest 字符串；非 Android 平台可作为稳定权限标识。
+     * @param permissionKey [Permission.key] 中定义的跨平台稳定权限标识。
      */
-    suspend fun markPermanentlyDenied(manifest: String)
+    suspend fun markPermanentlyDenied(permissionKey: String)
 
     /**
      * 清除单个权限的本地状态。
      *
-     * @param manifest 需要重置的权限 manifest 或跨平台权限标识。
+     * @param permissionKey 需要重置的跨平台权限标识。
      */
-    suspend fun reset(manifest: String)
+    suspend fun reset(permissionKey: String)
 
     /**
      * 清除全部权限状态。
@@ -72,7 +72,7 @@ interface PermissionStateStore {
     /**
      * 读取当前权限状态。
      *
-     * @param permission 领域权限模型，包含平台侧检查所需的 manifest 信息。
+     * @param permission 领域权限模型，包含跨平台稳定 key。
      * @return 当前权限状态；当本地没有记录时返回 [PermissionStatus.UNKNOWN]。
      */
     suspend fun getCurrentStatus(permission: Permission): PermissionStatus

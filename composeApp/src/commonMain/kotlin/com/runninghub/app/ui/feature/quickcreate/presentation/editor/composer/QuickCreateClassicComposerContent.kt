@@ -48,22 +48,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.feature.quickcreate.AdaptivePromptTextField
-import com.runninghub.app.ui.feature.quickcreate.DraftData
-import com.runninghub.app.ui.feature.quickcreate.ImageAspectRatio
-import com.runninghub.app.ui.feature.quickcreate.ImageQuality
-import com.runninghub.app.ui.feature.quickcreate.ImageResolution
+import com.runninghub.feature.quickcreate.presentation.draft.DraftData
+import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
+import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
 import com.runninghub.app.ui.feature.quickcreate.MediaChipCard
-import com.runninghub.app.ui.feature.quickcreate.MediaReference
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheet
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateServiceModelUi
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateTab
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
-import com.runninghub.app.ui.feature.quickcreate.VideoAspectRatio
-import com.runninghub.app.ui.feature.quickcreate.VideoDuration
-import com.runninghub.app.ui.feature.quickcreate.VideoResolution
-import com.runninghub.app.ui.feature.quickcreate.quickCreateSendButtonLabel
+import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
+import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
 import com.runninghub.app.ui.feature.quickcreate.presentation.upload.QuickCreateMediaToolbarRow
-import com.runninghub.app.ui.feature.quickcreate.resumeSummaryText
+import com.runninghub.feature.quickcreate.presentation.draft.resumeSummaryText
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
 import com.runninghub.app.ui.theme.DarkSurfaceVariant
@@ -75,6 +73,10 @@ import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.Secondary500
 import com.runninghub.app.util.formatCashAmount
+import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
+import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 
 /**
  * 渲染快捷创作旧版底部编辑器。

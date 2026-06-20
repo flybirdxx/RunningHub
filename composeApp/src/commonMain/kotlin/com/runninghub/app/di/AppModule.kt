@@ -12,30 +12,48 @@ import com.runninghub.app.ui.feature.plaza.PlazaScreenModel
 import com.runninghub.app.ui.feature.profile.ProfileScreenModel
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModel
 import com.runninghub.app.ui.feature.search.SearchScreenModel
-import com.runninghub.shared.data.local.createPermissionDataStore
-import com.runninghub.shared.domain.permission.PermissionStateStore
 import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.module
 
 /**
  * composeApp 模块的 Koin 依赖图。
  *
- * 该组合根负责把平台实现绑定到 Presentation 可依赖的领域边界。
- * 权限状态存储通过 [PermissionStateStore] 暴露，避免页面直接依赖 data/local 的
- * DataStore 实现命名空间。
+ * 该组合根只负责绑定 composeApp 自身拥有的平台能力与 ScreenModel。
+ * 数据层实现由 sharedModule 暴露为领域边界，避免 commonMain 直接导入 data/local
+ * 或其他持久化实现命名空间。
  */
 val appModule = module {
     single<MediaResolver> { createMediaResolver() }
-    single<PermissionStateStore> { createPermissionDataStore() }
 
     factoryOf(::DiscoveryScreenModel)
     factoryOf(::CommunityScreenModel)
-    factory { CreateScreenModel(get(), get()) }
+    factory {
+        CreateScreenModel(
+            historyRepository = get(),
+            mediaResolver = get(),
+            modelCatalogRepository = get(),
+            generationRepository = get(),
+            feePreviewRepository = get(),
+            mediaUploadRepository = get(),
+        )
+    }
     factoryOf(::PlazaScreenModel)
     factoryOf(::ProfileScreenModel)
     factoryOf(::SearchScreenModel)
     factoryOf(::AppDetailScreenModel)
     factoryOf(::CreatorProfileScreenModel)
     factoryOf(::LoginScreenModel)
-    factoryOf(::QuickCreateScreenModel)
+    factory {
+        QuickCreateScreenModel(
+            historyRepository = get(),
+            modelCatalogRepository = get(),
+            generationRepository = get(),
+            feePreviewRepository = get(),
+            inspirationRepository = get(),
+            mediaUploadRepository = get(),
+            projectRepository = get(),
+            mediaResolver = get(),
+            draftRepository = get(),
+        )
+    }
 }

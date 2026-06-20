@@ -1,17 +1,35 @@
 package com.runninghub.app.ui.feature.quickcreate
 
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.draft.DraftData
+
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
-import com.runninghub.shared.domain.repository.QuickCreateDraftRepository
-import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
+import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
+import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
+import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
+import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
+import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
+import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
 
 /**
  * 快捷创作页面的 Voyager ScreenModel 门面。
@@ -23,16 +41,29 @@ import kotlinx.coroutines.flow.asStateFlow
  * 这样做的目的是让 ScreenModel 不再继续膨胀为事实上的业务协调器，同时保持现有 UI 和测试调用
  * 的公开方法签名不变，降低迁移过程中的行为风险。
  *
- * @param quickCreateRepository 快捷创作业务仓库，作为 Domain Repository 接口注入，不在 ScreenModel 中直接访问 DataSource。
+ * @param historyRepository 快捷创作历史仓库，只用于最近历史、项目任务列表、详情和取消任务。
+ * @param modelCatalogRepository 快捷创作模型目录仓库，只用于加载和刷新服务模型列表。
+ * @param generationRepository 快捷创作生成仓库，只用于提交图片或视频生成任务并收集状态流。
+ * @param feePreviewRepository 快捷创作计费预览仓库，只用于刷新远端价格预览。
+ * @param inspirationRepository 快捷创作灵感仓库，只用于加载模板标签、模板分页和模板详情。
+ * @param mediaUploadRepository 快捷创作媒体上传仓库，只用于把本地媒体上传为远端 URL。
+ * @param projectRepository 快捷创作项目仓库，只用于项目列表、详情和项目变更操作。
  * @param mediaResolver 跨平台媒体读取能力，用于把本地 URI 转交给上传协调器处理。
  * @param draftRepository 快捷创作草稿领域仓库，只保存和清理可恢复编辑草稿快照。
- * @param ioDispatcher 媒体字节读取使用的调度器；生产环境使用 IO，测试环境可替换为测试调度器。
+ * @param ioDispatcher 媒体字节读取使用的调度器；commonMain 默认使用跨平台可用的 Default，
+ * Android/iOS 如需专用 IO 调度器可在组合根或测试中显式注入。
  */
 class QuickCreateScreenModel(
-    private val quickCreateRepository: QuickCreateRepository,
+    private val historyRepository: QuickCreationTaskHistoryRepository,
+    private val modelCatalogRepository: QuickCreationModelCatalogRepository,
+    private val generationRepository: QuickCreationGenerationRepository,
+    private val feePreviewRepository: QuickCreationFeePreviewRepository,
+    private val inspirationRepository: QuickCreationInspirationRepository,
+    private val mediaUploadRepository: QuickCreationMediaUploadRepository,
+    private val projectRepository: QuickCreationProjectRepository,
     private val mediaResolver: MediaResolver,
     private val draftRepository: QuickCreateDraftRepository,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ScreenModel {
 
     private val _uiState = MutableStateFlow(QuickCreateUiState())
@@ -46,12 +77,18 @@ class QuickCreateScreenModel(
     val uiState: StateFlow<QuickCreateUiState> = _uiState.asStateFlow()
 
     private val coordinator = QuickCreateCoordinator(
-        quickCreateRepository = quickCreateRepository,
+        historyRepository = historyRepository,
         mediaResolver = mediaResolver,
         draftRepository = draftRepository,
         scope = screenModelScope,
         uiState = _uiState,
         ioDispatcher = ioDispatcher,
+        modelCatalogRepository = modelCatalogRepository,
+        generationRepository = generationRepository,
+        feePreviewRepository = feePreviewRepository,
+        inspirationRepository = inspirationRepository,
+        mediaUploadRepository = mediaUploadRepository,
+        projectRepository = projectRepository,
     )
 
     /**

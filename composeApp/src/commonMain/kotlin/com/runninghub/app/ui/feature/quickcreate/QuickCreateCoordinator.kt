@@ -1,9 +1,36 @@
 package com.runninghub.app.ui.feature.quickcreate
 
 import com.runninghub.app.platform.MediaResolver
-import com.runninghub.shared.domain.repository.QuickCreateDraftRepository
-import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
+import com.runninghub.feature.quickcreate.presentation.draft.QuickCreateDraftStateHolder
+import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
+import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
+import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateEditorStateHolder
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
+import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
+import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
+import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryStateHolder
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationStateHolder
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateModelCatalogInteractor
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectStateHolder
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +48,13 @@ import kotlinx.coroutines.flow.update
  * - [dispose] 必须释放每个持有 Job 的局部组件，防止页面销毁后继续写入状态或草稿。
  * - 跨组件回调保持旧顺序：任务进入队列先清草稿；任务成功先写成功状态，再刷新当前历史区域。
  *
- * @param quickCreateRepository 快捷创作业务仓库，提供模型、计费、上传、生成、历史、项目和灵感模板数据。
+ * @param historyRepository 快捷创作历史仓库；单独注入以避免历史区依赖项目管理、生成或计费能力。
+ * @param modelCatalogRepository 快捷创作模型目录仓库；单独注入以避免目录加载依赖完整业务仓库能力。
+ * @param generationRepository 快捷创作生成仓库；单独注入以避免提交任务依赖历史、项目或灵感能力。
+ * @param feePreviewRepository 快捷创作计费预览仓库；单独注入以避免计费流程依赖生成、历史或项目能力。
+ * @param inspirationRepository 快捷创作灵感仓库；单独注入以避免模板区域依赖历史、项目或生成能力。
+ * @param mediaUploadRepository 快捷创作媒体上传仓库；单独注入以避免上传流程依赖生成、计费或历史能力。
+ * @param projectRepository 快捷创作项目仓库；单独注入以避免项目列表和变更动作依赖历史或生成能力。
  * @param mediaResolver 平台媒体读取边界，用于上传前读取用户选择的本地 URI。
  * @param draftRepository 快捷创作草稿领域仓库，只保存可恢复编辑草稿快照。
  * @param scope 页面生命周期协程作用域，所有局部组件的 Job 都绑定到该作用域。
@@ -29,12 +62,18 @@ import kotlinx.coroutines.flow.update
  * @param ioDispatcher 媒体字节读取使用的调度器；生产环境传 IO，测试环境可传测试调度器。
  */
 internal class QuickCreateCoordinator(
-    private val quickCreateRepository: QuickCreateRepository,
+    private val historyRepository: QuickCreationTaskHistoryRepository,
     private val mediaResolver: MediaResolver,
     private val draftRepository: QuickCreateDraftRepository,
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<QuickCreateUiState>,
     private val ioDispatcher: CoroutineDispatcher,
+    private val modelCatalogRepository: QuickCreationModelCatalogRepository,
+    private val generationRepository: QuickCreationGenerationRepository,
+    private val feePreviewRepository: QuickCreationFeePreviewRepository,
+    private val inspirationRepository: QuickCreationInspirationRepository,
+    private val mediaUploadRepository: QuickCreationMediaUploadRepository,
+    private val projectRepository: QuickCreationProjectRepository,
 ) {
     private val draftStateHolder = QuickCreateDraftStateHolder(
         draftRepository = draftRepository,
@@ -44,19 +83,19 @@ internal class QuickCreateCoordinator(
     )
     private val generationRequestFactory = QuickCreateGenerationRequestFactory()
     private val feePreviewInteractor = QuickCreateFeePreviewInteractor(
-        quickCreateRepository = quickCreateRepository,
+        feePreviewRepository = feePreviewRepository,
         generationRequestFactory = generationRequestFactory,
         scope = scope,
         uiState = uiState,
     )
     private val modelCatalogInteractor = QuickCreateModelCatalogInteractor(
-        quickCreateRepository = quickCreateRepository,
+        modelCatalogRepository = modelCatalogRepository,
         scope = scope,
         uiState = uiState,
         onFeePreviewRequired = { scheduleFeePreview() },
     )
     private val mediaUploadCoordinator = QuickCreateMediaUploadCoordinator(
-        quickCreateRepository = quickCreateRepository,
+        mediaUploadRepository = mediaUploadRepository,
         mediaResolver = mediaResolver,
         generationRequestFactory = generationRequestFactory,
         scope = scope,
@@ -65,7 +104,7 @@ internal class QuickCreateCoordinator(
         onFeePreviewRequired = { scheduleFeePreview() },
     )
     private val historyStateHolder = QuickCreateHistoryStateHolder(
-        quickCreateRepository = quickCreateRepository,
+        historyRepository = historyRepository,
         scope = scope,
         uiState = uiState,
     )
@@ -75,7 +114,7 @@ internal class QuickCreateCoordinator(
         onTaskSucceeded = { refreshCurrentHistoryArea() },
     )
     private val generationInteractor = QuickCreateGenerationInteractor(
-        quickCreateRepository = quickCreateRepository,
+        generationRepository = generationRepository,
         generationRequestFactory = generationRequestFactory,
         feePreviewInteractor = feePreviewInteractor,
         mediaUploadCoordinator = mediaUploadCoordinator,
@@ -84,13 +123,13 @@ internal class QuickCreateCoordinator(
         uiState = uiState,
     )
     private val inspirationStateHolder = QuickCreateInspirationStateHolder(
-        quickCreateRepository = quickCreateRepository,
+        inspirationRepository = inspirationRepository,
         scope = scope,
         uiState = uiState,
         onTemplateApplied = { scheduleFeePreview() },
     )
     private val projectStateHolder = QuickCreateProjectStateHolder(
-        quickCreateRepository = quickCreateRepository,
+        projectRepository = projectRepository,
         scope = scope,
         uiState = uiState,
         onSelectedProjectDeleted = { historyStateHolder.loadRecentHistory() },

@@ -40,12 +40,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.VideoThumbnail
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateInspirationBadgeTone
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateInspirationBadgeUi
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateInspirationPlaceholderMediaType
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateInspirationPreviewUi
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateInspirationTemplateUi
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
 import com.runninghub.app.ui.theme.DarkSurfaceVariant
@@ -55,6 +50,11 @@ import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.Secondary500
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationBadgeTone
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationBadgeUi
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPlaceholderMediaType
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPreviewUi
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationTemplateUi
 
 /**
  * 展示快捷创作的灵感模板区域。

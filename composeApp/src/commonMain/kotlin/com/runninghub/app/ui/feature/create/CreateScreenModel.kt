@@ -3,15 +3,20 @@ package com.runninghub.app.ui.feature.create
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
-import com.runninghub.shared.domain.repository.ImageGenerationRequest
-import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.QuickCreateResultItem
-import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
-import com.runninghub.shared.domain.repository.QuickCreationFeePreview
-import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
-import com.runninghub.shared.domain.repository.QuickCreationServiceField
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
-import com.runninghub.shared.domain.repository.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
+import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
+import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
+import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldInputChild
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineDispatcher
@@ -25,17 +30,34 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 
+/**
+ * 旧创作页的顶部业务分类。
+ *
+ * 只有图片和视频分类可以直接加载快捷创作服务模型，因此通过 [serviceKind] 暴露领域类别；
+ * 音频、LLM 和全部分类当前没有对应的新服务模型目录，保持为空并走页面降级展示。
+ *
+ * @property serviceKind 可用于查询服务模型目录的领域类别，空值表示该分类不支持新服务模型。
+ * @property displayName 页面展示名称。
+ */
 enum class CreateCategory(
-    val serviceCategoryId: String?,
+    val serviceKind: QuickCreationServiceKind?,
     val displayName: String,
 ) {
-    IMAGE("IMAGE", "图片"),
-    VIDEO("VIDEO", "视频"),
+    IMAGE(QuickCreationServiceKind.IMAGE, "图片"),
+    VIDEO(QuickCreationServiceKind.VIDEO, "视频"),
     AUDIO(null, "音频"),
     LLM(null, "LLM"),
     ALL(null, "全部"),
 }
 
+/**
+ * 旧创作页最近历史的本地筛选条件。
+ *
+ * 该筛选只作用于当前已加载的最近历史列表，不会改变远端分页参数。这样可以在保留旧页面交互的同时，
+ * 避免历史筛选与后续 QuickCreate 历史模块拆分互相耦合。
+ *
+ * @property displayName 页面筛选入口展示的中文名称。
+ */
 enum class CreateHistoryFilter(
     val displayName: String,
 ) {
@@ -46,6 +68,36 @@ enum class CreateHistoryFilter(
     SUCCESS("成功"),
 }
 
+/**
+ * 旧创作页的不可变页面状态。
+ *
+ * 状态按模型目录、动态输入、上传、计费、提交、任务结果和历史详情分区保存。
+ * ScreenModel 每次通过拷贝生成新状态，Composable 只消费快照并通过事件回调触发业务动作。
+ *
+ * @property isLoading 模型目录首次加载状态，用于控制页面骨架和空态。
+ * @property selectedCategory 当前选中的顶部业务分类，只有图片/视频会触发快捷创作模型目录请求。
+ * @property serviceModels 当前分类下可用的服务模型列表，保留服务端排序。
+ * @property selectedModel 用户当前选择的服务模型；为空时禁止提交和计费预览。
+ * @property fieldValues 动态字段输入值，key 为服务字段参数名或子字段参数名。
+ * @property recentHistory 旧页面最近历史缓存，只保存当前已加载页的数据。
+ * @property selectedHistoryFilter 最近历史的本地筛选条件。
+ * @property historyLoading 最近历史列表或刷新请求是否进行中。
+ * @property historyError 最近历史加载失败原因；为空表示没有可展示错误。
+ * @property isSubmitting 当前是否正在提交生成任务，提交期间需要阻止重复点击。
+ * @property submitMessage 提交或任务状态的临时提示文本。
+ * @property catalogNotice 非图片/视频分类或目录降级时展示的说明。
+ * @property searchQuery 旧页面搜索输入，当前只用于本地过滤和后续兼容。
+ * @property error 模型目录或主流程的页面级错误。
+ * @property feePreviewLoading 计费预览请求是否进行中。
+ * @property feePreviewError 计费预览失败原因；为空表示可展示最近一次成功预览或无预览。
+ * @property feePreview 最近一次成功的价格预览结果。
+ * @property currentTaskStatus 当前提交任务的轮询状态。
+ * @property lastResults 最近一次任务完成后返回的结果列表。
+ * @property historyDetailLoading 历史详情请求是否进行中。
+ * @property selectedHistoryDetail 当前打开的历史详情。
+ * @property historyDetailError 历史详情加载失败原因。
+ * @property uploadFieldStates 各上传字段的本地 URI、远端 URL 和错误状态，key 与字段参数名一致。
+ */
 data class CreateUiState(
     val isLoading: Boolean = true,
     val selectedCategory: CreateCategory = CreateCategory.IMAGE,
@@ -75,6 +127,19 @@ data class CreateUiState(
         get() = recentHistory.filterByCreateHistoryFilter(selectedHistoryFilter)
 }
 
+/**
+ * 旧创作页单个上传字段的状态。
+ *
+ * 本状态把本地媒体选择、远端上传结果和错误信息分开保存，避免上传失败时丢失用户刚选择的本地文件。
+ * 计费预览和提交只使用 [remoteUrl]，因此 [isUploading] 或 [isError] 为 true 时调用方应阻止提交。
+ *
+ * @property localUri 用户在当前设备选择的媒体 URI，可能只在本次页面生命周期内有效。
+ * @property remoteUrl 上传成功后服务端返回的媒体 URL，用于构造生成请求。
+ * @property fileName 展示和 MIME 推断使用的文件名。
+ * @property isUploading 当前字段是否正在读取本地文件或上传远端。
+ * @property isError 当前字段最近一次上传是否失败。
+ * @property errorMessage 上传失败时可展示的错误说明。
+ */
 data class CreateUploadFieldState(
     val localUri: String? = null,
     val remoteUrl: String? = null,
@@ -84,10 +149,30 @@ data class CreateUploadFieldState(
     val errorMessage: String? = null,
 )
 
+/**
+ * 旧创作页的 ScreenModel。
+ *
+ * 本类维护旧创作页的模型目录、字段输入、上传、价格预览、提交和最近历史状态。模型目录读取通过
+ * [modelCatalogRepository] 进入窄边界；上传、计费和生成分别通过 [mediaUploadRepository]、
+ * [feePreviewRepository] 与 [generationRepository] 进入窄边界；历史通过 [historyRepository] 进入窄边界。
+ *
+ * @param historyRepository 快捷创作历史仓库，负责最近历史、详情和轮询刷新。
+ * @param mediaResolver 平台媒体读取边界，用于把本地 URI 转换为上传所需的文件名、大小和字节内容。
+ * @param ioDispatcher 媒体字节读取使用的调度器；commonMain 默认使用跨平台可用的 Default，
+ * Android/iOS 如需专用 IO 调度器可在组合根或测试中显式注入。
+ * @param modelCatalogRepository 快捷创作模型目录仓库，只用于加载图片/视频服务模型列表。
+ * @param generationRepository 快捷创作生成仓库，只用于提交旧创作页图片生成任务。
+ * @param feePreviewRepository 快捷创作计费预览仓库，只用于远端价格确认。
+ * @param mediaUploadRepository 快捷创作媒体上传仓库，只用于把本地媒体上传为远端 URL。
+ */
 class CreateScreenModel(
-    private val quickCreateRepository: QuickCreateRepository,
+    private val historyRepository: QuickCreationTaskHistoryRepository,
     private val mediaResolver: MediaResolver,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val modelCatalogRepository: QuickCreationModelCatalogRepository,
+    private val generationRepository: QuickCreationGenerationRepository,
+    private val feePreviewRepository: QuickCreationFeePreviewRepository,
+    private val mediaUploadRepository: QuickCreationMediaUploadRepository,
 ) : ScreenModel {
     private val _uiState = MutableStateFlow(CreateUiState())
     val uiState: StateFlow<CreateUiState> = _uiState.asStateFlow()
@@ -102,8 +187,8 @@ class CreateScreenModel(
         loadJob?.cancel()
         loadJob = screenModelScope.launch {
             val category = _uiState.value.selectedCategory
-            val serviceCategoryId = category.serviceCategoryId
-            if (serviceCategoryId == null) {
+            val serviceKind = category.serviceKind
+            if (serviceKind == null) {
                 _uiState.update {
                     it.copy(
                     isLoading = false,
@@ -132,7 +217,7 @@ class CreateScreenModel(
             }
 
             val result = withTimeoutOrNull(6_000) {
-                quickCreateRepository.getModels(serviceCategoryId)
+                modelCatalogRepository.getModels(serviceKind)
             } ?: Result.failure(IllegalStateException("模型目录请求超时"))
 
             result
@@ -278,7 +363,7 @@ class CreateScreenModel(
         uploadJobs[stateKey] = screenModelScope.launch {
             try {
                 val bytes = withContext(ioDispatcher) { mediaResolver.readBytes(uriString) }
-                val remoteUrl = quickCreateRepository.uploadMedia(
+                val remoteUrl = mediaUploadRepository.uploadMedia(
                     fileBytes = bytes,
                     fileName = fileName,
                     mimeType = inferMimeType(fileName, field),
@@ -382,7 +467,7 @@ class CreateScreenModel(
         val request = model.buildImageRequest(state.fieldValues)
         generationJob?.cancel()
         generationJob = screenModelScope.launch {
-            quickCreateRepository.generateImage(request).collect { status ->
+            generationRepository.generateImage(request).collect { status ->
                 when (status) {
                     QuickCreateTaskStatus.Submitting -> {
                         _uiState.update {
@@ -457,7 +542,7 @@ class CreateScreenModel(
                     historyDetailError = null,
                 )
             }
-            quickCreateRepository.getQuickCreationHistoryDetail(outputId)
+            historyRepository.getQuickCreationHistoryDetail(outputId)
                 .onSuccess { item ->
                     _uiState.update {
                         it.copy(
@@ -531,7 +616,7 @@ class CreateScreenModel(
         }
 
         _uiState.update { it.copy(feePreviewLoading = true, feePreviewError = null) }
-        quickCreateRepository.previewImageQuickCreationFee(model.buildImageRequest(state.fieldValues))
+        feePreviewRepository.previewImageQuickCreationFee(model.buildImageRequest(state.fieldValues))
             .onSuccess { preview ->
                 println(
                     "[CreateScreenModel] fee-preview success passed=${preview.passed} " +
@@ -565,7 +650,7 @@ class CreateScreenModel(
         if (showLoading) {
             _uiState.update { it.copy(historyLoading = true, historyError = null) }
         }
-        quickCreateRepository.listQuickCreationHistory(page = 1, size = 12)
+        historyRepository.listQuickCreationHistory(page = 1, size = 12)
             .onSuccess { page ->
                 _uiState.update {
                     it.copy(
@@ -597,7 +682,7 @@ class CreateScreenModel(
         historyRefreshJob = screenModelScope.launch {
             while (_uiState.value.recentHistory.any { it.needsHistoryRefresh }) {
                 delay(HISTORY_REFRESH_INTERVAL_MS)
-                quickCreateRepository.listQuickCreationHistory(page = 1, size = 12)
+                historyRepository.listQuickCreationHistory(page = 1, size = 12)
                     .onSuccess { page ->
                         _uiState.update { it.copy(recentHistory = page.items, historyError = null) }
                     }

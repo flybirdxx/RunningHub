@@ -1,17 +1,35 @@
 package com.runninghub.shared.data.repository
 
+import com.runninghub.core.model.AppDetail
+import com.runninghub.core.model.InputNode
+import com.runninghub.core.model.PageData
+import com.runninghub.core.model.Tag
+import com.runninghub.core.model.WebApp
 import com.runninghub.core.storage.CredentialStore
+import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
 import com.runninghub.shared.data.remote.api.RunningHubApi
-import com.runninghub.shared.data.remote.dto.*
-import com.runninghub.shared.domain.model.*
-import com.runninghub.shared.domain.repository.WebAppRepository
+import com.runninghub.shared.data.remote.dto.CustomMadeWebappRequest
+import com.runninghub.shared.data.remote.dto.TagTreeRequest
+import com.runninghub.shared.data.remote.dto.TaskRunRequest
+import com.runninghub.shared.data.remote.dto.TaskStatusRequest
+import com.runninghub.shared.data.remote.dto.WebAppListRequest
+import com.runninghub.shared.data.remote.dto.toDomain
+import com.runninghub.shared.data.remote.dto.toDto
+import com.runninghub.shared.domain.model.TaskHistoryItem
+import com.runninghub.shared.domain.model.TaskOutput
+import com.runninghub.shared.domain.model.TaskResult
+import com.runninghub.shared.domain.model.UploadResult
+import com.runninghub.shared.domain.repository.WebAppTaskHistoryRepository
+import com.runninghub.shared.domain.repository.WebAppTaskRepository
 
 /**
- * WebAppRepository 的 Data 层实现。
+ * WebApp 目录、任务和上传仓库的兼容期 Data 层实现。
  *
  * 本类负责调用 RunningHub WebApp 相关接口，并在需要认证凭据的接口中通过 [CredentialStore]
  * 读取 API Key。这样 Presentation 层不再持有或透传敏感凭据，后续替换为 Android Keystore
- * 或 iOS Keychain 时只需要调整凭据实现。
+ * 或 iOS Keychain 时只需要调整凭据实现。迁移期虽然仍由同一个 Data 实现承载远程接口调用，
+ * 但 DI 只暴露 [WebAppCatalogRepository]、[WebAppTaskRepository] 与
+ * [WebAppTaskHistoryRepository] 三个窄边界，避免 Presentation 重新依赖万能仓库。
  *
  * @param api RunningHub WebApp 网络接口。
  * @param credentialStore API Key 和其他凭据的读取边界。
@@ -19,7 +37,9 @@ import com.runninghub.shared.domain.repository.WebAppRepository
 class WebAppRepositoryImpl(
     private val api: RunningHubApi,
     private val credentialStore: CredentialStore,
-) : WebAppRepository {
+) : WebAppCatalogRepository,
+    WebAppTaskRepository,
+    WebAppTaskHistoryRepository {
 
     override suspend fun getAppList(
         pageNum: Int,

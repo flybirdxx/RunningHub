@@ -1,4 +1,4 @@
-package com.runninghub.app.ui.feature.create
+﻿package com.runninghub.app.ui.feature.create
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -82,11 +82,11 @@ import com.runninghub.app.ui.theme.RhAppText
 import com.runninghub.app.ui.theme.StatusError
 import com.runninghub.shared.domain.model.Permission
 import com.runninghub.shared.domain.permission.PermissionStateStore
-import com.runninghub.shared.domain.repository.QuickCreationFeePreview
-import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
-import com.runninghub.shared.domain.repository.QuickCreationServiceField
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
-import com.runninghub.shared.domain.repository.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldInputChild
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import org.koin.compose.koinInject
 
 class CreateVoyagerScreen : Screen {

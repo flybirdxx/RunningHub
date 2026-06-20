@@ -1,19 +1,22 @@
 package com.runninghub.app.ui.feature.quickcreate.presentation.editor
 
+import com.runninghub.feature.quickcreate.presentation.editor.quickCreationGlobalMediaReferences
+
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import com.runninghub.app.ui.feature.quickcreate.ImageAspectRatio
-import com.runninghub.app.ui.feature.quickcreate.ImageQuality
-import com.runninghub.app.ui.feature.quickcreate.ImageResolution
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateTab
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateTaskUiStatus
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
-import com.runninghub.app.ui.feature.quickcreate.VideoAspectRatio
-import com.runninghub.app.ui.feature.quickcreate.VideoDuration
-import com.runninghub.app.ui.feature.quickcreate.VideoResolution
-import com.runninghub.app.ui.feature.quickcreate.quickCreationGlobalMediaReferences
+import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
+import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
+import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
 import com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer.QuickCreateClassicComposer
 import com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer.QuickCreateCompactComposer
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
+import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 
 /**
  * 展示快捷创作页面底部的编辑器区域。

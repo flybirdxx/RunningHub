@@ -1,23 +1,12 @@
 package com.runninghub.app.ui.feature.quickcreate
 
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
+
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+
 import com.runninghub.app.platform.MediaResolver
-import com.runninghub.shared.domain.repository.ImageGenerationRequest
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplatePage
-import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
-import com.runninghub.shared.domain.repository.QuickCreationFeePreview
-import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
-import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
-import com.runninghub.shared.domain.repository.QuickCreationProject
-import com.runninghub.shared.domain.repository.QuickCreationProjectPage
-import com.runninghub.shared.domain.repository.QuickCreationServiceModel
-import com.runninghub.shared.domain.repository.VideoGenerationRequest
+import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -26,6 +15,9 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QuickCreateMediaUploadCoordinatorTest {
@@ -102,13 +94,13 @@ class QuickCreateMediaUploadCoordinatorTest {
     }
 
     private fun createCoordinator(
-        repository: QuickCreateRepository,
+        repository: QuickCreationMediaUploadRepository,
         mediaResolver: MediaResolver,
         uiState: MutableStateFlow<QuickCreateUiState>,
         dispatcher: CoroutineDispatcher,
     ): QuickCreateMediaUploadCoordinator =
         QuickCreateMediaUploadCoordinator(
-            quickCreateRepository = repository,
+            mediaUploadRepository = repository,
             mediaResolver = mediaResolver,
             generationRequestFactory = QuickCreateGenerationRequestFactory(),
             scope = kotlinx.coroutines.CoroutineScope(dispatcher),
@@ -139,24 +131,8 @@ class QuickCreateMediaUploadCoordinatorTest {
         val size: Int,
     )
 
-    private class RecordingQuickCreateRepository : QuickCreateRepository {
+    private class RecordingQuickCreateRepository : QuickCreationMediaUploadRepository {
         val uploadRequests = mutableListOf<UploadRequest>()
-
-        override fun generateImage(request: ImageGenerationRequest): Flow<QuickCreateTaskStatus> =
-            emptyFlow()
-
-        override fun generateVideo(request: VideoGenerationRequest): Flow<QuickCreateTaskStatus> =
-            emptyFlow()
-
-        override suspend fun previewImageQuickCreationFee(
-            request: ImageGenerationRequest,
-        ): Result<QuickCreationFeePreview> =
-            unsupported()
-
-        override suspend fun previewVideoQuickCreationFee(
-            request: VideoGenerationRequest,
-        ): Result<QuickCreationFeePreview> =
-            unsupported()
 
         override suspend fun uploadMedia(
             fileBytes: ByteArray,
@@ -170,80 +146,5 @@ class QuickCreateMediaUploadCoordinatorTest {
             )
             return Result.success("https://example.com/uploaded-${uploadRequests.size}")
         }
-
-        override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> =
-            unsupported()
-
-        override suspend fun getInspirationTemplates(
-            page: Int,
-            size: Int,
-            tagId: String?,
-        ): Result<QuickCreateInspirationTemplatePage> =
-            unsupported()
-
-        override suspend fun getInspirationTemplateDetail(
-            templateId: String,
-        ): Result<QuickCreateInspirationTemplateDetail> =
-            unsupported()
-
-        override suspend fun getModels(
-            categoryId: String,
-        ): Result<List<QuickCreationServiceModel>> =
-            unsupported()
-
-        override suspend fun listQuickCreationHistory(
-            page: Int,
-            size: Int,
-        ): Result<QuickCreationHistoryPage> =
-            unsupported()
-
-        override suspend fun getQuickCreationHistoryDetail(
-            outputId: String,
-        ): Result<QuickCreationHistoryItem> =
-            unsupported()
-
-        override suspend fun cancelQuickCreationTask(taskId: String): Result<Unit> =
-            unsupported()
-
-        override suspend fun listQuickCreationProjects(
-            page: Int,
-            size: Int,
-        ): Result<QuickCreationProjectPage> =
-            unsupported()
-
-        override suspend fun listQuickCreationProjectTasks(
-            projectId: String,
-            page: Int,
-            size: Int,
-        ): Result<QuickCreationHistoryPage> =
-            unsupported()
-
-        override suspend fun createQuickCreationProject(
-            name: String,
-        ): Result<QuickCreationProject> =
-            unsupported()
-
-        override suspend fun renameQuickCreationProject(
-            projectId: String,
-            name: String,
-        ): Result<Unit> =
-            unsupported()
-
-        override suspend fun deleteQuickCreationProject(projectId: String): Result<Unit> =
-            unsupported()
-
-        override suspend fun pinQuickCreationProject(
-            projectId: String,
-            pinned: Boolean,
-        ): Result<Unit> =
-            unsupported()
-
-        override suspend fun getQuickCreationProjectDetail(
-            projectId: String,
-        ): Result<QuickCreationProject> =
-            unsupported()
-
-        private fun <T> unsupported(): Result<T> =
-            error("QuickCreateMediaUploadCoordinatorTest should only call uploadMedia")
     }
 }

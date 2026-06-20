@@ -2,8 +2,8 @@ package com.runninghub.app.ui.feature.login
 
 import com.runninghub.core.model.User
 import com.runninghub.feature.auth.domain.AuthError
+import com.runninghub.feature.auth.domain.AuthRepository
 import com.runninghub.feature.auth.domain.SmsError
-import com.runninghub.shared.domain.repository.AuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher

@@ -97,11 +97,11 @@ import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.Primary500
 import com.runninghub.app.ui.theme.SuccessDark
-import com.runninghub.shared.domain.model.AppDetail
-import com.runninghub.shared.domain.model.Author
-import com.runninghub.shared.domain.model.InputNode
+import com.runninghub.core.model.AppDetail
+import com.runninghub.core.model.Author
+import com.runninghub.core.model.InputNode
+import com.runninghub.core.model.StatisticsInfo
 import com.runninghub.shared.domain.model.Permission
-import com.runninghub.shared.domain.model.StatisticsInfo
 import com.runninghub.shared.domain.model.TaskOutput
 import com.runninghub.shared.domain.permission.PermissionStateStore
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -506,7 +506,7 @@ private fun CoverCarousel(
    ═══════════════════════════════════════════════════ */
 
 @Composable
-private fun AppInfoSection(detail: com.runninghub.shared.domain.model.AppDetail) {
+private fun AppInfoSection(detail: AppDetail) {
     Column(
         modifier = Modifier
             .fillMaxWidth()

@@ -1,5 +1,7 @@
 package com.runninghub.app.ui.feature.quickcreate.presentation.upload
 
+import com.runninghub.feature.quickcreate.presentation.editor.quickCreationFieldMediaReferences
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -26,10 +28,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.feature.quickcreate.MediaChipCard
-import com.runninghub.app.ui.feature.quickcreate.MediaReference
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateMediaType
-import com.runninghub.app.ui.feature.quickcreate.UploadStatus
-import com.runninghub.app.ui.feature.quickcreate.quickCreationFieldMediaReferences
+import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurfaceVariant
 import com.runninghub.app.ui.theme.Dimens

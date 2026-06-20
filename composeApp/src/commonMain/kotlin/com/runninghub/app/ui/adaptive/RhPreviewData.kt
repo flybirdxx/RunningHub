@@ -1,15 +1,15 @@
 package com.runninghub.app.ui.adaptive
 
-import com.runninghub.app.ui.feature.quickcreate.ImageAspectRatio
-import com.runninghub.app.ui.feature.quickcreate.ImageConfig
-import com.runninghub.app.ui.feature.quickcreate.ImageModel
-import com.runninghub.app.ui.feature.quickcreate.ImageQuality
-import com.runninghub.app.ui.feature.quickcreate.ImageResolution
-import com.runninghub.app.ui.feature.quickcreate.MediaReference
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateMediaType
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateTab
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
-import com.runninghub.app.ui.feature.quickcreate.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
+import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
+import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
+import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
+import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.app.ui.feature.discovery.DiscoveryUiState
 import com.runninghub.app.ui.feature.discovery.SortOption
 import com.runninghub.app.ui.feature.history.TaskHistoryEntry
@@ -17,21 +17,24 @@ import com.runninghub.app.ui.feature.history.TaskHistoryFilter
 import com.runninghub.app.ui.feature.history.TaskHistoryUiState
 import com.runninghub.app.ui.feature.profile.ProfileUiState
 import com.runninghub.app.ui.feature.search.SearchUiState
-import com.runninghub.shared.domain.model.AppDetail
-import com.runninghub.shared.domain.model.Author
-import com.runninghub.shared.domain.model.Cover
-import com.runninghub.shared.domain.model.CoverMediaType
-import com.runninghub.shared.domain.model.InputNode
-import com.runninghub.shared.domain.model.MemberInfo
-import com.runninghub.shared.domain.model.StatisticsInfo
-import com.runninghub.shared.domain.model.Tag
-import com.runninghub.shared.domain.model.TagSimple
+import com.runninghub.core.model.AppDetail
+import com.runninghub.core.model.Author
+import com.runninghub.core.model.Cover
+import com.runninghub.core.model.CoverMediaType
+import com.runninghub.core.model.InputNode
+import com.runninghub.core.model.MemberInfo
+import com.runninghub.core.model.StatisticsInfo
+import com.runninghub.core.model.Tag
+import com.runninghub.core.model.TagSimple
+import com.runninghub.core.model.User
+import com.runninghub.core.model.WalletInfo
+import com.runninghub.core.model.WebApp
 import com.runninghub.shared.domain.model.TaskHistoryItem
 import com.runninghub.shared.domain.model.TaskHistoryOutput
 import com.runninghub.shared.domain.model.TaskOutput
-import com.runninghub.shared.domain.model.User
-import com.runninghub.shared.domain.model.WalletInfo
-import com.runninghub.shared.domain.model.WebApp
+import com.runninghub.shared.domain.model.TaskExecutionStatus
+import com.runninghub.shared.domain.model.isFailed
+import com.runninghub.shared.domain.model.isTerminal
 
 internal fun previewTag(
     id: String,
@@ -338,10 +341,11 @@ internal fun previewTaskHistoryUiState(
 )
 
 internal fun previewTaskHistoryEntries(): List<TaskHistoryEntry> = previewTaskHistoryItems().map { item ->
+    val status = item.status ?: TaskExecutionStatus.Unknown(null)
     TaskHistoryEntry(
         taskId = item.taskId ?: "${item.taskName}-${item.createTime}",
         title = item.taskName ?: "Generation task",
-        status = item.taskStatus ?: "unknown",
+        status = status.previewStatusKey(),
         costTime = item.taskCostTime,
         source = item.webappId ?: "legacy_history",
         outputId = item.outputs.firstOrNull()?.id,
@@ -349,15 +353,27 @@ internal fun previewTaskHistoryEntries(): List<TaskHistoryEntry> = previewTaskHi
         outputCount = item.outputs.size,
         canViewOutput = item.outputs.isNotEmpty(),
         canReuseParams = false,
-        canRetry = item.taskStatus.equals("failed", ignoreCase = true),
-        canCancel = item.taskStatus?.lowercase() !in setOf("success", "completed", "done", "failed", "fail", "error", "canceled", "cancelled"),
+        canRetry = status.isFailed(),
+        canCancel = !status.isTerminal(),
     )
 }
+
+private fun TaskExecutionStatus.previewStatusKey(): String =
+    when (this) {
+        TaskExecutionStatus.Success -> "completed"
+        TaskExecutionStatus.Failed -> "failed"
+        TaskExecutionStatus.Cancelled -> "cancelled"
+        TaskExecutionStatus.Queued -> "running"
+        TaskExecutionStatus.Running -> "running"
+        TaskExecutionStatus.Submitted -> "running"
+        is TaskExecutionStatus.Unknown -> rawValue ?: "unknown"
+    }
+
 internal fun previewTaskHistoryItems(): List<TaskHistoryItem> = listOf(
     TaskHistoryItem(
         taskId = "task-10001",
         outputs = previewTaskHistoryOutputs("history-output-1"),
-        taskStatus = "completed",
+        status = TaskExecutionStatus.Success,
         taskCostTime = "00:00:28",
         createTime = "2026-06-16 10:32:18",
         taskName = "Cinematic portrait workflow long preview title",
@@ -366,7 +382,7 @@ internal fun previewTaskHistoryItems(): List<TaskHistoryItem> = listOf(
     TaskHistoryItem(
         taskId = "task-10002",
         outputs = emptyList(),
-        taskStatus = "failed",
+        status = TaskExecutionStatus.Failed,
         taskCostTime = "00:00:07",
         createTime = "2026-06-16 11:05:44",
         taskName = "Product image upscale",
@@ -375,7 +391,7 @@ internal fun previewTaskHistoryItems(): List<TaskHistoryItem> = listOf(
     TaskHistoryItem(
         taskId = "task-10003",
         outputs = previewTaskHistoryOutputs("history-output-3"),
-        taskStatus = "running",
+        status = TaskExecutionStatus.Running,
         taskCostTime = null,
         createTime = "2026-06-16 11:40:09",
         taskName = "视频背景重构",
@@ -384,7 +400,7 @@ internal fun previewTaskHistoryItems(): List<TaskHistoryItem> = listOf(
     TaskHistoryItem(
         taskId = "task-10004",
         outputs = emptyList(),
-        taskStatus = "waiting_for_gpu_capacity",
+        status = TaskExecutionStatus.Unknown("waiting_for_gpu_capacity"),
         taskCostTime = "--",
         createTime = "2026-06-16 12:18:27",
         taskName = "Complex interior lighting relight",

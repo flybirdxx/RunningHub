@@ -3,9 +3,9 @@ package com.runninghub.shared.data.repository
 import com.runninghub.core.network.auth.TokenRefresher
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.auth.domain.AuthError
+import com.runninghub.feature.auth.domain.SessionManager
+import com.runninghub.feature.auth.domain.SessionState
 import com.runninghub.shared.data.remote.api.RunningHubApi
-import com.runninghub.shared.domain.session.SessionManager
-import com.runninghub.shared.domain.session.SessionState
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond

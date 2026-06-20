@@ -1,27 +1,41 @@
 package com.runninghub.app.ui.feature.quickcreate
 
+import com.runninghub.feature.quickcreate.presentation.draft.DraftData
+import com.runninghub.feature.quickcreate.presentation.draft.resumeSummaryText
+
 import com.runninghub.app.platform.MediaResolver
-import com.runninghub.shared.domain.repository.QuickCreateDraftRepository
-import com.runninghub.shared.domain.repository.QuickCreateDraftSnapshot
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTag
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplate
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplateDetail
-import com.runninghub.shared.domain.repository.QuickCreateInspirationTemplatePage
-import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.QuickCreateResultItem
-import com.runninghub.shared.domain.repository.QuickCreateTaskStatus
-import com.runninghub.shared.domain.repository.QuickCreationFeePreview
-import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
-import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
-import com.runninghub.shared.domain.repository.QuickCreationHistoryPage
-import com.runninghub.shared.domain.repository.QuickCreationProject
-import com.runninghub.shared.domain.repository.QuickCreationProjectPage
-import com.runninghub.shared.domain.repository.QuickCreationServiceField
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldExtra
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldInputChild
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldOption
-import com.runninghub.shared.domain.repository.QuickCreationServiceFieldVisibilityCondition
-import com.runninghub.shared.domain.repository.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreateDraftSnapshot
+import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTag
+import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplate
+import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplateDetail
+import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplatePage
+import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
+import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryOutput
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryPage
+import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationProject
+import com.runninghub.feature.quickcreate.domain.QuickCreationProjectPage
+import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldExtra
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldInputChild
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldOption
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldVisibilityCondition
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
+import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryOutputMediaType
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationBadgeTone
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPlaceholderMediaType
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPreviewUi
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,6 +61,23 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlin.test.*
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
+import com.runninghub.feature.quickcreate.presentation.state.MAX_PROMPT_CHARS
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
+import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
+import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
+import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
+import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
+import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
+import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QuickCreateScreenModelTest {
@@ -67,23 +98,48 @@ class QuickCreateScreenModelTest {
     }
 
     private fun createModel(
-        quickCreateRepository: QuickCreateRepository,
+        historyRepository: QuickCreationTaskHistoryRepository,
         mediaResolver: MediaResolver,
         draftRepository: QuickCreateDraftRepository,
         ioDispatcher: CoroutineDispatcher = Dispatchers.Main,
+        modelCatalogRepository: QuickCreationModelCatalogRepository =
+            historyRepository as QuickCreationModelCatalogRepository,
+        generationRepository: QuickCreationGenerationRepository =
+            historyRepository as QuickCreationGenerationRepository,
+        feePreviewRepository: QuickCreationFeePreviewRepository =
+            historyRepository as QuickCreationFeePreviewRepository,
+        inspirationRepository: QuickCreationInspirationRepository =
+            historyRepository as QuickCreationInspirationRepository,
+        mediaUploadRepository: QuickCreationMediaUploadRepository =
+            historyRepository as QuickCreationMediaUploadRepository,
+        projectRepository: QuickCreationProjectRepository =
+            historyRepository as QuickCreationProjectRepository,
     ): QuickCreateScreenModel =
         QuickCreateScreenModel(
-            quickCreateRepository = quickCreateRepository,
+            historyRepository = historyRepository,
+            modelCatalogRepository = modelCatalogRepository,
+            generationRepository = generationRepository,
+            feePreviewRepository = feePreviewRepository,
+            inspirationRepository = inspirationRepository,
+            mediaUploadRepository = mediaUploadRepository,
+            projectRepository = projectRepository,
             mediaResolver = mediaResolver,
             draftRepository = draftRepository,
             ioDispatcher = ioDispatcher,
         ).also { createdModels += it }
 
-    class FakeQuickCreateRepository : QuickCreateRepository {
+    class FakeQuickCreateRepository :
+        QuickCreationTaskHistoryRepository,
+        QuickCreationModelCatalogRepository,
+        QuickCreationGenerationRepository,
+        QuickCreationFeePreviewRepository,
+        QuickCreationInspirationRepository,
+        QuickCreationMediaUploadRepository,
+        QuickCreationProjectRepository {
         var uploadResult: Result<String> = Result.success("https://example.com/file.jpg")
         var uploadDelayMillis: Long = 0L
-        var lastImageRequest: com.runninghub.shared.domain.repository.ImageGenerationRequest? = null
-        var lastVideoRequest: com.runninghub.shared.domain.repository.VideoGenerationRequest? = null
+        var lastImageRequest: com.runninghub.feature.quickcreate.domain.ImageGenerationRequest? = null
+        var lastVideoRequest: com.runninghub.feature.quickcreate.domain.VideoGenerationRequest? = null
         var imageTaskStatuses: List<QuickCreateTaskStatus> = listOf(QuickCreateTaskStatus.Queuing("task-1"))
         var feePreviewResult: Result<QuickCreationFeePreview> = Result.success(
             QuickCreationFeePreview(
@@ -95,9 +151,9 @@ class QuickCreateScreenModelTest {
                 cashCurrency = "CNY",
             )
         )
-        val feePreviewRequests = mutableListOf<com.runninghub.shared.domain.repository.ImageGenerationRequest>()
+        val feePreviewRequests = mutableListOf<com.runninghub.feature.quickcreate.domain.ImageGenerationRequest>()
         var imageFeePreviewHandler:
-            (suspend (com.runninghub.shared.domain.repository.ImageGenerationRequest) -> Result<QuickCreationFeePreview>)? =
+            (suspend (com.runninghub.feature.quickcreate.domain.ImageGenerationRequest) -> Result<QuickCreationFeePreview>)? =
             null
         var videoFeePreviewResult: Result<QuickCreationFeePreview> = Result.success(
             QuickCreationFeePreview(
@@ -109,9 +165,9 @@ class QuickCreateScreenModelTest {
                 cashCurrency = "CNY",
             )
         )
-        val videoFeePreviewRequests = mutableListOf<com.runninghub.shared.domain.repository.VideoGenerationRequest>()
+        val videoFeePreviewRequests = mutableListOf<com.runninghub.feature.quickcreate.domain.VideoGenerationRequest>()
         var videoFeePreviewHandler:
-            (suspend (com.runninghub.shared.domain.repository.VideoGenerationRequest) -> Result<QuickCreationFeePreview>)? =
+            (suspend (com.runninghub.feature.quickcreate.domain.VideoGenerationRequest) -> Result<QuickCreationFeePreview>)? =
             null
         var lastHistoryDetailOutputId: String? = null
         val cancelledTaskIds = mutableListOf<String>()
@@ -339,23 +395,23 @@ class QuickCreateScreenModelTest {
                 ),
             )
         )
-        override fun generateImage(request: com.runninghub.shared.domain.repository.ImageGenerationRequest): Flow<QuickCreateTaskStatus> {
+        override fun generateImage(request: com.runninghub.feature.quickcreate.domain.ImageGenerationRequest): Flow<QuickCreateTaskStatus> {
             lastImageRequest = request
             return flowOf(*imageTaskStatuses.toTypedArray())
         }
-        override fun generateVideo(request: com.runninghub.shared.domain.repository.VideoGenerationRequest): Flow<QuickCreateTaskStatus> {
+        override fun generateVideo(request: com.runninghub.feature.quickcreate.domain.VideoGenerationRequest): Flow<QuickCreateTaskStatus> {
             lastVideoRequest = request
             return flowOf(QuickCreateTaskStatus.Queuing("video-task-1"))
         }
         override suspend fun previewImageQuickCreationFee(
-            request: com.runninghub.shared.domain.repository.ImageGenerationRequest,
+            request: com.runninghub.feature.quickcreate.domain.ImageGenerationRequest,
         ): Result<QuickCreationFeePreview> {
             feePreviewRequests += request
             imageFeePreviewHandler?.let { handler -> return handler(request) }
             return feePreviewResult
         }
         override suspend fun previewVideoQuickCreationFee(
-            request: com.runninghub.shared.domain.repository.VideoGenerationRequest,
+            request: com.runninghub.feature.quickcreate.domain.VideoGenerationRequest,
         ): Result<QuickCreationFeePreview> {
             videoFeePreviewRequests += request
             videoFeePreviewHandler?.let { handler -> return handler(request) }
@@ -396,8 +452,8 @@ class QuickCreateScreenModelTest {
             (templateDetailResult ?: Result.success(templateDetail.copy(templateId = templateId))).also {
                 requestedTemplateDetailIds += templateId
             }
-        override suspend fun getModels(categoryId: String): Result<List<QuickCreationServiceModel>> =
-            Result.success((models + videoModels).filter { it.categoryId == categoryId })
+        override suspend fun getModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> =
+            Result.success((models + videoModels).filter { it.categoryId == kind.testCategoryId() })
 
         override suspend fun listQuickCreationHistory(page: Int, size: Int): Result<QuickCreationHistoryPage> =
             Result.success(
@@ -5050,3 +5106,15 @@ class QuickCreateScreenModelTest {
         assertEquals(0, model.uiState.value.results.size)
     }
 }
+
+/**
+ * 测试 fake 使用的远端分类 ID 映射。
+ *
+ * 生产代码中的映射位于 Data 层；这里仅用于筛选测试 fixture 中模拟的服务端模型，
+ * 避免重新把接口字符串暴露到 Domain 枚举。
+ */
+private fun QuickCreationServiceKind.testCategoryId(): String =
+    when (this) {
+        QuickCreationServiceKind.IMAGE -> "IMAGE"
+        QuickCreationServiceKind.VIDEO -> "VIDEO"
+    }

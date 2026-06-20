@@ -3,9 +3,9 @@ package com.runninghub.app.ui.feature.login
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.feature.auth.domain.AuthError
+import com.runninghub.feature.auth.domain.AuthRepository
 import com.runninghub.feature.auth.domain.SmsError
-import com.runninghub.shared.domain.model.User
-import com.runninghub.shared.domain.repository.AuthRepository
+import com.runninghub.core.model.User
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

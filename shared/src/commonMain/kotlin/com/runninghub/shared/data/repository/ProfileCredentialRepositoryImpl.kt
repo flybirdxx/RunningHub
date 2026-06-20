@@ -1,7 +1,7 @@
 package com.runninghub.shared.data.repository
 
 import com.runninghub.core.storage.CredentialStore
-import com.runninghub.shared.domain.repository.ProfileCredentialRepository
+import com.runninghub.feature.auth.domain.ProfileCredentialRepository
 
 /**
  * 个人中心凭据仓库的数据层实现。

@@ -47,8 +47,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateProjectDetailUiItem
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateProjectUiItem
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
 import com.runninghub.app.ui.theme.DarkSurfaceVariant
@@ -56,6 +54,8 @@ import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.ErrorDark
 import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailUiItem
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectUiItem
 
 /**
  * 展示快捷创作默认页顶部的项目筛选与项目操作入口。

@@ -65,8 +65,8 @@ import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.feature.detail.AppDetailScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
-import com.runninghub.shared.domain.model.User
-import com.runninghub.shared.domain.model.WebApp
+import com.runninghub.core.model.User
+import com.runninghub.core.model.WebApp
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 data class CreatorProfileScreen(val userId: String) : Screen {

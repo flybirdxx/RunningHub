@@ -1192,8 +1192,8 @@ Create `GenerationHistoryMapperTest.kt`:
 ```kotlin
 package com.runninghub.shared.data.repository
 
-import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
-import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryOutput
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -1297,12 +1297,12 @@ import com.runninghub.shared.domain.model.GenerationHistoryItem
 import com.runninghub.shared.domain.model.GenerationHistoryOutput
 import com.runninghub.shared.domain.model.GenerationHistoryPage
 import com.runninghub.shared.domain.repository.GenerationHistoryRepository
-import com.runninghub.shared.domain.repository.QuickCreateRepository
-import com.runninghub.shared.domain.repository.QuickCreationHistoryItem
-import com.runninghub.shared.domain.repository.QuickCreationHistoryOutput
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
+import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryOutput
+import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
 
 class GenerationHistoryRepositoryImpl(
-    private val quickCreateRepository: QuickCreateRepository,
+    private val quickCreateRepository: QuickCreationTaskHistoryRepository,
 ) : GenerationHistoryRepository {
     override suspend fun listHistory(page: Int, size: Int): Result<GenerationHistoryPage> =
         quickCreateRepository.listQuickCreationHistory(page, size).map { pageData ->

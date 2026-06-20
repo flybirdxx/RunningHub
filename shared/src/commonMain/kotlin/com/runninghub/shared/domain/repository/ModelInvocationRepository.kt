@@ -13,7 +13,7 @@ interface ModelInvocationRepository {
     /**
      * 提交标准模型调用任务。
      *
-     * @param request 领域层模型调用请求，包含模型端点、字段定义和值。
+     * @param request 领域层模型调用请求，包含模型 ID、字段定义和值；具体 endpoint 由 Data 层解析。
      * @return 提交成功时返回远端任务；网络错误、响应格式错误或业务错误以 [Result.failure] 返回。
      */
     suspend fun submitStandardModel(request: ModelInvocationRequest): Result<ModelInvocationTask>

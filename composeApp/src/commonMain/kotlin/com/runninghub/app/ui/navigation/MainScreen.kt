@@ -65,7 +65,7 @@ import com.runninghub.app.ui.theme.RhAppBackground
 import com.runninghub.app.ui.theme.RhAppMuted
 import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
-import com.runninghub.shared.domain.usecase.GetLastKnownBalanceUseCase
+import com.runninghub.feature.auth.domain.GetLastKnownBalanceUseCase
 import org.koin.compose.koinInject
 
 enum class BottomNavTab(

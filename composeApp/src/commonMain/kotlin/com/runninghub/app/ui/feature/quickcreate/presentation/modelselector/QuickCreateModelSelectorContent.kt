@@ -33,8 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateServiceModelUi
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
 import com.runninghub.app.ui.theme.DarkSurfaceVariant
@@ -43,6 +42,7 @@ import com.runninghub.app.ui.theme.Neutral100
 import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 
 /**
  * 展示快捷创作的服务端模型选择面板。

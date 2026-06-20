@@ -1,10 +1,10 @@
 package com.runninghub.app.ui.feature.profile
 
 import com.runninghub.core.model.User
-import com.runninghub.shared.domain.model.AccountStatus
-import com.runninghub.shared.domain.repository.AuthRepository
-import com.runninghub.shared.domain.repository.ProfileCredentialRepository
-import com.runninghub.shared.domain.repository.UserRepository
+import com.runninghub.feature.auth.domain.AuthRepository
+import com.runninghub.core.model.AccountStatus
+import com.runninghub.feature.auth.domain.ProfileCredentialRepository
+import com.runninghub.feature.auth.domain.UserRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher

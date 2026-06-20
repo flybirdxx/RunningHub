@@ -38,10 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateHistoryDetailUiItem
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateHistoryOutputMediaType
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateHistoryUiItem
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateProjectStrip
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
@@ -50,6 +47,9 @@ import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryDetailUiItem
+import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryOutputMediaType
+import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryUiItem
 
 /**
  * 展示快捷创作默认页的历史列表区域。

@@ -3,6 +3,7 @@ package com.runninghub.shared.data.repository
 import com.runninghub.core.model.InputNode
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.shared.data.remote.api.RunningHubApi
+import com.runninghub.shared.domain.model.TaskExecutionStatus
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -70,6 +71,7 @@ class WebAppRepositoryImplTest {
         ).getOrThrow()
 
         assertEquals(123L, result.taskId)
+        assertEquals(TaskExecutionStatus.Submitted, result.status)
         assertTrue(capturedBody.contains(""""apiKey":"local-api-key""""))
         assertTrue(capturedBody.contains(""""webappId":10"""))
     }

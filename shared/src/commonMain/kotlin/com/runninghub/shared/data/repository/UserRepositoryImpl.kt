@@ -1,13 +1,13 @@
 package com.runninghub.shared.data.repository
 
 import com.runninghub.core.network.RunningHubApiEnvironment
+import com.runninghub.core.model.AccountStatus
+import com.runninghub.core.model.User
 import com.runninghub.core.storage.CredentialStore
+import com.runninghub.feature.auth.domain.UserRepository
 import com.runninghub.shared.data.remote.api.RunningHubApi
 import com.runninghub.shared.data.remote.dto.AccountStatusRequest
 import com.runninghub.shared.data.remote.dto.toDomain
-import com.runninghub.shared.domain.model.AccountStatus
-import com.runninghub.shared.domain.model.User
-import com.runninghub.shared.domain.repository.UserRepository
 
 /**
  * UserRepository 的 Data 层实现。
