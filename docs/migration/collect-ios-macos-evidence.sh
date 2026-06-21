@@ -40,6 +40,8 @@ write_evidence() {
   local smoke_notes="$4"
   local gradle_output="$5"
   local head_sha="$6"
+  local xcodebuild_result="$7"
+  local xcodebuild_output="$8"
 
   mkdir -p "$(dirname "$output_path")"
   cat > "$output_path" <<EOF
@@ -50,6 +52,8 @@ headSha: $head_sha
 host: $(uname -a)
 linkCommand: ./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64
 linkResult: $link_result
+xcodebuildCommand: xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination generic/platform=iOS Simulator build CODE_SIGNING_ALLOWED=NO
+xcodebuildResult: $xcodebuild_result
 simulatorSmokeResult: $simulator_smoke_result
 
 ## Simulator smoke scope
@@ -67,17 +71,26 @@ $smoke_notes
 \`\`\`text
 $gradle_output
 \`\`\`
+
+## Xcode build output tail
+
+\`\`\`text
+$xcodebuild_output
+\`\`\`
 EOF
 }
 
 if [[ "$SELF_TEST" == "true" ]]; then
   TMP_PATH="${TMPDIR:-/tmp}/rh-ios-macos-evidence-selftest.md"
-  write_evidence "$TMP_PATH" "pass" "pass" "self-test" "BUILD SUCCESSFUL" "expected-sha"
+  write_evidence "$TMP_PATH" "pass" "pass" "self-test" "BUILD SUCCESSFUL" "expected-sha" "pass" "** BUILD SUCCEEDED **"
   grep -q "headSha: expected-sha" "$TMP_PATH"
   grep -q "linkResult: pass" "$TMP_PATH"
+  grep -q "xcodebuildResult: pass" "$TMP_PATH"
   grep -q "simulatorSmokeResult: pass" "$TMP_PATH"
   grep -q ":composeApp:linkDebugFrameworkIosSimulatorArm64" "$TMP_PATH"
+  grep -q "xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub" "$TMP_PATH"
   grep -q "BUILD SUCCESSFUL" "$TMP_PATH"
+  grep -q "\*\* BUILD SUCCEEDED \*\*" "$TMP_PATH"
   rm -f "$TMP_PATH"
   echo "SelfTest passed."
   exit 0
@@ -115,11 +128,26 @@ if ./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64 > "
     rm -f "$TMP_OUTPUT"
     exit 1
   fi
-  write_evidence "$OUTPUT_PATH" "pass" "$SIMULATOR_SMOKE_RESULT" "$SMOKE_NOTES" "$GRADLE_TAIL" "$HEAD_SHA"
-  rm -f "$TMP_OUTPUT"
-  echo "iosEvidence=$OUTPUT_PATH"
 else
   cat "$TMP_OUTPUT" >&2
   rm -f "$TMP_OUTPUT"
+  exit 1
+fi
+
+XCODE_OUTPUT="$(mktemp)"
+if xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO > "$XCODE_OUTPUT" 2>&1; then
+  XCODE_TAIL="$(tail -n 120 "$XCODE_OUTPUT")"
+  if ! grep -q "\*\* BUILD SUCCEEDED \*\*" "$XCODE_OUTPUT"; then
+    echo "xcodebuild completed but BUILD SUCCEEDED was not found in output." >&2
+    cat "$XCODE_OUTPUT" >&2
+    rm -f "$TMP_OUTPUT" "$XCODE_OUTPUT"
+    exit 1
+  fi
+  write_evidence "$OUTPUT_PATH" "pass" "$SIMULATOR_SMOKE_RESULT" "$SMOKE_NOTES" "$GRADLE_TAIL" "$HEAD_SHA" "pass" "$XCODE_TAIL"
+  rm -f "$TMP_OUTPUT" "$XCODE_OUTPUT"
+  echo "iosEvidence=$OUTPUT_PATH"
+else
+  cat "$XCODE_OUTPUT" >&2
+  rm -f "$TMP_OUTPUT" "$XCODE_OUTPUT"
   exit 1
 fi

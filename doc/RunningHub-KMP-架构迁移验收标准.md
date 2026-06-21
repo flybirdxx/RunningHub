@@ -38,19 +38,19 @@
 
 | 领域 | 当前判断 | 说明 |
 |---|---|---|
-| Gradle 模块化 | 部分满足 | 已建立 `build-logic`、`core/*` 和部分 `feature/*` 模块，但版本与工具链仍不统一 |
-| Core 抽取 | 部分满足 | network、storage、model 已抽取；designsystem 尚未真正接入应用 |
-| Auth Domain | 基本满足 | Auth 契约、错误语义、SessionManager 和测试已建立 |
-| Auth 运行时 | 部分满足 | 根入口观察 SessionManager，但登录页仍直接导航，存在双重导航权 |
-| Discovery | 基本满足 | 已依赖窄 `WebAppCatalogRepository`，仍有协议字符串和状态契约问题 |
+| Gradle 模块化 | 满足 | 已建立 `build-logic`、`core/*` 和 `feature/*` 模块；Kotlin 插件版本来自 Version Catalog，JVM toolchain 统一为 17 |
+| Core 抽取 | 满足 | network、storage、model 已抽取；无人依赖且无源码资源的 `core:designsystem` 空壳模块已删除 |
+| Auth Domain | 满足 | Auth 契约、错误语义、SessionManager 和状态转换测试已建立 |
+| Auth 运行时 | 满足 | 根入口统一观察 SessionManager，登录页和个人中心不再直接替换根导航 |
+| Discovery | 满足 | 已依赖窄 `WebAppCatalogRepository`，协议值收敛到 Domain 类型，状态契约与旧响应隔离已有测试 |
 | QuickCreate Presentation | 较好 | ScreenModel 已变为门面，Coordinator/StateHolder/Interactor 已拆分 |
-| QuickCreate Data | 部分满足 | Data 模块仍依赖 `shared`，一个实现仍承担多个仓库边界 |
-| 创作入口唯一性 | 未满足 | `CreateScreenModel` 与 `QuickCreateScreenModel` 两套创作状态机同时存在 |
-| Shared 退役 | 未满足 | `shared` 仍承载大量 Data、DI、SQLDelight、Ktor 和其他遗留能力 |
-| 测试 | 部分满足 | Auth、network、QuickCreate 已有关键测试，但覆盖和 CI 不完整 |
-| CI | 未满足 | 当前提交没有 GitHub Actions 状态或工作流运行记录 |
-| Android 验证 | 仓库报告已通过 | 仓库报告记录 assemble/install 通过，仍应由 CI 重复验证 |
-| iOS 验证 | 未验证 | 尚无可追溯的 iOS 编译、模拟器或运行验收证据 |
+| QuickCreate Data | 部分满足 | Data 模块已脱离 `shared`，裸 `println` 和可空 `AuthRepository` 已清理；完整拆分多个实现类可延后到 L1 后 |
+| 创作入口唯一性 | 满足 | 生产创作入口已统一到 `QuickCreateVoyagerScreen`，旧 `CreateScreenModel` 已从生产 Koin 图移除 |
+| Shared 退役 | 部分满足 | `shared` 已定义为迁移期兼容模块并由 baseline/allowlist 阻止增长；剩余 Audio、ModelCatalog、ModelInvocation 和旧兼容文件已登记归属与删除条件 |
+| 测试 | 部分满足 | Auth、network、QuickCreate 已有关键测试，远端 CI 已开始覆盖 L1 入口，但测试矩阵仍需继续补齐 |
+| CI | 部分满足 | 当前 HEAD 已有 Android CI 与 iOS CI completed/success 运行证据，最终封板仍缺 macOS iOS link/Simulator Markdown 证据 |
+| Android 验证 | 基本满足 | 仓库报告记录 assemble/install 通过，当前 HEAD Android CI 成功，登录态 Tab 网络观察证据已落盘 |
+| iOS 验证 | 部分满足 | 当前 HEAD iOS CI 成功并覆盖 iOS Simulator Kotlin 编译和 framework link；仓库已补齐 iOS Xcode 薄包装工程和 iOS Koin 入口；仍缺 macOS Xcode build 与 Simulator 人工冒烟证据 |
 | 安全存储 | 未满足生产门槛 | 敏感凭据仍存于普通 DataStore |
 | Release | 未满足生产门槛 | Android release 仍未开启 minify |
 
@@ -69,13 +69,12 @@
 - [ ] 所有声明模块都有生产用途；孤立模块必须接入或删除。
 - [ ] `AGENTS.md` 中模块清单与 `settings.gradle.kts` 一致。
 
-### 当前阻塞
+### 当前证据
 
-- `settings.gradle.kts` 单独声明 Kotlin JVM 2.4.0。
-- Version Catalog 使用 Kotlin 2.3.21。
-- 根工程使用 JVM Toolchain 8，而 KMP Android convention 使用 JVM 17。
-- `core:designsystem` 已声明，但 `composeApp` 仍使用自己的主题实现，未依赖该模块。
-- `AGENTS.md` 的项目概览仍只描述 `shared` 和 `composeApp`。
+- Kotlin 插件版本由 `gradle/libs.versions.toml` 提供单一事实来源，`settings.gradle.kts` 不再单独声明 Kotlin JVM 插件版本。
+- 根工程 `build.gradle.kts` 使用 `jvmToolchain(17)`，与 Android/KMP convention 保持一致。
+- `core:designsystem` 已从 `settings.gradle.kts` 删除，避免长期保留无人依赖的空壳模块。
+- `AGENTS.md` 模块清单已与 `settings.gradle.kts` 当前 include 对齐。
 
 ### 验证命令
 
@@ -96,11 +95,11 @@
 composeApp
     -> feature/*/presentation
     -> feature/*/domain
-    -> core:designsystem / core:model / core:common
+    -> core:model / core:common
 
 feature/*/presentation
     -> feature/*/domain
-    -> core:model / core:common / core:designsystem
+    -> core:model / core:common
 
 feature/*/data
     -> feature/*/domain
@@ -120,11 +119,12 @@ shared
 - [ ] 不存在 Gradle 模块循环依赖。
 - [ ] `shared` 新增代码由 CI allowlist 阻止，除非任务明确属于遗留维护。
 
-### 当前阻塞
+### 当前证据
 
-- `feature:quickcreate:data` 仍依赖 `project(":shared")`。
-- QuickCreate Data 仍使用 `shared` 中的 `GenerationHistoryRepository`。
-- `composeApp/commonMain` 仍依赖整个 `shared`；这在过渡期可以保留，但必须建立遗留依赖清单。
+- `feature:quickcreate:data` 已移除 `project(":shared")` 依赖。
+- QuickCreate Data 不再直接使用 `shared` 中的 `GenerationHistoryRepository`，通用历史适配器已迁移到 `composeApp` 组合层。
+- `composeApp/commonMain` 已移除 `project(":shared")`，平台启动层负责装配 Data 实现。
+- `checkArchitectureBoundaries` 已阻止 Domain、Presentation、Feature Data 和 `composeApp/commonMain` 重新引入反向依赖。
 
 ### 建议门禁文件
 
@@ -169,11 +169,11 @@ CI 应拒绝：
 - [ ] 不存在第二套手写 refresh 请求或 401 重试逻辑。
 - [ ] 所有业务 Repository 复用相同认证语义。
 
-### 当前阻塞
+### 当前证据
 
-- 根 `App` 已观察 SessionManager，但登录页仍监听 `loginSuccess` 并直接导航。
-- 主导航实际使用 `CreateVoyagerScreen`，同时 Koin 仍注册 `QuickCreateScreenModel`。
-- `CreateScreenModel` 和 `QuickCreateScreenModel` 都实现模型、上传、计费、生成和历史能力。
+- 根 `App` 是唯一执行 Main/Login 根页面切换的位置，登录页和个人中心注销不再直接替换根导航。
+- 主导航创作 Tab 已统一到 `QuickCreateVoyagerScreen`。
+- 旧 `CreateScreenModel` 已从生产 Koin 图移除，生产创作状态机收敛到 QuickCreate。
 
 ---
 
@@ -191,15 +191,16 @@ CI 应拒绝：
 - [ ] logout 清理凭据后状态为 `Unauthenticated`。
 - [ ] 日志不得输出完整 token、Cookie、API Key 或 Authorization header。
 
-### 当前阻塞
+### 当前证据
 
-现有拦截器已经完成：
+现有拦截器和测试已经覆盖：
 
 - 请求头注入。
 - 并发刷新协调。
-- 刷新失败通知会话失效。
-
-但尚未形成可验证的“刷新成功后原请求重试一次”闭环。现有测试主要覆盖请求头和刷新失败路径。
+- 刷新成功后原请求最多重试一次。
+- 重试请求使用新的 access token。
+- 刷新失败或重试仍 401 时只通知一次会话失效。
+- logout 竞态下不会重新写回已清理凭据。
 
 ### 必须新增测试
 
@@ -335,7 +336,8 @@ QuickCreateMediaUploadRepositoryImpl
 - [ ] 金额、时间、ID 和 URL 使用明确语义类型或文档约束。
 - [ ] 不使用大量无语义 `String` 表示计数、金额和尺寸，至少建立后续治理清单。
 
-当前 `User`、`WebApp` 等核心模型仍缺少字段级中文说明，应按项目 AGENTS 规则补齐。
+`User`、`WebApp`、`Tag`、`PageData`、`AppDetail` 等核心模型已补齐字段级中文 KDoc；
+后续新增或修改模型仍必须继续遵守项目 `AGENTS.md` 的字段级注释规则。
 
 ### core:designsystem
 
@@ -345,6 +347,9 @@ QuickCreateMediaUploadRepositoryImpl
 2. 删除当前空壳模块，等真正迁移时再创建。
 
 不允许长期保留“声明存在但无人使用”的架构模块。
+
+当前选择第 2 项：`core:designsystem` 已从 `settings.gradle.kts` 删除，等真正迁移主题、
+Token 和通用组件时再重新建立。
 
 ### shared
 
@@ -356,6 +361,10 @@ L1 不要求一次性删除整个 `shared`，但必须满足：
 - [ ] CI 记录 `shared` 的新增文件数量，默认禁止增长。
 - [ ] 已迁移出去的接口和实现不再保留重复副本。
 - [ ] QuickCreate 从 `shared` 完全脱离。
+
+当前状态：上述 L1 要求已由 `docs/migration/shared-ownership.md`、
+`docs/migration/shared-baseline.txt` 和 `checkArchitectureBoundaries` 覆盖；
+剩余 `shared` 文件属于 L1 后继续瘦身项。
 
 ---
 
@@ -466,7 +475,30 @@ composeApp
 - [ ] 禁止秘密和构建产物检查。
 - [ ] PR 上显示明确状态，不允许无检查合并。
 
-当前 head 没有 GitHub Actions 状态，因此仓库文档中的本地构建记录不能替代 CI 门禁。
+当前 HEAD `f8075fc85639975e0b2829a650720d42cc680703` 已有可追溯的
+GitHub Actions 运行证据：`Android CI` run `27894118245` 与 `iOS CI`
+run `27894118250` 均为 completed/success。仓库已将运行编号、headSha 和
+链接分别写入 `docs/migration/evidence/github-actions-android.json` 与
+`docs/migration/evidence/github-actions-ios.json`。
+
+CI 成功记录仍不能替代最终 L1 封板证据。`checkL1SealEvidence` 还要求
+`docs/migration/evidence/ios-macos-link-and-simulator.md`，该文件必须由
+macOS runner 或 macOS 开发机执行 `docs/migration/collect-ios-macos-evidence.sh`
+生成，并包含 iOS framework link 通过和 Simulator 冒烟说明。
+最终封板时仓库还必须没有未暂存或已暂存差异；远端 CI、Android 运行观察和 macOS iOS
+证据都必须绑定到已经提交的当前 Git `HEAD`，不能用旧提交的成功记录证明仍停留在索引中的补丁。
+
+Android 退出登录后的运行观察已补齐：`docs/migration/evidence/android-logout-network.json`
+记录 Profile 退出登录后回到 Login 根页面并空闲 125 秒，30 秒稳定窗口内
+`started` 无增长且最大 `inFlight` 为 0。该证据与登录态 Tab 网络观察一起覆盖
+Android 侧业务页面释放后的后台请求停止验证。
+
+2026-06-21 继续补齐 `iosApp/iosApp.xcodeproj`、shared `RunningHub` scheme、
+SwiftUI 壳、Info.plist、asset catalog、`composeApp/src/iosMain` 的
+`MainViewController` 和 iOS runtime Koin 装配。`collect-ios-macos-evidence.sh`
+现在会在 macOS 上同时验证 Compose framework link 和 `xcodebuild` 包装工程构建。
+该改动让 macOS Simulator 验收具备仓库内可打开目标，但 Windows 本地仍不能替代
+Xcode build 或 Simulator 运行证据。
 
 ---
 
@@ -474,16 +506,10 @@ composeApp
 
 以下项目未完成前，不应宣布“架构迁移完成”：
 
-1. Kotlin 版本与 JVM Toolchain 不一致。
-2. `CreateScreenModel` 与 `QuickCreateScreenModel` 两套创作状态机同时存在。
-3. `feature:quickcreate:data` 仍依赖 `shared`。
-4. 登录页直接导航与 SessionManager 根导航并存。
-5. 401 刷新成功后原请求没有“最多重试一次”的完整实现和测试。
-6. `core:designsystem` 未接入也未删除。
-7. `AGENTS.md` 模块描述与实际项目不一致。
-8. 没有自动化 CI。
-9. 没有可追溯的 iOS 编译与运行验收证据。
-10. 主导航所有 Tab 常驻 Composition，后台任务策略未验收。
+1. 最终封板仍缺 macOS iOS link/xcodebuild/Simulator Markdown 证据。
+2. 当前完整迁移补丁仍需提交后重新采集对应新 `HEAD` 的 Android/iOS CI 与 macOS iOS 证据。
+3. iOS 编译已有旧 `HEAD` 的 CI 证据，iOS Simulator 人工运行验收证据仍未补齐。
+4. Android 登录态 Tab 和退出登录后的稳定窗口网络证据已落盘；macOS iOS Simulator 仍需覆盖登录、退出和 QuickCreate 冒烟路径。
 
 ---
 
@@ -492,7 +518,7 @@ composeApp
 - 把一个实现多个窄接口的 QuickCreateRepositoryImpl 完全拆成多个实现类。
 - 将所有 `String` ID、金额、时间逐步改为值对象。
 - 将所有 UI 文案迁移到 Compose Resources。
-- 完整迁移 `shared` 中尚未模块化的 Audio、Plaza、WebApp Task 等能力。
+- 完整迁移或删除 `shared` 中尚未模块化的 Audio、ModelCatalog、ModelInvocation 和旧兼容能力。
 - 开启 R8、资源压缩并优化包体积。
 - Android 加密存储与 iOS Keychain。
 - 更完整的 UI 自动化和性能基准。
@@ -527,14 +553,14 @@ AC-12 完成安全存储、Release 和生产验收 L2
 ### L1 架构封板
 
 ```text
-[ ] Gate A 构建系统唯一性
-[ ] Gate B 模块依赖方向
-[ ] Gate C 唯一事实来源
-[ ] Gate D 认证与 401
-[ ] Gate E Discovery
+[x] Gate A 构建系统唯一性
+[x] Gate B 模块依赖方向
+[x] Gate C 唯一事实来源
+[x] Gate D 认证与 401
+[x] Gate E Discovery
 [ ] Gate F QuickCreate
 [ ] Gate G 生命周期与导航
-[ ] Gate H Core 与 Shared 收口
+[x] Gate H Core 与 Shared 收口
 [ ] Gate I Android + iOS 编译
 [ ] Gate J CI
 ```

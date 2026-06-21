@@ -74,6 +74,16 @@ kotlin {
             implementation("org.jetbrains.compose.ui:ui-tooling-preview:$composeMultiplatformVersion")
         }
 
+        iosMain.dependencies {
+            // iOS 包装应用同样在平台启动层装配运行期 Data 模块；commonMain 保持只依赖领域接口。
+            implementation(projects.core.network)
+            implementation(projects.feature.auth.data)
+            implementation(projects.feature.community.data)
+            implementation(projects.feature.discovery.data)
+            implementation(projects.feature.task.data)
+            implementation(projects.feature.quickcreate.data)
+        }
+
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(libs.kotlinx.coroutines.test)

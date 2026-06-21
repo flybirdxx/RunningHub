@@ -17,6 +17,7 @@ local.properties
 __pycache__/
 *.json
 !docs/migration/evidence/*.json
+!iosApp/**/*.xcassets/**/*.json
 *.log
 
 # Agent skills & configs

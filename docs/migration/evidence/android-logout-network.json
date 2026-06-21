@@ -1,0 +1,734 @@
+{
+    "schemaVersion":  1,
+    "capturedAt":  "2026-06-21T13:57:22.6952077+08:00",
+    "device":  "adb-5d692d82-J3ioHJ._adb-tls-connect._tcp",
+    "packageName":  "com.runninghub.app.debug",
+    "durationSeconds":  125,
+    "stableWindowSeconds":  30,
+    "operationNotes":  "post-logout Login root idle after Profile logout completed on Android debug device adb-5d692d82-J3ioHJ._adb-tls-connect._tcp; verifies business stack release after logout",
+    "sampleCount":  118,
+    "result":  "pass_candidate",
+    "first":  {
+                  "started":  10,
+                  "completed":  10,
+                  "inFlight":  0
+              },
+    "last":  {
+                 "started":  10,
+                 "completed":  10,
+                 "inFlight":  0
+             },
+    "stableWindowStartedDelta":  0,
+    "stableWindowMaxInFlight":  0,
+    "stableWindowSampleCount":  29,
+    "samples":  [
+                    {
+                        "capturedAt":  "2026-06-21T13:55:18.5510060+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:19.8030771+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:21.0432437+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:22.3710001+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:22.3720046+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:23.6268267+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:24.8493490+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:26.1056403+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:27.3509840+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:27.3529884+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:28.6768884+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:30.0213002+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:31.2592989+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:31.2608032+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:32.5062198+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:33.7687415+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:35.0747079+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:36.4574764+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:36.4584768+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:37.6979595+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:38.9160251+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:40.1839328+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:41.3915806+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:41.3925814+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:42.6609349+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:43.8982205+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:45.1224818+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:46.3633974+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:46.3633974+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:47.6255743+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:48.8661387+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:50.1058534+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:51.4310799+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:51.4322730+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:52.6850997+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:53.9292315+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:55.1683875+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:56.4190983+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:56.4200983+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:57.6597110+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:55:58.9931328+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:00.2578057+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:01.5878062+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:01.5888056+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:02.8238809+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:04.0380810+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:05.4120088+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:05.4120088+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:06.7544413+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:07.9867869+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:09.3432892+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:10.5743911+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:11.8094403+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:13.0711628+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:14.3049727+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:15.6326636+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:16.8883822+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:18.2188296+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:19.4701242+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:19.4706269+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:20.7133611+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:21.9620966+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:23.1801874+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:24.4186019+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:24.4196229+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:25.6663510+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:26.9118475+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:28.1258675+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:29.3860743+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:30.7250943+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:31.9971077+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:33.2109595+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:34.4557756+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:34.4565989+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:35.8219352+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:37.1429854+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:38.4050403+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:39.7461718+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:40.9823073+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:42.3045537+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:43.5569001+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:43.5569001+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:44.9172093+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:46.1622482+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:47.3948884+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:48.7380646+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:49.9655132+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:51.2122562+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:52.4488658+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:53.6994883+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:54.9498781+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:56.1670815+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:57.3829700+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:58.6736398+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:56:58.6736398+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:00.0083032+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:01.2692826+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:02.5981113+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:02.5988288+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:03.8320787+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:05.0819867+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:06.3050234+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:07.5627735+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:07.5635523+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:08.7928939+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:10.0454340+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:11.2881220+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:12.6307685+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:12.6317711+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:13.8629420+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:15.1093725+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:16.3474495+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:17.6176777+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:17.6186780+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:18.9287818+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:20.1821021+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:21.3670366+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    },
+                    {
+                        "capturedAt":  "2026-06-21T13:57:22.5341045+08:00",
+                        "started":  10,
+                        "completed":  10,
+                        "inFlight":  0
+                    }
+                ]
+}

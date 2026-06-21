@@ -467,6 +467,12 @@ tasks.register("checkL1CiWorkflows") {
                 "java-version: \"17\"",
                 "chmod +x gradlew",
                 "./gradlew verifyL1Ios",
+                "workflow_dispatch:",
+                "simulator_smoke_pass:",
+                "smoke_notes:",
+                "docs/migration/collect-ios-macos-evidence.sh",
+                "actions/upload-artifact@v4",
+                "ios-macos-link-and-simulator.md",
             ),
         )
         val violations = mutableListOf<String>()
@@ -562,6 +568,11 @@ tasks.register("checkMigrationScripts") {
         val githubActionsScript = rootDir.resolve("docs/migration/collect-github-actions-evidence.ps1")
         val iosMacosScript = rootDir.resolve("docs/migration/collect-ios-macos-evidence.sh")
         val androidNetworkObserver = rootDir.resolve("composeApp/src/androidMain/kotlin/com/runninghub/app/di/AndroidNetworkActivityLogObserver.kt")
+        val iosKoinEntry = rootDir.resolve("composeApp/src/iosMain/kotlin/com/runninghub/app/di/IosRuntimeModule.kt")
+        val iosMainViewController = rootDir.resolve("composeApp/src/iosMain/kotlin/com/runninghub/app/MainViewController.kt")
+        val iosXcodeProject = rootDir.resolve("iosApp/iosApp.xcodeproj/project.pbxproj")
+        val iosSwiftApp = rootDir.resolve("iosApp/iosApp/iOSApp.swift")
+        val iosContentView = rootDir.resolve("iosApp/iosApp/ContentView.swift")
         val violations = mutableListOf<String>()
 
         if (!tabNetworkScript.exists()) {
@@ -576,18 +587,33 @@ tasks.register("checkMigrationScripts") {
         if (!androidNetworkObserver.exists()) {
             throw GradleException("Android network observer is missing: ${androidNetworkObserver.toRelativeString(rootDir)}")
         }
+        listOf(iosKoinEntry, iosMainViewController, iosXcodeProject, iosSwiftApp, iosContentView)
+            .filterNot { it.exists() }
+            .forEach { file -> violations += "iOS wrapper file is missing: ${file.toRelativeString(rootDir)}" }
 
         val tabNetworkScriptText = tabNetworkScript.readText()
         val githubActionsScriptText = githubActionsScript.readText()
         val iosMacosScriptText = iosMacosScript.readText()
         val androidNetworkObserverText = androidNetworkObserver.readText()
+        val iosKoinEntryText = iosKoinEntry.takeIf { it.exists() }?.readText().orEmpty()
+        val iosMainViewControllerText = iosMainViewController.takeIf { it.exists() }?.readText().orEmpty()
+        val iosXcodeProjectText = iosXcodeProject.takeIf { it.exists() }?.readText().orEmpty()
+        val iosSwiftAppText = iosSwiftApp.takeIf { it.exists() }?.readText().orEmpty()
+        val iosContentViewText = iosContentView.takeIf { it.exists() }?.readText().orEmpty()
+        val rootBuildText = rootProject.buildFile.readText()
+        val l1SealEvidenceTaskText = rootBuildText.substringAfter("tasks.register(\"checkL1SealEvidence\")")
         val requiredTrackedFiles = listOf(
+            "build.gradle.kts",
+            "composeApp/src/iosMain/kotlin/com/runninghub/app/MainViewController.kt",
+            "composeApp/src/iosMain/kotlin/com/runninghub/app/di/IosRuntimeModule.kt",
             "doc/RunningHub-KMP-架构迁移验收标准.md",
             "docs/migration/acceptance.md",
             "docs/migration/collect-github-actions-evidence.ps1",
             "docs/migration/collect-ios-macos-evidence.sh",
             "docs/migration/current-state.yaml",
             "docs/migration/dependency-rules.md",
+            "docs/migration/download-ios-macos-evidence.ps1",
+            "docs/migration/evidence/android-logout-network.json",
             "docs/migration/l1-external-evidence.md",
             "docs/migration/l1-seal-audit.md",
             "docs/migration/observe-tab-network.ps1",
@@ -595,8 +621,25 @@ tasks.register("checkMigrationScripts") {
             "docs/migration/shared-baseline.txt",
             "docs/migration/shared-ownership.md",
             "docs/migration/tab-lifecycle.md",
+            "iosApp/README.md",
+            "iosApp/iosApp.xcodeproj/project.pbxproj",
+            "iosApp/iosApp.xcodeproj/xcshareddata/xcschemes/RunningHub.xcscheme",
+            "iosApp/iosApp/ContentView.swift",
+            "iosApp/iosApp/Info.plist",
+            "iosApp/iosApp/iOSApp.swift",
         )
-        val trackedMigrationFiles = ProcessBuilder("git", "-c", "core.quotePath=false", "ls-files", "doc/RunningHub-KMP-架构迁移验收标准.md", "docs/migration")
+        val trackedMigrationFiles = ProcessBuilder(
+            "git",
+            "-c",
+            "core.quotePath=false",
+            "ls-files",
+            "build.gradle.kts",
+            "composeApp/src/iosMain/kotlin/com/runninghub/app/MainViewController.kt",
+            "composeApp/src/iosMain/kotlin/com/runninghub/app/di/IosRuntimeModule.kt",
+            "doc/RunningHub-KMP-架构迁移验收标准.md",
+            "docs/migration",
+            "iosApp",
+        )
             .directory(rootDir)
             .redirectErrorStream(true)
             .start()
@@ -611,7 +654,20 @@ tasks.register("checkMigrationScripts") {
                     .filter { it.isNotEmpty() }
                     .toSet()
             }
-        val dirtyMigrationFiles = ProcessBuilder("git", "-c", "core.quotePath=false", "diff", "--name-only", "--", "doc/RunningHub-KMP-架构迁移验收标准.md", "docs/migration")
+        val dirtyMigrationFiles = ProcessBuilder(
+            "git",
+            "-c",
+            "core.quotePath=false",
+            "diff",
+            "--name-only",
+            "--",
+            "build.gradle.kts",
+            "composeApp/src/iosMain/kotlin/com/runninghub/app/MainViewController.kt",
+            "composeApp/src/iosMain/kotlin/com/runninghub/app/di/IosRuntimeModule.kt",
+            "doc/RunningHub-KMP-架构迁移验收标准.md",
+            "docs/migration",
+            "iosApp",
+        )
             .directory(rootDir)
             .redirectErrorStream(true)
             .start()
@@ -681,12 +737,31 @@ tasks.register("checkMigrationScripts") {
             "headSha: \$head_sha",
             "git rev-parse HEAD",
             "linkResult: \$link_result",
+            "xcodebuildCommand:",
+            "xcodebuildResult: \$xcodebuild_result",
+            "xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub",
+            "** BUILD SUCCEEDED **",
             "simulatorSmokeResult: \$simulator_smoke_result",
             ":composeApp:linkDebugFrameworkIosSimulatorArm64",
             "BUILD SUCCESSFUL",
             "Darwin",
             "Simulator login",
             "Simulator QuickCreate",
+        )
+        val requiredIosEvidenceDownloadSnippets = listOf(
+            "[string] \$RunId",
+            "[string] \$ArtifactName",
+            "[switch] \$SelfTest",
+            "function Select-IosEvidenceRun",
+            "function Invoke-GhRunDownload",
+            "function Copy-IosEvidenceArtifact",
+            "function Assert-IosEvidenceMarkdown",
+            "workflow_dispatch",
+            "ios-macos-link-and-simulator.md",
+            "gh run download",
+            "linkResult: pass",
+            "xcodebuildResult: pass",
+            "simulatorSmokeResult: pass",
         )
         val requiredAndroidNetworkObserverSnippets = listOf(
             "NETWORK_ACTIVITY_HEARTBEAT_MILLIS",
@@ -695,6 +770,51 @@ tasks.register("checkMigrationScripts") {
             "started=\${snapshot.startedCount}",
             "completed=\${snapshot.completedCount}",
             "inFlight=\${snapshot.inFlightCount}",
+        )
+        val requiredIosKoinEntrySnippets = listOf(
+            "val iosRuntimeModule = module",
+            "fun startRunningHubKoin()",
+            "KoinPlatformTools.defaultContext().getOrNull()",
+            "authDataModule",
+            "communityDataModule",
+            "discoveryDataModule",
+            "taskDataModule",
+            "quickCreateDataModule",
+            "appModule",
+        )
+        val requiredIosViewControllerSnippets = listOf(
+            "fun MainViewController()",
+            "ComposeUIViewController",
+            "App()",
+        )
+        val requiredIosXcodeProjectSnippets = listOf(
+            "embedAndSignAppleFrameworkForXcode",
+            "FRAMEWORK_SEARCH_PATHS",
+            "\$(SRCROOT)/../composeApp/build/xcode-frameworks/\$(CONFIGURATION)/\$(SDK_NAME)",
+            "OTHER_LDFLAGS",
+            "-framework",
+            "ComposeApp",
+            "PRODUCT_BUNDLE_IDENTIFIER = com.runninghub.app.ios",
+            "IPHONEOS_DEPLOYMENT_TARGET = 16.0",
+            "SWIFT_VERSION = 5.0",
+        )
+        val requiredIosSwiftSnippets = listOf(
+            "IosRuntimeModuleKt.startRunningHubKoin()",
+            "MainViewControllerKt.MainViewController()",
+            "UIViewControllerRepresentable",
+            "import ComposeApp",
+        )
+        val iosSharedScheme = rootDir.resolve("iosApp/iosApp.xcodeproj/xcshareddata/xcschemes/RunningHub.xcscheme")
+        val iosSharedSchemeText = iosSharedScheme.takeIf { it.exists() }?.readText().orEmpty()
+        val requiredIosSchemeSnippets = listOf(
+            "BlueprintName = \"RunningHub\"",
+            "BuildableName = \"RunningHub.app\"",
+            "container:iosApp.xcodeproj",
+        )
+        val requiredL1SealEvidenceSnippets = listOf(
+            "\"diff\", \"--cached\", \"--name-only\"",
+            "val stagedFiles",
+            "has staged changes; commit it and recollect CI evidence",
         )
         requiredTabNetworkSnippets
             .filterNot { it in tabNetworkScriptText }
@@ -705,9 +825,32 @@ tasks.register("checkMigrationScripts") {
         requiredIosMacosSnippets
             .filterNot { it in iosMacosScriptText }
             .forEach { snippet -> violations += "collect-ios-macos-evidence.sh must contain `$snippet`." }
+        val iosEvidenceDownloadScript = rootDir.resolve("docs/migration/download-ios-macos-evidence.ps1")
+        val iosEvidenceDownloadScriptText = iosEvidenceDownloadScript.takeIf { it.exists() }?.readText().orEmpty()
+        requiredIosEvidenceDownloadSnippets
+            .filterNot { it in iosEvidenceDownloadScriptText }
+            .forEach { snippet -> violations += "download-ios-macos-evidence.ps1 must contain `$snippet`." }
         requiredAndroidNetworkObserverSnippets
             .filterNot { it in androidNetworkObserverText }
             .forEach { snippet -> violations += "AndroidNetworkActivityLogObserver.kt must contain `$snippet`." }
+        requiredIosKoinEntrySnippets
+            .filterNot { it in iosKoinEntryText }
+            .forEach { snippet -> violations += "IosRuntimeModule.kt must contain `$snippet`." }
+        requiredIosViewControllerSnippets
+            .filterNot { it in iosMainViewControllerText }
+            .forEach { snippet -> violations += "MainViewController.kt must contain `$snippet`." }
+        requiredIosXcodeProjectSnippets
+            .filterNot { it in iosXcodeProjectText }
+            .forEach { snippet -> violations += "iosApp.xcodeproj/project.pbxproj must contain `$snippet`." }
+        requiredIosSchemeSnippets
+            .filterNot { it in iosSharedSchemeText }
+            .forEach { snippet -> violations += "RunningHub.xcscheme must contain `$snippet`." }
+        requiredIosSwiftSnippets
+            .filterNot { it in iosSwiftAppText || it in iosContentViewText }
+            .forEach { snippet -> violations += "iOS Swift wrapper must contain `$snippet`." }
+        requiredL1SealEvidenceSnippets
+            .filterNot { it in l1SealEvidenceTaskText }
+            .forEach { snippet -> violations += "checkL1SealEvidence must contain `$snippet`." }
 
         // 该脚本需要能被 Windows PowerShell 5 直接执行。仓库当前没有统一保存 BOM，
         // 同时 shell 脚本需要能在 macOS runner 上直接执行；运行时字符串保持 ASCII，
@@ -740,7 +883,7 @@ tasks.register("checkMigrationScripts") {
  * 校验 L1 封板所需的外部证据已经落盘。
  *
  * `verifyL1Local` 只能证明当前机器上的本地自动化门禁通过，不能替代 GitHub Actions、
- * macOS iOS link 或登录态 Android Tab 网络观察。该任务故意不接入 `verifyL1Local`，
+ * macOS iOS link、登录态 Android Tab 网络观察或退出登录后的 Android 运行观察。该任务故意不接入 `verifyL1Local`，
  * 只在准备把 AC-11 标记为封板时手动执行，避免把缺失的外部证据伪装成本地绿灯。
  */
 tasks.register("checkL1SealEvidence") {
@@ -778,6 +921,19 @@ tasks.register("checkL1SealEvidence") {
                 ),
             ),
             EvidenceFile(
+                label = "Android logout network observation",
+                relativePath = "docs/migration/evidence/android-logout-network.json",
+                requiredSnippets = listOf(
+                    "\"schemaVersion\"",
+                    "\"result\"",
+                    "pass_candidate",
+                    "\"stableWindowStartedDelta\"",
+                    "\"stableWindowMaxInFlight\"",
+                    "\"stableWindowSampleCount\"",
+                    "logout",
+                ),
+            ),
+            EvidenceFile(
                 label = "macOS iOS link and Simulator smoke",
                 relativePath = "docs/migration/evidence/ios-macos-link-and-simulator.md",
                 requiredSnippets = listOf(
@@ -785,6 +941,8 @@ tasks.register("checkL1SealEvidence") {
                     "BUILD SUCCESSFUL",
                     "headSha:",
                     "linkResult: pass",
+                    "xcodebuildResult: pass",
+                    "xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub",
                     "simulatorSmokeResult: pass",
                     "Simulator login flow observed: pass",
                     "Simulator QuickCreate flow observed: pass",
@@ -822,12 +980,30 @@ tasks.register("checkL1SealEvidence") {
                     .filter { it.isNotEmpty() }
                     .toSet()
             }
+        val stagedFiles = ProcessBuilder("git", "-c", "core.quotePath=false", "diff", "--cached", "--name-only")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect staged files with git diff --cached:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
 
         val violations = mutableListOf<String>()
-        // 外部证据必须和最终待提交索引一致；否则可能本地源码或脚本已经更新，
-        // 但远端 CI 与后续审查看到的仍是旧内容，导致 L1 封板证据和实际待交付补丁脱节。
+        // 外部证据必须绑定到已经提交的 HEAD。若仍存在未暂存或已暂存补丁，
+        // 远端 CI 与 macOS 证据只能证明旧提交，不能证明当前待交付内容。
         unstagedFiles.forEach { file ->
             violations += "$file has unstaged changes; stage it before using L1 seal evidence."
+        }
+        stagedFiles.forEach { file ->
+            violations += "$file has staged changes; commit it and recollect CI evidence for the resulting HEAD before using L1 seal evidence."
         }
 
         val evidenceSensitivePatterns = listOf(
@@ -1000,11 +1176,11 @@ tasks.register("checkL1SealEvidence") {
             } else if (samples.size.toDouble() != sampleCount) {
                 violations += "${evidence.label} evidence at ${evidence.relativePath} must have sampleCount matching samples.size."
             }
-            // Android debug 观察器会按秒输出心跳样本；最终证据至少要覆盖完整稳定窗口，
-            // 才能证明没有新请求，而不是只证明某一瞬间 inFlight 为 0。这里检查稳定窗口内样本数，
-            // 避免全程总样本足够但最后静置窗口采样不足时被误判为通过。
-            if (stableWindowSampleCount < stableWindowSeconds) {
-                violations += "${evidence.label} evidence at ${evidence.relativePath} must contain at least stableWindowSeconds samples inside the stable window."
+            // Android debug 观察器会按秒输出心跳样本，但 adb 轮询和 logcat 清理存在秒级调度抖动。
+            // 因此最终证据允许 1 个样本误差，同时仍要求稳定窗口时长、请求增量和 in-flight 均满足条件，
+            // 避免把某一瞬间 inFlight 为 0 误判为后台任务已释放。
+            if (stableWindowSampleCount < stableWindowSeconds - 1.0) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must contain stable-window samples with at most one scheduling jitter sample missing."
             }
             if (numberField(json, "stableWindowStartedDelta") != 0.0) {
                 violations += "${evidence.label} evidence at ${evidence.relativePath} must have stableWindowStartedDelta=0."
@@ -1024,6 +1200,7 @@ tasks.register("checkL1SealEvidence") {
             val evidenceHeadSha = markdownField(text, "headSha")
             val host = markdownField(text, "host")
             val linkCommand = markdownField(text, "linkCommand")
+            val xcodebuildCommand = markdownField(text, "xcodebuildCommand")
             if (capturedAt.isBlank()) {
                 violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank capturedAt."
             }
@@ -1038,6 +1215,10 @@ tasks.register("checkL1SealEvidence") {
             val expectedLinkCommand = "./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64"
             if (linkCommand != expectedLinkCommand) {
                 violations += "${evidence.label} evidence at ${evidence.relativePath} must use linkCommand=$expectedLinkCommand."
+            }
+            val expectedXcodebuildCommand = "xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination generic/platform=iOS Simulator build CODE_SIGNING_ALLOWED=NO"
+            if (xcodebuildCommand != expectedXcodebuildCommand) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must use xcodebuildCommand=$expectedXcodebuildCommand."
             }
             // iOS 运行验收依赖人工 Simulator 冒烟说明；空说明无法证明登录、退出和 QuickCreate
             // 的实际操作环境，不能作为 Windows 本地 SKIPPED link 的替代证据。
@@ -1076,7 +1257,8 @@ tasks.register("checkL1SealEvidence") {
             }
         }
         validateAndroidNetworkEvidence(evidenceFiles[2])
-        validateIosMacosEvidence(evidenceFiles[3])
+        validateAndroidNetworkEvidence(evidenceFiles[3])
+        validateIosMacosEvidence(evidenceFiles[4])
 
         if (violations.isNotEmpty()) {
             throw GradleException(

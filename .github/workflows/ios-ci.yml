@@ -6,6 +6,17 @@ on:
     branches:
       - main
       - feature/kmp-refactoring
+  workflow_dispatch:
+    inputs:
+      simulator_smoke_pass:
+        description: "Confirm that macOS Simulator login, logout/session, and QuickCreate smoke were verified for this run."
+        required: true
+        type: boolean
+        default: false
+      smoke_notes:
+        description: "Simulator device, OS version, and checked login/logout/QuickCreate path."
+        required: true
+        type: string
 
 jobs:
   ios:
@@ -31,3 +42,34 @@ jobs:
 
       - name: Run iOS L1 verification
         run: ./gradlew verifyL1Ios
+
+      - name: Validate L1 seal evidence inputs
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          SIMULATOR_SMOKE_PASS: ${{ inputs.simulator_smoke_pass }}
+          SMOKE_NOTES: ${{ inputs.smoke_notes }}
+        run: |
+          if [ "$SIMULATOR_SMOKE_PASS" != "true" ]; then
+            echo "simulator_smoke_pass must be true before collecting L1 iOS evidence." >&2
+            exit 1
+          fi
+          if [ -z "${SMOKE_NOTES//[[:space:]]/}" ]; then
+            echo "smoke_notes must describe the Simulator device, OS, and checked flows." >&2
+            exit 1
+          fi
+
+      - name: Collect L1 iOS evidence
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          SMOKE_NOTES: ${{ inputs.smoke_notes }}
+        run: |
+          docs/migration/collect-ios-macos-evidence.sh \
+            --simulator-smoke-pass \
+            --smoke-notes "$SMOKE_NOTES"
+
+      - name: Upload L1 iOS evidence
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-macos-link-and-simulator
+          path: docs/migration/evidence/ios-macos-link-and-simulator.md

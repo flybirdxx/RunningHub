@@ -24,9 +24,9 @@ function Resolve-AdbSerial {
         return $RequestedSerial
     }
 
-    $deviceLines = adb devices |
+    $deviceLines = @(adb devices |
         Select-Object -Skip 1 |
-        Where-Object { $_ -match "\sdevice$" }
+        Where-Object { $_ -match "\sdevice$" })
 
     if ($deviceLines.Count -eq 0) {
         throw "No adb device is available. Start an AVD or connect a device first."
@@ -76,7 +76,7 @@ function Get-NetworkObservationSummary {
     param(
         [object[]] $Samples,
         [int] $WindowSeconds,
-        [datetime] $ReferenceTime = (Get-Date)
+        [datetime] $ReferenceTime = [datetime]::MinValue
     )
 
     if ($Samples.Count -eq 0) {
@@ -85,6 +85,9 @@ function Get-NetworkObservationSummary {
 
     $firstSample = $Samples[0]
     $lastSample = $Samples[$Samples.Count - 1]
+    if ($ReferenceTime -eq [datetime]::MinValue) {
+        $ReferenceTime = $lastSample.CapturedAt
+    }
     $stableStartTime = $ReferenceTime.AddSeconds(-$WindowSeconds)
     $stableSamples = @($Samples | Where-Object { $_.CapturedAt -ge $stableStartTime })
     if ($stableSamples.Count -eq 0) {
