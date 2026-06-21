@@ -1,6 +1,4 @@
 # 迁移期既有超大 commonMain Kotlin 文件。
 # 新增文件超过 800 行时不应加入本 allowlist，应优先拆分到 Feature Presentation、Coordinator、StateHolder 或子组件。
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/create/CreateScreen.kt
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/create/CreateScreenModel.kt
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/detail/AppDetailScreen.kt
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/discovery/DiscoveryScreen.kt

@@ -45,7 +45,7 @@
 | Discovery | 满足 | 已依赖窄 `WebAppCatalogRepository`，协议值收敛到 Domain 类型，状态契约与旧响应隔离已有测试 |
 | QuickCreate Presentation | 较好 | ScreenModel 已变为门面，Coordinator/StateHolder/Interactor 已拆分 |
 | QuickCreate Data | 部分满足 | Data 模块已脱离 `shared`，裸 `println` 和可空 `AuthRepository` 已清理；完整拆分多个实现类可延后到 L1 后 |
-| 创作入口唯一性 | 满足 | 生产创作入口已统一到 `QuickCreateVoyagerScreen`，旧 `CreateScreenModel` 已从生产 Koin 图移除 |
+| 创作入口唯一性 | 满足 | 生产创作入口已统一到 `QuickCreateVoyagerScreen`，旧 Create 页面和旧创作 ScreenModel 已从 composeApp 删除 |
 | Shared 退役 | 部分满足 | `shared` 已定义为迁移期兼容模块并由 baseline/allowlist 阻止增长；剩余 Audio、ModelCatalog、ModelInvocation 和旧兼容文件已登记归属与删除条件 |
 | 测试 | 部分满足 | Auth、network、QuickCreate 已有关键测试，远端 CI 已开始覆盖 L1 入口，但测试矩阵仍需继续补齐 |
 | CI | 部分满足 | 当前 HEAD 已有 Android CI 与 iOS CI completed/success 运行证据；macOS iOS link/Simulator 因当前环境不可用已按用户要求留存 skipped Markdown 证据 |
@@ -173,7 +173,7 @@ CI 应拒绝：
 
 - 根 `App` 是唯一执行 Main/Login 根页面切换的位置，登录页和个人中心注销不再直接替换根导航。
 - 主导航创作 Tab 已统一到 `QuickCreateVoyagerScreen`。
-- 旧 `CreateScreenModel` 已从生产 Koin 图移除，生产创作状态机收敛到 QuickCreate。
+- 旧 Create 页面和旧创作 ScreenModel 已从 composeApp 删除，生产创作状态机收敛到 QuickCreate。
 
 ---
 

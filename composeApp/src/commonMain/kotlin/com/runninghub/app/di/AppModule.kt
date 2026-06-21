@@ -31,8 +31,8 @@ val appModule = module {
 
     factoryOf(::DiscoveryScreenModel)
     factoryOf(::CommunityScreenModel)
-    // AC-03：旧 CreateScreenModel 不再注册到生产 Koin 图，避免与 QuickCreateScreenModel
-    // 同时成为可启动的创作状态机。源码暂留用于迁移对照；正式删除需等创作入口回归完成。
+    // AC-03：历史创作状态机已从生产源码退役，组合根只保留当前 QuickCreate 创作入口。
+    // 这样可以避免两个创作流程同时请求模型、计费、上传或轮询任务。
     factoryOf(::PlazaScreenModel)
     factoryOf(::ProfileScreenModel)
     factoryOf(::SearchScreenModel)

@@ -58,7 +58,7 @@ gate_status:
     status: "completed"
     completed:
       - "创作 Tab 已改为只挂载 QuickCreateVoyagerScreen。"
-      - "CreateScreenModel 已从生产 Koin 图移除，旧 Create 页面源码仅作为迁移期对照保留。"
+      - "旧 Create 页面、旧创作 ScreenModel 和对应测试已从 composeApp 删除，生产创作入口只保留 QuickCreateVoyagerScreen。"
       - "登录页已移除 loginSuccess 直接导航，登录成功只通过 SessionManager 驱动根入口切换。"
       - "登录页已移除游客直进主页面按钮，避免绕过会话事实来源。"
       - "个人中心注销已移除直接 navigator.replaceAll(LoginVoyagerScreen())，注销只调用 AuthRepository 并由 SessionManager 驱动根导航清栈。"
@@ -94,7 +94,7 @@ gate_status:
   Gate F QuickCreate:
     status: "completed"
     completed:
-      - "创作 Tab 已统一到 QuickCreateVoyagerScreen，旧 CreateScreenModel 已从生产 Koin 图移除。"
+      - "创作 Tab 已统一到 QuickCreateVoyagerScreen，旧 Create 页面和旧创作 ScreenModel 已从 composeApp 删除。"
       - "QuickCreateScreenModel 保持生命周期和 UI Action 门面，页面编排继续由 QuickCreateCoordinator、StateHolder 和 Interactor 承担。"
       - "feature:quickcreate:data 已移除对 shared 的 Gradle 依赖。"
       - "通用历史 shared 适配器已迁移到 composeApp 组合层，QuickCreate Data 不再直接引用 shared 历史仓库。"
@@ -114,7 +114,7 @@ gate_status:
       - "QuickCreate 非任务状态 Data 本地兜底文案已迁移为 QuickCreateRepositoryIssueCode 与 QuickCreateRepositoryException，历史、项目、灵感、模型、上传和计费预览的最终展示文案由 Presentation 统一映射。"
       - "QuickCreate 计费预览和正式提交已通过请求指纹绑定：预览成功后写入 feePreviewRequestKey，生成前按最终提交请求重新计算并比对；上传完成但未重新计费的请求会被“价格待确认”拦截。"
       - "QuickCreateTaskPollingController 收到 Queuing 后触发草稿清理，QuickCreateScreenModelTest 已覆盖成功提交后内存草稿入口和持久草稿均被清理。"
-      - "composeApp commonMain 与 feature/quickcreate 源码已移除裸 println；QuickCreate 上传失败和旧 Create 计费预览失败不再向控制台输出异常细节。"
+      - "composeApp commonMain 与 feature/quickcreate 源码已移除裸 println；QuickCreate 上传失败不再向控制台输出异常细节。"
       - "Android 退出登录后 Login 根页面空闲观察已由 android-logout-network.json 证明稳定窗口内无新增请求和 in-flight 请求。"
       - "macOS iOS Simulator 运行路径按用户确认留存 overallResult=skipped 证据，并由 checkL1SealEvidence 作为 L1 风险记录校验通过；真实 pass 证据留待 macOS 环境补验。"
     remaining: []
@@ -220,7 +220,7 @@ gate_status:
       - "根工程新增 verifyL1UnitTests、verifyL1Android、verifyL1Ios 和 verifyL1Local 聚合任务，分别收敛单元测试、Android CI、iOS CI 和本地总门禁；本地执行已通过。"
       - "根工程新增 checkL1CiWorkflows，校验 Android/iOS workflow 文件存在，并检查 PR/push 触发、JDK 17、chmod gradlew、runner 和 verifyL1Android/verifyL1Ios 调用。"
       - "根工程新增 checkL1SealEvidence，作为最终封板前的手动外部证据校验入口；该任务要求 Android GitHub Actions、iOS GitHub Actions、Android 登录态 Tab 网络观察、Android 退出登录网络观察、macOS iOS link/Simulator 五个证据文件存在、对应当前 Git HEAD，仓库没有未暂存差异，且已暂存差异仅限这五个外部证据文件；本轮已加固为结构化 JSON 校验，GitHub Actions 证据必须包含目标 workflow 的 completed/success 运行、非空 databaseId/headSha/url，且 Android/iOS CI 的 headSha 必须一致并等于当前 Git HEAD；Android 网络观察证据必须满足 debug 包名、非空 operationNotes、durationSeconds >= 120、stableWindowSeconds >= 30、pass_candidate、样本数大于 0、sampleCount 与 samples.size 一致、stableWindowSampleCount 允许 1 个 adb/logcat 调度抖动样本缺口、稳定窗口 started 增量和最大 inFlight 均为 0；macOS iOS link/Simulator 证据必须包含非空 capturedAt、等于当前 Git HEAD 的 headSha、包含 Darwin 的 host、固定 linkCommand 和非空 Simulator 冒烟说明；所有外部证据还会扫描常见凭据形态，避免 Authorization、Cookie、Token、API Key、私钥或请求 Body 进入 Git 索引。"
-      - "本轮按复核建议隔离旧 Create 页面：CreateVoyagerScreen 已收窄为 internal 并标记 DeprecationLevel.ERROR；checkArchitectureBoundaries 会拒绝移除该 ERROR 级废弃标记或在其他生产 commonMain 文件重新构造旧入口。"
+      - "本轮按复核建议删除旧 Create 兼容实现：旧页面、旧 ScreenModel 和旧测试已退役；checkArchitectureBoundaries 会拒绝生产 commonMain 重新引用旧创作入口或旧状态机。"
       - "本轮按复核建议移除 TokenRefresher 的刷新响应正则解析，改用 kotlinx.serialization DTO 解码 access_token 与 refresh_token；checkArchitectureBoundaries 会拒绝在 TokenRefresher.kt 中重新引入 Regex/toRegex。"
       - "docs/migration/collect-github-actions-evidence.ps1 已沉淀为远端 CI 证据采集脚本，提交推送后分别生成 github-actions-android.json 与 github-actions-ios.json；默认绑定当前 Git HEAD，也可通过 -HeadSha 显式绑定目标提交；本轮继续加固脚本写入后的断言，要求 databaseId、headSha 和 url 均为非空字段，且 Android/iOS CI 的 headSha 必须一致；脚本新增显式 -Wait/-WaitTimeoutSeconds/-PollSeconds，便于封板补证时等待目标 HEAD 的远端 run 完成。"
       - "docs/migration/collect-ios-macos-evidence.sh 已沉淀为 macOS iOS link/Simulator 证据采集脚本，只在 macOS 上运行，且必须显式传入 --simulator-smoke-pass 和非空 --smoke-notes 才能生成 simulatorSmokeResult: pass；脚本会记录当前 Git HEAD，最终封板检查会拒绝旧提交证据。"
@@ -241,9 +241,19 @@ gate_status:
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：Audio/Model Data 错误语义已收口为稳定错误码，下一步优先收敛旧 Create 兼容边界或 QuickCreate composeApp UI shell；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：旧 Create 兼容实现已从 composeApp 删除，下一步优先将 Search 状态机迁入 feature:discovery:presentation，CreatorProfile 作为后续候选；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/create/CreateScreen.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/create/CreateScreenModel.kt"
+    - "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/create/CreateScreenModelTest.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/di/AppModule.kt"
+    - "build.gradle.kts"
+    - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/governance/composeapp-file-size-allowlist.txt"
+    - "doc/RunningHub-KMP-架构迁移验收标准.md"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
     - "feature/audio/domain/src/commonMain/kotlin/com/runninghub/feature/audio/domain/AudioGeneration.kt"
     - "feature/audio/data/src/commonMain/kotlin/com/runninghub/feature/audio/data/repository/AudioRepositoryImpl.kt"
     - "feature/audio/data/src/commonTest/kotlin/com/runninghub/feature/audio/data/repository/AudioRepositoryImplTest.kt"
@@ -494,6 +504,9 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "rg -n \"\\bCreateVoyagerScreen\\b|\\bCreateScreenModel\\b\" composeApp/src/commonMain composeApp/src/commonTest feature -g \"*.kt\""
+    - "./gradlew.bat --console=plain checkArchitectureBoundaries :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.navigation.MainTabScreenRegistryTest\" :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64"
+    - "./gradlew.bat --console=plain checkLongTermGovernance"
     - "./gradlew.bat --console=plain :feature:audio:data:testDebugUnitTest --tests \"com.runninghub.feature.audio.data.repository.AudioRepositoryImplTest\""
     - "./gradlew.bat --console=plain :feature:model:data:testDebugUnitTest --tests \"com.runninghub.feature.model.data.repository.ModelInvocationRepositoryImplTest\""
     - "./gradlew.bat --console=plain :feature:audio:data:testDebugUnitTest :feature:model:data:testDebugUnitTest"
@@ -850,6 +863,9 @@ last_verification:
     - "L1 本地修复和 Windows 可执行门禁已完成；最终封板仍等待提交后按新 HEAD 重新采集外部证据，并由 checkL1SealEvidence 校验通过。"
     - "Gate J 本轮按复核建议补强 iOS CI Native Test 覆盖；workflow 会在 macOS runner 上额外运行 core:network、feature:auth:domain、feature:auth:data 和 feature:quickcreate:presentation 的 iosSimulatorArm64Test，checkL1CiWorkflows 已纳入防退化检查。"
     - "Gate J/旧 Create 隔离本轮继续加固：旧 CreateVoyagerScreen 已变为 internal 且 ERROR 级废弃，架构门禁会阻止其他生产 commonMain 文件重新构造旧创作入口。"
+    - "2026-06-22 旧 Create 兼容边界完成退役：删除 composeApp 中旧 Create 页面、旧创作 ScreenModel 和对应旧测试；checkArchitectureBoundaries 从保留 ERROR 级废弃标记改为禁止生产 commonMain 重新引用旧入口或旧状态机。"
+    - "2026-06-22 旧 Create 退役同步清理治理基线：ui-copy-hardcoded-baseline 和 composeapp-file-size-allowlist 不再登记已删除文件，避免长期治理门禁继续指向不存在的兼容实现。"
+    - "2026-06-22 下一步中期候选更新：Search 仍是生产可达 composeApp 状态机，依赖单一 WebAppCatalogRepository，适合作为下一轮迁入 feature:discovery:presentation 的小中范围任务；CreatorProfile 因跨 Auth/Discovery 两个领域，排在 Search 之后。"
     - "P0-4 图形验证码本轮继续补强：TAC 脚本加载失败和超时会显示可重试降级状态，并由 SmsCaptchaHtmlTest 锁定；真实 WKWebView 加载、ATS/Cookie/同源行为仍需 macOS/iOS 运行证据。"
     - "网络 JSON 本轮按复核建议补强：TokenRefresher 不再用正则截取刷新响应，改用 kotlinx.serialization DTO 解码，新增测试覆盖 JSON unicode escape token。"
     - "安全存储本轮按复核建议前置修复：生产 CredentialStore 已切换到 Android Keystore backed 密文存储和 iOS Keychain，MigratingCredentialStore 负责把旧 Preferences DataStore 凭据逐项迁移并清理；架构门禁会阻止 Android/iOS RuntimeModule 退回普通 Preferences 绑定。"

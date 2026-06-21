@@ -359,21 +359,12 @@ tasks.register("checkArchitectureBoundaries") {
                 ) {
                     addViolation(file, null, "constructs root Voyager screen outside App root navigation.")
                 }
-                val legacyCreateScreen =
-                    "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/create/CreateScreen.kt"
-                if (
-                    relative == legacyCreateScreen &&
-                    ("@Deprecated(" !in text || "level = DeprecationLevel.ERROR" !in text)
-                ) {
-                    // 旧 Create 页面仅允许作为迁移对照保留；ERROR 级废弃标记是防止它回到生产入口的编译期护栏。
-                    addViolation(file, null, "legacy CreateVoyagerScreen must keep ERROR-level deprecation.")
-                }
                 if (
                     relative.startsWith("composeApp/src/commonMain/kotlin/") &&
-                    relative != legacyCreateScreen &&
-                    Regex("""\bCreateVoyagerScreen\s*\(""").containsMatchIn(text)
+                    Regex("""\b(CreateVoyagerScreen|CreateScreenModel)\b""").containsMatchIn(text)
                 ) {
-                    addViolation(file, null, "constructs legacy CreateVoyagerScreen outside its isolated migration file.")
+                    // 旧创作页状态机已经退役；生产源码中重新出现这些类型名，通常表示第二套创作入口被接回。
+                    addViolation(file, null, "references retired legacy Create screen or state machine.")
                 }
                 if (
                     relative == "core/network/src/commonMain/kotlin/com/runninghub/core/network/auth/TokenRefresher.kt" &&
