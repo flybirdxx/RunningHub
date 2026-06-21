@@ -36,6 +36,9 @@ Gate J 补证脚本说明：`docs/migration/collect-github-actions-evidence.ps1`
 Gate J 长期治理补充：`checkLongTermGovernance` 已继续纳入 Android Keystore、iOS Keychain、
 `MigratingCredentialStore` 和双端 runtime module 凭据绑定检查，防止 `CredentialStore`
 退回普通 Preferences；旧凭据只能按字段懒迁移，不能误删余额缓存或快捷创作草稿。
+Feature Presentation 阈值基线已移除 stale 的 `create` 和 `discovery` 条目：
+`create` 当前没有遗留 Kotlin UI 文件，`discovery` 已具备 `feature:discovery:presentation` 模块；
+插件文档片段检查同步收窄到仍有效的 history、login、plaza、profile 基线。
 本轮继续把已迁移 Feature Data 的服务端错误消息收口扩展为全量门禁：`feature/*/data`
 不得把服务端 `msg/message` 直接作为异常消息或 QuickCreate 任务状态错误传播；
 Task Data、QuickCreate Data、QuickCreate Presentation 和 composeApp 相关测试已覆盖该边界。

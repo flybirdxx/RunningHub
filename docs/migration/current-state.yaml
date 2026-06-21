@@ -262,6 +262,7 @@ gate_status:
       - "2026-06-22 P8 PlazaScreen 文案资源化继续收缩：页面标题、搜索/刷新无障碍描述、排序/模式/分类标签、空态/分页、精选徽标、卡片兜底标题/归属、喜欢/使用计数格式和原乱码筛选标签迁入 composeApp commonMain Compose Resources；PlazaScreen 硬编码 UI 文案基线从 5 下调为 0。服务端标签名、卡片标题、作者、媒体类型和错误文案仍保持运行时或 Presentation 数据。"
       - "2026-06-22 P8 QuickCreate 运行时文案端口继续收口：生成提交、价格确认/待确认、重复生成、素材上传等待、上传失败和超时文案从 composeApp 的生成/上传协调器迁入 feature:quickcreate:presentation 的 QuickCreateRuntimeUiText；QuickCreateGenerationInteractor 与 QuickCreateMediaUploadCoordinator 的 composeApp 硬编码 UI 文案基线均从 1 下调为 0。QuickCreateRuntimeUiText 作为中期 Presentation 文案端口登记 8 个基线，后续随 QuickCreate UI 边界迁移接入 Compose Resources 或注入式 TextProvider。"
       - "2026-06-22 P8 QuickCreate AdaptivePromptTextField 扫描误报收缩：右下角字数展示从字符串模板改为 charCount.toString()，确认该值是运行时动态数字而非固定 UI 文案；对应硬编码 UI 文案基线从 1 下调为 0，并补充组件 KDoc 说明文案来源和字数状态边界。"
+      - "2026-06-22 P5 Feature Presentation 阈值基线清账：移除 stale 的 create 与 discovery 条目；create 当前没有遗留 Kotlin UI 文件，discovery 已有 feature:discovery:presentation，不再需要无 Presentation 模块的大体量 UI 例外。LongTermGovernancePlugin 的文档片段检查同步收窄到仍有效的 history、login、plaza、profile 基线。"
     remaining: []
 next_action:
   id: "MID-02"
@@ -273,6 +274,8 @@ last_verification:
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateGenerationInteractor.kt"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateMediaUploadCoordinator.kt"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/AdaptivePromptTextField.kt"
+    - "build-logic/src/main/kotlin/com/runninghub/buildlogic/LongTermGovernancePlugin.kt"
+    - "docs/governance/feature-presentation-thresholds.txt"
     - "docs/governance/ui-copy-hardcoded-baseline.txt"
     - "docs/migration/acceptance.md"
     - "docs/migration/current-state.yaml"
@@ -680,6 +683,8 @@ last_verification:
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering AdaptivePromptTextField hardcoded UI copy baseline from 1 to 0 before replacing the dynamic char count string template"
     - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkLongTermGovernance"
     - "./gradlew.bat --console=plain :composeApp:assembleDebug"
+    - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after removing stale create/discovery feature-presentation thresholds before narrowing the plugin document snippet requirements"
+    - "./gradlew.bat --console=plain checkLongTermGovernance"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering PlazaScreen hardcoded UI copy baseline from 5 to 0 before resource migration"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: PlazaScreen UI shell line count reached 805 after resource import before registering the migration threshold baseline"
     - "./gradlew.bat --console=plain checkLongTermGovernance"
