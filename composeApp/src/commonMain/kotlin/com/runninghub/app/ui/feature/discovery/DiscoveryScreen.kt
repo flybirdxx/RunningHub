@@ -104,7 +104,6 @@ import com.runninghub.core.model.TagSimple
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogSort
 import com.runninghub.feature.discovery.presentation.DiscoveryUiState
-import com.runninghub.feature.discovery.presentation.label
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -125,6 +124,10 @@ import runninghub.composeapp.generated.resources.discovery_search_content_descri
 import runninghub.composeapp.generated.resources.discovery_search_empty_results_format
 import runninghub.composeapp.generated.resources.discovery_search_results_title
 import runninghub.composeapp.generated.resources.discovery_sort_content_description
+import runninghub.composeapp.generated.resources.discovery_sort_hottest
+import runninghub.composeapp.generated.resources.discovery_sort_newest
+import runninghub.composeapp.generated.resources.discovery_sort_recommend
+import runninghub.composeapp.generated.resources.discovery_sort_reputation
 import runninghub.composeapp.generated.resources.discovery_use_stat_content_description
 import runninghub.composeapp.generated.resources.discovery_view_stat_content_description
 
@@ -917,7 +920,11 @@ private fun SortRow(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(selectedSort.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = catalogSortLabel(selectedSort),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Icon(
                     Icons.Default.KeyboardArrowDown,
                     contentDescription = stringResource(Res.string.discovery_sort_content_description),
@@ -931,7 +938,12 @@ private fun SortRow(
             ) {
                 CatalogSort.entries.forEach { option ->
                     DropdownMenuItem(
-                        text = { Text(option.label, style = MaterialTheme.typography.bodyMedium) },
+                        text = {
+                            Text(
+                                text = catalogSortLabel(option),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        },
                         onClick = {
                             onSortSelected(option)
                             expanded = false
@@ -941,6 +953,23 @@ private fun SortRow(
             }
         }
     }
+}
+
+/**
+ * 将发现页排序枚举映射为 Compose Resources 文案。
+ *
+ * 排序语义仍由 Domain 层 [CatalogSort] 表达，UI 只在最终渲染前选择本地化文案，
+ * 避免独立 Presentation 模块继续持有用户可见固定字符串。
+ */
+@Composable
+private fun catalogSortLabel(sort: CatalogSort): String {
+    val resource = when (sort) {
+        CatalogSort.RECOMMEND -> Res.string.discovery_sort_recommend
+        CatalogSort.REPUTATION -> Res.string.discovery_sort_reputation
+        CatalogSort.HOTTEST -> Res.string.discovery_sort_hottest
+        CatalogSort.NEWEST -> Res.string.discovery_sort_newest
+    }
+    return stringResource(resource)
 }
 
 // endregion

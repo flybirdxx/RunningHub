@@ -264,6 +264,7 @@ gate_status:
       - "2026-06-22 P8 QuickCreate AdaptivePromptTextField 扫描误报收缩：右下角字数展示从字符串模板改为 charCount.toString()，确认该值是运行时动态数字而非固定 UI 文案；对应硬编码 UI 文案基线从 1 下调为 0，并补充组件 KDoc 说明文案来源和字数状态边界。"
       - "2026-06-22 P5 Feature Presentation 阈值基线清账：移除 stale 的 create 与 discovery 条目；create 当前没有遗留 Kotlin UI 文件，discovery 已有 feature:discovery:presentation，不再需要无 Presentation 模块的大体量 UI 例外。LongTermGovernancePlugin 的文档片段检查同步收窄到仍有效的 history、login、plaza、profile 基线。"
       - "2026-06-22 P7 数据库契约基线清账：确认 RunningHubDatabase/DiscoveryCache 仅剩 shared 构建和治理基线引用，无生产调用点；删除未使用的 DiscoveryCache.sq，移除 shared SQLDelight 插件与驱动依赖，清理 Version Catalog/根插件声明中的 SQLDelight 条目，并把 checkDatabaseContractBaseline 改为不再允许 legacy-debt。当前仓库没有生产 SQLDelight schema，后续新增 .sq/.sqm 必须登记真实数据库契约或 migration 测试。"
+      - "2026-06-22 P8 Discovery 排序标签资源化继续收缩：发现页排序下拉的推荐/口碑/最热/最新固定标签从 feature:discovery:presentation 的 CatalogSort.label 扩展迁入 composeApp commonMain Compose Resources；DiscoveryStateHolder 不再持有排序展示文案，硬编码 UI 文案基线从 7 下调为 3，剩余项为目录错误兜底文案。"
     remaining: []
 next_action:
   id: "MID-02"
@@ -280,6 +281,9 @@ last_verification:
     - "gradle/libs.versions.toml"
     - "shared/build.gradle.kts"
     - "shared/src/commonMain/sqldelight/com/runninghub/shared/db/DiscoveryCache.sq"
+    - "composeApp/src/commonMain/composeResources/values/strings.xml"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/discovery/DiscoveryScreen.kt"
+    - "feature/discovery/presentation/src/commonMain/kotlin/com/runninghub/feature/discovery/presentation/DiscoveryStateHolder.kt"
     - "docs/governance/api-and-database-contract-tests.md"
     - "docs/governance/database-contract-test-baseline.txt"
     - "docs/governance/feature-presentation-thresholds.txt"
@@ -697,6 +701,9 @@ last_verification:
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after removing DiscoveryCache.sq from database-contract-test-baseline before deleting the stale schema and narrowing the plugin document snippet requirements"
     - "./gradlew.bat --console=plain :shared:compileDebugKotlinAndroid :shared:compileKotlinIosSimulatorArm64 checkLongTermGovernance checkArchitectureBoundaries # RED: checkArchitectureBoundaries failed before staging the deleted shared DiscoveryCache.sq, because shared ownership is checked against the Git index"
     - "./gradlew.bat --console=plain :shared:compileDebugKotlinAndroid :shared:compileKotlinIosSimulatorArm64 checkLongTermGovernance checkArchitectureBoundaries"
+    - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering DiscoveryStateHolder hardcoded UI copy baseline from 7 to 3 before moving CatalogSort labels to Compose Resources"
+    - "./gradlew.bat --console=plain :feature:discovery:presentation:testDebugUnitTest --tests \"com.runninghub.feature.discovery.presentation.DiscoveryStateHolderTest\" --tests \"com.runninghub.feature.discovery.presentation.SearchStateHolderTest\" :composeApp:assembleDebug checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering PlazaScreen hardcoded UI copy baseline from 5 to 0 before resource migration"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: PlazaScreen UI shell line count reached 805 after resource import before registering the migration threshold baseline"
     - "./gradlew.bat --console=plain checkLongTermGovernance"

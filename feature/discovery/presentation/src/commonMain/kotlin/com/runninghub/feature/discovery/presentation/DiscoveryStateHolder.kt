@@ -14,20 +14,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * 发现页列表排序展示名称。
- *
- * 排序本身由 Domain 层 [CatalogSort] 表达，Presentation 只负责把稳定业务排序映射为用户可见文案。
- * 这样 UI 不再持有远端 API 排序字符串，后续接口协议变化只需要调整 Data 映射。
- */
-val CatalogSort.label: String
-    get() = when (this) {
-        CatalogSort.RECOMMEND -> "推荐"
-        CatalogSort.REPUTATION -> "口碑"
-        CatalogSort.HOTTEST -> "最热"
-        CatalogSort.NEWEST -> "最新"
-    }
-
-/**
  * 发现页的完整可渲染状态。
  *
  * 状态由 [DiscoveryStateHolder] 维护，只保存目录浏览、分页和搜索所需的 UI 派生状态。

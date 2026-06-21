@@ -258,6 +258,10 @@
     <string name="discovery_category_all">全部</string>
     <string name="discovery_all_apps_title">全部应用</string>
     <string name="discovery_sort_content_description">排序</string>
+    <string name="discovery_sort_recommend">推荐</string>
+    <string name="discovery_sort_reputation">口碑</string>
+    <string name="discovery_sort_hottest">最热</string>
+    <string name="discovery_sort_newest">最新</string>
     <string name="discovery_default_author_name">RunningHub</string>
     <string name="discovery_collect_stat_content_description">收藏</string>
     <string name="discovery_use_stat_content_description">使用</string>
