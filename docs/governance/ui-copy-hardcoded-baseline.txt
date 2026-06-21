@@ -17,7 +17,6 @@ composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/detail/AppDetailS
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/discovery/DiscoveryScreen.kt|11|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/TaskHistoryScreen.kt|14|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/login/LoginScreen.kt|8|legacy hardcoded UI copy baseline
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/login/LoginScreenModel.kt|10|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/plaza/PlazaScreen.kt|5|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/ProfileScreen.kt|2|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/SettingsDialog.kt|14|legacy hardcoded UI copy baseline
@@ -51,6 +50,7 @@ feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/qu
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/result/QuickCreateTaskStatusUi.kt|4|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/state/QuickCreateNavigationState.kt|4|presentation hardcoded UI copy baseline
 feature/task/presentation/src/commonMain/kotlin/com/runninghub/feature/task/presentation/TaskHistoryStateHolder.kt|10|presentation hardcoded UI copy baseline; move to Compose Resources or a text provider after History UI leaves composeApp
+feature/auth/presentation/src/commonMain/kotlin/com/runninghub/feature/auth/presentation/login/LoginStateHolder.kt|21|presentation hardcoded UI copy baseline; move to Compose Resources or a text provider after Login UI leaves composeApp
 feature/auth/presentation/src/commonMain/kotlin/com/runninghub/feature/auth/presentation/profile/ProfileStateHolder.kt|2|presentation hardcoded UI copy baseline; move to Compose Resources or a text provider after Profile UI leaves composeApp
 feature/discovery/presentation/src/commonMain/kotlin/com/runninghub/feature/discovery/presentation/CatalogErrorMessages.kt|2|presentation hardcoded UI copy baseline; move to Compose Resources or a text provider after Discovery UI leaves composeApp
 feature/discovery/presentation/src/commonMain/kotlin/com/runninghub/feature/discovery/presentation/DiscoveryStateHolder.kt|7|presentation hardcoded UI copy baseline; move to Compose Resources or a text provider after Discovery UI leaves composeApp
