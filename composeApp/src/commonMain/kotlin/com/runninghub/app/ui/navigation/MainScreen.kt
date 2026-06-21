@@ -64,7 +64,17 @@ import com.runninghub.app.ui.theme.RhAppMuted
 import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.feature.auth.domain.GetLastKnownBalanceUseCase
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.main_navigation_credit_icon
+import runninghub.composeapp.generated.resources.main_navigation_guest_mode_dismiss
+import runninghub.composeapp.generated.resources.main_navigation_guest_mode_message
+import runninghub.composeapp.generated.resources.main_navigation_tab_discovery
+import runninghub.composeapp.generated.resources.main_navigation_tab_history
+import runninghub.composeapp.generated.resources.main_navigation_tab_profile
+import runninghub.composeapp.generated.resources.main_navigation_tab_quick_create
+import runninghub.composeapp.generated.resources.main_navigation_tab_studio
 
 /**
  * 主导航可切换的一级 Tab。
@@ -73,25 +83,30 @@ import org.koin.compose.koinInject
  * Composition。这样可以保留明确的状态所有权，同时避免不可见页面继续执行轮询、上传或自动刷新。
  */
 enum class BottomNavTab(
-    val label: String,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
 ) {
-    Discovery("鍙戠幇", Icons.Filled.Explore, Icons.Outlined.Explore),
-    QuickCreate("鍒涗綔", Icons.Filled.Star, Icons.Outlined.Star),
-    Studio("宸ュ潑", Icons.Filled.Build, Icons.Outlined.Build),
-    History("History", Icons.Filled.History, Icons.Outlined.History),
-    Profile("鎴戠殑", Icons.Filled.Person, Icons.Outlined.Person),
+    Discovery(Icons.Filled.Explore, Icons.Outlined.Explore),
+    QuickCreate(Icons.Filled.Star, Icons.Outlined.Star),
+    Studio(Icons.Filled.Build, Icons.Outlined.Build),
+    History(Icons.Filled.History, Icons.Outlined.History),
+    Profile(Icons.Filled.Person, Icons.Outlined.Person),
 }
 
-private val BottomNavTab.displayLabel: String
-    get() = when (this) {
-        BottomNavTab.Discovery -> "Discover"
-        BottomNavTab.QuickCreate -> "Create"
-        BottomNavTab.Studio -> "Plaza"
-        BottomNavTab.History -> "History"
-        BottomNavTab.Profile -> "Profile"
-    }
+/**
+ * 返回主导航 Tab 的用户可见标签。
+ *
+ * 标签同时用于底部导航、宽屏侧边栏和图标无障碍描述，因此统一从 Compose Resources
+ * 读取，避免不同导航形态出现文案漂移。
+ */
+@Composable
+private fun BottomNavTab.displayLabel(): String = when (this) {
+    BottomNavTab.Discovery -> stringResource(Res.string.main_navigation_tab_discovery)
+    BottomNavTab.QuickCreate -> stringResource(Res.string.main_navigation_tab_quick_create)
+    BottomNavTab.Studio -> stringResource(Res.string.main_navigation_tab_studio)
+    BottomNavTab.History -> stringResource(Res.string.main_navigation_tab_history)
+    BottomNavTab.Profile -> stringResource(Res.string.main_navigation_tab_profile)
+}
 
 /**
  * 持有主导航一级 Tab 对应的 Voyager Screen 实例。
@@ -145,7 +160,7 @@ class MainVoyagerScreen : Screen {
 
         val sizeClass = rememberWindowSizeClass()
 
-        // Guest mode banner (dismissible)
+        // 访客模式横幅目前默认不展示；保留可关闭结构，后续接入游客态时不需要再改导航壳布局。
         var showGuestBanner by rememberSaveable { mutableStateOf(false) }
         if (showGuestBanner) {
             Row(
@@ -156,13 +171,13 @@ class MainVoyagerScreen : Screen {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Guest mode: some features are limited",
+                    text = stringResource(Res.string.main_navigation_guest_mode_message),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
-                    text = "OK",
+                    text = stringResource(Res.string.main_navigation_guest_mode_dismiss),
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier
                         .clickable { showGuestBanner = false }
@@ -172,20 +187,21 @@ class MainVoyagerScreen : Screen {
         }
 
         if (sizeClass.isWide) {
-            // Expanded / Large: sidebar rail (iOS sidebar style)
+            // 宽屏使用侧边导航，避免底部 Tab 在横向空间充足时占用内容高度。
             Row(modifier = Modifier.fillMaxSize()) {
                 NavigationRail {
                     BottomNavTab.entries.forEach { tab ->
+                        val tabLabel = tab.displayLabel()
                         NavigationRailItem(
                             selected = selectedTab == tab,
                             onClick = { selectedTab = tab },
                             icon = {
                                 Icon(
                                     imageVector = if (selectedTab == tab) tab.selectedIcon else tab.unselectedIcon,
-                                    contentDescription = tab.displayLabel,
+                                    contentDescription = tabLabel,
                                 )
                             },
-                            label = { Text(tab.displayLabel) },
+                            label = { Text(tabLabel) },
                             colors = NavigationRailItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -203,7 +219,7 @@ class MainVoyagerScreen : Screen {
                 }
             }
         } else {
-            // Compact / Medium: bottom tab bar
+            // 窄屏保持底部 Tab，匹配手机端单手切换的主要操作路径。
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 bottomBar = {
@@ -277,6 +293,7 @@ private fun CompactBottomBarItem(
 ) {
     val labelColor = if (selected) BrandLime else RhAppMuted
     val iconColor = if (selected) Color.Black else RhAppMuted
+    val tabLabel = tab.displayLabel()
 
     Column(
         modifier = modifier
@@ -296,13 +313,13 @@ private fun CompactBottomBarItem(
         ) {
             Icon(
                 imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                contentDescription = tab.displayLabel,
+                contentDescription = tabLabel,
                 tint = iconColor,
                 modifier = Modifier.size(20.dp),
             )
         }
         Text(
-            text = tab.displayLabel,
+            text = tabLabel,
             color = labelColor,
             fontSize = 11.sp,
             lineHeight = 12.sp,
@@ -329,7 +346,7 @@ private fun CreditIndicator(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "馃獧",
+                text = stringResource(Res.string.main_navigation_credit_icon),
                 fontSize = 14.sp,
             )
             Spacer(Modifier.width(4.dp))

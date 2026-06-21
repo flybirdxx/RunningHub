@@ -47,4 +47,12 @@
     <string name="permission_bottom_sheet_authorize">授权</string>
     <string name="permission_bottom_sheet_open_settings">权限已被拒绝，前往设置开启</string>
     <string name="permission_bottom_sheet_not_now">暂不需要</string>
+    <string name="main_navigation_tab_discovery">Discover</string>
+    <string name="main_navigation_tab_quick_create">Create</string>
+    <string name="main_navigation_tab_studio">Plaza</string>
+    <string name="main_navigation_tab_history">History</string>
+    <string name="main_navigation_tab_profile">Profile</string>
+    <string name="main_navigation_guest_mode_message">Guest mode: some features are limited</string>
+    <string name="main_navigation_guest_mode_dismiss">OK</string>
+    <string name="main_navigation_credit_icon">🪙</string>
 </resources>

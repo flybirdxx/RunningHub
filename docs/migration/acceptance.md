@@ -44,7 +44,9 @@ ErrorState、SmartAsyncImage、TaskProgressIndicator、ImageUploadButton 和 Per
 的静态文案、格式化单位/进度、状态徽标、步骤标签、权限弹窗操作文案和无障碍描述已迁入 commonMain Compose Resources，
 对应硬编码文案基线均下调为 0；
 QuickCreateModelSelectorContent 的面板标题、加载态、空态和关闭按钮无障碍描述也已迁入
-commonMain Compose Resources，基线从 1 下调为 0。本轮不补 CI、Release 或 L1 封板证据。
+commonMain Compose Resources，基线从 1 下调为 0。
+MainScreen 的一级 Tab 标签、guest banner 文案和余额角标符号也已迁入
+commonMain Compose Resources，基线从 3 下调为 0。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
 
