@@ -1,74 +1,23 @@
 package com.runninghub.app.ui.feature.community
 
 import cafe.adriel.voyager.core.model.ScreenModel
-import kotlinx.coroutines.flow.MutableStateFlow
+import com.runninghub.feature.community.presentation.CommunityStateHolder
+import com.runninghub.feature.community.presentation.CommunityUiState
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 
-data class CommunityTool(
-    val id: String,
-    val title: String,
-    val description: String,
-    val iconName: String,
-    val route: String
-)
-
-data class CommunityUiState(
-    val tools: List<CommunityTool> = emptyList(),
-    val isLoading: Boolean = false
-)
-
+/**
+ * 社区工具页 ScreenModel 门面。
+ *
+ * 静态工具目录和页面状态已迁入 Community Presentation 层的 [CommunityStateHolder]。
+ * 本类保留在 `composeApp`，只为 Voyager/Koin 提供 ScreenModel 入口，避免应用壳继续持有工具页状态模型。
+ */
 class CommunityScreenModel : ScreenModel {
+    private val stateHolder = CommunityStateHolder()
 
-    private val _uiState = MutableStateFlow(
-        CommunityUiState(
-            tools = defaultTools()
-        )
-    )
-    val uiState: StateFlow<CommunityUiState> = _uiState.asStateFlow()
-
-    private fun defaultTools(): List<CommunityTool> = listOf(
-        CommunityTool(
-            id = "audio_gen",
-            title = "音频生成",
-            description = "文本转语音、AI 音乐生成与音频处理",
-            iconName = "audiotrack",
-            route = "audio_generation"
-        ),
-        CommunityTool(
-            id = "steganography",
-            title = "隐写术解码",
-            description = "从图片中提取隐藏的秘密数据",
-            iconName = "visibility",
-            route = "secret_decode"
-        ),
-        CommunityTool(
-            id = "ui_inspector",
-            title = "UI 检视器",
-            description = "查看设备屏幕参数与系统信息",
-            iconName = "info",
-            route = "ui_inspector"
-        ),
-        CommunityTool(
-            id = "color_extract",
-            title = "色彩提取",
-            description = "从图片中提取配色方案与调色板",
-            iconName = "palette",
-            route = "color_extract"
-        ),
-        CommunityTool(
-            id = "smart_crop",
-            title = "智能裁切",
-            description = "自动识别主体智能裁切图片",
-            iconName = "crop",
-            route = "smart_crop"
-        ),
-        CommunityTool(
-            id = "workflow",
-            title = "工作流广场",
-            description = "探索和运行社区分享的工作流",
-            iconName = "hub",
-            route = "workflow_plaza"
-        )
-    )
+    /**
+     * 社区工具页只读状态流。
+     *
+     * UI 只收集该状态；工具点击后的真实导航仍由 `composeApp` 根据 route 处理。
+     */
+    val uiState: StateFlow<CommunityUiState> = stateHolder.uiState
 }
