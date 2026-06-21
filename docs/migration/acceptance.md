@@ -46,7 +46,11 @@ ErrorState、SmartAsyncImage、TaskProgressIndicator、ImageUploadButton 和 Per
 QuickCreateModelSelectorContent 的面板标题、加载态、空态和关闭按钮无障碍描述也已迁入
 commonMain Compose Resources，基线从 1 下调为 0。
 MainScreen 的一级 Tab 标签、guest banner 文案和余额角标符号也已迁入
-commonMain Compose Resources，基线从 3 下调为 0。本轮不补 CI、Release 或 L1 封板证据。
+commonMain Compose Resources，基线从 3 下调为 0。
+CreatorProfileScreen 的标题兜底、返回无障碍描述、作品区标题、空态、关注按钮、
+用户兜底名、统计标签、使用/点赞格式和指标分隔符也已迁入 commonMain Compose Resources，
+基线从 5 下调为 0；CreatorProfileStateHolder 的错误状态文案仍保留给后续 Presentation
+文案端口治理。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
 

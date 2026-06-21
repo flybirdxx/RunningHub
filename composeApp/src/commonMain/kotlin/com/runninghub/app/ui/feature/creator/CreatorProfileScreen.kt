@@ -68,8 +68,33 @@ import com.runninghub.app.ui.theme.RunningHubThemeExt
 import com.runninghub.core.model.User
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.auth.presentation.creator.CreatorProfileUiState
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.creator_profile_back_content_description
+import runninghub.composeapp.generated.resources.creator_profile_default_title
+import runninghub.composeapp.generated.resources.creator_profile_empty_apps
+import runninghub.composeapp.generated.resources.creator_profile_follow_action
+import runninghub.composeapp.generated.resources.creator_profile_following
+import runninghub.composeapp.generated.resources.creator_profile_like_count_format
+import runninghub.composeapp.generated.resources.creator_profile_metric_separator
+import runninghub.composeapp.generated.resources.creator_profile_published_apps_title
+import runninghub.composeapp.generated.resources.creator_profile_stat_fans
+import runninghub.composeapp.generated.resources.creator_profile_stat_following
+import runninghub.composeapp.generated.resources.creator_profile_stat_likes
+import runninghub.composeapp.generated.resources.creator_profile_unknown_user
+import runninghub.composeapp.generated.resources.creator_profile_use_count_format
 
+/**
+ * 创作者主页的 Voyager Screen。
+ *
+ * 该 Screen 属于应用壳层，负责把 Voyager 导航参数交给认证 Presentation 状态机，
+ * 并把作品点击继续转发到应用详情页；创作者资料加载、关注状态和作品列表去重等业务状态
+ * 已由 `feature:auth:presentation` 承担，避免页面直接持有 Data 实现。
+ *
+ * @property userId 服务端创作者用户 ID，来自上游页面导航参数。
+ * 空字符串不应由正常导航传入；该值会参与 ScreenKey 生成，并用于触发资料加载请求。
+ */
 data class CreatorProfileScreen(val userId: String) : Screen {
 
     override val key: ScreenKey get() = "CreatorProfile_$userId"
@@ -117,10 +142,17 @@ private fun ProfileScaffold(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(uiState.user?.nickName ?: "创作者") },
+                title = {
+                    Text(uiState.user?.nickName ?: stringResource(Res.string.creator_profile_default_title))
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(
+                                Res.string.creator_profile_back_content_description
+                            ),
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -160,7 +192,7 @@ private fun ProfileScaffold(
                 if (uiState.apps.isNotEmpty()) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Text(
-                            text = "发布的应用",
+                            text = stringResource(Res.string.creator_profile_published_apps_title),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onSurface,
                             modifier = Modifier.padding(vertical = Dimens.SpaceSM)
@@ -185,7 +217,7 @@ private fun ProfileScaffold(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "暂无作品",
+                                text = stringResource(Res.string.creator_profile_empty_apps),
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -207,9 +239,14 @@ private fun ProfileHeader(
     modifier: Modifier = Modifier
 ) {
     val extColors = RunningHubThemeExt.colors
+    val followButtonText = if (isFollowing) {
+        stringResource(Res.string.creator_profile_following)
+    } else {
+        stringResource(Res.string.creator_profile_follow_action)
+    }
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Banner gradient
+        // 顶部渐变只承担视觉识别，不承载远端数据，避免资料加载失败时出现空白页头。
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -222,7 +259,7 @@ private fun ProfileHeader(
                 )
         )
 
-        // Avatar + Follow button
+        // 头像与关注按钮同属于资料主操作区，关注状态由 Presentation StateHolder 统一维护。
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -257,16 +294,16 @@ private fun ProfileHeader(
                 modifier = Modifier.height(Dimens.ButtonHeightSM)
             ) {
                 Text(
-                    text = if (isFollowing) "已关注" else "+ 关注",
+                    text = followButtonText,
                     style = MaterialTheme.typography.labelLarge
                 )
             }
         }
 
-        // Name + Bio + Stats
+        // 资料统计保留服务端返回的展示字符串，只把静态标签放入 Compose Resources。
         Column(modifier = Modifier.offset(y = -(Dimens.SpaceXXL))) {
             Text(
-                text = user?.nickName ?: "未知用户",
+                text = user?.nickName ?: stringResource(Res.string.creator_profile_unknown_user),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface
             )
@@ -285,9 +322,18 @@ private fun ProfileHeader(
             Spacer(Modifier.height(Dimens.SpaceLG))
 
             Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceXXL)) {
-                ProfileStat(label = "粉丝", value = user?.fanCount ?: "0")
-                ProfileStat(label = "关注", value = user?.followCount ?: "0")
-                ProfileStat(label = "获赞", value = user?.likeCount ?: "0")
+                ProfileStat(
+                    label = stringResource(Res.string.creator_profile_stat_fans),
+                    value = user?.fanCount ?: "0",
+                )
+                ProfileStat(
+                    label = stringResource(Res.string.creator_profile_stat_following),
+                    value = user?.followCount ?: "0",
+                )
+                ProfileStat(
+                    label = stringResource(Res.string.creator_profile_stat_likes),
+                    value = user?.likeCount ?: "0",
+                )
             }
         }
     }
@@ -327,6 +373,8 @@ private fun AppGridItem(
 ) {
     BoxWithConstraints(modifier = modifier) {
         val isNarrowCard = maxWidth < 180.dp
+        val useCountText = stringResource(Res.string.creator_profile_use_count_format, app.useCount)
+        val likeCountText = stringResource(Res.string.creator_profile_like_count_format, app.likeCount)
 
         Card(
             onClick = onClick,
@@ -359,7 +407,7 @@ private fun AppGridItem(
                         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)
                     ) {
                         Text(
-                            text = "${app.useCount}次使用",
+                            text = useCountText,
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
@@ -368,12 +416,12 @@ private fun AppGridItem(
                         )
                         if (!isNarrowCard) {
                             Text(
-                                text = "·",
+                                text = stringResource(Res.string.creator_profile_metric_separator),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
-                                text = "${app.likeCount}赞",
+                                text = likeCountText,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,

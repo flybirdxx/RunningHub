@@ -10,7 +10,7 @@ composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/PermissionBotto
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/SmartAsyncImage.kt|0|common component copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/TaskProgressIndicator.kt|0|Task progress indicator copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/community/CommunityScreen.kt|0|Community header copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/creator/CreatorProfileScreen.kt|5|legacy hardcoded UI copy baseline
+composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/creator/CreatorProfileScreen.kt|0|Creator profile copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/detail/AppDetailScreen.kt|7|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/discovery/DiscoveryScreen.kt|11|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/TaskHistoryScreen.kt|14|legacy hardcoded UI copy baseline

@@ -55,4 +55,17 @@
     <string name="main_navigation_guest_mode_message">Guest mode: some features are limited</string>
     <string name="main_navigation_guest_mode_dismiss">OK</string>
     <string name="main_navigation_credit_icon">🪙</string>
+    <string name="creator_profile_default_title">创作者</string>
+    <string name="creator_profile_back_content_description">返回</string>
+    <string name="creator_profile_published_apps_title">发布的应用</string>
+    <string name="creator_profile_empty_apps">暂无作品</string>
+    <string name="creator_profile_following">已关注</string>
+    <string name="creator_profile_follow_action">+ 关注</string>
+    <string name="creator_profile_unknown_user">未知用户</string>
+    <string name="creator_profile_stat_fans">粉丝</string>
+    <string name="creator_profile_stat_following">关注</string>
+    <string name="creator_profile_stat_likes">获赞</string>
+    <string name="creator_profile_use_count_format">%1$s次使用</string>
+    <string name="creator_profile_metric_separator">·</string>
+    <string name="creator_profile_like_count_format">%1$s赞</string>
 </resources>
