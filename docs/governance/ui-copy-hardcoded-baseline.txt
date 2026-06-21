@@ -19,8 +19,8 @@ composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/plaza/PlazaScreen
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/ProfileScreen.kt|0|Profile screen copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/SettingsDialog.kt|0|Settings dialog copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/AdaptivePromptTextField.kt|1|legacy hardcoded UI copy baseline
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateGenerationInteractor.kt|1|legacy hardcoded UI copy baseline
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateMediaUploadCoordinator.kt|1|legacy hardcoded UI copy baseline
+composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateGenerationInteractor.kt|0|QuickCreate generation runtime copy moved to Presentation text port
+composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateMediaUploadCoordinator.kt|0|QuickCreate upload runtime copy moved to Presentation text port
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateClassicComposerContent.kt|0|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateCompactComposerContent.kt|0|QuickCreate compact composer copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/params/QuickCreateParamsSheetContent.kt|0|QuickCreate params sheet copy moved to Compose Resources
@@ -33,6 +33,7 @@ composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/search/SearchScre
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/navigation/MainScreen.kt|0|Main navigation copy moved to Compose Resources
 # 独立 Presentation 模块中的中文 UI 文案基线；后续应逐步迁移到 Compose Resources 或统一文案端口。
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateErrorMessages.kt|27|presentation hardcoded UI copy baseline
+feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt|8|presentation runtime UI text port; move to Compose Resources or injected text provider after QuickCreate UI leaves composeApp
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/billing/QuickCreateBillingUiText.kt|3|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/billing/QuickCreateFeePreviewInteractor.kt|3|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/draft/QuickCreateDraftUiModel.kt|2|presentation hardcoded UI copy baseline

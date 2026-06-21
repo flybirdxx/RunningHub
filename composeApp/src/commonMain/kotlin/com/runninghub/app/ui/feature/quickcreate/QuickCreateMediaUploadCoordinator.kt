@@ -2,6 +2,7 @@ package com.runninghub.app.ui.feature.quickcreate
 
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
@@ -165,7 +166,7 @@ internal class QuickCreateMediaUploadCoordinator(
         val pending = mediaRefs.filter { it.isUploadPending() }
         if (pending.isEmpty()) return stateSnapshot
 
-        uiState.update { it.copy(statusText = "正在上传素材(${pending.size})...") }
+        uiState.update { it.copy(statusText = QuickCreateRuntimeUiText.uploadingMedia(pending.size)) }
 
         val pendingIds = pending.map { it.id }.toSet()
         var waited = 0
@@ -259,7 +260,7 @@ internal class QuickCreateMediaUploadCoordinator(
                 // 不应把媒体标记为失败，也不能继续触发计费预览。
                 throw error
             } catch (error: Exception) {
-                val displayMessage = error.toQuickCreateDisplayMessage("素材上传失败")
+                val displayMessage = error.toQuickCreateDisplayMessage(QuickCreateRuntimeUiText.mediaUploadFailed)
                 uiState.update { state ->
                     state.withUpdatedMediaReference(targetTab, id) { reference ->
                         reference.copy(
@@ -370,5 +371,5 @@ internal class QuickCreateMediaUploadCoordinator(
 }
 
 // 等待上传完成时抛给页面的错误不拼接 displayName，避免本地媒体文件名进入错误上报或日志链路。
-private const val MEDIA_UPLOAD_FAILED_MESSAGE = "素材上传失败，请重新选择或稍后重试"
-private const val MEDIA_UPLOAD_TIMEOUT_MESSAGE = "素材上传超时，请重新选择或稍后重试"
+private val MEDIA_UPLOAD_FAILED_MESSAGE = QuickCreateRuntimeUiText.mediaUploadBlocked
+private val MEDIA_UPLOAD_TIMEOUT_MESSAGE = QuickCreateRuntimeUiText.mediaUploadTimeout

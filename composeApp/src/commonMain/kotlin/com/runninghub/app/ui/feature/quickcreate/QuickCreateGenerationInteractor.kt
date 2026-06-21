@@ -8,6 +8,7 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
+import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
 import kotlinx.coroutines.CoroutineScope
@@ -61,7 +62,7 @@ internal class QuickCreateGenerationInteractor(
         }
         val submitSnapshot = uiState.value
         if (submitSnapshot.feePreviewLoading) {
-            blockGenerate("价格确认中")
+            blockGenerate(QuickCreateRuntimeUiText.feeConfirming)
             return
         }
         if (submitSnapshot.feePreviewError != null) {
@@ -85,7 +86,7 @@ internal class QuickCreateGenerationInteractor(
             uiState.update {
                 it.copy(
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
-                    statusText = "正在提交任务...",
+                    statusText = QuickCreateRuntimeUiText.submittingTask,
                     error = null,
                     results = emptyList(),
                 )
@@ -110,7 +111,7 @@ internal class QuickCreateGenerationInteractor(
                     if (hasMatchingFeePreview(requestSnapshot, buildResult.request.quickCreateFeeRequestKey())) {
                         generateImage(buildResult.request)
                     } else {
-                        blockGenerate("价格待确认")
+                        blockGenerate(QuickCreateRuntimeUiText.feePending)
                     }
                 }
                 is QuickCreateGenerationRequestBuildResult.VideoReady -> {
@@ -119,7 +120,7 @@ internal class QuickCreateGenerationInteractor(
                     if (hasMatchingFeePreview(requestSnapshot, buildResult.request.quickCreateFeeRequestKey())) {
                         generateVideo(buildResult.request)
                     } else {
-                        blockGenerate("价格待确认")
+                        blockGenerate(QuickCreateRuntimeUiText.feePending)
                     }
                 }
                 is QuickCreateGenerationRequestBuildResult.Blocked -> blockGenerate(buildResult.message)
@@ -177,7 +178,7 @@ internal class QuickCreateGenerationInteractor(
     private fun blockDuplicateGenerate() {
         uiState.update {
             // 当前任务已经进入提交或轮询链路时不能取消后重新提交，否则会产生第二个远端任务且旧任务失去状态归属。
-            it.copy(error = "已有生成任务进行中，请等待当前任务结束")
+            it.copy(error = QuickCreateRuntimeUiText.duplicateGeneration)
         }
     }
 
