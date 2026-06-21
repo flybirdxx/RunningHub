@@ -75,8 +75,39 @@ import com.runninghub.core.model.MemberInfo
 import com.runninghub.core.model.User
 import com.runninghub.core.model.WalletInfo
 import com.runninghub.feature.auth.presentation.profile.ProfileUiState
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.profile_avatar_content_description
+import runninghub.composeapp.generated.resources.profile_default_avatar_content_description
+import runninghub.composeapp.generated.resources.profile_default_user_name
+import runninghub.composeapp.generated.resources.profile_locked_content_description
+import runninghub.composeapp.generated.resources.profile_member_badge_separator
+import runninghub.composeapp.generated.resources.profile_member_expiry_format
+import runninghub.composeapp.generated.resources.profile_member_level_content_description
+import runninghub.composeapp.generated.resources.profile_member_remaining_days_format
+import runninghub.composeapp.generated.resources.profile_menu_about
+import runninghub.composeapp.generated.resources.profile_menu_clear_cache
+import runninghub.composeapp.generated.resources.profile_menu_edit_profile
+import runninghub.composeapp.generated.resources.profile_menu_logout
+import runninghub.composeapp.generated.resources.profile_menu_more_content_description
+import runninghub.composeapp.generated.resources.profile_menu_recharge_center
+import runninghub.composeapp.generated.resources.profile_menu_renew_membership
+import runninghub.composeapp.generated.resources.profile_menu_wallet_details
+import runninghub.composeapp.generated.resources.profile_not_logged_in_subtitle
+import runninghub.composeapp.generated.resources.profile_not_logged_in_title
+import runninghub.composeapp.generated.resources.profile_settings_content_description
+import runninghub.composeapp.generated.resources.profile_summary_member_remaining
+import runninghub.composeapp.generated.resources.profile_summary_rh_coin
+import runninghub.composeapp.generated.resources.profile_summary_wallet
+import runninghub.composeapp.generated.resources.profile_unbound_mobile
 
+/**
+ * 个人中心页的 Voyager Screen。
+ *
+ * 该类型只负责把 Voyager 生命周期适配到 [ProfileScreenModel]，并把会话注销交回根会话状态机；
+ * 用户资料加载、凭据绑定和注销状态清理由 `feature:auth:presentation` 维护。
+ */
 class ProfileVoyagerScreen : Screen {
 
     @Composable
@@ -98,6 +129,16 @@ class ProfileVoyagerScreen : Screen {
     }
 }
 
+/**
+ * 渲染个人中心页面内容。
+ *
+ * 页面仅消费 [ProfileUiState] 并通过回调发送刷新和注销意图；不直接访问 Token、持久化存储或 Data 实现。
+ *
+ * @param modifier 外部容器传入的布局修饰符。
+ * @param uiState Profile Presentation 层输出的可渲染状态。
+ * @param onRefresh 用户下拉刷新时触发的资料刷新回调。
+ * @param onLogout 用户点击退出登录时触发的会话清理回调。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreenContent(
@@ -155,6 +196,8 @@ fun ProfileScreenContent(
 
 @Composable
 private fun ProfileHeader(user: User?) {
+    val defaultUserName = stringResource(Res.string.profile_default_user_name)
+    val unboundMobileText = stringResource(Res.string.profile_unbound_mobile)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -179,7 +222,7 @@ private fun ProfileHeader(user: User?) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = user?.nickName?.takeIf { it.isNotBlank() } ?: "RunningHub 用户",
+                    text = user?.nickName?.takeIf { it.isNotBlank() } ?: defaultUserName,
                     style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.SemiBold,
@@ -188,7 +231,7 @@ private fun ProfileHeader(user: User?) {
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = maskPhone(user?.mobile),
+                    text = maskPhone(user?.mobile, unboundMobileText),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -199,7 +242,7 @@ private fun ProfileHeader(user: User?) {
 
             Icon(
                 Icons.Default.Settings,
-                contentDescription = "设置",
+                contentDescription = stringResource(Res.string.profile_settings_content_description),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier
                     .size(24.dp)
@@ -211,6 +254,7 @@ private fun ProfileHeader(user: User?) {
 
 @Composable
 private fun ProfileAvatar(user: User?) {
+    val avatarContentDescription = stringResource(Res.string.profile_avatar_content_description)
     Box(
         modifier = Modifier
             .size(76.dp)
@@ -221,14 +265,14 @@ private fun ProfileAvatar(user: User?) {
         if (!user?.headIcon.isNullOrEmpty()) {
             AsyncImage(
                 model = user.headIcon,
-                contentDescription = user.nickName ?: "头像",
+                contentDescription = user.nickName ?: avatarContentDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
             )
         } else {
             Icon(
                 Icons.Default.Person,
-                contentDescription = "默认头像",
+                contentDescription = stringResource(Res.string.profile_default_avatar_content_description),
                 modifier = Modifier.size(34.dp),
                 tint = MaterialTheme.colorScheme.outline,
             )
@@ -242,6 +286,8 @@ private fun MemberBadge(
     modifier: Modifier = Modifier,
 ) {
     val memberName = memberInfo?.memberName?.takeIf { it.isNotBlank() } ?: return
+    val remainingText = memberRemainingText(memberInfo)
+    val memberBadgeSeparator = stringResource(Res.string.profile_member_badge_separator)
     Surface(
         modifier = modifier.widthIn(max = 240.dp),
         shape = RoundedCornerShape(999.dp),
@@ -253,7 +299,7 @@ private fun MemberBadge(
         ) {
             Icon(
                 Icons.Default.Star,
-                contentDescription = "会员等级",
+                contentDescription = stringResource(Res.string.profile_member_level_content_description),
                 tint = RunningHubThemeExt.colors.premiumGold,
                 modifier = Modifier.size(14.dp),
             )
@@ -261,7 +307,10 @@ private fun MemberBadge(
             Text(
                 text = buildString {
                     append(memberName)
-                    remainingDays(memberInfo)?.let { append(" · $it") }
+                    remainingText?.let {
+                        append(memberBadgeSeparator)
+                        append(it)
+                    }
                 },
                 style = MaterialTheme.typography.labelMedium,
                 color = RunningHubThemeExt.colors.premiumGold,
@@ -274,6 +323,7 @@ private fun MemberBadge(
 
 @Composable
 private fun AccountSummarySection(user: User?) {
+    val remainingText = memberRemainingText(user?.memberInfo)
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -288,22 +338,22 @@ private fun AccountSummarySection(user: User?) {
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             AccountSummaryItem(
-                label = "RH 币",
+                label = stringResource(Res.string.profile_summary_rh_coin),
                 value = formatNumber(user?.totalCoin ?: "0"),
                 icon = Icons.Default.MonetizationOn,
                 tint = RunningHubThemeExt.colors.premiumGold,
                 modifier = Modifier.weight(1f),
             )
             AccountSummaryItem(
-                label = "钱包",
+                label = stringResource(Res.string.profile_summary_wallet),
                 value = walletBalance(user?.walletInfo),
                 icon = Icons.Default.AccountBalanceWallet,
                 tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.weight(1f),
             )
             AccountSummaryItem(
-                label = "会员剩余",
-                value = remainingDays(user?.memberInfo) ?: "--",
+                label = stringResource(Res.string.profile_summary_member_remaining),
+                value = remainingText ?: "--",
                 icon = Icons.Default.WorkspacePremium,
                 tint = RunningHubThemeExt.colors.premiumOrange,
                 modifier = Modifier.weight(1f),
@@ -364,21 +414,45 @@ private fun ProfileMenuSection(onLogout: () -> Unit) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
         Column {
-            ProfileMenuItem(icon = Icons.Default.Edit, title = "编辑资料", onClick = {})
+            ProfileMenuItem(
+                icon = Icons.Default.Edit,
+                title = stringResource(Res.string.profile_menu_edit_profile),
+                onClick = {},
+            )
             MenuDivider()
-            ProfileMenuItem(icon = Icons.Default.WorkspacePremium, title = "会员续费", onClick = {})
+            ProfileMenuItem(
+                icon = Icons.Default.WorkspacePremium,
+                title = stringResource(Res.string.profile_menu_renew_membership),
+                onClick = {},
+            )
             MenuDivider()
-            ProfileMenuItem(icon = Icons.Default.MonetizationOn, title = "充值中心", onClick = {})
+            ProfileMenuItem(
+                icon = Icons.Default.MonetizationOn,
+                title = stringResource(Res.string.profile_menu_recharge_center),
+                onClick = {},
+            )
             MenuDivider()
-            ProfileMenuItem(icon = Icons.Default.AccountBalanceWallet, title = "钱包明细", onClick = {})
+            ProfileMenuItem(
+                icon = Icons.Default.AccountBalanceWallet,
+                title = stringResource(Res.string.profile_menu_wallet_details),
+                onClick = {},
+            )
             MenuDivider()
-            ProfileMenuItem(icon = Icons.Default.DeleteOutline, title = "清除缓存", onClick = {})
+            ProfileMenuItem(
+                icon = Icons.Default.DeleteOutline,
+                title = stringResource(Res.string.profile_menu_clear_cache),
+                onClick = {},
+            )
             MenuDivider()
-            ProfileMenuItem(icon = Icons.Default.Info, title = "关于 RunningHub", onClick = {})
+            ProfileMenuItem(
+                icon = Icons.Default.Info,
+                title = stringResource(Res.string.profile_menu_about),
+                onClick = {},
+            )
             MenuDivider()
             ProfileMenuItem(
                 icon = Icons.AutoMirrored.Filled.ExitToApp,
-                title = "退出登录",
+                title = stringResource(Res.string.profile_menu_logout),
                 titleColor = MaterialTheme.colorScheme.error,
                 onClick = onLogout,
             )
@@ -426,7 +500,7 @@ private fun ProfileMenuItem(
         )
         Icon(
             Icons.Default.ChevronRight,
-            contentDescription = "更多",
+            contentDescription = stringResource(Res.string.profile_menu_more_content_description),
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.size(18.dp),
         )
@@ -455,28 +529,28 @@ private fun NotLoggedInContent(modifier: Modifier = Modifier) {
         ) {
             Icon(
                 Icons.Default.Lock,
-                contentDescription = "已锁定",
+                contentDescription = stringResource(Res.string.profile_locked_content_description),
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.size(40.dp),
             )
         }
         Spacer(Modifier.height(24.dp))
         Text(
-            text = "未登录",
+            text = stringResource(Res.string.profile_not_logged_in_title),
             style = MaterialTheme.typography.titleLarge,
             color = MaterialTheme.colorScheme.onSurface,
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "登录后查看个人信息和资产",
+            text = stringResource(Res.string.profile_not_logged_in_subtitle),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.outline,
         )
     }
 }
 
-private fun maskPhone(mobile: String?): String {
-    val value = mobile?.takeIf { it.isNotBlank() } ?: return "未绑定手机号"
+private fun maskPhone(mobile: String?, unboundText: String): String {
+    val value = mobile?.takeIf { it.isNotBlank() } ?: return unboundText
     return if (value.length >= 7) {
         "${value.take(3)}****${value.takeLast(4)}"
     } else {
@@ -484,14 +558,18 @@ private fun maskPhone(mobile: String?): String {
     }
 }
 
-private fun remainingDays(memberInfo: MemberInfo?): String? {
+@Composable
+private fun memberRemainingText(memberInfo: MemberInfo?): String? {
     val days = memberInfo?.memberRemainingDays?.takeIf { it.isNotBlank() && it != "0" }
-    if (days != null) return "${days}天"
+    if (days != null) {
+        return stringResource(Res.string.profile_member_remaining_days_format, days)
+    }
 
     val expiry = memberInfo?.memberExpiredTime
         ?.takeIf { it.isNotBlank() }
         ?.substringBefore(" ")
-    return expiry?.let { "$it 到期" }
+    // 服务端返回日期字符串，UI 层只负责拼接本地化后缀，不解析时区或改变日期精度。
+    return expiry?.let { stringResource(Res.string.profile_member_expiry_format, it) }
 }
 
 private fun walletBalance(walletInfo: WalletInfo?): String {

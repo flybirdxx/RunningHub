@@ -68,4 +68,27 @@
     <string name="creator_profile_use_count_format">%1$s次使用</string>
     <string name="creator_profile_metric_separator">·</string>
     <string name="creator_profile_like_count_format">%1$s赞</string>
+    <string name="profile_default_user_name">RunningHub 用户</string>
+    <string name="profile_settings_content_description">设置</string>
+    <string name="profile_avatar_content_description">头像</string>
+    <string name="profile_default_avatar_content_description">默认头像</string>
+    <string name="profile_member_level_content_description">会员等级</string>
+    <string name="profile_member_badge_separator"> · </string>
+    <string name="profile_member_remaining_days_format">%1$s天</string>
+    <string name="profile_member_expiry_format">%1$s 到期</string>
+    <string name="profile_summary_rh_coin">RH 币</string>
+    <string name="profile_summary_wallet">钱包</string>
+    <string name="profile_summary_member_remaining">会员剩余</string>
+    <string name="profile_menu_edit_profile">编辑资料</string>
+    <string name="profile_menu_renew_membership">会员续费</string>
+    <string name="profile_menu_recharge_center">充值中心</string>
+    <string name="profile_menu_wallet_details">钱包明细</string>
+    <string name="profile_menu_clear_cache">清除缓存</string>
+    <string name="profile_menu_about">关于 RunningHub</string>
+    <string name="profile_menu_logout">退出登录</string>
+    <string name="profile_menu_more_content_description">更多</string>
+    <string name="profile_locked_content_description">已锁定</string>
+    <string name="profile_not_logged_in_title">未登录</string>
+    <string name="profile_not_logged_in_subtitle">登录后查看个人信息和资产</string>
+    <string name="profile_unbound_mobile">未绑定手机号</string>
 </resources>

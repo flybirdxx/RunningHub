@@ -7,4 +7,4 @@ create|2697|Legacy create UI retained only to keep migration compatibility while
 discovery|1208|Discovery UI shell remains in composeApp; state holder, sort labels, catalog error text and tests are now owned by feature:discovery:presentation.
 history|1002|History UI/Voyager adapter remains in composeApp; state machine, polling, detail loading, cancellation and tests are now owned by feature:task:presentation.
 login|834|Login UI shell and platform captcha dialog remain in composeApp; state machine, error text and tests are now owned by feature:auth:presentation.
-profile|801|Profile UI shell remains in composeApp; state holder, credential operations and tests are now owned by feature:auth:presentation.
+profile|879|Profile UI shell remains in composeApp; state holder, credential operations and tests are now owned by feature:auth:presentation. P8 copy resourceization temporarily increases imports while keeping hardcoded ProfileScreen UI copy at zero.

@@ -50,7 +50,11 @@ commonMain Compose Resources，基线从 3 下调为 0。
 CreatorProfileScreen 的标题兜底、返回无障碍描述、作品区标题、空态、关注按钮、
 用户兜底名、统计标签、使用/点赞格式和指标分隔符也已迁入 commonMain Compose Resources，
 基线从 5 下调为 0；CreatorProfileStateHolder 的错误状态文案仍保留给后续 Presentation
-文案端口治理。本轮不补 CI、Release 或 L1 封板证据。
+文案端口治理。
+ProfileScreen 的个人中心默认用户名、设置/头像/会员/菜单/未登录空态等静态标签和无障碍描述，
+以及会员剩余单位/到期格式也已迁入 commonMain Compose Resources，硬编码 UI 文案基线从 2 下调为 0；
+ProfileScreen 仍是迁移期留在 composeApp 的 UI 壳，体量基线同步记录本次资源导入增长，
+SettingsDialog 和 ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
 
