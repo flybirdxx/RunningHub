@@ -42,6 +42,10 @@ Feature Presentation 阈值基线已移除 stale 的 `create` 和 `discovery` �
 P7 数据库契约基线已移除历史 `DiscoveryCache.sq` 例外：该 SQLDelight schema 无生产引用，
 `shared` 不再应用 SQLDelight 插件或驱动依赖，Version Catalog 和根插件声明也已删除 SQLDelight 条目；
 后续新增 `.sq` / `.sqm` 必须登记真实数据库契约或 migration 测试，`legacy-debt` 不再允许。
+Gate H/P7 本轮继续瘦身 `shared` 直接依赖：当前 `shared` 源码只保留平台信息、MD5 兼容工具和
+`sharedModule` 组合入口，已移除对 `core:model`、`feature:community:domain`、
+`feature:discovery:domain` 和 `kotlinx-datetime` 的直接依赖；`core:network`、`core:storage`、
+`feature:auth:domain`、Ktor、Koin、serialization 和 DataStore 仍由组合入口或公开 storage API 使用。
 本轮继续把已迁移 Feature Data 的服务端错误消息收口扩展为全量门禁：`feature/*/data`
 不得把服务端 `msg/message` 直接作为异常消息或 QuickCreate 任务状态错误传播；
 Task Data、QuickCreate Data、QuickCreate Presentation 和 composeApp 相关测试已覆盖该边界。

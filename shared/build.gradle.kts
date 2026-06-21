@@ -18,16 +18,12 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.core.model)
             implementation(projects.core.network)
             implementation(projects.core.storage)
             implementation(projects.feature.auth.domain)
-            implementation(projects.feature.community.domain)
-            implementation(projects.feature.discovery.domain)
 
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
-            implementation(libs.kotlinx.datetime)
 
             implementation(libs.koin.core)
 
