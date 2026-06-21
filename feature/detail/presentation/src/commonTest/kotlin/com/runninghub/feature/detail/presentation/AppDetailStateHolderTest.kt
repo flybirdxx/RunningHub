@@ -1,6 +1,5 @@
-package com.runninghub.app.ui.feature.detail
+package com.runninghub.feature.detail.presentation
 
-import com.runninghub.app.platform.MediaResolver
 import com.runninghub.core.model.AppDetail
 import com.runninghub.core.model.Author
 import com.runninghub.core.model.Cover
@@ -18,36 +17,19 @@ import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogQuery
 import com.runninghub.feature.discovery.domain.CatalogTagRange
 import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
-import com.runninghub.feature.detail.presentation.AppDetailMediaType
-import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.task.domain.WebAppTaskRepository
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class AppDetailScreenModelTest {
-    @BeforeTest
-    fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
-    }
-
-    @AfterTest
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
-
+class AppDetailStateHolderTest {
     @Test
     fun `loadDetail uses public detail and initializes input values`() = runTest {
         val catalogRepository = FakeWebAppCatalogRepository(
@@ -62,15 +44,15 @@ class AppDetailScreenModelTest {
             ),
         )
         val taskRepository = FakeWebAppTaskRepository()
-        val screenModel = createScreenModel(catalogRepository, taskRepository)
+        val stateHolder = createStateHolder(catalogRepository, taskRepository)
 
-        screenModel.loadDetail("100")
+        stateHolder.loadDetail("100")
         advanceUntilIdle()
 
-        assertFalse(screenModel.uiState.value.isLoading)
-        assertEquals("100", screenModel.uiState.value.detail?.id)
-        assertEquals("cat", screenModel.uiState.value.inputValues["1:prompt"])
-        assertEquals("", screenModel.uiState.value.inputValues["2:negativePrompt"])
+        assertFalse(stateHolder.uiState.value.isLoading)
+        assertEquals("100", stateHolder.uiState.value.detail?.id)
+        assertEquals("cat", stateHolder.uiState.value.inputValues["1:prompt"])
+        assertEquals("", stateHolder.uiState.value.inputValues["2:negativePrompt"])
         assertEquals(1, catalogRepository.getAppDetailCalls)
         assertEquals(0, taskRepository.getApiCallDemoCalls)
     }
@@ -88,14 +70,14 @@ class AppDetailScreenModelTest {
                 ),
             ),
         )
-        val screenModel = createScreenModel(catalogRepository, taskRepository)
+        val stateHolder = createStateHolder(catalogRepository, taskRepository)
 
-        screenModel.loadDetail("200")
+        stateHolder.loadDetail("200")
         advanceUntilIdle()
 
-        assertFalse(screenModel.uiState.value.isLoading)
-        assertEquals("200", screenModel.uiState.value.detail?.id)
-        assertEquals("demo.png", screenModel.uiState.value.inputValues["2:image"])
+        assertFalse(stateHolder.uiState.value.isLoading)
+        assertEquals("200", stateHolder.uiState.value.detail?.id)
+        assertEquals("demo.png", stateHolder.uiState.value.inputValues["2:image"])
         assertEquals(1, catalogRepository.getAppDetailCalls)
         assertEquals(1, taskRepository.getApiCallDemoCalls)
     }
@@ -105,11 +87,11 @@ class AppDetailScreenModelTest {
         val catalogRepository = FakeWebAppCatalogRepository(
             appDetailResult = Result.success(appDetail(id = "300")),
         )
-        val screenModel = createScreenModel(catalogRepository, FakeWebAppTaskRepository())
+        val stateHolder = createStateHolder(catalogRepository, FakeWebAppTaskRepository())
 
-        screenModel.loadDetail("300")
+        stateHolder.loadDetail("300")
         advanceUntilIdle()
-        screenModel.loadDetail("300")
+        stateHolder.loadDetail("300")
         advanceUntilIdle()
 
         assertEquals(1, catalogRepository.getAppDetailCalls)
@@ -117,31 +99,30 @@ class AppDetailScreenModelTest {
 
     @Test
     fun `media uri result uploads file and writes returned file name`() = runTest {
-        val mediaResolver = FakeMediaResolver(
+        val mediaReader = FakeAppDetailMediaReader(
             displayName = "input.webp",
             bytes = byteArrayOf(1, 2, 3),
         )
         val taskRepository = FakeWebAppTaskRepository(
             uploadFileResult = Result.success(UploadResult(fileName = "remote-input.webp", fileType = "image/webp")),
         )
-        val screenModel = createScreenModel(
+        val stateHolder = createStateHolder(
             catalogRepository = FakeWebAppCatalogRepository(),
             taskRepository = taskRepository,
-            mediaResolver = mediaResolver,
-            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+            mediaReader = mediaReader,
         )
 
-        screenModel.setPendingMediaPick(nodeId = "10", fieldName = "image", mediaType = AppDetailMediaType.IMAGE)
-        screenModel.onMediaUriReceived("content://images/10")
+        stateHolder.setPendingMediaPick(nodeId = "10", fieldName = "image", mediaType = AppDetailMediaType.IMAGE)
+        stateHolder.onMediaUriReceived("content://images/10")
         advanceUntilIdle()
 
-        assertEquals(null, screenModel.uiState.value.pendingMediaPick)
-        assertEquals("content://images/10", screenModel.uiState.value.localUris["10"])
-        assertEquals("remote-input.webp", screenModel.uiState.value.inputValues["10:image"])
-        assertEquals(false, screenModel.uiState.value.uploadingNodes.containsKey("10"))
+        assertEquals(null, stateHolder.uiState.value.pendingMediaPick)
+        assertEquals("content://images/10", stateHolder.uiState.value.localUris["10"])
+        assertEquals("remote-input.webp", stateHolder.uiState.value.inputValues["10:image"])
+        assertEquals(false, stateHolder.uiState.value.uploadingNodes.containsKey("10"))
         assertEquals("image/webp", taskRepository.lastUploadFileType)
         assertEquals("input.webp", taskRepository.lastUploadFileName)
-        assertEquals(listOf("content://images/10"), mediaResolver.readUris)
+        assertEquals(listOf("content://images/10"), mediaReader.readUris)
     }
 
     @Test
@@ -149,14 +130,13 @@ class AppDetailScreenModelTest {
         val taskRepository = FakeWebAppTaskRepository(
             uploadFileResult = Result.failure(IllegalStateException("remote raw upload failure")),
         )
-        val screenModel = createScreenModel(
+        val stateHolder = createStateHolder(
             catalogRepository = FakeWebAppCatalogRepository(),
             taskRepository = taskRepository,
-            mediaResolver = FakeMediaResolver(displayName = "bad.mp4"),
-            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+            mediaReader = FakeAppDetailMediaReader(displayName = "bad.mp4"),
         )
 
-        screenModel.uploadFile(
+        stateHolder.uploadFile(
             nodeId = "video-node",
             fieldName = "video",
             localUri = "content://videos/bad",
@@ -164,10 +144,10 @@ class AppDetailScreenModelTest {
         )
         advanceUntilIdle()
 
-        val uploadState = screenModel.uiState.value.uploadingNodes["video-node"]
+        val uploadState = stateHolder.uiState.value.uploadingNodes["video-node"]
         assertEquals("content://videos/bad", uploadState?.localUri)
-        assertEquals(null, screenModel.uiState.value.localUris["video-node"])
-        assertEquals(null, screenModel.uiState.value.inputValues["video-node:video"])
+        assertEquals(null, stateHolder.uiState.value.localUris["video-node"])
+        assertEquals(null, stateHolder.uiState.value.inputValues["video-node:video"])
         assertEquals(0f, uploadState?.progress)
         assertEquals(true, uploadState?.isError)
         assertEquals("video/mp4", taskRepository.lastUploadFileType)
@@ -189,7 +169,7 @@ class AppDetailScreenModelTest {
                 listOf(TaskOutput(fileUrl = "https://cdn/output.png", fileName = "output.png", fileType = "image", failedReason = null)),
             ),
         )
-        val screenModel = createScreenModel(
+        val stateHolder = createStateHolder(
             catalogRepository = FakeWebAppCatalogRepository(
                 appDetailResult = Result.success(
                     appDetail(
@@ -201,18 +181,18 @@ class AppDetailScreenModelTest {
             taskRepository = taskRepository,
         )
 
-        screenModel.loadDetail("400")
+        stateHolder.loadDetail("400")
         advanceUntilIdle()
-        screenModel.updateInputValue(nodeId = "4", fieldName = "prompt", value = "new prompt")
-        screenModel.runTask()
+        stateHolder.updateInputValue(nodeId = "4", fieldName = "prompt", value = "new prompt")
+        stateHolder.runTask()
         advanceTimeBy(5_000)
         advanceUntilIdle()
 
         assertEquals(400L, taskRepository.lastRunWebappId)
         assertEquals("new prompt", taskRepository.lastRunNodeInfoList.single().fieldValue)
-        assertEquals(false, screenModel.uiState.value.isRunningTask)
-        assertEquals(AppDetailTaskStep.SUCCESS, screenModel.uiState.value.taskStep)
-        assertEquals("https://cdn/output.png", screenModel.uiState.value.taskOutputs.single().fileUrl)
+        assertEquals(false, stateHolder.uiState.value.isRunningTask)
+        assertEquals(AppDetailTaskStep.SUCCESS, stateHolder.uiState.value.taskStep)
+        assertEquals("https://cdn/output.png", stateHolder.uiState.value.taskOutputs.single().fileUrl)
     }
 
     @Test
@@ -242,33 +222,33 @@ class AppDetailScreenModelTest {
                 ),
             ),
         )
-        val screenModel = createScreenModel(
+        val stateHolder = createStateHolder(
             catalogRepository = FakeWebAppCatalogRepository(appDetailResult = Result.success(appDetail(id = "401"))),
             taskRepository = taskRepository,
         )
 
-        screenModel.loadDetail("401")
+        stateHolder.loadDetail("401")
         advanceUntilIdle()
-        screenModel.runTask()
+        stateHolder.runTask()
         advanceTimeBy(5_000)
         advanceUntilIdle()
 
-        assertEquals(false, screenModel.uiState.value.isRunningTask)
-        assertEquals(AppDetailTaskStep.FAILED, screenModel.uiState.value.taskStep)
-        assertEquals("任务失败，请稍后重试", screenModel.uiState.value.taskError)
+        assertEquals(false, stateHolder.uiState.value.isRunningTask)
+        assertEquals(AppDetailTaskStep.FAILED, stateHolder.uiState.value.taskStep)
+        assertEquals("任务失败，请稍后重试", stateHolder.uiState.value.taskError)
     }
 
-    private fun createScreenModel(
+    private fun TestScope.createStateHolder(
         catalogRepository: FakeWebAppCatalogRepository,
         taskRepository: FakeWebAppTaskRepository,
-        mediaResolver: MediaResolver = FakeMediaResolver(),
-        ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
-    ): AppDetailScreenModel =
-        AppDetailScreenModel(
+        mediaReader: AppDetailMediaReader = FakeAppDetailMediaReader(),
+    ): AppDetailStateHolder =
+        AppDetailStateHolder(
             webAppCatalogRepository = catalogRepository,
             webAppTaskRepository = taskRepository,
-            mediaResolver = mediaResolver,
-            ioDispatcher = ioDispatcher,
+            mediaReader = mediaReader,
+            coroutineScope = this,
+            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
         )
 
     private class FakeWebAppCatalogRepository(
@@ -352,10 +332,10 @@ class AppDetailScreenModelTest {
         }
     }
 
-    private class FakeMediaResolver(
+    private class FakeAppDetailMediaReader(
         private val displayName: String? = null,
         private val bytes: ByteArray = byteArrayOf(1),
-    ) : MediaResolver {
+    ) : AppDetailMediaReader {
         val readUris: MutableList<String> = mutableListOf()
 
         override fun readBytes(uri: String): ByteArray {
@@ -364,8 +344,6 @@ class AppDetailScreenModelTest {
         }
 
         override fun getDisplayName(uri: String): String? = displayName
-
-        override fun getFileSizeBytes(uri: String): Long = bytes.size.toLong()
     }
 
     private fun appDetail(

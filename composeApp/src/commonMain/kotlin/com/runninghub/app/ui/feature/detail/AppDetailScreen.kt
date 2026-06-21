@@ -70,9 +70,9 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
-import com.runninghub.app.ui.component.MediaType
 import com.runninghub.app.platform.PermissionController
 import com.runninghub.app.platform.rememberPermissionController
+import com.runninghub.app.ui.component.MediaType
 import com.runninghub.app.ui.component.PermissionBottomSheet
 import org.koin.compose.koinInject
 import com.runninghub.app.ui.component.CollapsibleSection
@@ -104,6 +104,11 @@ import com.runninghub.core.model.StatisticsInfo
 import com.runninghub.core.storage.Permission
 import com.runninghub.core.model.TaskOutput
 import com.runninghub.core.storage.PermissionStateStore
+import com.runninghub.feature.detail.presentation.AppDetailMediaType
+import com.runninghub.feature.detail.presentation.AppDetailTaskStep
+import com.runninghub.feature.detail.presentation.AppDetailUiState
+import com.runninghub.feature.detail.presentation.AppDetailUploadingState
+import com.runninghub.feature.detail.presentation.appDetailInputKey
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /* ═══════════════════════════════════════════════════
@@ -134,7 +139,7 @@ data class AppDetailScreen(val appId: String) : Screen {
                 val permission = pending.mediaType.permission()
                 controller.pickMedia(
                     mediaPermission = permission,
-                    mediaType = pending.mediaType,
+                    mediaType = pending.mediaType.toComponentMediaType(),
                     onSuccess = { uri -> currentScreenModel.onMediaUriReceived(uri) },
                     onPermissionDenied = {
                         pendingPermission = permission
@@ -201,11 +206,12 @@ private fun DetailContent(
     onInputChanged: (String, String, String) -> Unit,
     onRunTask: () -> Unit,
     onResetTask: () -> Unit,
-    onPickMedia: (String, String, MediaType) -> Unit,
+    onPickMedia: (String, String, AppDetailMediaType) -> Unit,
     onRemoveFile: (String, String) -> Unit
 ) {
     val detail = uiState.detail ?: return
     val windowInfo = LocalRhWindowInfo.current
+    val taskError = uiState.taskError
 
     Box(
         modifier = Modifier
@@ -222,78 +228,78 @@ private fun DetailContent(
                 contentPadding = PaddingValues(bottom = 168.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-            item(key = "hero") {
-                AppDetailHero(
-                    detail = detail,
-                    onBack = onBack,
-                    onAuthorClick = { detail.owner?.id?.let(onAuthorClick) }
-                )
-            }
-
-            // ── Task progress indicator ──
-            if (uiState.isRunningTask || uiState.taskStep != TaskStep.IDLE) {
-                item(key = "progress") {
-                    TaskProgressIndicator(
-                        currentStep = uiState.taskStep,
-                        elapsedSeconds = uiState.taskElapsedSeconds,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                item(key = "hero") {
+                    AppDetailHero(
+                        detail = detail,
+                        onBack = onBack,
+                        onAuthorClick = { detail.owner?.id?.let(onAuthorClick) }
                     )
                 }
-            }
 
-            // ── Task error ──
-            if (uiState.taskError != null) {
-                item(key = "task_error") {
-                    TaskErrorCard(
-                        error = uiState.taskError,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                    )
-                }
-            }
-
-            // ── Task outputs ──
-            if (uiState.taskOutputs.isNotEmpty()) {
-                item(key = "output_header") {
-                    SectionHeader("生成结果")
-                }
-                items(
-                    uiState.taskOutputs.filter { !it.fileUrl.isNullOrBlank() },
-                    key = { it.fileUrl ?: it.hashCode().toString() }
-                ) { output ->
-                    TaskOutputCard(
-                        output = output,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
-                    )
-                }
-            }
-
-            // ── Input nodes (collapsible) ──
-            if (detail.inputNodes.isNotEmpty()) {
-                item(key = "input_header") {
-                    SectionHeader("配置参数", modifier = Modifier.padding(top = 16.dp))
-                }
-                item(key = "input_section") {
-                    CollapsibleSection(
-                        title = "${detail.inputNodes.size} 个参数",
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                        initiallyExpanded = detail.inputNodes.size <= 5
-                    ) {
-                        InputNodesContent(
-                            inputNodes = detail.inputNodes,
-                            uiState = uiState,
-                            onInputChanged = onInputChanged,
-                            onPickMedia = onPickMedia,
-                            onRemoveFile = onRemoveFile
+                // 任务提交后保留阶段进度，用户能区分“已提交”和“正在等待结果”的状态。
+                if (uiState.isRunningTask || uiState.taskStep != AppDetailTaskStep.IDLE) {
+                    item(key = "progress") {
+                        TaskProgressIndicator(
+                            currentStep = uiState.taskStep.toComponentTaskStep(),
+                            elapsedSeconds = uiState.taskElapsedSeconds,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                         )
                     }
                 }
-            }
+
+                // 任务失败属于生成流程结果，需要在输入区上方稳定展示，避免被底部操作栏遮挡。
+                if (taskError != null) {
+                    item(key = "task_error") {
+                        TaskErrorCard(
+                            error = taskError,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+
+                // 生成结果按服务端返回顺序展示；该顺序可能包含后端输出节点的业务顺序。
+                if (uiState.taskOutputs.isNotEmpty()) {
+                    item(key = "output_header") {
+                        SectionHeader("生成结果")
+                    }
+                    items(
+                        uiState.taskOutputs.filter { !it.fileUrl.isNullOrBlank() },
+                        key = { it.fileUrl ?: it.hashCode().toString() }
+                    ) { output ->
+                        TaskOutputCard(
+                            output = output,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+
+                // 参数较多时默认折叠，减少详情内容和生成结果之间的滚动成本。
+                if (detail.inputNodes.isNotEmpty()) {
+                    item(key = "input_header") {
+                        SectionHeader("配置参数", modifier = Modifier.padding(top = 16.dp))
+                    }
+                    item(key = "input_section") {
+                        CollapsibleSection(
+                            title = "${detail.inputNodes.size} 个参数",
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            initiallyExpanded = detail.inputNodes.size <= 5
+                        ) {
+                            InputNodesContent(
+                                inputNodes = detail.inputNodes,
+                                uiState = uiState,
+                                onInputChanged = onInputChanged,
+                                onPickMedia = onPickMedia,
+                                onRemoveFile = onRemoveFile
+                            )
+                        }
+                    }
+                }
             }
 
             RunTaskBottomBar(
                 isRunning = uiState.isRunningTask,
-                taskStep = uiState.taskStep,
-                hasResult = uiState.taskOutputs.isNotEmpty() || uiState.taskError != null,
+                taskStep = uiState.taskStep.toComponentTaskStep(),
+                hasResult = uiState.taskOutputs.isNotEmpty() || taskError != null,
                 onRun = onRunTask,
                 onReset = onResetTask,
                 modifier = Modifier.align(Alignment.BottomCenter)
@@ -714,7 +720,7 @@ private fun InputNodesContent(
     inputNodes: List<InputNode>,
     uiState: AppDetailUiState,
     onInputChanged: (String, String, String) -> Unit,
-    onPickMedia: (String, String, MediaType) -> Unit,
+    onPickMedia: (String, String, AppDetailMediaType) -> Unit,
     onRemoveFile: (String, String) -> Unit
 ) {
     Column {
@@ -722,10 +728,10 @@ private fun InputNodesContent(
         while (index < inputNodes.size) {
             val node = inputNodes[index]
             val mediaType = node.uploadMediaType()
-            if (mediaType == MediaType.IMAGE) {
+            if (mediaType == AppDetailMediaType.IMAGE) {
                 val imageNodes = mutableListOf<InputNode>()
                 var cursor = index
-                while (cursor < inputNodes.size && inputNodes[cursor].uploadMediaType() == MediaType.IMAGE) {
+                while (cursor < inputNodes.size && inputNodes[cursor].uploadMediaType() == AppDetailMediaType.IMAGE) {
                     imageNodes += inputNodes[cursor]
                     cursor++
                 }
@@ -771,10 +777,10 @@ private fun RenderInputNodeField(
     node: InputNode,
     uiState: AppDetailUiState,
     onInputChanged: (String, String, String) -> Unit,
-    onPickMedia: (String, String, MediaType) -> Unit,
+    onPickMedia: (String, String, AppDetailMediaType) -> Unit,
     onRemoveFile: (String, String) -> Unit
 ) {
-    val nodeKey = AppDetailScreenModel.inputKey(node)
+    val nodeKey = appDetailInputKey(node)
     val currentValue = uiState.inputValues[nodeKey] ?: node.fieldValue ?: ""
     InputNodeField(
         node = node,
@@ -782,7 +788,7 @@ private fun RenderInputNodeField(
         localUri = uiState.localUris[node.nodeId],
         uploadState = uiState.uploadingNodes[node.nodeId],
         onValueChanged = { onInputChanged(node.nodeId, node.fieldName, it) },
-        onPickFile = { onPickMedia(node.nodeId, node.fieldName, node.uploadMediaType() ?: MediaType.IMAGE) },
+        onPickFile = { onPickMedia(node.nodeId, node.fieldName, node.uploadMediaType() ?: AppDetailMediaType.IMAGE) },
         onRemoveFile = { onRemoveFile(node.nodeId, node.fieldName) }
     )
 }
@@ -791,7 +797,7 @@ private fun RenderInputNodeField(
 private fun MultiImageUploadRow(
     nodes: List<InputNode>,
     uiState: AppDetailUiState,
-    onPickMedia: (String, String, MediaType) -> Unit,
+    onPickMedia: (String, String, AppDetailMediaType) -> Unit,
     onRemoveFile: (String, String) -> Unit
 ) {
     Column(
@@ -811,7 +817,7 @@ private fun MultiImageUploadRow(
             contentPadding = PaddingValues(end = 4.dp)
         ) {
             items(nodes, key = { it.nodeId + it.fieldName }) { node ->
-                val nodeKey = AppDetailScreenModel.inputKey(node)
+                val nodeKey = appDetailInputKey(node)
                 val currentValue = uiState.inputValues[nodeKey] ?: node.fieldValue ?: ""
                 val uploadState = uiState.uploadingNodes[node.nodeId]
                 Column(modifier = Modifier.width(112.dp)) {
@@ -833,7 +839,7 @@ private fun MultiImageUploadRow(
                         isError = uploadState?.isError == true,
                         mediaType = MediaType.IMAGE,
                         square = true,
-                        onPickFile = { onPickMedia(node.nodeId, node.fieldName, MediaType.IMAGE) },
+                        onPickFile = { onPickMedia(node.nodeId, node.fieldName, AppDetailMediaType.IMAGE) },
                         onRemoveFile = { onRemoveFile(node.nodeId, node.fieldName) }
                     )
                 }
@@ -853,30 +859,46 @@ private fun InputDivider() {
     )
 }
 
-private fun InputNode.uploadMediaType(): MediaType? {
+private fun InputNode.uploadMediaType(): AppDetailMediaType? {
     val type = fieldType.uppercase()
 
     val label = listOfNotNull(fieldName, nodeName, description, descriptionEn)
         .joinToString(" ")
         .lowercase()
     return when {
-        type == "IMAGE" || type == "IMAGE_UPLOAD" -> MediaType.IMAGE
+        type == "IMAGE" || type == "IMAGE_UPLOAD" -> AppDetailMediaType.IMAGE
         label.contains("上传视频") || label.contains("上传录像") ||
             label.contains("upload video") || label.contains("video upload") ||
-            label.contains("video file") -> MediaType.VIDEO
+            label.contains("video file") -> AppDetailMediaType.VIDEO
         label.contains("上传音频") || label.contains("上传音乐") ||
             label.contains("upload audio") || label.contains("audio upload") ||
-            label.contains("audio file") -> MediaType.AUDIO
+            label.contains("audio file") -> AppDetailMediaType.AUDIO
         label.contains("上传图片") || label.contains("上传图像") ||
-            label.contains("upload image") || label.contains("image upload") -> MediaType.IMAGE
+            label.contains("upload image") || label.contains("image upload") -> AppDetailMediaType.IMAGE
         else -> null
     }
 }
 
-private fun MediaType.permission(): Permission = when (this) {
-    MediaType.IMAGE -> Permission.MediaImages
-    MediaType.VIDEO -> Permission.MediaVideo
-    MediaType.AUDIO -> Permission.MediaAudio
+private fun AppDetailMediaType.permission(): Permission = when (this) {
+    AppDetailMediaType.IMAGE -> Permission.MediaImages
+    AppDetailMediaType.VIDEO -> Permission.MediaVideo
+    AppDetailMediaType.AUDIO -> Permission.MediaAudio
+}
+
+private fun AppDetailMediaType.toComponentMediaType(): MediaType = when (this) {
+    AppDetailMediaType.IMAGE -> MediaType.IMAGE
+    AppDetailMediaType.VIDEO -> MediaType.VIDEO
+    AppDetailMediaType.AUDIO -> MediaType.AUDIO
+}
+
+private fun AppDetailTaskStep.toComponentTaskStep(): TaskStep = when (this) {
+    AppDetailTaskStep.IDLE -> TaskStep.IDLE
+    AppDetailTaskStep.SUBMITTING -> TaskStep.SUBMITTING
+    AppDetailTaskStep.QUEUEING -> TaskStep.QUEUEING
+    AppDetailTaskStep.RUNNING -> TaskStep.RUNNING
+    AppDetailTaskStep.COMPLETING -> TaskStep.COMPLETING
+    AppDetailTaskStep.SUCCESS -> TaskStep.SUCCESS
+    AppDetailTaskStep.FAILED -> TaskStep.FAILED
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -885,7 +907,7 @@ private fun InputNodeField(
     node: InputNode,
     currentValue: String,
     localUri: String?,
-    uploadState: UploadingState?,
+    uploadState: AppDetailUploadingState?,
     onValueChanged: (String) -> Unit,
     onPickFile: () -> Unit,
     onRemoveFile: () -> Unit
@@ -918,7 +940,7 @@ private fun InputNodeField(
                 isUploading = isUploading,
                 uploadProgress = uploadProgress,
                 isError = isUploadError,
-                mediaType = mediaType,
+                mediaType = mediaType.toComponentMediaType(),
                 onPickFile = onPickFile,
                 onRemoveFile = onRemoveFile
             )
@@ -1404,9 +1426,9 @@ private fun detailPreviewState(): AppDetailUiState {
         isLoading = false,
         detail = detail,
         inputValues = detail.inputNodes.associate { node ->
-            AppDetailScreenModel.inputKey(node) to (node.fieldValue ?: "")
+            appDetailInputKey(node) to (node.fieldValue ?: "")
         },
-        taskStep = TaskStep.SUCCESS,
+        taskStep = AppDetailTaskStep.SUCCESS,
         taskOutputs = previewTaskOutputs(),
     )
 }
