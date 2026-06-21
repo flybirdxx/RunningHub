@@ -266,6 +266,7 @@ gate_status:
       - "2026-06-22 P7 数据库契约基线清账：确认 RunningHubDatabase/DiscoveryCache 仅剩 shared 构建和治理基线引用，无生产调用点；删除未使用的 DiscoveryCache.sq，移除 shared SQLDelight 插件与驱动依赖，清理 Version Catalog/根插件声明中的 SQLDelight 条目，并把 checkDatabaseContractBaseline 改为不再允许 legacy-debt。当前仓库没有生产 SQLDelight schema，后续新增 .sq/.sqm 必须登记真实数据库契约或 migration 测试。"
       - "2026-06-22 P8 Discovery 排序标签资源化继续收缩：发现页排序下拉的推荐/口碑/最热/最新固定标签从 feature:discovery:presentation 的 CatalogSort.label 扩展迁入 composeApp commonMain Compose Resources；DiscoveryStateHolder 不再持有排序展示文案，硬编码 UI 文案基线从 7 下调为 3，剩余项为目录错误兜底文案。"
       - "2026-06-22 Gate H/P7 shared 依赖继续瘦身：确认 shared 当前源码只保留平台信息、MD5 兼容工具和 sharedModule 组合入口；移除 shared 对 core:model、feature:community:domain、feature:discovery:domain 和 kotlinx-datetime 的直接依赖，保留 core:network、core:storage、feature:auth:domain、Ktor、Koin、serialization 和 DataStore 这些仍由 sharedModule 或公开 storage API 需要的依赖。"
+      - "2026-06-22 Gate H/P7 shared 构建脚本继续瘦身：shared 自身不再声明 kotlinx.serialization 编译插件、Ktor content-negotiation/logging/auth/serialization、kotlinx-coroutines-android、koin-android、koin-test 或 ktor-client-mock；这些能力要么已由 core:network 封装并声明，要么在 shared 当前空测试集和 common Koin DSL 中无直接使用。shared 仍保留平台 Ktor engine 依赖，避免 HttpClient 默认 engine 运行期缺失。"
     remaining: []
 next_action:
   id: "MID-02"

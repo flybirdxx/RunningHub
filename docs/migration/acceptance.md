@@ -46,6 +46,9 @@ Gate H/P7 本轮继续瘦身 `shared` 直接依赖：当前 `shared` 源码只�
 `sharedModule` 组合入口，已移除对 `core:model`、`feature:community:domain`、
 `feature:discovery:domain` 和 `kotlinx-datetime` 的直接依赖；`core:network`、`core:storage`、
 `feature:auth:domain`、Ktor、Koin、serialization 和 DataStore 仍由组合入口或公开 storage API 使用。
+随后继续清理 `shared` 构建脚本中无直接使用的插件和库：移除 kotlinx.serialization 编译插件、
+Ktor content-negotiation/logging/auth/serialization、Android coroutine、Koin Android、Koin Test 和
+Ktor Mock 依赖；平台 Ktor engine 依赖仍保留，避免 `HttpClient()` 默认 engine 在运行期缺失。
 本轮继续把已迁移 Feature Data 的服务端错误消息收口扩展为全量门禁：`feature/*/data`
 不得把服务端 `msg/message` 直接作为异常消息或 QuickCreate 任务状态错误传播；
 Task Data、QuickCreate Data、QuickCreate Presentation 和 composeApp 相关测试已覆盖该边界。

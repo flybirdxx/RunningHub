@@ -1,7 +1,6 @@
 plugins {
     id("runninghub.kotlin.multiplatform")
     id("runninghub.android.library")
-    alias(libs.plugins.kotlinx.serialization)
 }
 
 kotlin {
@@ -28,28 +27,16 @@ kotlin {
             implementation(libs.koin.core)
 
             implementation(libs.ktor.client.core)
-            implementation(libs.ktor.client.content.negotiation)
-            implementation(libs.ktor.client.logging)
-            implementation(libs.ktor.client.auth)
-            implementation(libs.ktor.serialization.json)
 
             implementation(libs.datastore.preferences.core)
         }
 
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
-            implementation(libs.kotlinx.coroutines.android)
-            implementation(libs.koin.android)
         }
 
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
-        }
-
-        commonTest.dependencies {
-            implementation(kotlin("test"))
-            implementation(libs.koin.test)
-            implementation(libs.ktor.client.mock)
         }
     }
 }
