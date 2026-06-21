@@ -76,6 +76,7 @@ DiscoveryScreen 的搜索/关闭/排序无障碍描述、主列表空态/到底�
 commonMain Compose Resources，硬编码 UI 文案基线从 11 下调为 0；目录分类名、排序标签、应用标题、作者、Banner tile 标题与媒体 URL、搜索词和错误信息仍保持运行时或 Presentation 映射数据。
 TaskHistoryScreen 的页面标题、搜索/刷新无障碍描述、项目条、置顶项目、筛选 Tab、提示条、空态、详情面板标题、日期分组、任务 ID 格式、操作按钮、状态标签、参考 fallback 任务标题和错误兜底也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 14 下调为 0；任务标题、输出 URL、任务 ID、复用参数键值和服务端错误仍保持运行时或 Presentation 数据。
+PlazaScreen 的页面标题、搜索/刷新无障碍描述、排序/模式/分类标签、空态/分页、精选徽标、卡片兜底标题/归属、喜欢/使用计数格式和原乱码筛选标签已迁入 commonMain Compose Resources，硬编码 UI 文案基线从 5 下调为 0；服务端标签名、卡片标题、作者、媒体类型和错误文案仍保持运行时或 Presentation 数据。
 ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序

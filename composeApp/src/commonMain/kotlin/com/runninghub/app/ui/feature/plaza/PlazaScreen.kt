@@ -68,6 +68,36 @@ import com.runninghub.feature.community.domain.PlazaShortCategory
 import com.runninghub.feature.community.domain.PlazaTag
 import com.runninghub.feature.community.presentation.PlazaMode
 import com.runninghub.feature.community.presentation.PlazaUiState
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.plaza_category_all
+import runninghub.composeapp.generated.resources.plaza_default_creation_owner
+import runninghub.composeapp.generated.resources.plaza_default_short_owner
+import runninghub.composeapp.generated.resources.plaza_empty_creations
+import runninghub.composeapp.generated.resources.plaza_empty_shorts
+import runninghub.composeapp.generated.resources.plaza_fallback_tag_api
+import runninghub.composeapp.generated.resources.plaza_fallback_tag_avatar
+import runninghub.composeapp.generated.resources.plaza_fallback_tag_photo
+import runninghub.composeapp.generated.resources.plaza_fallback_tag_video_generation
+import runninghub.composeapp.generated.resources.plaza_featured_badge
+import runninghub.composeapp.generated.resources.plaza_filter_label
+import runninghub.composeapp.generated.resources.plaza_image_media_type_fallback
+import runninghub.composeapp.generated.resources.plaza_like_count_format
+import runninghub.composeapp.generated.resources.plaza_load_more
+import runninghub.composeapp.generated.resources.plaza_loading_more
+import runninghub.composeapp.generated.resources.plaza_mode_creations
+import runninghub.composeapp.generated.resources.plaza_mode_shorts
+import runninghub.composeapp.generated.resources.plaza_refresh_content_description
+import runninghub.composeapp.generated.resources.plaza_search_content_description
+import runninghub.composeapp.generated.resources.plaza_short_media_type_fallback
+import runninghub.composeapp.generated.resources.plaza_sort_hot
+import runninghub.composeapp.generated.resources.plaza_sort_latest
+import runninghub.composeapp.generated.resources.plaza_sort_recommend
+import runninghub.composeapp.generated.resources.plaza_tag_image_generation
+import runninghub.composeapp.generated.resources.plaza_title
+import runninghub.composeapp.generated.resources.plaza_untitled_creation
+import runninghub.composeapp.generated.resources.plaza_untitled_short
+import runninghub.composeapp.generated.resources.plaza_use_count_format
 
 class PlazaVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
@@ -151,7 +181,7 @@ fun PlazaScreenContent(
                     if (showingShorts) {
                         if (uiState.shorts.isEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                EmptyTile(message = "\u6682\u65e0\u77ed\u7247")
+                                EmptyTile(message = stringResource(Res.string.plaza_empty_shorts))
                             }
                         } else {
                             items(uiState.shorts, key = { it.id }) { card ->
@@ -159,7 +189,11 @@ fun PlazaScreenContent(
                             }
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 LoadMoreTile(
-                                    label = if (uiState.isShortsLoading) "\u52a0\u8f7d\u4e2d" else "\u52a0\u8f7d\u66f4\u591a",
+                                    label = if (uiState.isShortsLoading) {
+                                        stringResource(Res.string.plaza_loading_more)
+                                    } else {
+                                        stringResource(Res.string.plaza_load_more)
+                                    },
                                     onClick = onLoadMoreShorts,
                                 )
                             }
@@ -167,7 +201,7 @@ fun PlazaScreenContent(
                     } else {
                         if (uiState.creations.isEmpty()) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
-                                EmptyTile(message = "\u6682\u65e0\u5e7f\u573a\u5185\u5bb9")
+                                EmptyTile(message = stringResource(Res.string.plaza_empty_creations))
                             }
                         } else {
                             items(uiState.creations, key = { it.id }) { card ->
@@ -177,7 +211,11 @@ fun PlazaScreenContent(
                         if (uiState.hasMore) {
                             item(span = { GridItemSpan(maxLineSpan) }) {
                                 LoadMoreTile(
-                                    label = if (uiState.isLoadingMore) "\u52a0\u8f7d\u4e2d" else "\u52a0\u8f7d\u66f4\u591a",
+                                    label = if (uiState.isLoadingMore) {
+                                        stringResource(Res.string.plaza_loading_more)
+                                    } else {
+                                        stringResource(Res.string.plaza_load_more)
+                                    },
                                     onClick = onLoadMoreCreations,
                                 )
                             }
@@ -198,7 +236,7 @@ private fun PlazaHeader(onRefresh: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "\u5e7f\u573a",
+            text = stringResource(Res.string.plaza_title),
             color = RhText,
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
@@ -206,10 +244,20 @@ private fun PlazaHeader(onRefresh: () -> Unit) {
             modifier = Modifier.weight(1f),
         )
         IconButton(onClick = {}, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Default.Search, contentDescription = "Search", tint = RhText, modifier = Modifier.size(28.dp))
+            Icon(
+                Icons.Default.Search,
+                contentDescription = stringResource(Res.string.plaza_search_content_description),
+                tint = RhText,
+                modifier = Modifier.size(28.dp),
+            )
         }
         IconButton(onClick = onRefresh, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = RhText, modifier = Modifier.size(28.dp))
+            Icon(
+                Icons.Default.Refresh,
+                contentDescription = stringResource(Res.string.plaza_refresh_content_description),
+                tint = RhText,
+                modifier = Modifier.size(28.dp),
+            )
         }
     }
 }
@@ -231,9 +279,9 @@ private fun PlazaSortTabs(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         listOf(
-            "RECOMMEND" to "\u63a8\u8350",
-            "HOT" to "\u6700\u70ed",
-            "LATEST" to "\u6700\u65b0",
+            "RECOMMEND" to stringResource(Res.string.plaza_sort_recommend),
+            "HOT" to stringResource(Res.string.plaza_sort_hot),
+            "LATEST" to stringResource(Res.string.plaza_sort_latest),
         ).forEach { (value, label) ->
             SegmentedTab(
                 label = label,
@@ -280,8 +328,14 @@ private fun PlazaModeTabs(
         horizontalArrangement = Arrangement.spacedBy(36.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
-        PlazaModeTab("\u7075\u611f", selectedMode == PlazaMode.CREATIONS) { onModeSelected(PlazaMode.CREATIONS) }
-        PlazaModeTab("\u77ed\u7247", selectedMode == PlazaMode.SHORTS) { onModeSelected(PlazaMode.SHORTS) }
+        PlazaModeTab(
+            stringResource(Res.string.plaza_mode_creations),
+            selectedMode == PlazaMode.CREATIONS,
+        ) { onModeSelected(PlazaMode.CREATIONS) }
+        PlazaModeTab(
+            stringResource(Res.string.plaza_mode_shorts),
+            selectedMode == PlazaMode.SHORTS,
+        ) { onModeSelected(PlazaMode.SHORTS) }
     }
 }
 
@@ -317,7 +371,11 @@ private fun PlazaShortCategoryRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TagChip(label = "\u5168\u90e8", selected = selectedCode == null, onClick = { onCategorySelected(null) })
+        TagChip(
+            label = stringResource(Res.string.plaza_category_all),
+            selected = selectedCode == null,
+            onClick = { onCategorySelected(null) },
+        )
         categories.take(8).forEach { category ->
             TagChip(
                 label = category.name.ifBlank { category.code },
@@ -342,13 +400,17 @@ private fun PlazaTagRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        TagChip(label = "\u56fe\u7247\u751f\u6210", selected = selectedTagId == null, onClick = { onTagSelected(null) })
+        TagChip(
+            label = stringResource(Res.string.plaza_tag_image_generation),
+            selected = selectedTagId == null,
+            onClick = { onTagSelected(null) },
+        )
         val visibleTags = tags.take(5).ifEmpty {
             listOf(
-                PlazaTag("video", "\u89c6\u9891\u751f\u6210", 1, true),
-                PlazaTag("avatar", "\u6570\u5b57\u4eba", 1, true),
-                PlazaTag("api", "API", 1, true),
-                PlazaTag("photo", "\u6444\u5f71", 1, true),
+                PlazaTag("video", stringResource(Res.string.plaza_fallback_tag_video_generation), 1, true),
+                PlazaTag("avatar", stringResource(Res.string.plaza_fallback_tag_avatar), 1, true),
+                PlazaTag("api", stringResource(Res.string.plaza_fallback_tag_api), 1, true),
+                PlazaTag("photo", stringResource(Res.string.plaza_fallback_tag_photo), 1, true),
             )
         }
         visibleTags.forEach { tag ->
@@ -358,7 +420,7 @@ private fun PlazaTagRow(
                 onClick = { onTagSelected(tag.id) },
             )
         }
-        TagChip(label = "ɸѡ", selected = false, onClick = {})
+        TagChip(label = stringResource(Res.string.plaza_filter_label), selected = false, onClick = {})
     }
 }
 
@@ -424,7 +486,7 @@ private fun PlazaCreationTile(card: PlazaCreationCard) {
                 ),
         )
         Text(
-            text = "\u7cbe\u9009",
+            text = stringResource(Res.string.plaza_featured_badge),
             color = RhText,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,
@@ -437,7 +499,7 @@ private fun PlazaCreationTile(card: PlazaCreationCard) {
         )
         if (card.liked || card.collected) {
             Text(
-                text = "\u7cbe\u9009",
+                text = stringResource(Res.string.plaza_featured_badge),
                 color = Color.Black,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
@@ -457,7 +519,7 @@ private fun PlazaCreationTile(card: PlazaCreationCard) {
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(
-                text = card.intro ?: "Untitled creation",
+                text = card.intro ?: stringResource(Res.string.plaza_untitled_creation),
                 color = RhText,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
@@ -465,15 +527,27 @@ private fun PlazaCreationTile(card: PlazaCreationCard) {
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = listOfNotNull(card.ownerName, card.mediaType).joinToString(" / ").ifBlank { "RunningHub" },
+                text = listOfNotNull(card.ownerName, card.mediaType)
+                    .joinToString(" / ")
+                    .ifBlank { stringResource(Res.string.plaza_default_creation_owner) },
                 color = RhMuted,
                 style = MaterialTheme.typography.labelSmall,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("\u559c\u6b22 ${card.likeCount ?: "0"}", color = RhText, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                Text("\u4f7f\u7528 ${card.useCount ?: "0"}", color = RhText, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+                Text(
+                    text = stringResource(Res.string.plaza_like_count_format, card.likeCount ?: "0"),
+                    color = RhText,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                )
+                Text(
+                    text = stringResource(Res.string.plaza_use_count_format, card.useCount ?: "0"),
+                    color = RhText,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1,
+                )
             }
         }
     }
@@ -491,7 +565,13 @@ private fun PlazaShortTile(card: PlazaShortCard) {
     ) {
         val media = card.thumbnailUrl ?: card.videoUrl
         if (media.isNullOrBlank()) {
-            PlazaFallbackVisual(PlazaCreationCard(id = card.id, intro = card.name, mediaType = "SHORT"))
+            PlazaFallbackVisual(
+                PlazaCreationCard(
+                    id = card.id,
+                    intro = card.name,
+                    mediaType = stringResource(Res.string.plaza_short_media_type_fallback),
+                ),
+            )
         } else {
             SmartAsyncImage(
                 imageUrl = media,
@@ -513,8 +593,23 @@ private fun PlazaShortTile(card: PlazaShortCard) {
                 .padding(10.dp),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
-            Text(card.name.ifBlank { "Untitled short" }, color = RhText, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            Text(listOfNotNull(card.authorName, card.categoryName).joinToString(" / ").ifBlank { "RunningHub TV" }, color = RhMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                text = card.name.ifBlank { stringResource(Res.string.plaza_untitled_short) },
+                color = RhText,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = listOfNotNull(card.authorName, card.categoryName)
+                    .joinToString(" / ")
+                    .ifBlank { stringResource(Res.string.plaza_default_short_owner) },
+                color = RhMuted,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -569,7 +664,7 @@ private fun PlazaFallbackVisual(card: PlazaCreationCard) {
             ),
     ) {
         Text(
-            text = card.mediaType ?: "IMAGE",
+            text = card.mediaType ?: stringResource(Res.string.plaza_image_media_type_fallback),
             color = BrandLime,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
