@@ -56,6 +56,28 @@ import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailUiItem
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectUiItem
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_project_cancel_action
+import runninghub.composeapp.generated.resources.quick_create_project_create_confirm
+import runninghub.composeapp.generated.resources.quick_create_project_create_content_description
+import runninghub.composeapp.generated.resources.quick_create_project_create_title
+import runninghub.composeapp.generated.resources.quick_create_project_delete_action
+import runninghub.composeapp.generated.resources.quick_create_project_delete_title
+import runninghub.composeapp.generated.resources.quick_create_project_detail_close
+import runninghub.composeapp.generated.resources.quick_create_project_detail_loading_body
+import runninghub.composeapp.generated.resources.quick_create_project_detail_loading_title
+import runninghub.composeapp.generated.resources.quick_create_project_detail_title
+import runninghub.composeapp.generated.resources.quick_create_project_load_more
+import runninghub.composeapp.generated.resources.quick_create_project_loading_more
+import runninghub.composeapp.generated.resources.quick_create_project_menu_content_description
+import runninghub.composeapp.generated.resources.quick_create_project_menu_detail
+import runninghub.composeapp.generated.resources.quick_create_project_menu_rename
+import runninghub.composeapp.generated.resources.quick_create_project_name_label
+import runninghub.composeapp.generated.resources.quick_create_project_recent
+import runninghub.composeapp.generated.resources.quick_create_project_rename_confirm
+import runninghub.composeapp.generated.resources.quick_create_project_rename_title
+import runninghub.composeapp.generated.resources.quick_create_project_section_title
 
 /**
  * 展示快捷创作默认页顶部的项目筛选与项目操作入口。
@@ -108,7 +130,7 @@ internal fun QuickCreateProjectStrip(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "项目",
+                stringResource(Res.string.quick_create_project_section_title),
                 color = Color.White.copy(alpha = 0.82f),
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -130,7 +152,9 @@ internal fun QuickCreateProjectStrip(
                 ) {
                     Icon(
                         Icons.Default.Add,
-                        contentDescription = "新建项目",
+                        contentDescription = stringResource(
+                            Res.string.quick_create_project_create_content_description,
+                        ),
                         tint = Primary300,
                         modifier = Modifier.size(18.dp),
                     )
@@ -171,9 +195,9 @@ internal fun QuickCreateProjectStrip(
 
     if (createDialogVisible) {
         ProjectNameDialog(
-            title = "新建项目",
+            title = stringResource(Res.string.quick_create_project_create_title),
             initialName = "",
-            confirmText = "新建",
+            confirmText = stringResource(Res.string.quick_create_project_create_confirm),
             onDismiss = { createDialogVisible = false },
             onConfirm = { name ->
                 createDialogVisible = false
@@ -184,9 +208,9 @@ internal fun QuickCreateProjectStrip(
 
     renameTarget?.let { project ->
         ProjectNameDialog(
-            title = "重命名项目",
+            title = stringResource(Res.string.quick_create_project_rename_title),
             initialName = project.name,
-            confirmText = "保存",
+            confirmText = stringResource(Res.string.quick_create_project_rename_confirm),
             onDismiss = { renameTarget = null },
             onConfirm = { name ->
                 renameTarget = null
@@ -227,12 +251,16 @@ internal fun QuickCreateProjectDetailDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("关闭")
+                Text(stringResource(Res.string.quick_create_project_detail_close))
             }
         },
         title = {
             Text(
-                if (isLoading) "加载项目" else "项目详情",
+                if (isLoading) {
+                    stringResource(Res.string.quick_create_project_detail_loading_title)
+                } else {
+                    stringResource(Res.string.quick_create_project_detail_title)
+                },
                 fontWeight = FontWeight.SemiBold,
             )
         },
@@ -244,7 +272,7 @@ internal fun QuickCreateProjectDetailDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                    Text("正在加载项目详情")
+                    Text(stringResource(Res.string.quick_create_project_detail_loading_body))
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
@@ -296,7 +324,7 @@ private fun RecentProjectChip(
                 modifier = Modifier.size(14.dp),
             )
             Text(
-                "最近创作",
+                stringResource(Res.string.quick_create_project_recent),
                 color = if (selected) Primary300 else Color.White.copy(alpha = 0.9f),
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -339,7 +367,11 @@ private fun LoadMoreProjectsChip(
                 )
             }
             Text(
-                if (isLoading) "加载中" else "加载更多",
+                if (isLoading) {
+                    stringResource(Res.string.quick_create_project_loading_more)
+                } else {
+                    stringResource(Res.string.quick_create_project_load_more)
+                },
                 color = Primary300,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Medium,
@@ -434,7 +466,9 @@ private fun ProjectChip(
                     } else {
                         Icon(
                             Icons.Default.MoreVert,
-                            contentDescription = "项目操作",
+                            contentDescription = stringResource(
+                                Res.string.quick_create_project_menu_content_description,
+                            ),
                             tint = Neutral400,
                             modifier = Modifier.size(16.dp),
                         )
@@ -445,7 +479,7 @@ private fun ProjectChip(
                     onDismissRequest = { menuExpanded = false },
                 ) {
                     DropdownMenuItem(
-                        text = { Text("详情") },
+                        text = { Text(stringResource(Res.string.quick_create_project_menu_detail)) },
                         leadingIcon = {
                             Icon(Icons.Default.Info, contentDescription = null)
                         },
@@ -455,7 +489,7 @@ private fun ProjectChip(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("重命名") },
+                        text = { Text(stringResource(Res.string.quick_create_project_menu_rename)) },
                         leadingIcon = {
                             Icon(Icons.Default.Edit, contentDescription = null)
                         },
@@ -465,7 +499,7 @@ private fun ProjectChip(
                         },
                     )
                     DropdownMenuItem(
-                        text = { Text("删除") },
+                        text = { Text(stringResource(Res.string.quick_create_project_delete_action)) },
                         leadingIcon = {
                             Icon(Icons.Default.Delete, contentDescription = null)
                         },
@@ -500,7 +534,7 @@ private fun ProjectNameDialog(
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("项目名称") },
+                label = { Text(stringResource(Res.string.quick_create_project_name_label)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -515,7 +549,7 @@ private fun ProjectNameDialog(
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(Res.string.quick_create_project_cancel_action))
             }
         },
     )
@@ -530,19 +564,19 @@ private fun ProjectDeleteDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text("删除项目", fontWeight = FontWeight.SemiBold)
+            Text(stringResource(Res.string.quick_create_project_delete_title), fontWeight = FontWeight.SemiBold)
         },
         text = {
             Text(project.deleteConfirmationText)
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
-                Text("删除", color = ErrorDark)
+                Text(stringResource(Res.string.quick_create_project_delete_action), color = ErrorDark)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(Res.string.quick_create_project_cancel_action))
             }
         },
     )

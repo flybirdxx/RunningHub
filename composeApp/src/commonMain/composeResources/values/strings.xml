@@ -118,4 +118,24 @@
     <string name="quick_create_params_service_params_title">服务端参数</string>
     <string name="quick_create_params_seed_label">Seed（留空为随机）</string>
     <string name="quick_create_params_seed_random_placeholder">随机</string>
+    <string name="quick_create_project_section_title">项目</string>
+    <string name="quick_create_project_create_content_description">新建项目</string>
+    <string name="quick_create_project_create_title">新建项目</string>
+    <string name="quick_create_project_create_confirm">新建</string>
+    <string name="quick_create_project_rename_title">重命名项目</string>
+    <string name="quick_create_project_rename_confirm">保存</string>
+    <string name="quick_create_project_detail_close">关闭</string>
+    <string name="quick_create_project_detail_loading_title">加载项目</string>
+    <string name="quick_create_project_detail_title">项目详情</string>
+    <string name="quick_create_project_detail_loading_body">正在加载项目详情</string>
+    <string name="quick_create_project_recent">最近创作</string>
+    <string name="quick_create_project_loading_more">加载中</string>
+    <string name="quick_create_project_load_more">加载更多</string>
+    <string name="quick_create_project_menu_content_description">项目操作</string>
+    <string name="quick_create_project_menu_detail">详情</string>
+    <string name="quick_create_project_menu_rename">重命名</string>
+    <string name="quick_create_project_delete_action">删除</string>
+    <string name="quick_create_project_name_label">项目名称</string>
+    <string name="quick_create_project_cancel_action">取消</string>
+    <string name="quick_create_project_delete_title">删除项目</string>
 </resources>
