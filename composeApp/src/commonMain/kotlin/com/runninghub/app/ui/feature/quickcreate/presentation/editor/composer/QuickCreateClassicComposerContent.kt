@@ -77,6 +77,31 @@ import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendBu
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_classic_audio_disabled
+import runninghub.composeapp.generated.resources.quick_create_classic_audio_enabled
+import runninghub.composeapp.generated.resources.quick_create_classic_default_model
+import runninghub.composeapp.generated.resources.quick_create_classic_default_model_subtitle
+import runninghub.composeapp.generated.resources.quick_create_classic_discard_draft
+import runninghub.composeapp.generated.resources.quick_create_classic_generate_button_label
+import runninghub.composeapp.generated.resources.quick_create_classic_generate_content_description
+import runninghub.composeapp.generated.resources.quick_create_classic_image_prompt_placeholder
+import runninghub.composeapp.generated.resources.quick_create_classic_model_loading
+import runninghub.composeapp.generated.resources.quick_create_classic_model_loading_subtitle
+import runninghub.composeapp.generated.resources.quick_create_classic_param_audio_label
+import runninghub.composeapp.generated.resources.quick_create_classic_param_chip_format
+import runninghub.composeapp.generated.resources.quick_create_classic_param_count_label
+import runninghub.composeapp.generated.resources.quick_create_classic_param_duration_label
+import runninghub.composeapp.generated.resources.quick_create_classic_param_quality_label
+import runninghub.composeapp.generated.resources.quick_create_classic_param_ratio_label
+import runninghub.composeapp.generated.resources.quick_create_classic_param_size_label
+import runninghub.composeapp.generated.resources.quick_create_classic_params_content_description
+import runninghub.composeapp.generated.resources.quick_create_classic_price_amount_format
+import runninghub.composeapp.generated.resources.quick_create_classic_price_pending
+import runninghub.composeapp.generated.resources.quick_create_classic_price_refreshing
+import runninghub.composeapp.generated.resources.quick_create_classic_restore_draft
+import runninghub.composeapp.generated.resources.quick_create_classic_video_prompt_placeholder
 
 /**
  * 渲染快捷创作旧版底部编辑器。
@@ -227,7 +252,11 @@ internal fun QuickCreateClassicComposer(
                 AdaptivePromptTextField(
                     prompt = prompt,
                     onPromptChange = onPromptChange,
-                    placeholder = if (isImage) "描述你的图片..." else "描述你的视频...",
+                    placeholder = if (isImage) {
+                        stringResource(Res.string.quick_create_classic_image_prompt_placeholder)
+                    } else {
+                        stringResource(Res.string.quick_create_classic_video_prompt_placeholder)
+                    },
                     charCount = charCount,
                     nearLimit = nearLimit,
                     overLimit = overLimit,
@@ -256,7 +285,9 @@ internal fun QuickCreateClassicComposer(
                     ) {
                         Icon(
                             Icons.Default.Tune,
-                            contentDescription = "创作调优",
+                            contentDescription = stringResource(
+                                Res.string.quick_create_classic_params_content_description,
+                            ),
                             modifier = Modifier.size(18.dp),
                             tint = if (uiState.activeSheet == QuickCreateSheet.PARAMS) Primary300 else Neutral400,
                         )
@@ -323,13 +354,22 @@ private fun DraftResumeRow(
                 onClick = onDiscardDraft,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             ) {
-                Text("丢弃", color = Neutral400, fontSize = 12.sp)
+                Text(
+                    text = stringResource(Res.string.quick_create_classic_discard_draft),
+                    color = Neutral400,
+                    fontSize = 12.sp,
+                )
             }
             TextButton(
                 onClick = onRestoreDraft,
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             ) {
-                Text("恢复", color = Primary300, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    text = stringResource(Res.string.quick_create_classic_restore_draft),
+                    color = Primary300,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
             }
         }
     }
@@ -414,9 +454,9 @@ private fun ServiceModelSummaryRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = when {
-                        loading -> "模型加载中"
+                        loading -> stringResource(Res.string.quick_create_classic_model_loading)
                         model != null -> model.displayName
-                        else -> "默认创作模型"
+                        else -> stringResource(Res.string.quick_create_classic_default_model)
                     },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
@@ -424,9 +464,9 @@ private fun ServiceModelSummaryRow(
                     maxLines = 1,
                 )
                 val subtitle = when {
-                    loading -> "正在同步服务端模型参数"
+                    loading -> stringResource(Res.string.quick_create_classic_model_loading_subtitle)
                     model != null -> model.subtitle
-                    else -> "未获取到服务端模型，使用本地兼容参数"
+                    else -> stringResource(Res.string.quick_create_classic_default_model_subtitle)
                 }
                 if (subtitle.isNotBlank()) {
                     Text(
@@ -438,9 +478,12 @@ private fun ServiceModelSummaryRow(
                 }
             }
             val priceText = when {
-                feePreviewLoading -> "价格刷新中"
-                feePreviewError != null -> "价格待确认"
-                cost > 0.0 -> "${formatCashAmount(cost)} CNY"
+                feePreviewLoading -> stringResource(Res.string.quick_create_classic_price_refreshing)
+                feePreviewError != null -> stringResource(Res.string.quick_create_classic_price_pending)
+                cost > 0.0 -> stringResource(
+                    Res.string.quick_create_classic_price_amount_format,
+                    formatCashAmount(cost),
+                )
                 else -> null
             }
             priceText?.let {
@@ -500,25 +543,25 @@ private fun QuickParamChipRow(
             val resolutions = ImageResolution.entries.filter { it in config.model.supportedResolutions }
             val qualities = ImageQuality.entries.filter { it in config.model.supportedQualities }
             CompactParamChip(
-                label = "比例",
+                label = stringResource(Res.string.quick_create_classic_param_ratio_label),
                 value = config.aspectRatio.displayName,
                 icon = Icons.Default.Tune,
                 onClick = { onImageRatioChange(nextQuickCreateValue(ratios, config.aspectRatio)) },
             )
             CompactParamChip(
-                label = "尺寸",
+                label = stringResource(Res.string.quick_create_classic_param_size_label),
                 value = config.resolution.displayName,
                 icon = Icons.Default.Tune,
                 onClick = { onImageResChange(nextQuickCreateValue(resolutions, config.resolution)) },
             )
             CompactParamChip(
-                label = "质量",
+                label = stringResource(Res.string.quick_create_classic_param_quality_label),
                 value = config.quality.displayName,
                 icon = Icons.Default.Tune,
                 onClick = { onImageQualityChange(nextQuickCreateValue(qualities, config.quality)) },
             )
             CompactParamChip(
-                label = "数量",
+                label = stringResource(Res.string.quick_create_classic_param_count_label),
                 value = config.count.toString(),
                 icon = Icons.Default.Add,
                 onClick = { onImageCountChange(nextQuickCreateValue(listOf(1, 2, 4), config.count)) },
@@ -529,26 +572,30 @@ private fun QuickParamChipRow(
             val resolutions = VideoResolution.entries.filter { it in config.model.supportedResolutions }
             val durations = VideoDuration.entries.filter { it in config.model.supportedDurations }
             CompactParamChip(
-                label = "比例",
+                label = stringResource(Res.string.quick_create_classic_param_ratio_label),
                 value = config.aspectRatio.displayName,
                 icon = Icons.Default.Tune,
                 onClick = { onVideoRatioChange(nextQuickCreateValue(ratios, config.aspectRatio)) },
             )
             CompactParamChip(
-                label = "尺寸",
+                label = stringResource(Res.string.quick_create_classic_param_size_label),
                 value = config.resolution.displayName,
                 icon = Icons.Default.Tune,
                 onClick = { onVideoResChange(nextQuickCreateValue(resolutions, config.resolution)) },
             )
             CompactParamChip(
-                label = "时长",
+                label = stringResource(Res.string.quick_create_classic_param_duration_label),
                 value = config.duration.displayName,
                 icon = Icons.Default.Tune,
                 onClick = { onVideoDurationChange(nextQuickCreateValue(durations, config.duration)) },
             )
             CompactParamChip(
-                label = "音频",
-                value = if (config.generateAudio) "开" else "关",
+                label = stringResource(Res.string.quick_create_classic_param_audio_label),
+                value = if (config.generateAudio) {
+                    stringResource(Res.string.quick_create_classic_audio_enabled)
+                } else {
+                    stringResource(Res.string.quick_create_classic_audio_disabled)
+                },
                 icon = Icons.Default.MusicNote,
                 highlighted = config.generateAudio,
                 onClick = onToggleAudio,
@@ -589,7 +636,7 @@ private fun CompactParamChip(
                 tint = if (highlighted) Primary300 else Neutral500,
             )
             Text(
-                "$label $value",
+                stringResource(Res.string.quick_create_classic_param_chip_format, label, value),
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium,
                 color = if (highlighted) Primary300 else Neutral300,
@@ -660,7 +707,9 @@ private fun SendButton(
                 } else {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "生成",
+                        contentDescription = stringResource(
+                            Res.string.quick_create_classic_generate_content_description,
+                        ),
                         modifier = Modifier.size(16.dp),
                         tint = Color.White,
                     )
@@ -681,7 +730,7 @@ private fun SendButton(
                     )
                 } else {
                     Text(
-                        "生成",
+                        text = stringResource(Res.string.quick_create_classic_generate_button_label),
                         fontSize = 14.sp,
                         fontWeight = FontWeight.SemiBold,
                         color = if (enabled) Color.White else Neutral500,
