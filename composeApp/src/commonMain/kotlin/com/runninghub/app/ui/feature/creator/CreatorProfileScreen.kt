@@ -67,6 +67,7 @@ import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
 import com.runninghub.core.model.User
 import com.runninghub.core.model.WebApp
+import com.runninghub.feature.auth.presentation.creator.CreatorProfileUiState
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 data class CreatorProfileScreen(val userId: String) : Screen {
@@ -81,10 +82,13 @@ data class CreatorProfileScreen(val userId: String) : Screen {
 
         LaunchedEffect(userId) { screenModel.loadProfile(userId) }
 
+        // CreatorProfileUiState 已迁入独立 presentation 模块，公共可空属性不能跨模块 smart cast。
+        val errorMessage = uiState.error
+
         when {
             uiState.isLoading && uiState.user == null -> LoadingIndicator()
-            uiState.error != null && uiState.user == null -> ErrorState(
-                message = uiState.error!!,
+            errorMessage != null && uiState.user == null -> ErrorState(
+                message = errorMessage,
                 onRetry = { screenModel.loadProfile(userId) }
             )
             else -> ProfileScaffold(

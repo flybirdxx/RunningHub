@@ -14,6 +14,7 @@ kotlin {
         commonMain.dependencies {
             implementation(projects.core.model)
             implementation(projects.feature.auth.domain)
+            implementation(projects.feature.discovery.domain)
             implementation(libs.kotlinx.coroutines.core)
         }
 
