@@ -34,6 +34,9 @@ import kotlinx.coroutines.launch
  * `0` 表示允许重新发送；大于 `0` 时发送按钮保持禁用。
  * @property errorMessage 等待页面展示的一次性中文错误提示。
  * `null` 表示当前没有待展示错误；非空时由页面展示并在用户处理后清理。
+ * @property requiresSmsCaptcha 是否需要展示短信发送前的图形验证码。
+ * `true` 表示用户中心拒绝了无 token 的短信发送请求，页面应打开 TAC 验证容器；
+ * `false` 表示当前可以直接展示普通登录表单。该状态只控制 UI，不保存验证码 token。
  * @property user 登录成功后服务端返回并映射得到的当前用户信息。
  * 登录前以及登录失败时为 `null`；根导航不得依赖此字段，只能观察 SessionManager。
  */
@@ -46,6 +49,7 @@ data class LoginUiState(
     val isSendingCode: Boolean = false,
     val countdownSeconds: Int = 0,
     val errorMessage: String? = null,
+    val requiresSmsCaptcha: Boolean = false,
     val user: User? = null
 )
 
@@ -83,7 +87,7 @@ class LoginScreenModel(
      *
      * 本地先完成手机号校验和倒计时检查，避免无效请求进入远程短信发送链路。
      */
-    fun sendSmsCode() {
+    fun sendSmsCode(captchaToken: String? = null) {
         val phone = _uiState.value.phone
         if (phone.isBlank()) {
             _uiState.update { it.copy(errorMessage = "请输入手机号") }
@@ -96,21 +100,52 @@ class LoginScreenModel(
         if (_uiState.value.countdownSeconds > 0) return
 
         screenModelScope.launch {
-            _uiState.update { it.copy(isSendingCode = true, errorMessage = null) }
-            authRepository.sendSmsCode(phone)
+            _uiState.update {
+                it.copy(
+                    isSendingCode = true,
+                    errorMessage = null,
+                    requiresSmsCaptcha = false,
+                )
+            }
+            authRepository.sendSmsCode(phone, captchaToken)
                 .onSuccess {
                     _uiState.update { it.copy(isSendingCode = false, countdownSeconds = 60) }
                     startCountdown()
                 }
                 .onFailure { e ->
+                    val captchaRequired = e is SmsError.CaptchaRequired
                     _uiState.update {
                         it.copy(
                             isSendingCode = false,
-                            errorMessage = e.toLoginErrorMessage()
+                            errorMessage = e.toLoginErrorMessage(),
+                            // 用户中心当前要求先完成 TAC 图形验证，页面拿到 token 后会重试本次发送。
+                            requiresSmsCaptcha = captchaRequired,
                         )
                     }
                 }
         }
+    }
+
+    /**
+     * 处理图形验证码成功回传的 token。
+     *
+     * token 只参与下一次短信发送请求，不写入页面状态，避免短生命周期校验值被重组、
+     * 日志或状态持久化误用。成功回调先关闭验证码弹窗状态，再重试短信发送；
+     * 这样即使远程短信请求稍后失败，也不会让已经通过的 TAC 弹窗停留在前台。
+     * 若 token 为空，保持验证码弹窗打开并提示用户重试。
+     */
+    fun onSmsCaptchaVerified(token: String?) {
+        if (token.isNullOrBlank()) {
+            _uiState.update { it.copy(errorMessage = "图形验证失败，请重试") }
+            return
+        }
+        _uiState.update { it.copy(requiresSmsCaptcha = false, errorMessage = null) }
+        sendSmsCode(captchaToken = token)
+    }
+
+    /** 用户关闭图形验证码时只退出弹窗，不清空手机号和验证码输入。 */
+    fun dismissSmsCaptcha() {
+        _uiState.update { it.copy(requiresSmsCaptcha = false) }
     }
 
     /**
@@ -236,6 +271,7 @@ class LoginScreenModel(
             is SmsError.AccountNotFound -> "该手机号未注册 RunningHub 账号，请先注册"
             is SmsError.RateLimited -> "发送过于频繁，请稍后再试"
             is SmsError.DailyLimit -> "今日发送次数已达上限，请明日再试"
+            is SmsError.CaptchaRequired -> "请先完成图形验证后再获取验证码"
             is SmsError.Network -> "网络连接失败，请检查网络后重试"
             is SmsError.Unknown -> serverMessage?.takeIf { it.isNotBlank() } ?: "登录失败，请稍后重试"
             is AuthError.Network -> "网络连接失败，请检查网络后重试"

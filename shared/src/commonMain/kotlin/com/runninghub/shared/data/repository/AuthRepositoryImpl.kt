@@ -77,10 +77,14 @@ class AuthRepositoryImpl(
      * 请求服务端发送短信验证码。
      *
      * 服务端错误码会被映射成 [SmsError]，保留错误语义但不生成最终 UI 文案。
+     *
+     * @param captchaToken TAC 滑块验证码返回的 `validToken`。
+     * 当前网页端已要求该 token 参与短信发送校验；为空时服务端可能返回
+     * [SmsError.CaptchaRequired]，由 Presentation 层完成图形验证后重试。
      */
-    override suspend fun sendSmsCode(phone: String): Result<Unit> = runCatching {
+    override suspend fun sendSmsCode(phone: String, captchaToken: String?): Result<Unit> = runCatching {
         val response = try {
-            api.sendSmsCode(SmsCodeRequest(mobile = phone))
+            api.sendSmsCode(SmsCodeRequest(mobile = phone, token = captchaToken))
         } catch (e: Exception) {
             throw SmsError.Network()
         }
@@ -209,6 +213,7 @@ class AuthRepositoryImpl(
             upper.contains("ACCOUNT_NOT_EXIST") -> SmsError.AccountNotFound()
             upper.contains("SMS_SEND_TOO_FREQUENT") -> SmsError.RateLimited()
             upper.contains("SMS_DAILY_LIMIT") -> SmsError.DailyLimit()
+            upper.contains("CAPTCHA_VERIFY_ERROR") -> SmsError.CaptchaRequired()
             msg.isNotEmpty() -> SmsError.Unknown(msg)
             else -> SmsError.Unknown("AUTH_FAILED_CODE_$code")
         }

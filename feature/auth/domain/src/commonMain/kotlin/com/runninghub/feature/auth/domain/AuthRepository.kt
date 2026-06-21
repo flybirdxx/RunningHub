@@ -56,6 +56,15 @@ sealed class SmsError(
     /** 当日短信发送次数达到服务端限制。 */
     class DailyLimit : SmsError("SMS_DAILY_LIMIT")
 
+    /**
+     * 服务端要求先完成图形验证码。
+     *
+     * 当前网页端在发送短信前会完成 TAC 滑块校验，并把返回的 `validToken`
+     * 作为 `sendSms` 请求的 `token` 字段提交。Presentation 层收到该错误后应打开
+     * 图形验证码流程，拿到 token 后再重试发送短信。
+     */
+    class CaptchaRequired : SmsError("CAPTCHA_VERIFY_ERROR")
+
     /** 网络不可用、超时或 DNS 解析失败，调用方应保留用户输入以便重试。 */
     class Network : SmsError("NETWORK_UNAVAILABLE")
 
@@ -78,8 +87,18 @@ interface AuthRepository {
     /** 使用手机号和密码登录，成功时返回当前用户信息；失败时可能返回 [AuthError]。 */
     suspend fun login(phone: String, password: String): Result<User>
 
-    /** 请求发送短信验证码，失败时可能返回 [SmsError]。 */
-    suspend fun sendSmsCode(phone: String): Result<Unit>
+    /**
+     * 请求发送短信验证码。
+     *
+     * @param phone 用户输入的中国大陆手机号，不包含 `+86` 前缀。
+     * 调用方应先完成基础格式校验，避免空字符串或明显非法号码进入 Data 层。
+     * @param captchaToken TAC 图形验证码返回的 `validToken`。
+     * `null` 表示首次尝试或当前环境尚未取得验证码 token；服务端可能返回
+     * [SmsError.CaptchaRequired] 要求调用方先完成图形验证后重试。
+     * @return 发送请求成功被服务端接受时返回成功；失败时通过 [SmsError] 表达频控、
+     * 图形验证、网络异常或验证码业务错误。
+     */
+    suspend fun sendSmsCode(phone: String, captchaToken: String? = null): Result<Unit>
 
     /** 使用手机号和短信验证码登录，成功后由实现层持久化访问令牌和刷新令牌。 */
     suspend fun smsLogin(phone: String, code: String): Result<User>

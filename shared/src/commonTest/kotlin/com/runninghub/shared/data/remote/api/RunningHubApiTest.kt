@@ -18,10 +18,12 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class RunningHubApiTest {
     private val json = Json {
         ignoreUnknownKeys = true
+        encodeDefaults = true
         explicitNulls = false
     }
 
@@ -32,8 +34,15 @@ class RunningHubApiTest {
 
         api.pwdLogin(PwdLoginRequest(mobile = "13800000000", password = "password"))
         api.tokenRefresh("refresh-token")
-        api.sendSmsCode(SmsCodeRequest(mobile = "13800000000"))
-        api.smsLogin(SmsLoginRequest(mobile = "13800000000", code = "123456"))
+        api.sendSmsCode(SmsCodeRequest(mobile = "13800000000", token = "captcha-token"))
+        api.smsLogin(
+            SmsLoginRequest(
+                mobile = "13800000000",
+                code = "123456",
+                channel = "utm-source",
+                inviteCode = "invite-code",
+            ),
+        )
         api.logout("access-token")
         api.getUserInfoWithToken(accessToken = "access-token", userId = "user-1")
         api.getAccountStatus(AccountStatusRequest(apikey = "api-key"))
@@ -72,6 +81,11 @@ class RunningHubApiTest {
             ),
             captured.map { it.method to it.path },
         )
+        assertTrue(captured[2].body.contains(""""token":"captcha-token""""))
+        assertTrue(captured[3].body.contains(""""serviceAgreement":true"""))
+        assertTrue(captured[3].body.contains(""""channel":"utm-source""""))
+        assertTrue(captured[3].body.contains(""""inviteCode":"invite-code""""))
+        assertTrue(captured[3].body.contains(""""rememberMe":false"""))
     }
 
     @Test
@@ -101,6 +115,7 @@ class RunningHubApiTest {
                 captured += CapturedRequest(
                     method = request.method,
                     path = request.url.encodedPath,
+                    body = request.body.toRequestBodyText(),
                     authorization = request.headers[HttpHeaders.Authorization],
                     referer = request.headers[HttpHeaders.Referrer],
                 )
@@ -119,7 +134,15 @@ class RunningHubApiTest {
     private data class CapturedRequest(
         val method: HttpMethod,
         val path: String,
+        val body: String,
         val authorization: String?,
         val referer: String?,
     )
+
+    private fun Any.toRequestBodyText(): String =
+        when (this) {
+            is io.ktor.http.content.OutgoingContent.ByteArrayContent -> bytes().decodeToString()
+            is io.ktor.http.content.TextContent -> text
+            else -> toString()
+        }
 }

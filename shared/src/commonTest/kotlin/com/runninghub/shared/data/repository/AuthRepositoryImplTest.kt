@@ -5,6 +5,7 @@ import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.auth.domain.AuthError
 import com.runninghub.feature.auth.domain.SessionManager
 import com.runninghub.feature.auth.domain.SessionState
+import com.runninghub.feature.auth.domain.SmsError
 import com.runninghub.shared.data.remote.api.RunningHubApi
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -152,6 +153,39 @@ class AuthRepositoryImplTest {
 
         assertTrue(result.isFailure)
         assertTrue(result.exceptionOrNull() is AuthError.Network)
+    }
+
+    @Test
+    fun `sendSmsCode maps captcha verify error to captcha required`() = runBlocking {
+        val settings = FakeSettingsRepository(
+            authToken = null,
+            refreshToken = null,
+        )
+        val engine = MockEngine {
+            respond(
+                content = """{"code":301,"msg":"CAPTCHA_VERIFY_ERROR","data":null}""",
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = AuthRepositoryImpl(
+            api = RunningHubApi(client),
+            credentialStore = settings,
+            sessionManager = SessionManager(),
+            tokenRefresher = TokenRefresher(
+                refreshClient = client,
+                credentialStore = settings,
+            ),
+        )
+
+        val result = repository.sendSmsCode("13800138000")
+
+        assertTrue(result.isFailure)
+        assertTrue(result.exceptionOrNull() is SmsError.CaptchaRequired)
     }
 
     @OptIn(ExperimentalEncodingApi::class)

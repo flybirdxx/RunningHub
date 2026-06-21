@@ -79,6 +79,15 @@ class LoginVoyagerScreen : Screen {
             }
         }
 
+        // 图形验证是短信发送的前置步骤，放在 Scaffold 外层可避免 Snackbar 和键盘布局影响 Web 容器尺寸。
+        if (uiState.requiresSmsCaptcha) {
+            SmsCaptchaDialog(
+                phone = uiState.phone,
+                onToken = screenModel::onSmsCaptchaVerified,
+                onDismiss = screenModel::dismissSmsCaptcha,
+            )
+        }
+
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
             contentWindowInsets = WindowInsets(0, 0, 0, 0),

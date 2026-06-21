@@ -1,7 +1,7 @@
 # iOS macOS link and Simulator smoke evidence
 
-capturedAt: 2026-06-21T15:09:25Z
-headSha: d7510d8e398134dab92ce5a3ac38d42ff9762df2
+capturedAt: 2026-06-21T08:35:11Z
+headSha: 85f134d23ac58768e8a40c3172f3fbb34ca90699
 overallResult: skipped
 host: Windows local environment; macOS unavailable
 linkCommand: ./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64

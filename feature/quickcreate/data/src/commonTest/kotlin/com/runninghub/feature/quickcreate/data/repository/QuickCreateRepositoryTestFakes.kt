@@ -15,7 +15,7 @@ internal class FakeAuthRepository : AuthRepository {
     override suspend fun login(phone: String, password: String): Result<User> =
         Result.failure(NotImplementedError())
 
-    override suspend fun sendSmsCode(phone: String): Result<Unit> =
+    override suspend fun sendSmsCode(phone: String, captchaToken: String?): Result<Unit> =
         Result.failure(NotImplementedError())
 
     override suspend fun smsLogin(phone: String, code: String): Result<User> =

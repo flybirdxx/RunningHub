@@ -72,15 +72,55 @@ class LoginScreenModelTest {
         assertEquals("网络连接失败，请检查网络后重试", screenModel.uiState.value.errorMessage)
     }
 
+    @Test
+    fun `captcha verification error asks presentation to open captcha dialog`() = runTest {
+        val screenModel = LoginScreenModel(
+            FakeAuthRepository(sendSmsCodeResult = Result.failure(SmsError.CaptchaRequired()))
+        )
+
+        screenModel.onPhoneChanged("13800138000")
+        screenModel.sendSmsCode()
+        advanceUntilIdle()
+
+        assertEquals(true, screenModel.uiState.value.requiresSmsCaptcha)
+        assertEquals("请先完成图形验证后再获取验证码", screenModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `verified captcha token closes dialog and retries sending sms`() = runTest {
+        val repository = FakeAuthRepository(
+            sendSmsCodeResult = Result.failure(SmsError.CaptchaRequired())
+        )
+        val screenModel = LoginScreenModel(repository)
+
+        screenModel.onPhoneChanged("13800138000")
+        screenModel.sendSmsCode()
+        advanceUntilIdle()
+        assertEquals(true, screenModel.uiState.value.requiresSmsCaptcha)
+
+        repository.sendSmsCodeResult = Result.success(Unit)
+        screenModel.onSmsCaptchaVerified("captcha-token")
+        assertEquals(false, screenModel.uiState.value.requiresSmsCaptcha)
+        advanceUntilIdle()
+
+        assertEquals("captcha-token", repository.lastCaptchaToken)
+    }
+
     private class FakeAuthRepository(
         private val smsLoginResult: Result<User> = Result.failure(NotImplementedError()),
         private val passwordLoginResult: Result<User> = Result.failure(NotImplementedError()),
+        var sendSmsCodeResult: Result<Unit> = Result.success(Unit),
     ) : AuthRepository {
+        var lastCaptchaToken: String? = null
+            private set
+
         override suspend fun login(phone: String, password: String): Result<User> =
             passwordLoginResult
 
-        override suspend fun sendSmsCode(phone: String): Result<Unit> =
-            Result.success(Unit)
+        override suspend fun sendSmsCode(phone: String, captchaToken: String?): Result<Unit> {
+            lastCaptchaToken = captchaToken
+            return sendSmsCodeResult
+        }
 
         override suspend fun smsLogin(phone: String, code: String): Result<User> =
             smsLoginResult
