@@ -241,9 +241,17 @@ gate_status:
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：旧 Create 兼容实现已从 composeApp 删除，下一步优先将 Search 状态机迁入 feature:discovery:presentation，CreatorProfile 作为后续候选；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：Search 状态机已迁入 feature:discovery:presentation，下一步优先处理 CreatorProfile 的跨 Auth/Discovery Presentation 边界；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "feature/discovery/presentation/src/commonMain/kotlin/com/runninghub/feature/discovery/presentation/SearchStateHolder.kt"
+    - "feature/discovery/presentation/src/commonTest/kotlin/com/runninghub/feature/discovery/presentation/SearchStateHolderTest.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/search/SearchScreenModel.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/search/SearchScreen.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/adaptive/RhPreviewData.kt"
+    - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/create/CreateScreen.kt"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/create/CreateScreenModel.kt"
     - "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/create/CreateScreenModelTest.kt"
@@ -504,6 +512,8 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain :feature:discovery:presentation:testDebugUnitTest --tests \"com.runninghub.feature.discovery.presentation.SearchStateHolderTest\" # RED: failed before SearchStateHolder existed"
+    - "./gradlew.bat --console=plain :feature:discovery:presentation:testDebugUnitTest --tests \"com.runninghub.feature.discovery.presentation.SearchStateHolderTest\""
     - "rg -n \"\\bCreateVoyagerScreen\\b|\\bCreateScreenModel\\b\" composeApp/src/commonMain composeApp/src/commonTest feature -g \"*.kt\""
     - "./gradlew.bat --console=plain checkArchitectureBoundaries :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.navigation.MainTabScreenRegistryTest\" :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64"
     - "./gradlew.bat --console=plain checkLongTermGovernance"
@@ -866,6 +876,9 @@ last_verification:
     - "2026-06-22 旧 Create 兼容边界完成退役：删除 composeApp 中旧 Create 页面、旧创作 ScreenModel 和对应旧测试；checkArchitectureBoundaries 从保留 ERROR 级废弃标记改为禁止生产 commonMain 重新引用旧入口或旧状态机。"
     - "2026-06-22 旧 Create 退役同步清理治理基线：ui-copy-hardcoded-baseline 和 composeapp-file-size-allowlist 不再登记已删除文件，避免长期治理门禁继续指向不存在的兼容实现。"
     - "2026-06-22 下一步中期候选更新：Search 仍是生产可达 composeApp 状态机，依赖单一 WebAppCatalogRepository，适合作为下一轮迁入 feature:discovery:presentation 的小中范围任务；CreatorProfile 因跨 Auth/Discovery 两个领域，排在 Search 之后。"
+    - "2026-06-22 Search Presentation 中期拆分继续推进：新增 SearchStateHolder 和 SearchUiState，把热门标签加载、输入防抖搜索、点击标签搜索、清空搜索、分页加载、错误文案映射、旧搜索响应隔离和分页按 WebApp.id 去重迁入 feature:discovery:presentation；composeApp SearchScreenModel 只保留 Voyager 生命周期 scope 适配和事件转发。"
+    - "2026-06-22 Search Presentation TDD 验收：先新增 SearchStateHolderTest 并确认 RED 失败于 SearchStateHolder 未定义，随后实现 StateHolder 后测试通过；覆盖防抖只搜索最新关键词、清空搜索保留热门标签、加载更多按稳定 ID 去重、旧关键词响应不覆盖最新结果。"
+    - "2026-06-22 下一步中期候选更新：CreatorProfile 仍在 composeApp 组合 UserRepository 与 WebAppCatalogRepository，并发加载用户资料、关注状态和作品列表；因跨 Auth/Discovery 两个领域，下一轮需先明确 Presentation 模块归属再迁移。"
     - "P0-4 图形验证码本轮继续补强：TAC 脚本加载失败和超时会显示可重试降级状态，并由 SmsCaptchaHtmlTest 锁定；真实 WKWebView 加载、ATS/Cookie/同源行为仍需 macOS/iOS 运行证据。"
     - "网络 JSON 本轮按复核建议补强：TokenRefresher 不再用正则截取刷新响应，改用 kotlinx.serialization DTO 解码，新增测试覆盖 JSON unicode escape token。"
     - "安全存储本轮按复核建议前置修复：生产 CredentialStore 已切换到 Android Keystore backed 密文存储和 iOS Keychain，MigratingCredentialStore 负责把旧 Preferences DataStore 凭据逐项迁移并清理；架构门禁会阻止 Android/iOS RuntimeModule 退回普通 Preferences 绑定。"

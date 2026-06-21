@@ -10,7 +10,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaTy
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
-import com.runninghub.app.ui.feature.search.SearchUiState
+import com.runninghub.feature.discovery.presentation.SearchUiState
 import com.runninghub.core.model.AppDetail
 import com.runninghub.core.model.Author
 import com.runninghub.core.model.Cover

@@ -66,6 +66,7 @@ import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.adaptiveGridColumns
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.core.model.Tag
+import com.runninghub.feature.discovery.presentation.SearchUiState
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class SearchVoyagerScreen : Screen {
@@ -156,21 +157,24 @@ private fun SearchContent(
                 ),
             )
 
+            // SearchUiState 已迁移到独立 presentation 模块，公共可空属性不能跨模块 smart cast。
+            val errorMessage = uiState.error
+
             when {
-                // Searching state
+                // 搜索中且尚无结果时只展示加载态，避免旧结果与新请求状态混在一起。
                 uiState.isSearching && uiState.results.isEmpty() -> {
                     LoadingIndicator()
                 }
 
-                // Error
-                uiState.error != null && uiState.results.isEmpty() -> {
+                // 仅在没有可展示结果时显示错误整页；已有结果时保留列表并由状态区提示。
+                errorMessage != null && uiState.results.isEmpty() -> {
                     ErrorState(
-                        message = uiState.error,
+                        message = errorMessage,
                         onRetry = { onSearch(uiState.query) },
                     )
                 }
 
-                // No query — show hot tags
+                // 没有输入关键词时回到热词入口，保留已加载热词供用户继续探索。
                 uiState.query.isBlank() -> {
                     HotTagsSection(
                         tags = uiState.hotTags,
