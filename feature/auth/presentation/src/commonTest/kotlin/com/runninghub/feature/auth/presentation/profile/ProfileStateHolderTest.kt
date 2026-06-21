@@ -75,13 +75,51 @@ class ProfileStateHolderTest {
         assertEquals(null, stateHolder.uiState.value.user)
     }
 
+    @Test
+    fun `refreshUserData exposes stable error when user info load fails`() = runTest {
+        val stateHolder = createStateHolder(
+            profileCredentialRepository = FakeProfileCredentialRepository(),
+            authRepository = FakeAuthRepository(isLoggedIn = true, currentUserId = "user-1"),
+            userRepository = FakeUserRepository(
+                userInfoResult = Result.failure(IllegalStateException("remote profile failed")),
+            ),
+            coroutineScope = this,
+        )
+
+        stateHolder.refreshUserData()
+        advanceUntilIdle()
+
+        assertFalse(stateHolder.uiState.value.isLoading)
+        assertEquals(true, stateHolder.uiState.value.isLoggedIn)
+        assertEquals(ProfileError.LoadUserFailed, stateHolder.uiState.value.error)
+    }
+
+    @Test
+    fun `refreshUserData exposes stable network error without leaking exception message`() = runTest {
+        val stateHolder = createStateHolder(
+            profileCredentialRepository = FakeProfileCredentialRepository(),
+            authRepository = FakeAuthRepository(
+                isLoggedIn = true,
+                currentUserIdFailure = IllegalStateException("token diagnostics"),
+            ),
+            coroutineScope = this,
+        )
+
+        stateHolder.refreshUserData()
+        advanceUntilIdle()
+
+        assertFalse(stateHolder.uiState.value.isLoading)
+        assertEquals(ProfileError.NetworkFailed, stateHolder.uiState.value.error)
+    }
+
     private fun createStateHolder(
         profileCredentialRepository: FakeProfileCredentialRepository,
         authRepository: FakeAuthRepository = FakeAuthRepository(),
+        userRepository: FakeUserRepository = FakeUserRepository(),
         coroutineScope: CoroutineScope,
     ): ProfileStateHolder =
         ProfileStateHolder(
-            userRepository = FakeUserRepository(),
+            userRepository = userRepository,
             profileCredentialRepository = profileCredentialRepository,
             authRepository = authRepository,
             coroutineScope = coroutineScope,
@@ -108,7 +146,11 @@ class ProfileStateHolderTest {
         }
     }
 
-    private class FakeAuthRepository : AuthRepository {
+    private class FakeAuthRepository(
+        private val isLoggedIn: Boolean = false,
+        private val currentUserId: String? = null,
+        private val currentUserIdFailure: Throwable? = null,
+    ) : AuthRepository {
         var logoutCount: Int = 0
             private set
 
@@ -125,22 +167,27 @@ class ProfileStateHolderTest {
             logoutCount += 1
         }
 
-        override suspend fun isLoggedIn(): Boolean = false
+        override suspend fun isLoggedIn(): Boolean = isLoggedIn
 
         override suspend fun refreshTokenIfNeeded(): Result<String> =
             Result.failure(NotImplementedError())
 
         override suspend fun getCurrentAuthToken(): String? = null
 
-        override suspend fun getCurrentUserId(): String? = null
+        override suspend fun getCurrentUserId(): String? {
+            currentUserIdFailure?.let { throw it }
+            return currentUserId
+        }
     }
 
-    private class FakeUserRepository : UserRepository {
+    private class FakeUserRepository(
+        private val userInfoResult: Result<User> = Result.failure(NotImplementedError()),
+    ) : UserRepository {
         override suspend fun getAccountStatus(): Result<AccountStatus> =
             Result.failure(NotImplementedError())
 
         override suspend fun getUserInfo(userId: String?): Result<User> =
-            Result.failure(NotImplementedError())
+            userInfoResult
 
         override suspend fun getUserDetail(userId: String): Result<User> =
             Result.failure(NotImplementedError())

@@ -67,6 +67,7 @@ import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
 import com.runninghub.core.model.User
 import com.runninghub.core.model.WebApp
+import com.runninghub.feature.auth.presentation.creator.CreatorProfileError
 import com.runninghub.feature.auth.presentation.creator.CreatorProfileUiState
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -74,6 +75,7 @@ import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.creator_profile_back_content_description
 import runninghub.composeapp.generated.resources.creator_profile_default_title
 import runninghub.composeapp.generated.resources.creator_profile_empty_apps
+import runninghub.composeapp.generated.resources.creator_profile_error_load_failed
 import runninghub.composeapp.generated.resources.creator_profile_follow_action
 import runninghub.composeapp.generated.resources.creator_profile_following
 import runninghub.composeapp.generated.resources.creator_profile_like_count_format
@@ -107,8 +109,8 @@ data class CreatorProfileScreen(val userId: String) : Screen {
 
         LaunchedEffect(userId) { screenModel.loadProfile(userId) }
 
-        // CreatorProfileUiState 已迁入独立 presentation 模块，公共可空属性不能跨模块 smart cast。
-        val errorMessage = uiState.error
+        // Presentation 只输出稳定错误语义，应用壳在靠近 UI 的位置映射本地化文案。
+        val errorMessage = uiState.error?.let { creatorProfileErrorMessage(it) }
 
         when {
             uiState.isLoading && uiState.user == null -> LoadingIndicator()
@@ -125,6 +127,12 @@ data class CreatorProfileScreen(val userId: String) : Screen {
         }
     }
 }
+
+@Composable
+private fun creatorProfileErrorMessage(error: CreatorProfileError): String =
+    when (error) {
+        CreatorProfileError.LoadFailed -> stringResource(Res.string.creator_profile_error_load_failed)
+    }
 
 /* ──────────────────────── Main Scaffold ──────────────────────── */
 

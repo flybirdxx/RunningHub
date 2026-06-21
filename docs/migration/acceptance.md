@@ -22,7 +22,7 @@
 | Gate F QuickCreate | 完成 | Presentation 已拆出多个组件；唯一入口、Data 去 shared、Data 层无裸 `println`、`AuthRepository` 非可空依赖已完成；生成任务状态流和非任务状态 Data 本地兜底均已改为 Domain 稳定错误码，并由 Presentation 映射展示文案；历史/项目分页去重和项目任务状态覆盖已有 StateHolder 测试；上传失败/超时拦截、单一生成任务，成功、失败、取消、超时轮询终态、页面 `onDispose` 取消活跃图片生成状态流和活跃媒体上传、模板应用一致性、生成提交快照漂移，以及计费预览与正式提交请求指纹一致性已有测试覆盖；composeApp commonMain 与 feature/quickcreate 源码静态搜索无裸 `println`。P8 UI 文案资源化本轮继续收缩 QuickCreate 叶子 UI：结果页标题/清空结果入口、灵感页空状态/加载更多入口已迁入 commonMain Compose Resources，对应硬编码文案基线从 1 下调到 0；模型选择面板标题、加载态、空态和关闭按钮无障碍描述也已迁入 commonMain Compose Resources，`QuickCreateModelSelectorContent` 基线从 1 下调到 0；模型名称、分组、副标题、模板标题、标签和任务状态文案仍由 Presentation 状态/文案映射提供，后续应按独立文案端口切片处理。登录态 Tab 网络观察已证明切换 History/QuickCreate 等一级 Tab 后稳定窗口内无持续新增网络请求；Android 退出登录后 Login 根页面空闲观察已证明稳定窗口内无新增请求和 in-flight 请求。macOS iOS Simulator 路径按用户确认以 skipped 风险证据留存。 |
 | Gate F2 Community Presentation | 进行中 | 2026-06-22 中期瘦身继续推进：新增 `feature:community:presentation`，把 Plaza 状态机、筛选、分页、短片加载和 fallback 内容逻辑迁出 `composeApp`；`PlazaScreenModel` 现在只负责 Voyager 生命周期适配，测试迁入 `PlazaStateHolderTest`。本轮继续把 Community 工具页的 `CommunityTool`、`CommunityUiState` 和静态工具目录迁入同一 Presentation 模块；`CommunityScreenModel` 现在只负责 Voyager/Koin 适配，工具点击后的真实导航仍保留在应用壳。P8 UI 文案资源化本轮先收缩 Community 页头标题/副标题：新增 commonMain Compose Resources 字符串，`CommunityScreen` 改用 `stringResource`，并把该文件硬编码 UI 文案基线从 2 下调到 0；工具卡片目录文案仍留给后续 Presentation 文案端口或资源化切片。本轮继续清理 Plaza UI 壳体本地颜色别名，plaza 聚合行数降到 800 以下并移除 P5 阈值基线，状态机职责未回流。 |
 | Gate F3 Task History Presentation | 进行中 | 2026-06-22 中期框架整理继续推进：新增 `feature:task:presentation`，把 History 的状态、列表筛选、详情加载、参数复用、取消任务和普通历史轮询迁出 `composeApp`；`TaskHistoryScreenModel` 现在只负责 Voyager 生命周期适配，测试迁入 `TaskHistoryStateHolderTest`。P8 UI 文案资源化本轮继续收缩 History 页面：页面标题、搜索/刷新无障碍描述、项目条、置顶项目、筛选 Tab、提示条、空态、详情面板标题、日期分组、任务 ID 格式、操作按钮、状态标签、参考 fallback 任务标题和错误兜底均迁入 commonMain Compose Resources，`TaskHistoryScreen` 硬编码 UI 文案基线从 14 下调到 0；任务标题、输出 URL、任务 ID、复用参数键值和服务端错误仍保持运行时或 Presentation 数据。History UI 壳仍留在 composeApp，体量基线只因资源化导入增长而临时更新，状态机职责未回流。 |
-| Gate F4 Auth Profile Presentation | 进行中 | 2026-06-22 中期框架整理继续推进：新增 `feature:auth:presentation`，把 Profile 页面状态、资料刷新、凭据绑定、解绑和注销状态清理迁出 `composeApp`；`ProfileScreenModel` 现在只负责 Voyager 生命周期适配，测试迁入 `ProfileStateHolderTest`。本轮继续把 CreatorProfile 的 `CreatorProfileUiState`、用户资料/关注状态/作品列表并发加载、重复加载去重、关注切换和粉丝数本地修正迁入 `feature:auth:presentation` 的 `creator` 边界；`CreatorProfileScreenModel` 现在只负责 Voyager 生命周期适配。本轮按中期开发范围验证 Auth Presentation 单测、Android/iOS Kotlin 编译、composeApp Android/iOS Kotlin 编译、架构边界和长期治理门禁，不补上线 CI/Release 封板证据。 |
+| Gate F4 Auth Profile Presentation | 进行中 | 2026-06-22 中期框架整理继续推进：新增 `feature:auth:presentation`，把 Profile 页面状态、资料刷新、凭据绑定、解绑和注销状态清理迁出 `composeApp`；`ProfileScreenModel` 现在只负责 Voyager 生命周期适配，测试迁入 `ProfileStateHolderTest`。本轮继续把 CreatorProfile 的 `CreatorProfileUiState`、用户资料/关注状态/作品列表并发加载、重复加载去重、关注切换和粉丝数本地修正迁入 `feature:auth:presentation` 的 `creator` 边界；`CreatorProfileScreenModel` 现在只负责 Voyager 生命周期适配。本轮继续把 Creator/Profile 的 Presentation 错误状态从中文 `String` 收口为稳定错误枚举，Creator 可见错误文案由 composeApp Compose Resources 映射，Auth Presentation 不再登记这两个 StateHolder 的硬编码 UI 文案基线。本轮按中期开发范围验证 Auth Presentation 单测、Android/iOS Kotlin 编译、composeApp Android/iOS Kotlin 编译、架构边界和长期治理门禁，不补上线 CI/Release 封板证据。 |
 | Gate F5 Discovery Presentation | 进行中 | 2026-06-22 中期框架整理继续推进：新增 `feature:discovery:presentation`，把 Discovery 的 UiState、排序展示名、目录错误文案、分类/排序/分页/搜索状态机和旧响应隔离迁出 `composeApp`；`DiscoveryScreenModel` 现在只负责 Voyager 生命周期适配，测试迁入 `DiscoveryStateHolderTest`。本轮继续把独立 Search 页的 `SearchUiState`、热门标签加载、输入防抖搜索、分页、错误文案映射和旧响应隔离迁入同一 Presentation 模块；`SearchScreenModel` 现在只负责 Voyager 生命周期适配。本轮按中期开发范围验证新模块单测、Android 编译、composeApp Android 编译和 iOS Simulator Kotlin 编译，不补上线 CI/Release 封板证据。 |
 | Gate F6 Auth Login Presentation | 进行中 | 2026-06-22 中期框架整理继续推进：把 Login 的 `LoginUiState`、短信验证码发送、图形验证码 token 重试、短信/密码登录、倒计时和错误文案映射迁入 `feature:auth:presentation`；`LoginScreenModel` 现在只负责 Voyager 生命周期适配，`SmsCaptchaDialog` expect/actual、TAC HTML 和回调解析继续保留在 `composeApp` 平台边界。本轮按中期开发范围验证 Auth Presentation 单测、Android/iOS Kotlin 编译、验证码保留测试、Android debug 构建、架构边界和长期治理门禁，不补上线 CI/Release 封板证据。 |
 | Gate F7 AppDetail Presentation | 进行中 | 2026-06-22 中期框架整理继续推进：新增 `feature:detail:presentation`，把 AppDetail 的 `AppDetailUiState`、媒体选择/上传状态、详情加载、任务提交、输出轮询和失败文案映射迁出 `composeApp`；`AppDetailScreenModel` 现在只负责 Voyager 生命周期、平台媒体读取适配和 UI 事件转发，AppDetail 页面继续保留权限、媒体选择器和渲染逻辑。本轮新增 `AppDetailStateHolderTest` 并保留 composeApp 适配测试，按开发中期范围验证新模块单测、composeApp 适配单测、Android Kotlin 编译和 Detail Presentation iOS Simulator Kotlin 编译；不补上线 CI/Release/L1 封板证据。 |
@@ -64,8 +64,8 @@ MainScreen 的一级 Tab 标签、guest banner 文案和余额角标符号也已
 commonMain Compose Resources，基线从 3 下调为 0。
 CreatorProfileScreen 的标题兜底、返回无障碍描述、作品区标题、空态、关注按钮、
 用户兜底名、统计标签、使用/点赞格式和指标分隔符也已迁入 commonMain Compose Resources，
-基线从 5 下调为 0；CreatorProfileStateHolder 的错误状态文案仍保留给后续 Presentation
-文案端口治理。
+基线从 5 下调为 0；CreatorProfileStateHolder 的错误状态已改为稳定错误枚举，
+可见错误文案由 CreatorProfileScreen 通过 Compose Resources 映射。
 ProfileScreen 的个人中心默认用户名、设置/头像/会员/菜单/未登录空态等静态标签和无障碍描述，
 以及会员剩余单位/到期格式也已迁入 commonMain Compose Resources，硬编码 UI 文案基线从 2 下调为 0；
 ProfileScreen 仍是迁移期留在 composeApp 的 UI 壳，体量基线同步记录本次资源导入增长，
@@ -101,7 +101,8 @@ PlazaScreen 与 QuickCreateClassicComposerContent 的 `0/0` 旧文案基线已�
 本轮继续删除 composeApp/commonMain 中剩余所有 `0/0` 硬编码 UI 文案基线，并把 baseline
 文档锚点改为仍有正数登记的 Presentation 文案文件；composeApp 文件后续回增硬编码中文 UI
 文案时仍会按未登记新增文件失败。
-ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
+ProfileStateHolder 的资料加载失败和网络异常状态已从中文 `String` 改为稳定错误枚举，
+不再把远端 `msg` 或本地异常诊断文本写入 UI 状态。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
 

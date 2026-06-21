@@ -84,7 +84,7 @@ class CreatorProfileStateHolderTest {
         assertEquals(null, state.user)
         assertTrue(state.isFollowing)
         assertEquals(listOf("app-1"), state.apps.map { it.id })
-        assertEquals("profile failed", state.error)
+        assertEquals(CreatorProfileError.LoadFailed, state.error)
     }
 
     @Test

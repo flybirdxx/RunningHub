@@ -15,6 +15,22 @@ import kotlinx.coroutines.launch
 private const val CREATOR_APP_PAGE_SIZE = 20
 
 /**
+ * 创作者主页可展示的稳定错误语义。
+ *
+ * 该类型属于 Auth Presentation 层，只描述页面可以理解的错误类别，不携带远端 `msg`、
+ * 本地异常消息或敏感诊断信息。最终中文文案由应用壳通过 Compose Resources 映射。
+ */
+enum class CreatorProfileError {
+    /**
+     * 创作者公开资料主请求失败。
+     *
+     * 页面可以展示整页错误并允许用户重试；关注状态和作品列表属于增强信息，
+     * 即使它们加载成功，也不能把底层异常消息透传给最终 UI。
+     */
+    LoadFailed,
+}
+
+/**
  * 创作者主页的完整可渲染状态。
  *
  * 该状态属于 Auth Presentation 层，因为创作者公开资料和关注关系由 Auth Domain 的
@@ -30,16 +46,17 @@ private const val CREATOR_APP_PAGE_SIZE = 20
  * 列表顺序保留服务端返回顺序；空集合表示尚未成功加载、该创作者没有公开作品或作品接口失败。
  * @property isFollowing 当前登录用户是否已关注该创作者。
  * `true` 表示已关注；`false` 表示未关注、尚未查询成功、查询失败或用户未登录。
- * @property error 页面级错误提示。
- * `null` 表示当前没有待展示错误；非空通常来自创作者资料加载失败，后续重新加载时会清空。
+ * @property error 页面级稳定错误语义。
+ * `null` 表示当前没有待展示错误；非空通常来自创作者资料主请求失败，后续重新加载时会清空。
  * 关注关系或作品列表失败不会设置该字段，避免局部增强信息失败遮挡已可展示的主页内容。
+ * 该字段不得保存远端 `msg` 或 [Throwable.message]，最终中文文案由应用壳资源映射。
  */
 data class CreatorProfileUiState(
     val isLoading: Boolean = true,
     val user: User? = null,
     val apps: List<WebApp> = emptyList(),
     val isFollowing: Boolean = false,
-    val error: String? = null,
+    val error: CreatorProfileError? = null,
 )
 
 /**
@@ -98,8 +115,9 @@ class CreatorProfileStateHolder(
 
             userDeferred.await()
                 .onSuccess { user -> _uiState.update { it.copy(user = user) } }
-                .onFailure { throwable ->
-                    _uiState.update { it.copy(error = throwable.message ?: "加载失败") }
+                .onFailure {
+                    // 主资料失败时只输出稳定错误语义，避免远端 msg 或本地异常诊断直接进入 UI。
+                    _uiState.update { it.copy(error = CreatorProfileError.LoadFailed) }
                 }
 
             // 关注状态是增强信息，失败时保持默认 false，避免未登录或远端异常阻断公开主页展示。

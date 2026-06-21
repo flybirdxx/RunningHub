@@ -13,6 +13,28 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
+ * 个人中心可展示的稳定错误语义。
+ *
+ * 该类型属于 Auth Presentation 层，只描述页面状态需要感知的错误类别，不携带远端 `msg`、
+ * 本地异常消息或敏感诊断信息。最终中文文案由应用壳或后续统一文案端口映射。
+ */
+enum class ProfileError {
+    /**
+     * 当前登录用户资料请求失败。
+     *
+     * 页面仍可保持已登录状态，并允许用户通过刷新入口重试；该错误不代表会话已经失效。
+     */
+    LoadUserFailed,
+
+    /**
+     * 登录态读取、用户 ID 获取或网络链路出现无法细分的异常。
+     *
+     * 页面可以展示通用可重试错误；异常原文不得进入 UI、日志或状态对象。
+     */
+    NetworkFailed,
+}
+
+/**
  * 个人中心页面状态。
  *
  * 该状态属于 Auth Presentation 层，只承载个人中心可渲染信息和弹窗开关，
@@ -28,8 +50,9 @@ import kotlinx.coroutines.launch
  * `null` 表示未绑定可用 API Key、查询失败或请求尚未完成；页面不应把 null 展示为余额为 0。
  * @property isLoggedIn 当前本地认证仓库判断到的会话可用性。
  * `true` 表示存在可尝试使用的登录凭据；`false` 表示应展示未登录态或引导登录。
- * @property error 等待页面展示的一次性错误提示。
- * `null` 表示当前没有错误；非空为 Presentation 层稳定中文文案，刷新成功后会清空。
+ * @property error 等待页面展示的一次性稳定错误语义。
+ * `null` 表示当前没有错误；非空由刷新用户资料或读取会话上下文失败时设置，刷新成功后会清空。
+ * 该字段不得保存远端 `msg`、[Throwable.message]、Token、Cookie 或其他诊断文本。
  * @property showApiKeyDialog 是否展示 API Key 绑定弹窗。
  * `true` 表示用户正在输入新的 API Key；`false` 表示弹窗关闭且不持有用户输入。
  * @property showCookieDialog 是否展示 Cookie 绑定弹窗。
@@ -40,7 +63,7 @@ data class ProfileUiState(
     val user: User? = null,
     val accountStatus: AccountStatus? = null,
     val isLoggedIn: Boolean = false,
-    val error: String? = null,
+    val error: ProfileError? = null,
     val showApiKeyDialog: Boolean = false,
     val showCookieDialog: Boolean = false,
 )
@@ -125,7 +148,7 @@ class ProfileStateHolder(
                             it.copy(
                                 isLoading = false,
                                 isLoggedIn = true,
-                                error = "加载用户信息失败",
+                                error = ProfileError.LoadUserFailed,
                             )
                         }
                     },
@@ -138,7 +161,7 @@ class ProfileStateHolder(
             } catch (_: Exception) {
                 // Profile 不展示底层异常消息，避免远端 msg 或本地诊断文本成为最终 UI 文案。
                 _uiState.update {
-                    it.copy(isLoading = false, error = "网络请求失败")
+                    it.copy(isLoading = false, error = ProfileError.NetworkFailed)
                 }
             }
         }
