@@ -28,6 +28,7 @@ kotlin {
             implementation(projects.core.model)
             implementation(projects.core.storage)
             implementation(projects.feature.auth.domain)
+            implementation(projects.feature.auth.presentation)
             implementation(projects.feature.community.domain)
             implementation(projects.feature.community.presentation)
             implementation(projects.feature.discovery.domain)

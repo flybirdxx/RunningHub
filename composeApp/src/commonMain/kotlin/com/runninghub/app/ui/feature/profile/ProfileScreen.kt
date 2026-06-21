@@ -74,6 +74,7 @@ import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.core.model.MemberInfo
 import com.runninghub.core.model.User
 import com.runninghub.core.model.WalletInfo
+import com.runninghub.feature.auth.presentation.profile.ProfileUiState
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 class ProfileVoyagerScreen : Screen {

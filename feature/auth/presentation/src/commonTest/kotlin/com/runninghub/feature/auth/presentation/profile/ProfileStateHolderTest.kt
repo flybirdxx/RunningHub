@@ -1,103 +1,90 @@
-package com.runninghub.app.ui.feature.profile
+package com.runninghub.feature.auth.presentation.profile
 
+import com.runninghub.core.model.AccountStatus
 import com.runninghub.core.model.User
 import com.runninghub.feature.auth.domain.AuthRepository
-import com.runninghub.core.model.AccountStatus
 import com.runninghub.feature.auth.domain.ProfileCredentialRepository
 import com.runninghub.feature.auth.domain.UserRepository
-import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
-import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
-import kotlin.test.AfterTest
-import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class ProfileScreenModelTest {
-
-    @BeforeTest
-    fun setUp() {
-        Dispatchers.setMain(UnconfinedTestDispatcher())
-    }
-
-    @AfterTest
-    fun tearDown() {
-        Dispatchers.resetMain()
-    }
-
+class ProfileStateHolderTest {
     @Test
     fun `bindApiKey delegates credential write through domain repository`() = runTest {
         val profileCredentialRepository = FakeProfileCredentialRepository()
-        val screenModel = createScreenModel(profileCredentialRepository)
+        val stateHolder = createStateHolder(profileCredentialRepository, coroutineScope = this)
         advanceUntilIdle()
 
-        screenModel.showApiKeyDialog()
-        screenModel.bindApiKey("api-key-1")
+        stateHolder.showApiKeyDialog()
+        stateHolder.bindApiKey("api-key-1")
         advanceUntilIdle()
 
         assertEquals("api-key-1", profileCredentialRepository.boundApiKey)
-        assertFalse(screenModel.uiState.value.showApiKeyDialog)
+        assertFalse(stateHolder.uiState.value.showApiKeyDialog)
     }
 
     @Test
     fun `bindCookie delegates credential write through domain repository`() = runTest {
         val profileCredentialRepository = FakeProfileCredentialRepository()
-        val screenModel = createScreenModel(profileCredentialRepository)
+        val stateHolder = createStateHolder(profileCredentialRepository, coroutineScope = this)
         advanceUntilIdle()
 
-        screenModel.showCookieDialog()
-        screenModel.bindCookie("cookie-1")
+        stateHolder.showCookieDialog()
+        stateHolder.bindCookie("cookie-1")
         advanceUntilIdle()
 
         assertEquals("cookie-1", profileCredentialRepository.boundCookie)
-        assertFalse(screenModel.uiState.value.showCookieDialog)
+        assertFalse(stateHolder.uiState.value.showCookieDialog)
     }
 
     @Test
     fun `unbindApiKey clears all creation credentials through domain repository`() = runTest {
         val profileCredentialRepository = FakeProfileCredentialRepository()
-        val screenModel = createScreenModel(profileCredentialRepository)
+        val stateHolder = createStateHolder(profileCredentialRepository, coroutineScope = this)
         advanceUntilIdle()
 
-        screenModel.unbindApiKey()
+        stateHolder.unbindApiKey()
         advanceUntilIdle()
 
         assertEquals(1, profileCredentialRepository.clearCount)
-        assertFalse(screenModel.uiState.value.isLoading)
+        assertFalse(stateHolder.uiState.value.isLoading)
     }
 
     @Test
     fun `logout delegates session cleanup and clears profile state`() = runTest {
         val authRepository = FakeAuthRepository()
-        val screenModel = createScreenModel(
+        val stateHolder = createStateHolder(
             profileCredentialRepository = FakeProfileCredentialRepository(),
             authRepository = authRepository,
+            coroutineScope = this,
         )
         advanceUntilIdle()
 
-        screenModel.logout()
+        stateHolder.logout()
         advanceUntilIdle()
 
         assertEquals(1, authRepository.logoutCount)
-        assertFalse(screenModel.uiState.value.isLoading)
-        assertFalse(screenModel.uiState.value.isLoggedIn)
-        assertEquals(null, screenModel.uiState.value.user)
+        assertFalse(stateHolder.uiState.value.isLoading)
+        assertFalse(stateHolder.uiState.value.isLoggedIn)
+        assertEquals(null, stateHolder.uiState.value.user)
     }
 
-    private fun createScreenModel(
+    private fun createStateHolder(
         profileCredentialRepository: FakeProfileCredentialRepository,
         authRepository: FakeAuthRepository = FakeAuthRepository(),
-    ): ProfileScreenModel =
-        ProfileScreenModel(
+        coroutineScope: CoroutineScope,
+    ): ProfileStateHolder =
+        ProfileStateHolder(
             userRepository = FakeUserRepository(),
             profileCredentialRepository = profileCredentialRepository,
             authRepository = authRepository,
+            coroutineScope = coroutineScope,
         )
 
     private class FakeProfileCredentialRepository : ProfileCredentialRepository {

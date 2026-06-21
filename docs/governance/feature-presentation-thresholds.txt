@@ -8,4 +8,4 @@ detail|1879|App detail page still lives in composeApp and needs a later feature 
 discovery|1581|Discovery has domain/data modules but presentation remains in composeApp during migration.
 history|1002|History UI/Voyager adapter remains in composeApp; state machine, polling, detail loading, cancellation and tests are now owned by feature:task:presentation.
 login|1011|Login UI maps to auth domain/data but still lives in composeApp.
-profile|920|Profile UI maps to auth domain/data and still needs an auth presentation module.
+profile|801|Profile UI shell remains in composeApp; state holder, credential operations and tests are now owned by feature:auth:presentation.

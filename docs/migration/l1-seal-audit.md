@@ -250,7 +250,7 @@ $parseErrors = $null; [System.Management.Automation.PSParser]::Tokenize((Get-Con
 ./gradlew.bat --console=plain verifyL1Android --dry-run
 ./gradlew.bat --console=plain verifyL1Ios --dry-run
 git status --short .github/workflows
-./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.profile.ProfileScreenModelTest"
+./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest --tests "com.runninghub.feature.auth.presentation.profile.ProfileStateHolderTest"
 ./gradlew.bat --console=plain checkArchitectureBoundaries :composeApp:assembleDebug :composeApp:compileKotlinIosSimulatorArm64
 ./gradlew.bat --console=plain :composeApp:assembleDebug
 ./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64
@@ -378,7 +378,7 @@ git diff --name-only
 - 2026-06-21 继续把 `doc/RunningHub-KMP-架构迁移验收标准.md` 纳入
   `checkMigrationScripts` 必跟踪清单，首次运行按预期暴露该验收标准源文件未跟踪；
   加入索引后可避免远端 CI 或后续协作者缺少 AC-11 的唯一验收基准。
-- `ProfileScreenModelTest` 已覆盖 `logout` 只委托 `AuthRepository` 并清空个人中心状态。
+- `ProfileStateHolderTest` 已覆盖 `logout` 只委托 `AuthRepository` 并清空个人中心状态。
 - 静态搜索确认业务 Feature 不再直接 `replaceAll(MainVoyagerScreen())` 或
   `replaceAll(LoginVoyagerScreen())`，根 `App` 是唯一根导航切换位置。
 - `:composeApp:linkDebugFrameworkIosSimulatorArm64` 在 Windows 本地为 `SKIPPED`，真实 link 仍需 macOS runner。
