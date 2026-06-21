@@ -250,6 +250,7 @@ gate_status:
       - "2026-06-22 P8 ProfileScreen 文案资源化继续收缩：个人中心默认用户名、设置/头像/会员/菜单/未登录空态等静态标签和无障碍描述，以及会员剩余单位/到期格式迁入 composeApp commonMain Compose Resources；ProfileScreen 硬编码 UI 文案基线从 2 下调为 0。迁移期 Profile UI 壳仍保留在 composeApp，体量基线同步记录本次资源导入增长；SettingsDialog 与 ProfileStateHolder 文案留给后续独立切片。"
       - "2026-06-22 P8 SettingsDialog 文案资源化继续收缩：API Key/Cookie 绑定弹窗标题、说明、输入标签、占位、帮助、确认和取消文案迁入 composeApp commonMain Compose Resources；SettingsDialog 硬编码 UI 文案基线从 14 下调为 0。真实 API Key/Cookie 输入仍只作为运行时敏感数据通过回调传递；ProfileStateHolder 文案留给后续独立切片。"
       - "2026-06-22 P8 SearchScreen 文案资源化继续收缩：标题、返回无障碍描述、搜索占位、无结果格式化空态、到底提示和热门标签区域文案迁入 composeApp commonMain Compose Resources；SearchScreen 硬编码 UI 文案基线从 5 下调为 0。搜索词、热门标签名、应用标题、作者和错误信息仍保持运行时数据。"
+      - "2026-06-22 P8 LoginScreen 文案资源化继续收缩：品牌展示、手机号/验证码/密码标签、区号、发送验证码状态、登录按钮、登录方式切换和协议提示迁入 composeApp commonMain Compose Resources；LoginScreen 硬编码 UI 文案基线从 8 下调为 0。登录错误和验证码错误仍由 Auth Presentation 状态映射后传入页面展示。"
       - "2026-06-22 P8 QuickCreate 参数面板文案资源化继续收缩：更多参数标题、关闭无障碍描述、本地兼容模型、真人模式、服务端参数、Seed 标签和随机占位迁入 composeApp commonMain Compose Resources；QuickCreateParamsSheetContent 硬编码 UI 文案基线从 4 下调为 0。模型名、服务端字段标题/描述/选项/占位和计数器仍保持运行时或 Presentation 映射数据。"
       - "2026-06-22 P8 QuickCreate 项目条文案资源化继续收缩：项目标题、新建/重命名/删除弹窗、详情弹窗、最近创作、加载更多、项目操作菜单和项目名称标签迁入 composeApp commonMain Compose Resources；QuickCreateProjectContent 硬编码 UI 文案基线从 12 下调为 0。项目名、任务数、置顶无障碍描述、删除确认正文和详情行仍保持运行时或 Presentation 映射数据。"
       - "2026-06-22 P8 QuickCreate 历史列表文案资源化继续收缩：最近创作兜底、加载更多、详情弹窗关闭/加载标题/正文/标题，以及取消任务状态文案迁入 composeApp commonMain Compose Resources；QuickCreateHistoryContent 硬编码 UI 文案基线从 3 下调为 0。历史标题、元信息、计费文本、项目名、输出和任务标识仍保持运行时或 Presentation 映射数据。"
@@ -261,11 +262,12 @@ gate_status:
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/AppDetail/Discovery/TaskHistory/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer/QuickCreateClassicComposer 等叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估 LoginScreen、PlazaScreen 或 Presentation 文案端口资源化边界；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer/QuickCreateClassicComposer 等叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估 PlazaScreen 或 Presentation 文案端口资源化边界；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
     - "composeApp/src/commonMain/composeResources/values/strings.xml"
-    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateClassicComposerContent.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/login/LoginScreen.kt"
+    - "docs/governance/feature-presentation-thresholds.txt"
     - "docs/governance/ui-copy-hardcoded-baseline.txt"
     - "docs/migration/acceptance.md"
     - "docs/migration/current-state.yaml"
@@ -651,6 +653,13 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering LoginScreen hardcoded UI copy baseline from 8 to 0 before resource migration"
+    - "./gradlew.bat --console=plain checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"
+    - "./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64"
+    - "./gradlew.bat --console=plain checkLongTermGovernance checkArchitectureBoundaries"
+    - "./gradlew.bat --console=plain :composeApp:assembleDebug"
+    - "git diff --check"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering QuickCreateClassicComposerContent hardcoded UI copy baseline from 2 to 0 before resource migration"
     - "./gradlew.bat --console=plain checkLongTermGovernance"
     - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"

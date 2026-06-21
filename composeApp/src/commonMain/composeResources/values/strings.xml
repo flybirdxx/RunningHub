@@ -1,5 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="login_brand_initial">R</string>
+    <string name="login_brand_name">RunningHUB</string>
+    <string name="login_phone_label">手机号</string>
+    <string name="login_phone_country_code">+86</string>
+    <string name="login_sms_code_label">验证码</string>
+    <string name="login_send_code_sending">发送中</string>
+    <string name="login_send_code_countdown_format">重新发送 (%1$ds)</string>
+    <string name="login_send_code_action">获取验证码</string>
+    <string name="login_password_label">密码</string>
+    <string name="login_submit_button">登录</string>
+    <string name="login_toggle_password_mode">使用密码登录</string>
+    <string name="login_toggle_sms_mode">使用验证码登录</string>
+    <string name="login_agreement_notice">登录即表示您同意《用户协议》和《隐私政策》</string>
     <string name="community_screen_title">创意工坊</string>
     <string name="community_screen_subtitle">探索 AI 创意工具，释放无限可能</string>
     <string name="quick_create_inspiration_empty_prompt">输入提示词开始创作</string>

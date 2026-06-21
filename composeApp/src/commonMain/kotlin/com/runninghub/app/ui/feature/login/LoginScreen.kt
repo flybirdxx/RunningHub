@@ -56,6 +56,21 @@ import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
 import cafe.adriel.voyager.koin.koinScreenModel
 import com.runninghub.feature.auth.presentation.login.LoginUiState
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.login_agreement_notice
+import runninghub.composeapp.generated.resources.login_brand_initial
+import runninghub.composeapp.generated.resources.login_brand_name
+import runninghub.composeapp.generated.resources.login_password_label
+import runninghub.composeapp.generated.resources.login_phone_country_code
+import runninghub.composeapp.generated.resources.login_phone_label
+import runninghub.composeapp.generated.resources.login_send_code_action
+import runninghub.composeapp.generated.resources.login_send_code_countdown_format
+import runninghub.composeapp.generated.resources.login_send_code_sending
+import runninghub.composeapp.generated.resources.login_sms_code_label
+import runninghub.composeapp.generated.resources.login_submit_button
+import runninghub.composeapp.generated.resources.login_toggle_password_mode
+import runninghub.composeapp.generated.resources.login_toggle_sms_mode
 
 /**
  * 登录页在 Voyager 导航中的入口。
@@ -154,14 +169,14 @@ private fun LoginContent(
             Spacer(Modifier.height(80.dp))
 
             Text(
-                text = "R",
+                text = stringResource(Res.string.login_brand_initial),
                 fontSize = 56.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.primary,
             )
 
             Text(
-                text = "RunningHUB",
+                text = stringResource(Res.string.login_brand_name),
                 style = MaterialTheme.typography.headlineSmall,
                 color = MaterialTheme.colorScheme.onSurface,
                 letterSpacing = 2.sp,
@@ -187,12 +202,12 @@ private fun LoginContent(
             OutlinedTextField(
                 value = uiState.phone,
                 onValueChange = onPhoneChanged,
-                label = { Text("手机号") },
+                label = { Text(stringResource(Res.string.login_phone_label)) },
                 leadingIcon = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Spacer(Modifier.width(12.dp))
                         Text(
-                            text = "+86",
+                            text = stringResource(Res.string.login_phone_country_code),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -230,7 +245,7 @@ private fun LoginContent(
                     OutlinedTextField(
                         value = uiState.smsCode,
                         onValueChange = onSmsCodeChanged,
-                        label = { Text("验证码") },
+                        label = { Text(stringResource(Res.string.login_sms_code_label)) },
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Number,
                             imeAction = ImeAction.Done,
@@ -265,9 +280,12 @@ private fun LoginContent(
                     ) {
                         Text(
                             text = when {
-                                uiState.isSendingCode -> "发送中"
-                                uiState.countdownSeconds > 0 -> "重新发送 (${uiState.countdownSeconds}s)"
-                                else -> "获取验证码"
+                                uiState.isSendingCode -> stringResource(Res.string.login_send_code_sending)
+                                uiState.countdownSeconds > 0 -> stringResource(
+                                    Res.string.login_send_code_countdown_format,
+                                    uiState.countdownSeconds,
+                                )
+                                else -> stringResource(Res.string.login_send_code_action)
                             },
                             style = MaterialTheme.typography.bodyMedium,
                         )
@@ -278,7 +296,7 @@ private fun LoginContent(
                 OutlinedTextField(
                     value = uiState.password,
                     onValueChange = onPasswordChanged,
-                    label = { Text("密码") },
+                    label = { Text(stringResource(Res.string.login_password_label)) },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done,
@@ -332,7 +350,7 @@ private fun LoginContent(
                     exit = fadeOut(),
                 ) {
                     Text(
-                        text = "登录",
+                        text = stringResource(Res.string.login_submit_button),
                         style = MaterialTheme.typography.titleMedium,
                     )
                 }
@@ -342,7 +360,11 @@ private fun LoginContent(
 
             TextButton(onClick = onToggleMode) {
                 Text(
-                    text = if (uiState.isSmsMode) "使用密码登录" else "使用验证码登录",
+                    text = if (uiState.isSmsMode) {
+                        stringResource(Res.string.login_toggle_password_mode)
+                    } else {
+                        stringResource(Res.string.login_toggle_sms_mode)
+                    },
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -351,7 +373,7 @@ private fun LoginContent(
             Spacer(Modifier.height(40.dp))
 
             Text(
-                text = "登录即表示您同意《用户协议》和《隐私政策》",
+                text = stringResource(Res.string.login_agreement_notice),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.labelSmall,
                 textAlign = TextAlign.Center,

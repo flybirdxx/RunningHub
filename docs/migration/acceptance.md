@@ -58,6 +58,8 @@ SettingsDialog 的 API Key/Cookie 绑定弹窗标题、说明、输入标签、�
 commonMain Compose Resources，硬编码 UI 文案基线从 14 下调为 0；真实 API Key/Cookie 输入仍只作为运行时敏感数据通过回调传递。
 SearchScreen 的标题、返回无障碍描述、搜索占位、无结果格式化空态、到底提示和热门标签区域文案也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 5 下调为 0；搜索词、热门标签名、应用标题、作者和错误信息仍保持运行时数据。
+LoginScreen 的品牌展示、手机号/验证码/密码标签、区号、发送验证码状态、登录按钮、登录方式切换和协议提示也已迁入
+commonMain Compose Resources，硬编码 UI 文案基线从 8 下调为 0；登录错误和验证码错误仍由 Auth Presentation 状态映射后传入页面展示。
 QuickCreate 参数面板的更多参数标题、关闭无障碍描述、本地兼容模型、真人模式、服务端参数、Seed 标签和随机占位也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 4 下调为 0；模型名、服务端字段标题/描述/选项/占位和计数器仍保持运行时或 Presentation 映射数据。
 QuickCreate 项目条的项目标题、新建/重命名/删除弹窗、详情弹窗、最近创作、加载更多、项目操作菜单和项目名称标签也已迁入
