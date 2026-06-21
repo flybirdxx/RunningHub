@@ -18,7 +18,7 @@ composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/login/LoginScreen
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/plaza/PlazaScreen.kt|0|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/ProfileScreen.kt|0|Profile screen copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/SettingsDialog.kt|0|Settings dialog copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/AdaptivePromptTextField.kt|1|legacy hardcoded UI copy baseline
+composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/AdaptivePromptTextField.kt|0|char count is dynamic text, not hardcoded UI copy
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateGenerationInteractor.kt|0|QuickCreate generation runtime copy moved to Presentation text port
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateMediaUploadCoordinator.kt|0|QuickCreate upload runtime copy moved to Presentation text port
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateClassicComposerContent.kt|0|legacy hardcoded UI copy baseline
