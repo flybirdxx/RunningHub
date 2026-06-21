@@ -6,6 +6,8 @@ on:
     branches:
       - main
       - feature/kmp-refactoring
+  schedule:
+    - cron: "30 18 * * 0"
   workflow_dispatch:
     inputs:
       simulator_smoke_pass:
@@ -18,10 +20,14 @@ on:
         required: true
         type: string
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   ios:
     name: iOS simulator checks
-    runs-on: macos-latest
+    runs-on: macos-15
     timeout-minutes: 60
 
     steps:
@@ -40,8 +46,54 @@ jobs:
       - name: Make Gradle wrapper executable
         run: chmod +x gradlew
 
+      - name: Validate iOS migration scripts
+        run: |
+          bash -n docs/migration/collect-ios-macos-evidence.sh
+          bash -n docs/migration/run-ios-simulator-smoke.sh
+          bash docs/migration/collect-ios-macos-evidence.sh --self-test
+          bash docs/migration/run-ios-simulator-smoke.sh --self-test
+
       - name: Run iOS L1 verification
         run: ./gradlew verifyL1Ios
+
+      - name: Run iOS Native unit tests
+        run: |
+          ./gradlew \
+            :core:network:iosSimulatorArm64Test \
+            :feature:auth:domain:iosSimulatorArm64Test \
+            :feature:auth:data:iosSimulatorArm64Test \
+            :feature:quickcreate:presentation:iosSimulatorArm64Test
+
+      - name: Run Xcode Debug build
+        run: |
+          rm -rf build/xcode/RunningHub.xcresult build/xcode/DerivedData
+          xcodebuild \
+            -project iosApp/iosApp.xcodeproj \
+            -scheme RunningHub \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build/xcode/DerivedData \
+            -resultBundlePath build/xcode/RunningHub.xcresult \
+            build CODE_SIGNING_ALLOWED=NO
+
+      - name: Run iOS Simulator launch smoke
+        run: |
+          bash docs/migration/run-ios-simulator-smoke.sh \
+            --app-path build/xcode/DerivedData/Build/Products/Debug-iphonesimulator/RunningHub.app \
+            --bundle-id com.runninghub.app.ios \
+            --output build/xcode/simulator-launch-smoke.txt
+
+      - name: Upload iOS verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-verification-reports
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+            build/xcode/**
+          if-no-files-found: ignore
 
       - name: Validate L1 seal evidence inputs
         if: github.event_name == 'workflow_dispatch'

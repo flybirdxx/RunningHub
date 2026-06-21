@@ -22,6 +22,12 @@
     <string>1</string>
     <key>LSRequiresIPhoneOS</key>
     <true/>
+    <key>NSCameraUsageDescription</key>
+    <string>RunningHub 需要使用相机，以便在支持拍摄上传的流程中获取素材。</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>RunningHub 需要访问麦克风，以便在支持录制或选择音频的流程中处理声音素材。</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>RunningHub 需要访问您的照片和视频，以便上传创作素材。</string>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>

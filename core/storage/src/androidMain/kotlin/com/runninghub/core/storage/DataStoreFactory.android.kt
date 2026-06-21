@@ -22,6 +22,14 @@ fun initDataStore(context: Context) {
 }
 
 /**
+ * 返回 core:storage 平台实现复用的 Application Context。
+ *
+ * DataStore 与安全凭据存储都需要进程级 Context 来定位私有文件或 SharedPreferences。
+ * 该函数只暴露 applicationContext，避免平台存储实现持有 Activity 引用。
+ */
+internal fun storageApplicationContext(): Context = appContext
+
+/**
  * 创建或复用 Android Preferences DataStore。
  *
  * 同一进程内只保留一个 DataStore 实例，避免多个 writer 同时操作同一个偏好文件造成一致性问题。

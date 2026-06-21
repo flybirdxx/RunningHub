@@ -65,27 +65,27 @@
 
 ## 当前状态
 
-- Android GitHub Actions：已落盘并加入 Git 索引，`github-actions-android.json`
-  记录当前 `HEAD=d7510d8e398134dab92ce5a3ac38d42ff9762df2` 上的
-  `Android CI` completed/success 运行，run id 为 `27896312527`。
-- iOS GitHub Actions：已落盘并加入 Git 索引，`github-actions-ios.json`
-  记录当前 `HEAD=d7510d8e398134dab92ce5a3ac38d42ff9762df2` 上的
-  `iOS CI` completed/success 运行，run id 为 `27896312519`。
-- Android 登录态 Tab 网络观察：已落盘并加入 Git 索引，`docs/migration/evidence/android-tab-network.json`
-  记录了登录态 `Discover -> History -> Create/QuickCreate -> Plaza -> Profile` 操作路径，
+- 当前 Git `HEAD` 为 `03ab929958cab94473aaade0a3c52dd8d794d2b6`。
+- 当前工作区存在已暂存的非证据修复补丁，覆盖认证 Host 精确白名单、iOS 权限/媒体选择、
+  Android/iOS 图形验证码回调一致性和相关测试；这些补丁尚未提交，不能被旧外部证据证明。
+- Android GitHub Actions：`github-actions-android.json` 仍绑定旧
+  `HEAD=85f134d23ac58768e8a40c3172f3fbb34ca90699`，不能用于当前 HEAD 封板。
+- iOS GitHub Actions：`github-actions-ios.json` 仍绑定旧
+  `HEAD=85f134d23ac58768e8a40c3172f3fbb34ca90699`，不能用于当前 HEAD 封板。
+- Android 登录态 Tab 网络观察：`docs/migration/evidence/android-tab-network.json`
+  已记录登录态 `Discover -> History -> Create/QuickCreate -> Plaza -> Profile` 操作路径，
   `durationSeconds=120`、`stableWindowSeconds=30`、`sampleCount=116`、
   `result=pass_candidate`、`stableWindowStartedDelta=0`、`stableWindowMaxInFlight=0`。
-- Android 退出登录网络观察：已落盘，`docs/migration/evidence/android-logout-network.json`
-  记录了 Profile 退出登录完成后 Login 根页面空闲路径，
+- Android 退出登录网络观察：`docs/migration/evidence/android-logout-network.json`
+  已记录 Profile 退出登录完成后 Login 根页面空闲路径，
   `durationSeconds=125`、`stableWindowSeconds=30`、`sampleCount=118`、
   `result=pass_candidate`、`stableWindowStartedDelta=0`、`stableWindowMaxInFlight=0`。
-- macOS iOS link 与 Simulator 冒烟：当前按用户说明留存跳过证据，`overallResult=skipped`。
-  Windows 本地 link 仍按平台能力跳过；后续如需补齐真实通过证据，需要在 macOS runner 或 macOS 开发机执行
-  `collect-ios-macos-evidence.sh`，或手动触发 `iOS CI` 的证据采集模式，并完成 Xcode build、
-  Simulator 登录、退出和 QuickCreate 冒烟说明后生成最终 Markdown 证据。
-- 当前 Git `HEAD` 为 `d7510d8e398134dab92ce5a3ac38d42ff9762df2`，Android/iOS CI
-  证据已用 `collect-github-actions-evidence.ps1 -HeadSha d7510d8e398134dab92ce5a3ac38d42ff9762df2 -Wait`
-  重新采集到该 HEAD 的 completed/success run。macOS iOS link/Simulator 证据文件已落盘，
-  当前为 `overallResult=skipped`，后续具备 macOS 环境后可替换为 `overallResult=pass`。
-- `finalize-l1-external-evidence.ps1 -SelfTest` 已覆盖 skipped 证据必填字段、脏工作区拒绝、未跟踪文件拒绝，
-  以及 `-StageEvidence` 使用的五个外部证据路径清单。
+- macOS iOS link 与 Simulator 冒烟：`ios-macos-link-and-simulator.md` 仍绑定旧
+  `HEAD=85f134d23ac58768e8a40c3172f3fbb34ca90699`，且当前为 `overallResult=skipped`。
+  Windows 本地 link 仍按平台能力跳过；后续如需补齐真实通过证据，需要在 macOS runner
+  或 macOS 开发机执行 `collect-ios-macos-evidence.sh`，或手动触发 `iOS CI` 的证据采集模式，
+  并完成 Xcode build、Simulator 登录、退出和 QuickCreate 冒烟说明后生成最终 Markdown 证据。
+- `./gradlew.bat --console=plain checkL1SealEvidence` 当前按预期失败：失败项包括已暂存的非证据补丁，
+  以及 Android/iOS/macOS 外部证据未绑定当前 `HEAD=03ab929958cab94473aaade0a3c52dd8d794d2b6`。
+- `finalize-l1-external-evidence.ps1 -SelfTest` 已覆盖 skipped 证据必填字段、脏工作区拒绝、
+  未跟踪文件拒绝，以及 `-StageEvidence` 使用的五个外部证据路径清单。

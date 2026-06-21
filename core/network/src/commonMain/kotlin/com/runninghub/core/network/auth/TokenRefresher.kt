@@ -12,6 +12,9 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.http.contentType
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 
 /**
  * 负责刷新 RunningHub 访问令牌的网络组件。
@@ -27,11 +30,13 @@ import kotlinx.coroutines.sync.withLock
  * @param refreshClient 不带认证拦截器的 Ktor 客户端，避免 refresh 请求再次触发 401 刷新循环。
  * @param credentialStore access token 与 refresh token 的读取和写回边界。
  * @param refreshEndpoint 令牌刷新接口地址，测试可传入本地 MockEngine 可识别的地址。
+ * @param json 刷新响应使用的 JSON 解码器，默认忽略未知字段以兼容用户中心新增字段。
  */
 class TokenRefresher(
     private val refreshClient: HttpClient,
     private val credentialStore: CredentialStore,
     private val refreshEndpoint: String = RunningHubApiEnvironment.TOKEN_REFRESH_URL,
+    private val json: Json = REFRESH_TOKEN_JSON,
 ) {
     private val refreshMutex = Mutex()
 
@@ -63,7 +68,9 @@ class TokenRefresher(
             if (refreshResponse.status != HttpStatusCode.OK) return@withLock false
 
             val body = refreshResponse.bodyAsText()
-            val accessToken = ACCESS_TOKEN_REGEX.find(body)?.groupValues?.getOrNull(1)
+            val refreshTokenResponse = decodeRefreshTokenResponse(body)
+                ?: return@withLock false
+            val accessToken = refreshTokenResponse.accessToken.takeIf { it.isNotBlank() }
                 ?: return@withLock false
             val tokenBeforeWrite = credentialStore.getAuthToken()
             if (tokenBeforeLock != null && tokenBeforeWrite.isNullOrEmpty()) {
@@ -76,15 +83,63 @@ class TokenRefresher(
                 return@withLock true
             }
             credentialStore.setAuthToken(accessToken)
-            REFRESH_TOKEN_REGEX.find(body)
-                ?.groupValues
-                ?.getOrNull(1)
+            refreshTokenResponse.refreshToken
+                ?.takeIf { it.isNotBlank() }
                 ?.let { credentialStore.setRefreshToken(it) }
             true
         }
 
+    private fun decodeRefreshTokenResponse(body: String): RefreshTokenResponseDto? =
+        try {
+            // 令牌刷新响应必须按 JSON 语义解析，确保 unicode escape、字段顺序和未知字段都按协议处理；
+            // 解析失败只让刷新返回 false，不记录响应体，避免 token 或服务端细节进入日志。
+            val direct = json.decodeFromString<RefreshTokenResponseDto>(body)
+            if (direct.accessToken.isNotBlank()) {
+                direct
+            } else {
+                // 迁移期用户中心可能返回 code/msg/data 包装；只读取 data 中的凭据字段，
+                // 不根据 msg 生成日志或错误，避免把认证接口细节暴露到客户端输出。
+                json.decodeFromString<RefreshTokenEnvelopeDto>(body).data
+            }
+        } catch (_: Exception) {
+            null
+        }
+
+    /**
+     * 用户中心刷新令牌响应中的实际凭据数据。
+     *
+     * 该 DTO 只在网络层内部使用，字段值属于敏感凭据，解析后立即写入 [CredentialStore]；
+     * 不得向 Presentation、日志或错误消息暴露。
+     *
+     * @property accessToken 新 access token，服务端字段名为 `access_token`。
+     * 空字符串表示响应无可用访问令牌，调用方必须视为刷新失败。
+     * @property refreshToken 新 refresh token，服务端字段名为 `refresh_token`。
+     * `null` 表示服务端沿用旧 refresh token；空字符串同样不应覆盖本地旧值。
+     */
+    @Serializable
+    private data class RefreshTokenResponseDto(
+        @SerialName("access_token") val accessToken: String = "",
+        @SerialName("refresh_token") val refreshToken: String? = null,
+    )
+
+    /**
+     * 用户中心旧版刷新令牌响应 envelope。
+     *
+     * 旧接口把凭据放在 `data` 字段内，并携带 `code`、`msg` 等业务包装字段；网络层只关心
+     * [data] 中的敏感凭据，其他字段通过 [Json.ignoreUnknownKeys] 忽略，避免刷新组件耦合 UI 文案。
+     *
+     * @property data 服务端 `data` 字段中的 token 数据。
+     * `null` 表示响应没有提供可写回的凭据，调用方必须视为刷新失败；不应回退到旧 token。
+     */
+    @Serializable
+    private data class RefreshTokenEnvelopeDto(
+        val data: RefreshTokenResponseDto? = null,
+    )
+
     private companion object {
-        val ACCESS_TOKEN_REGEX = """"access_token"\s*:\s*"([^"]+)"""".toRegex()
-        val REFRESH_TOKEN_REGEX = """"refresh_token"\s*:\s*"([^"]+)"""".toRegex()
+        val REFRESH_TOKEN_JSON = Json {
+            ignoreUnknownKeys = true
+            explicitNulls = false
+        }
     }
 }

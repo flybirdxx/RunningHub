@@ -46,6 +46,57 @@ class RunningHubAuthInterceptorsTest {
     }
 
     @Test
+    fun `lookalike runninghub hosts do not receive stored authorization or cookie headers`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "access-token",
+            refreshToken = "refresh-token",
+            cookie = "SESSION=abc",
+        )
+        val capturedHeaders = mutableListOf<Pair<String?, String?>>()
+        val client = HttpClient(
+            MockEngine { request ->
+                capturedHeaders += request.headers[HttpHeaders.Authorization] to request.headers[HttpHeaders.Cookie]
+                respond(content = "{}", status = HttpStatusCode.OK)
+            }
+        ).applyAuthInterceptors(store)
+
+        client.get("https://runninghub.cn.example.com/api/test")
+        client.get("https://evilrunninghub.cn/api/test")
+
+        assertEquals(listOf<Pair<String?, String?>>(null to null, null to null), capturedHeaders)
+    }
+
+    @Test
+    fun `lookalike runninghub host unauthorized response does not refresh token`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "refresh-token",
+            cookie = "SESSION=abc",
+        )
+        var refreshCalls = 0
+        var expirationNotifications = 0
+        val client = HttpClient(
+            MockEngine {
+                respond(content = """{"error":"third-party-unauthorized"}""", status = HttpStatusCode.Unauthorized)
+            }
+        ).applyAuthInterceptors(
+            store = store,
+            refreshResponseBody = {
+                refreshCalls += 1
+                """{"access_token":"new-access","refresh_token":"new-refresh"}"""
+            },
+            onSessionExpired = { expirationNotifications += 1 },
+        )
+
+        val body = client.get("https://runninghub.cn.example.com/api/needs-auth").bodyAsText()
+
+        assertEquals("""{"error":"third-party-unauthorized"}""", body)
+        assertEquals(0, refreshCalls)
+        assertEquals(0, expirationNotifications)
+        assertEquals("old-access", store.authToken)
+    }
+
+    @Test
     fun `unauthorized response refreshes token and retries original request once`() = runBlocking {
         val store = FakeCredentialStore(
             authToken = "old-access",

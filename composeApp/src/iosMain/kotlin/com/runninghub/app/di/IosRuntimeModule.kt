@@ -1,7 +1,9 @@
 package com.runninghub.app.di
 
 import com.runninghub.core.network.CountingNetworkActivityTracker
+import com.runninghub.core.network.ApiEnvironment
 import com.runninghub.core.network.NetworkActivityTracker
+import com.runninghub.core.network.RunningHubApiEnvironment
 import com.runninghub.core.network.auth.TokenRefresher
 import com.runninghub.core.network.auth.installRunningHubAuthInterceptors
 import com.runninghub.core.network.installRunningHubMainClientDefaults
@@ -9,11 +11,13 @@ import com.runninghub.core.network.installRunningHubRefreshClientDefaults
 import com.runninghub.core.network.installRunningHubNetworkActivityTracking
 import com.runninghub.core.storage.BalanceCache
 import com.runninghub.core.storage.CredentialStore
+import com.runninghub.core.storage.MigratingCredentialStore
 import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.core.storage.PreferencesSettingsStore
 import com.runninghub.core.storage.QuickCreateDraftStore
 import com.runninghub.core.storage.createDataStore
 import com.runninghub.core.storage.createPermissionDataStore
+import com.runninghub.core.storage.createSecureCredentialStore
 import com.runninghub.feature.auth.data.di.authDataModule
 import com.runninghub.feature.auth.domain.SessionManager
 import com.runninghub.feature.community.data.di.communityDataModule
@@ -32,10 +36,16 @@ import org.koin.mp.KoinPlatformTools
  *
  * iOS 包装工程没有 Android Application，因此必须在 SwiftUI 入口显式调用
  * [startRunningHubKoin]。本模块与 Android 运行期模块保持相同的领域绑定：DataStore-backed
- * 迁移期本地存储、SessionManager、TokenRefresher、主 HttpClient 和网络活动计数器均在平台层装配，
+ * 非敏感本地存储、Keychain 凭据存储、SessionManager、TokenRefresher、主 HttpClient 和网络活动计数器均在平台层装配，
  * commonMain 与 Presentation 层仍只依赖领域接口，避免把 Data 实现泄漏到共享 UI。
  */
 val iosRuntimeModule = module {
+    single<ApiEnvironment>(createdAtStart = true) {
+        // iOS 启动层与 Android 使用同一个环境注入口；当前未登记 staging/dev 地址时先注入生产环境。
+        // 后续可由构建配置或 Swift 包装层传入不同 ApiEnvironment，而不改 commonMain 或 Data 层代码。
+        RunningHubApiEnvironment.production().also(RunningHubApiEnvironment::configure)
+    }
+
     single {
         // 与 Android 启动图保持同一 JSON 容错策略，避免 iOS 运行验收与 Android 解析行为分叉。
         Json {
@@ -51,8 +61,13 @@ val iosRuntimeModule = module {
     single { createDataStore() }
     single<NetworkActivityTracker> { CountingNetworkActivityTracker() }
     single { PreferencesSettingsStore(get()) }
-    // L1 仍使用迁移期 DataStore-backed 存储；L2 安全存储治理时只替换 CredentialStore 绑定。
-    single<CredentialStore> { get<PreferencesSettingsStore>() }
+    single<CredentialStore> {
+        // 新凭据写入 iOS Keychain；旧 DataStore 凭据按字段懒迁移，避免迁移升级后强制用户重新登录。
+        MigratingCredentialStore(
+            primary = createSecureCredentialStore(),
+            legacy = get<PreferencesSettingsStore>(),
+        )
+    }
     single<BalanceCache> { get<PreferencesSettingsStore>() }
     single<QuickCreateDraftStore> { get<PreferencesSettingsStore>() }
     single<PermissionStateStore> { createPermissionDataStore() }

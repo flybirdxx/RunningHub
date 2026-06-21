@@ -47,6 +47,67 @@ class TokenRefresherTest {
         assertEquals("new-refresh", store.refreshToken)
     }
 
+    /**
+     * 刷新响应必须按 JSON 语义解码，而不是用正则截取原始文本。
+     *
+     * 服务端或网关可能把 token 中的安全字符写成 JSON unicode escape；正则会把
+     * `\u002D` 原样保存，导致后续 Authorization 使用错误 token。
+     */
+    @Test
+    fun `refreshAfterUnauthorized decodes escaped token JSON`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "old-refresh",
+        )
+        val refresher = refresherWithMock(store) {
+            """
+                {
+                  "access_token": "new\u002Daccess",
+                  "refresh_token": "new\u002Drefresh"
+                }
+            """.trimIndent()
+        }
+
+        val refreshed = refresher.refreshAfterUnauthorized(tokenBeforeLock = "old-access")
+
+        assertTrue(refreshed)
+        assertEquals("new-access", store.authToken)
+        assertEquals("new-refresh", store.refreshToken)
+    }
+
+    /**
+     * 兼容用户中心旧响应 envelope，同时保持 JSON escape 解码语义。
+     *
+     * shared 迁移期仍有调用路径使用 `code/msg/data` 包装格式；刷新组件不能只支持
+     * 扁平 token 字段，否则手动会话恢复会误判刷新失败。
+     */
+    @Test
+    fun `refreshAfterUnauthorized decodes token envelope JSON`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "old-refresh",
+        )
+        val refresher = refresherWithMock(store) {
+            """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "access_token": "new\u002Daccess",
+                    "refresh_token": "new\u002Drefresh",
+                    "expire_in": "3600"
+                  }
+                }
+            """.trimIndent()
+        }
+
+        val refreshed = refresher.refreshAfterUnauthorized(tokenBeforeLock = "old-access")
+
+        assertTrue(refreshed)
+        assertEquals("new-access", store.authToken)
+        assertEquals("new-refresh", store.refreshToken)
+    }
+
     @Test
     fun `refreshAfterUnauthorized skips network when token was refreshed by another coroutine`() = runBlocking {
         val store = FakeCredentialStore(

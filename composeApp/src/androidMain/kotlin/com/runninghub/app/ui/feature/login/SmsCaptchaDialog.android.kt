@@ -1,10 +1,8 @@
 package com.runninghub.app.ui.feature.login
 
 import android.annotation.SuppressLint
-import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -55,8 +53,9 @@ actual fun SmsCaptchaDialog(
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
             webViewClient = SmsCaptchaWebViewClient(bridge)
-            addJavascriptInterface(bridge, CAPTCHA_BRIDGE_NAME)
             // 使用 runninghub.cn 作为 baseUrl，使 TAC 脚本内的相对接口保持与网页端同源。
+            // Android 侧不注册 addJavascriptInterface，避免把原生对象暴露给网页；
+            // token 和关闭事件统一走自定义 scheme，由 WebViewClient 在原生层拦截。
             loadDataWithBaseURL(
                 CAPTCHA_BASE_URL,
                 smsCaptchaHtml(
@@ -72,8 +71,7 @@ actual fun SmsCaptchaDialog(
 
     DisposableEffect(webView) {
         onDispose {
-            // 弹窗关闭时销毁 WebView，避免验证码脚本和 JS bridge 持有过期页面回调。
-            webView.removeJavascriptInterface(CAPTCHA_BRIDGE_NAME)
+            // 弹窗关闭时销毁 WebView，避免验证码脚本持有过期页面回调。
             webView.destroy()
         }
     }
@@ -108,9 +106,10 @@ actual fun SmsCaptchaDialog(
 }
 
 /**
- * WebView 暴露给 TAC HTML 的最小 JS Bridge。
+ * WebView 验证码回调适配器。
  *
- * Bridge 只接收验证码 token 和关闭事件，不允许网页读取本地认证状态或执行任意原生能力。
+ * 本对象不通过 `addJavascriptInterface` 暴露给网页，只由 [SmsCaptchaWebViewClient]
+ * 在拦截自定义 scheme 后调用。这样既复用同一套 token/关闭回调，又避免网页获得任意原生对象入口。
  */
 private class SmsCaptchaBridge(
     private val onVerifiedToken: (String?) -> Unit,
@@ -121,12 +120,10 @@ private class SmsCaptchaBridge(
     /**
      * TAC 校验成功后把 `validToken` 回传给登录页。
      *
-     * Android 的 JavaScript bridge 可能在 WebView 后台线程回调，此处切回主线程，
-     * 避免直接从桥接线程修改 Compose 状态或启动 ScreenModel 业务流程。
+     * WebViewClient 拦截回调 URL 后可能不处于 Compose 状态更新期；这里统一切回主线程，
+     * 避免直接从 WebView 回调栈修改 Compose 状态或启动 ScreenModel 业务流程。
      */
-    @JavascriptInterface
     fun onToken(token: String?) {
-        // JS 暴露方法也叫 onToken，回调字段必须使用不同名称，避免 lambda 内再次解析到本方法造成递归。
         mainHandler.post { onVerifiedToken(token) }
     }
 
@@ -135,7 +132,6 @@ private class SmsCaptchaBridge(
      *
      * 关闭动作同样切回主线程执行，保持与 Compose UI 状态更新的线程约束一致。
      */
-    @JavascriptInterface
     fun onClose() {
         mainHandler.post { onDismiss() }
     }
@@ -153,20 +149,18 @@ private class SmsCaptchaWebViewClient(
     override fun shouldOverrideUrlLoading(
         view: WebView?,
         request: WebResourceRequest?,
-    ): Boolean = request?.url?.let(::handleCallbackUrl) ?: false
+    ): Boolean = request?.url?.toString()?.let(::handleCallbackUrl) ?: false
 
     @Suppress("OVERRIDE_DEPRECATION")
     override fun shouldOverrideUrlLoading(
         view: WebView?,
         url: String?,
-    ): Boolean = url?.let { handleCallbackUrl(Uri.parse(it)) } ?: false
+    ): Boolean = url?.let(::handleCallbackUrl) ?: false
 
-    private fun handleCallbackUrl(url: Uri): Boolean {
-        if (url.scheme != CAPTCHA_CALLBACK_SCHEME) return false
-        when (url.host) {
-            "token" -> bridge.onToken(url.getQueryParameter("value"))
-            "close" -> bridge.onClose()
-        }
-        return true
-    }
+    private fun handleCallbackUrl(url: String): Boolean =
+        handleSmsCaptchaCallbackUrl(
+            rawUrl = url,
+            onToken = bridge::onToken,
+            onClose = bridge::onClose,
+        )
 }

@@ -93,4 +93,25 @@ class SmsCaptchaHtmlTest {
         assertTrue(html.contains("tianai-captcha-slider-move-img"))
         assertTrue(html.contains("图形验证图片加载失败，请点击重试"))
     }
+
+    /**
+     * TAC 脚本加载失败或长时间无响应时必须进入可恢复降级状态。
+     *
+     * WKWebView 和 Android WebView 都可能因为网络、ATS/证书或 CDN 临时异常导致外部脚本没有执行；
+     * HTML 包装层不能只停留在“准备图形验证”，必须显示明确失败文案并允许用户重试加载脚本。
+     */
+    @Test
+    fun `captcha html reports script load failure and timeout`() {
+        val html = smsCaptchaHtml(
+            tokenCallbackExpression = "window.bridge.onToken(token)",
+            closeCallbackExpression = "window.bridge.onClose()",
+        )
+
+        assertTrue(html.contains("function loadCaptchaScript()"))
+        assertTrue(html.contains("script.onerror = function ()"))
+        assertTrue(html.contains("window.__captchaScriptTimer = window.setTimeout"))
+        assertTrue(html.contains("图形验证脚本加载失败，请点击重试"))
+        assertTrue(html.contains("图形验证脚本加载超时，请点击重试"))
+        assertTrue(html.contains("onclick=\"window.__loadSmsCaptchaScript()\""))
+    }
 }

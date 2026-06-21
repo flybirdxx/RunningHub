@@ -44,4 +44,41 @@ class RunningHubApiEnvironmentTest {
             RunningHubApiEnvironment.webUrl("profile/user-1"),
         )
     }
+
+    @Test
+    fun `trusted auth host check only accepts exact production host`() {
+        assertEquals(true, isTrustedRunningHubHost("www.runninghub.cn"))
+        assertEquals(true, isTrustedRunningHubHost("WWW.RUNNINGHUB.CN"))
+        assertEquals(false, isTrustedRunningHubHost("runninghub.cn"))
+        assertEquals(false, isTrustedRunningHubHost("evilrunninghub.cn"))
+        assertEquals(false, isTrustedRunningHubHost("runninghub.cn.example.com"))
+        assertEquals(false, isTrustedRunningHubHost(""))
+    }
+
+    @Test
+    fun `platform startup can configure api environment and trusted auth hosts`() {
+        val staging = ApiEnvironment(
+            webBaseUrl = "https://staging.runninghub.test/",
+            apiBaseUrl = "https://api.staging.runninghub.test/api/",
+            userCenterBaseUrl = "https://auth.staging.runninghub.test/uc/",
+            taskBaseUrl = "https://task.staging.runninghub.test/task/openapi/",
+            openApiV2BaseUrl = "https://openapi.staging.runninghub.test/openapi/v2/",
+            trustedAuthHosts = setOf(
+                "auth.staging.runninghub.test",
+                "api.staging.runninghub.test",
+            ),
+        )
+
+        try {
+            RunningHubApiEnvironment.configure(staging)
+
+            assertEquals("https://staging.runninghub.test", RunningHubApiEnvironment.WEB_ORIGIN)
+            assertEquals("https://api.staging.runninghub.test/api/webapp/list", RunningHubApiEnvironment.apiUrl("webapp/list"))
+            assertEquals("https://auth.staging.runninghub.test/uc/token/refresh", RunningHubApiEnvironment.TOKEN_REFRESH_URL)
+            assertEquals(true, isTrustedRunningHubHost("AUTH.STAGING.RUNNINGHUB.TEST"))
+            assertEquals(false, isTrustedRunningHubHost("www.runninghub.cn"))
+        } finally {
+            RunningHubApiEnvironment.resetToProduction()
+        }
+    }
 }

@@ -23,6 +23,9 @@ import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSURL
 import platform.WebKit.WKScriptMessage
 import platform.WebKit.WKScriptMessageHandlerProtocol
+import platform.WebKit.WKNavigationAction
+import platform.WebKit.WKNavigationActionPolicy
+import platform.WebKit.WKNavigationDelegateProtocol
 import platform.WebKit.WKUserContentController
 import platform.WebKit.WKWebView
 import platform.WebKit.WKWebViewConfiguration
@@ -50,7 +53,13 @@ actual fun SmsCaptchaDialog(
             onDismiss = onDismiss,
         )
     }
-    val webView = remember(messageHandler) {
+    val navigationDelegate = remember(onToken, onDismiss) {
+        SmsCaptchaNavigationDelegate(
+            onToken = onToken,
+            onDismiss = onDismiss,
+        )
+    }
+    val webView = remember(messageHandler, navigationDelegate) {
         val userContentController = WKUserContentController()
         userContentController.addScriptMessageHandler(
             scriptMessageHandler = messageHandler,
@@ -65,6 +74,7 @@ actual fun SmsCaptchaDialog(
         ).apply {
             opaque = false
             scrollView.scrollEnabled = false
+            this.navigationDelegate = navigationDelegate
             loadHTMLString(
                 string = smsCaptchaHtml(
                     tokenCallbackExpression = "window.location.href = '$CAPTCHA_CALLBACK_SCHEME://token?value=' + encodeURIComponent(token || '')",
@@ -79,6 +89,8 @@ actual fun SmsCaptchaDialog(
         onDispose {
             // 弹窗销毁时移除脚本消息处理器，避免 WKWebView 持有过期的 Compose 回调。
             webView.configuration.userContentController.removeScriptMessageHandlerForName(CAPTCHA_BRIDGE_NAME)
+            // 同步断开导航 delegate，避免自定义 scheme 兜底路径继续持有旧回调。
+            webView.navigationDelegate = null
             webView.stopLoading()
         }
     }
@@ -109,6 +121,47 @@ actual fun SmsCaptchaDialog(
                 }
             }
         }
+    }
+}
+
+/**
+ * WKWebView 自定义 scheme 导航兜底。
+ *
+ * 正常情况下 iOS 通过 `window.webkit.messageHandlers` 回传 token 和关闭事件；如果 WebKit
+ * 消息通道不可用，HTML 会退回 `runninghub-sms-captcha://...` 导航。本 delegate 只消费该
+ * scheme，普通 HTTPS 资源仍交给 WKWebView 加载，确保 TAC JS/CSS、验证码图片和同源请求不受影响。
+ */
+@OptIn(ExperimentalForeignApi::class)
+private class SmsCaptchaNavigationDelegate(
+    private val onToken: (String?) -> Unit,
+    private val onDismiss: () -> Unit,
+) : NSObject(), WKNavigationDelegateProtocol {
+    /**
+     * 决定 WKWebView 是否继续当前导航。
+     *
+     * 验证码回调 URL 被消费后必须取消导航，避免 WebView 尝试打开未知 scheme；
+     * 其他 URL 必须放行，否则 TAC 静态资源或同源接口请求会被误拦截。
+     */
+    override fun webView(
+        webView: WKWebView,
+        decidePolicyForNavigationAction: WKNavigationAction,
+        decisionHandler: (WKNavigationActionPolicy) -> Unit,
+    ) {
+        val rawUrl = decidePolicyForNavigationAction.request.URL?.absoluteString
+        val handled = rawUrl?.let {
+            handleSmsCaptchaCallbackUrl(
+                rawUrl = it,
+                onToken = onToken,
+                onClose = onDismiss,
+            )
+        } ?: false
+        decisionHandler(
+            if (handled) {
+                WKNavigationActionPolicy.WKNavigationActionPolicyCancel
+            } else {
+                WKNavigationActionPolicy.WKNavigationActionPolicyAllow
+            },
+        )
     }
 }
 

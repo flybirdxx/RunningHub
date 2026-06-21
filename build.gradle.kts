@@ -253,6 +253,45 @@ tasks.register("checkArchitectureBoundaries") {
         if ("include(\":core:designsystem\")" in settingsText) {
             violations += "settings.gradle.kts still includes removed empty module :core:designsystem."
         }
+        val composeBuildFile = root.resolve("composeApp/build.gradle.kts").toFile()
+        val composeBuildText = composeBuildFile.readText()
+        if ("isMinifyEnabled = true" !in composeBuildText) {
+            // Release 包必须经过 R8 收缩；否则生产构建会继续携带未使用代码和更大的逆向分析面。
+            addViolation(composeBuildFile, null, "release build must keep R8 minify enabled.")
+        }
+        if ("isShrinkResources = true" !in composeBuildText) {
+            // 资源压缩依赖 R8 结果，关闭后容易把调试和未使用资源一起带入发布包。
+            addViolation(composeBuildFile, null, "release build must keep Android resource shrinking enabled.")
+        }
+        if ("proguard-rules.pro" !in composeBuildText) {
+            addViolation(composeBuildFile, null, "release build must include project ProGuard rules.")
+        }
+        val apiEnvironmentFile = root.resolve("core/network/src/commonMain/kotlin/com/runninghub/core/network/RunningHubApiEnvironment.kt").toFile()
+        val apiEnvironmentText = apiEnvironmentFile.readText()
+        if ("data class ApiEnvironment(" !in apiEnvironmentText) {
+            // 网络环境必须成为可注入模型，避免 Data 层长期绑定单一生产地址。
+            addViolation(apiEnvironmentFile, null, "core network must expose ApiEnvironment for platform startup injection.")
+        }
+        if ("fun configure(environment: ApiEnvironment)" !in apiEnvironmentText) {
+            addViolation(apiEnvironmentFile, null, "RunningHubApiEnvironment must remain configurable by platform startup.")
+        }
+        if ("const val WEB_ORIGIN" in apiEnvironmentText || "const val TOKEN_REFRESH_URL" in apiEnvironmentText) {
+            addViolation(apiEnvironmentFile, null, "API environment URLs must not be compile-time constants after injection support.")
+        }
+        listOf(
+            "composeApp/src/androidMain/kotlin/com/runninghub/app/di/AndroidRuntimeModule.kt",
+            "composeApp/src/iosMain/kotlin/com/runninghub/app/di/IosRuntimeModule.kt",
+        ).forEach { relative ->
+            val runtimeModuleFile = root.resolve(relative).toFile()
+            val runtimeModuleText = runtimeModuleFile.readText()
+            if ("single<ApiEnvironment>(createdAtStart = true)" !in runtimeModuleText) {
+                // 平台启动层负责选择 debug/staging/release 环境；Data 层不得自行决定远端根地址。
+                addViolation(runtimeModuleFile, null, "runtime module must bind ApiEnvironment at startup.")
+            }
+            if ("RunningHubApiEnvironment::configure" !in runtimeModuleText) {
+                addViolation(runtimeModuleFile, null, "runtime module must apply ApiEnvironment before network clients are used.")
+            }
+        }
 
         val commonMainRoots = listOf("composeApp", "core", "feature", "shared")
             .map { root.resolve(it).toFile() }
@@ -318,6 +357,43 @@ tasks.register("checkArchitectureBoundaries") {
                     Regex("""\b(MainVoyagerScreen|LoginVoyagerScreen)\s*\(""").containsMatchIn(text)
                 ) {
                     addViolation(file, null, "constructs root Voyager screen outside App root navigation.")
+                }
+                val legacyCreateScreen =
+                    "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/create/CreateScreen.kt"
+                if (
+                    relative == legacyCreateScreen &&
+                    ("@Deprecated(" !in text || "level = DeprecationLevel.ERROR" !in text)
+                ) {
+                    // 旧 Create 页面仅允许作为迁移对照保留；ERROR 级废弃标记是防止它回到生产入口的编译期护栏。
+                    addViolation(file, null, "legacy CreateVoyagerScreen must keep ERROR-level deprecation.")
+                }
+                if (
+                    relative.startsWith("composeApp/src/commonMain/kotlin/") &&
+                    relative != legacyCreateScreen &&
+                    Regex("""\bCreateVoyagerScreen\s*\(""").containsMatchIn(text)
+                ) {
+                    addViolation(file, null, "constructs legacy CreateVoyagerScreen outside its isolated migration file.")
+                }
+                if (
+                    relative == "core/network/src/commonMain/kotlin/com/runninghub/core/network/auth/TokenRefresher.kt" &&
+                    (Regex("""\bRegex\s*\(""").containsMatchIn(text) || ".toRegex()" in text)
+                ) {
+                    // 刷新响应包含敏感 token，必须按 JSON DTO 解码；正则会破坏 escape 语义并容易误采字段。
+                    addViolation(file, null, "parses token refresh JSON with regex instead of kotlinx.serialization DTO.")
+                }
+                if (
+                    relative in setOf(
+                        "composeApp/src/androidMain/kotlin/com/runninghub/app/di/AndroidRuntimeModule.kt",
+                        "composeApp/src/iosMain/kotlin/com/runninghub/app/di/IosRuntimeModule.kt",
+                    ) &&
+                    (
+                        "single<CredentialStore> { get<PreferencesSettingsStore>() }" in text ||
+                            "primary = createSecureCredentialStore()" !in text ||
+                            "MigratingCredentialStore(" !in text
+                        )
+                ) {
+                    // 生产组合根必须把敏感凭据写入 Android Keystore / iOS Keychain；Preferences 只允许作为旧数据迁移源。
+                    addViolation(file, null, "binds CredentialStore without platform secure storage migration.")
                 }
             }
 
@@ -458,15 +534,53 @@ tasks.register("checkL1CiWorkflows") {
         val workflowChecks = listOf(
             "Android CI" to rootDir.resolve(".github/workflows/android-ci.yml") to listOf(
                 "runs-on: ubuntu-latest",
+                "concurrency:",
+                "cancel-in-progress: true",
+                "schedule:",
+                "cron: \"0 18 * * 0\"",
                 "java-version: \"17\"",
                 "chmod +x gradlew",
                 "./gradlew verifyL1Android",
+                "Upload Android verification reports",
+                "android-verification-reports",
+                "**/build/reports/**",
+                "**/build/test-results/**",
+                "if-no-files-found: ignore",
             ),
             "iOS CI" to rootDir.resolve(".github/workflows/ios-ci.yml") to listOf(
-                "runs-on: macos-latest",
+                "runs-on: macos-15",
+                "concurrency:",
+                "cancel-in-progress: true",
+                "schedule:",
+                "cron: \"30 18 * * 0\"",
                 "java-version: \"17\"",
                 "chmod +x gradlew",
+                "Validate iOS migration scripts",
+                "bash -n docs/migration/collect-ios-macos-evidence.sh",
+                "bash -n docs/migration/run-ios-simulator-smoke.sh",
+                "bash docs/migration/collect-ios-macos-evidence.sh --self-test",
+                "bash docs/migration/run-ios-simulator-smoke.sh --self-test",
                 "./gradlew verifyL1Ios",
+                "Run iOS Native unit tests",
+                ":core:network:iosSimulatorArm64Test",
+                ":feature:auth:domain:iosSimulatorArm64Test",
+                ":feature:auth:data:iosSimulatorArm64Test",
+                ":feature:quickcreate:presentation:iosSimulatorArm64Test",
+                "Run Xcode Debug build",
+                "xcodebuild",
+                "-project iosApp/iosApp.xcodeproj",
+                "-scheme RunningHub",
+                "-derivedDataPath build/xcode/DerivedData",
+                "-resultBundlePath build/xcode/RunningHub.xcresult",
+                "CODE_SIGNING_ALLOWED=NO",
+                "Run iOS Simulator launch smoke",
+                "docs/migration/run-ios-simulator-smoke.sh",
+                "--app-path build/xcode/DerivedData/Build/Products/Debug-iphonesimulator/RunningHub.app",
+                "--bundle-id com.runninghub.app.ios",
+                "--output build/xcode/simulator-launch-smoke.txt",
+                "Upload iOS verification reports",
+                "ios-verification-reports",
+                "build/xcode/**",
                 "workflow_dispatch:",
                 "simulator_smoke_pass:",
                 "smoke_notes:",
@@ -474,6 +588,24 @@ tasks.register("checkL1CiWorkflows") {
                 "actions/upload-artifact@v4",
                 "ios-macos-link-and-simulator.md",
             ),
+        )
+        val dependencySubmissionWorkflow = rootDir.resolve(".github/workflows/dependency-submission.yml")
+        val dependencySubmissionRequiredSnippets = listOf(
+            "name: Dependency Submission",
+            "push:",
+            "schedule:",
+            "workflow_dispatch:",
+            "permissions:",
+            "contents: write",
+            "concurrency:",
+            "cancel-in-progress: true",
+            "runs-on: ubuntu-latest",
+            "actions/checkout@v6",
+            "actions/setup-java@v5",
+            "java-version: \"17\"",
+            "chmod +x gradlew",
+            "gradle/actions/dependency-submission@v6",
+            "dependency-graph: generate-and-submit",
         )
         val violations = mutableListOf<String>()
         val trackedWorkflowFiles = ProcessBuilder("git", "ls-files", ".github/workflows")
@@ -500,6 +632,68 @@ tasks.register("checkL1CiWorkflows") {
                 val exitCode = process.waitFor()
                 if (exitCode != 0) {
                     throw GradleException("Unable to inspect unstaged workflow changes with git diff:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+        val dependabotFile = rootDir.resolve(".github/dependabot.yml")
+        val trackedDependabotFiles = ProcessBuilder("git", "ls-files", ".github/dependabot.yml")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect tracked Dependabot file with git ls-files:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+        val dirtyDependabotFiles = ProcessBuilder("git", "diff", "--name-only", "--", ".github/dependabot.yml")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect unstaged Dependabot changes with git diff:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+        val prTemplateFile = rootDir.resolve(".github/pull_request_template.md")
+        val trackedPrTemplateFiles = ProcessBuilder("git", "ls-files", ".github/pull_request_template.md")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect tracked pull request template with git ls-files:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+        val dirtyPrTemplateFiles = ProcessBuilder("git", "diff", "--name-only", "--", ".github/pull_request_template.md")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect unstaged pull request template changes with git diff:\n$output")
                 }
                 output.lineSequence()
                     .map { it.trim().replace('\\', '/') }
@@ -539,6 +733,99 @@ tasks.register("checkL1CiWorkflows") {
                     violations += "$name workflow must contain `$snippet`."
                 }
             }
+
+            // iOS link 和 Simulator 证据依赖 GitHub 托管 macOS 镜像的 Xcode/SDK 组合；
+            // 使用浮动 latest 标签会让同一提交在不同日期落到不同系统镜像，削弱 Gate J 的可复现性。
+            if (name == "iOS CI" && "runs-on: macos-latest" in text) {
+                violations += "$name workflow must pin a concrete macOS runner label instead of macos-latest."
+            }
+        }
+
+        val dependencySubmissionRelativePath = dependencySubmissionWorkflow.toRelativeString(rootDir).replace('\\', '/')
+        if (!dependencySubmissionWorkflow.exists()) {
+            violations += "Dependency Submission workflow is missing at $dependencySubmissionRelativePath."
+        } else {
+            if (dependencySubmissionRelativePath !in trackedWorkflowFiles) {
+                violations += "Dependency Submission workflow exists locally but is not tracked by Git at $dependencySubmissionRelativePath."
+            }
+            if (dependencySubmissionRelativePath in dirtyWorkflowFiles) {
+                violations += "Dependency Submission workflow has unstaged changes at $dependencySubmissionRelativePath."
+            }
+
+            val dependencySubmissionText = dependencySubmissionWorkflow.readText()
+            dependencySubmissionRequiredSnippets.forEach { snippet ->
+                if (snippet !in dependencySubmissionText) {
+                    violations += "Dependency Submission workflow must contain `$snippet`."
+                }
+            }
+            if ("pull_request:" in dependencySubmissionText) {
+                // Dependency Submission 需要 contents: write 写入 GitHub Dependency Graph；
+                // 不在 PR 事件执行可以避免给 fork/未信任上下文暴露写权限路径。
+                violations += "Dependency Submission workflow must not run on pull_request."
+            }
+        }
+
+        val dependabotRelativePath = dependabotFile.toRelativeString(rootDir).replace('\\', '/')
+        if (!dependabotFile.exists()) {
+            violations += "Dependabot configuration is missing at $dependabotRelativePath."
+        } else {
+            // 依赖版本巡检本身也是 CI 治理的一部分；把 Gradle 与 GitHub Actions 更新入口纳入门禁，
+            // 避免后续只保留一次性修复而没有持续发现过期依赖的机制。
+            if (dependabotRelativePath !in trackedDependabotFiles) {
+                violations += "Dependabot configuration exists locally but is not tracked by Git at $dependabotRelativePath."
+            }
+            if (dependabotRelativePath in dirtyDependabotFiles) {
+                violations += "Dependabot configuration has unstaged changes at $dependabotRelativePath."
+            }
+
+            val dependabotText = dependabotFile.readText()
+            listOf(
+                "version: 2",
+                "package-ecosystem: \"gradle\"",
+                "package-ecosystem: \"github-actions\"",
+                "directory: \"/\"",
+                "interval: \"weekly\"",
+                "timezone: \"UTC\"",
+            ).forEach { snippet ->
+                if (snippet !in dependabotText) {
+                    violations += "Dependabot configuration must contain `$snippet`."
+                }
+            }
+        }
+
+        val prTemplateRelativePath = prTemplateFile.toRelativeString(rootDir).replace('\\', '/')
+        if (!prTemplateFile.exists()) {
+            violations += "Pull request template is missing at $prTemplateRelativePath."
+        } else {
+            // 复核文档要求 PR 明确说明目标、验证、风险和回滚；模板进入门禁后，
+            // 后续补丁不会绕过这些交付信息直接进入代码审查。
+            if (prTemplateRelativePath !in trackedPrTemplateFiles) {
+                violations += "Pull request template exists locally but is not tracked by Git at $prTemplateRelativePath."
+            }
+            if (prTemplateRelativePath in dirtyPrTemplateFiles) {
+                violations += "Pull request template has unstaged changes at $prTemplateRelativePath."
+            }
+
+            val prTemplateText = prTemplateFile.readText()
+            listOf(
+                "变更目标",
+                "影响模块与平台",
+                "架构边界说明",
+                "实际执行命令",
+                "测试结果",
+                "CI 与保护分支",
+                "Android CI 通过",
+                "iOS CI 通过",
+                "checkL1SealEvidence",
+                "未验证项与剩余风险",
+                "截图或录屏",
+                "兼容性、数据迁移与安全影响",
+                "回滚方案",
+            ).forEach { snippet ->
+                if (snippet !in prTemplateText) {
+                    violations += "Pull request template must contain `$snippet`."
+                }
+            }
         }
 
         if (violations.isNotEmpty()) {
@@ -567,6 +854,7 @@ tasks.register("checkMigrationScripts") {
         val tabNetworkScript = rootDir.resolve("docs/migration/observe-tab-network.ps1")
         val githubActionsScript = rootDir.resolve("docs/migration/collect-github-actions-evidence.ps1")
         val iosMacosScript = rootDir.resolve("docs/migration/collect-ios-macos-evidence.sh")
+        val iosSimulatorSmokeScript = rootDir.resolve("docs/migration/run-ios-simulator-smoke.sh")
         val iosEvidenceDownloadScript = rootDir.resolve("docs/migration/download-ios-macos-evidence.ps1")
         val iosEvidenceRequestScript = rootDir.resolve("docs/migration/request-ios-macos-evidence.ps1")
         val l1EvidenceFinalizeScript = rootDir.resolve("docs/migration/finalize-l1-external-evidence.ps1")
@@ -587,6 +875,9 @@ tasks.register("checkMigrationScripts") {
         if (!iosMacosScript.exists()) {
             throw GradleException("Migration script is missing: ${iosMacosScript.toRelativeString(rootDir)}")
         }
+        if (!iosSimulatorSmokeScript.exists()) {
+            throw GradleException("Migration script is missing: ${iosSimulatorSmokeScript.toRelativeString(rootDir)}")
+        }
         if (!androidNetworkObserver.exists()) {
             throw GradleException("Android network observer is missing: ${androidNetworkObserver.toRelativeString(rootDir)}")
         }
@@ -597,6 +888,7 @@ tasks.register("checkMigrationScripts") {
         val tabNetworkScriptText = tabNetworkScript.readText()
         val githubActionsScriptText = githubActionsScript.readText()
         val iosMacosScriptText = iosMacosScript.readText()
+        val iosSimulatorSmokeScriptText = iosSimulatorSmokeScript.readText()
         val androidNetworkObserverText = androidNetworkObserver.readText()
         val iosKoinEntryText = iosKoinEntry.takeIf { it.exists() }?.readText().orEmpty()
         val iosMainViewControllerText = iosMainViewController.takeIf { it.exists() }?.readText().orEmpty()
@@ -622,6 +914,7 @@ tasks.register("checkMigrationScripts") {
             "docs/migration/l1-seal-audit.md",
             "docs/migration/observe-tab-network.ps1",
             "docs/migration/request-ios-macos-evidence.ps1",
+            "docs/migration/run-ios-simulator-smoke.sh",
             "docs/migration/shared-allowlist.txt",
             "docs/migration/shared-baseline.txt",
             "docs/migration/shared-ownership.md",
@@ -761,6 +1054,18 @@ tasks.register("checkMigrationScripts") {
             "Simulator login",
             "Simulator QuickCreate",
         )
+        val requiredIosSimulatorSmokeSnippets = listOf(
+            "--self-test",
+            "xcrun simctl bootstatus",
+            "xcrun simctl install",
+            "xcrun simctl launch",
+            "xcrun simctl terminate",
+            "xcrun simctl delete",
+            "build/xcode/DerivedData/Build/Products/Debug-iphonesimulator/RunningHub.app",
+            "com.runninghub.app.ios",
+            "simulatorLaunchResult: pass",
+            "simulatorSmokePath=",
+        )
         val requiredIosEvidenceDownloadSnippets = listOf(
             "[string] \$RunId",
             "[string] \$ArtifactName",
@@ -893,6 +1198,9 @@ tasks.register("checkMigrationScripts") {
         requiredIosMacosSnippets
             .filterNot { it in iosMacosScriptText }
             .forEach { snippet -> violations += "collect-ios-macos-evidence.sh must contain `$snippet`." }
+        requiredIosSimulatorSmokeSnippets
+            .filterNot { it in iosSimulatorSmokeScriptText }
+            .forEach { snippet -> violations += "run-ios-simulator-smoke.sh must contain `$snippet`." }
         val iosEvidenceDownloadScriptText = iosEvidenceDownloadScript.takeIf { it.exists() }?.readText().orEmpty()
         val iosEvidenceRequestScriptText = iosEvidenceRequestScript.takeIf { it.exists() }?.readText().orEmpty()
         val l1EvidenceFinalizeScriptText = l1EvidenceFinalizeScript.takeIf { it.exists() }?.readText().orEmpty()
@@ -1401,7 +1709,7 @@ tasks.register("verifyL1UnitTests") {
  * 执行 Android 侧 L1 自动化门禁。
  *
  * 该任务用于 Linux CI 和本地 Android 回归，覆盖架构边界、所有可发现的 JVM/Android
- * 单元测试、Android lint 和 debug 构建。iOS 编译和 framework link 不放在这里，
+ * 单元测试、Android lint、debug 构建和启用 R8/资源压缩后的 release 构建。iOS 编译和 framework link 不放在这里，
  * 避免 Ubuntu runner 因平台能力不匹配而给出不可执行的检查项。
  */
 tasks.register("verifyL1Android") {
@@ -1415,6 +1723,7 @@ tasks.register("verifyL1Android") {
         "verifyL1UnitTests",
         ":composeApp:lintDebug",
         ":composeApp:assembleDebug",
+        ":composeApp:assembleRelease",
     )
 }
 

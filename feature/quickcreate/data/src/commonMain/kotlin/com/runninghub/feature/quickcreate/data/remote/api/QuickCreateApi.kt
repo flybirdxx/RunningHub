@@ -42,7 +42,8 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
 
     companion object {
         /** RunningHub Web 根 origin，不带末尾斜杠，用于兼容当前以 `/` 开头的 endpoint 常量。 */
-        const val BASE_URL = RunningHubApiEnvironment.WEB_ORIGIN
+        val BASE_URL: String
+            get() = RunningHubApiEnvironment.WEB_ORIGIN
         private const val TAG = "QuickCreateApi"
 
         // 通用端点

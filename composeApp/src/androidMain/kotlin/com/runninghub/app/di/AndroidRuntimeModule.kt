@@ -2,18 +2,22 @@ package com.runninghub.app.di
 
 import com.runninghub.core.network.auth.TokenRefresher
 import com.runninghub.core.network.auth.installRunningHubAuthInterceptors
+import com.runninghub.core.network.ApiEnvironment
 import com.runninghub.core.network.CountingNetworkActivityTracker
 import com.runninghub.core.network.NetworkActivityTracker
+import com.runninghub.core.network.RunningHubApiEnvironment
 import com.runninghub.core.network.installRunningHubMainClientDefaults
 import com.runninghub.core.network.installRunningHubRefreshClientDefaults
 import com.runninghub.core.network.installRunningHubNetworkActivityTracking
 import com.runninghub.core.storage.BalanceCache
 import com.runninghub.core.storage.CredentialStore
+import com.runninghub.core.storage.MigratingCredentialStore
 import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.core.storage.PreferencesSettingsStore
 import com.runninghub.core.storage.QuickCreateDraftStore
 import com.runninghub.core.storage.createDataStore
 import com.runninghub.core.storage.createPermissionDataStore
+import com.runninghub.core.storage.createSecureCredentialStore
 import com.runninghub.feature.auth.domain.SessionManager
 import io.ktor.client.HttpClient
 import kotlinx.serialization.json.Json
@@ -25,10 +29,16 @@ import org.koin.dsl.module
  * Android 应用运行期核心依赖图。
  *
  * 本模块替代迁移期旧组合根中仍被启动层需要的核心绑定：JSON、DataStore-backed
- * 本地存储、SessionManager、TokenRefresher 和主 HttpClient。业务 Data 实现继续由各
+ * 本地存储、安全凭据存储、SessionManager、TokenRefresher 和主 HttpClient。业务 Data 实现继续由各
  * Feature Data 模块注册，避免 Android Application 直接装配 `shared`。
  */
 val androidRuntimeModule = module {
+    single<ApiEnvironment>(createdAtStart = true) {
+        // 当前仓库尚未登记 staging/dev 公开地址，Android 启动层先显式注入生产环境；
+        // 后续只需在这里按构建类型替换 ApiEnvironment，不再改 Data 层 endpoint 拼接代码。
+        RunningHubApiEnvironment.production().also(RunningHubApiEnvironment::configure)
+    }
+
     single {
         // 与历史组合根保持相同 JSON 容错策略，避免迁移组合根时改变远端响应解析行为。
         Json {
@@ -45,8 +55,13 @@ val androidRuntimeModule = module {
     single<NetworkActivityTracker> { CountingNetworkActivityTracker() }
     single(createdAtStart = true) { AndroidNetworkActivityLogObserver(androidContext(), get()) }
     single { PreferencesSettingsStore(get()) }
-    // 凭据、余额和草稿先复用同一个迁移期实现；L2 安全存储治理时只替换 CredentialStore 绑定。
-    single<CredentialStore> { get<PreferencesSettingsStore>() }
+    single<CredentialStore> {
+        // 新凭据写入 Android Keystore backed 存储；旧 DataStore 凭据按字段懒迁移，避免老用户会话丢失。
+        MigratingCredentialStore(
+            primary = createSecureCredentialStore(),
+            legacy = get<PreferencesSettingsStore>(),
+        )
+    }
     single<BalanceCache> { get<PreferencesSettingsStore>() }
     single<QuickCreateDraftStore> { get<PreferencesSettingsStore>() }
     single<PermissionStateStore> { createPermissionDataStore() }

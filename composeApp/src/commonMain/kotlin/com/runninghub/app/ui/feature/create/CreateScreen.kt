@@ -89,7 +89,18 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldInputC
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import org.koin.compose.koinInject
 
-class CreateVoyagerScreen : Screen {
+/**
+ * 迁移期保留的旧创作页 Voyager 包装。
+ *
+ * 旧 Create 页面已经从主导航和生产 Koin 图中隔离，正式创作入口必须使用
+ * `QuickCreateVoyagerScreen`。本类型只作为迁移对照和旧页面测试入口保留；
+ * 使用 ERROR 级废弃标记可以在编译期阻止后续代码把旧状态机重新接回生产导航。
+ */
+@Deprecated(
+    message = "旧 Create 页面仅保留迁移对照，生产入口必须使用 QuickCreateVoyagerScreen。",
+    level = DeprecationLevel.ERROR,
+)
+internal class CreateVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
 
     @Composable
@@ -126,9 +137,17 @@ class CreateVoyagerScreen : Screen {
     }
 }
 
+/**
+ * 渲染迁移期保留的旧创作页内容。
+ *
+ * 该函数仅服务 [CreateVoyagerScreen] 和同模块迁移测试，不再作为新创作入口的复用 UI。
+ * 所有新上传、计费、轮询和历史交互应继续在 QuickCreate 迁移后页面中演进，避免两个创作状态机
+ * 同时扩张。回调参数保持平台无关，媒体选择结果仍通过 URI 字符串传递，避免平台类型进入
+ * commonMain 状态。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun CreateScreenContent(
+internal fun CreateScreenContent(
     uiState: CreateUiState,
     onCategorySelected: (CreateCategory) -> Unit,
     onSearch: () -> Unit,

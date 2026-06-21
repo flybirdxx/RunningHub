@@ -8,6 +8,9 @@ package com.runninghub.app.ui.feature.login
  * 验证码生成、刷新、轨迹校验和 token 回传逻辑与官网一致，避免客户端预取数据后破坏
  * TAC 组件内部状态。
  *
+ * 外部脚本通过受控动态加载进入页面，并提供失败、超时和图片解码 watchdog 三类降级文案；
+ * 这些文案只说明当前验证码容器不可用，不暴露手机号、短信验证码或服务端返回细节。
+ *
  * @param tokenCallbackExpression TAC 校验成功后执行的 JavaScript 表达式。
  * 表达式可以使用局部变量 `token`，其值为服务端返回的短生命周期 `validToken`；
  * 调用方必须只把它用于下一次 `/uc/sendSms` 请求，不得持久化或写入日志。
@@ -33,13 +36,12 @@ internal fun smsCaptchaHtml(
     </head>
     <body>
       <div id="captcha"><div id="captcha-status" class="status">准备图形验证...</div></div>
-      <script src="/tac/js/tac.min.js"></script>
       <script>
         (function () {
           var bridgeName = '$CAPTCHA_BRIDGE_NAME';
           function fail(message) {
             document.getElementById('captcha').innerHTML =
-              '<div class="status">' + message + '<br><button class="retry" onclick="window.__initSmsCaptcha()">重试</button></div>';
+              '<div class="status">' + message + '<br><button class="retry" onclick="window.__loadSmsCaptchaScript()">重试</button></div>';
           }
           function notifyNativeToken(token) {
             var callbackToken = token || '';
@@ -161,6 +163,38 @@ internal fun smsCaptchaHtml(
               fail('图形验证初始化失败，请点击重试');
             }
           }
+          function loadCaptchaScript() {
+            window.clearTimeout(window.__captchaScriptTimer);
+            window.clearTimeout(window.__captchaWatchdog);
+            if (window.TAC) {
+              initCaptcha();
+              return;
+            }
+            var oldScript = document.getElementById('runninghub-tac-script');
+            if (oldScript && oldScript.parentNode) {
+              oldScript.parentNode.removeChild(oldScript);
+            }
+            document.getElementById('captcha').innerHTML =
+              '<div id="captcha-status" class="status">准备图形验证...</div>';
+            var script = document.createElement('script');
+            script.id = 'runninghub-tac-script';
+            script.src = '/tac/js/tac.min.js';
+            script.async = true;
+            script.onload = function () {
+              window.clearTimeout(window.__captchaScriptTimer);
+              initCaptcha();
+            };
+            script.onerror = function () {
+              window.clearTimeout(window.__captchaScriptTimer);
+              fail('图形验证脚本加载失败，请点击重试');
+            };
+            window.__captchaScriptTimer = window.setTimeout(function () {
+              if (!window.TAC) {
+                fail('图形验证脚本加载超时，请点击重试');
+              }
+            }, 8000);
+            document.head.appendChild(script);
+          }
           function extractValidToken(res) {
             if (!res) return null;
             if (res.data && res.data.validToken) return res.data.validToken;
@@ -171,8 +205,9 @@ internal fun smsCaptchaHtml(
             return null;
           }
           window.__initSmsCaptcha = initCaptcha;
-          if (document.readyState === 'complete') initCaptcha();
-          else window.addEventListener('load', initCaptcha);
+          window.__loadSmsCaptchaScript = loadCaptchaScript;
+          if (document.readyState === 'complete') loadCaptchaScript();
+          else window.addEventListener('load', loadCaptchaScript);
         })();
       </script>
     </body>

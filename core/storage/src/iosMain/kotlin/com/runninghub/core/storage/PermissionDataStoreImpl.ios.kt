@@ -1,28 +1,79 @@
 package com.runninghub.core.storage
 
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
- * iOS 平台权限状态存储占位实现。
+ * iOS 平台权限状态存储。
  *
- * 当前 iOS 权限由系统弹窗和 Info.plist 文案处理，本地不持久化授权轨迹，因此所有查询默认返回已授权。
- * 后续接入真实媒体权限状态时，应按 [Permission.key] 写入跨平台稳定标识，而不是保存 iOS 平台字符串。
+ * 当前实现保存本进程内由系统权限回调映射出的跨平台状态，不再把未知权限固定视为已授权。
+ * iOS 的照片、视频和文件选择由平台系统弹窗最终裁决；本存储只记录 [Permission.key]，
+ * 不保存 PHPhotoLibrary、UIDocumentPicker 或其他平台协议字符串，避免平台细节泄漏到 commonMain。
+ *
+ * 并发约束：所有写入通过 [Mutex] 串行化，确保同一权限 key 不会同时出现在 granted、
+ * denied 和 permanentlyDenied 三个集合中。
  */
 class PermissionDataStoreImpl : PermissionDataStore {
 
-    override val grantedPermissions: Flow<Set<String>> = flowOf(emptySet())
-    override val deniedPermissions: Flow<Set<String>> = flowOf(emptySet())
-    override val permanentlyDeniedPermissions: Flow<Set<String>> = flowOf(emptySet())
+    private val mutex = Mutex()
+    private val grantedState = MutableStateFlow<Set<String>>(emptySet())
+    private val deniedState = MutableStateFlow<Set<String>>(emptySet())
+    private val permanentlyDeniedState = MutableStateFlow<Set<String>>(emptySet())
 
-    override suspend fun markGranted(permissionKey: String) {}
-    override suspend fun markDenied(permissionKey: String) {}
-    override suspend fun markPermanentlyDenied(permissionKey: String) {}
-    override suspend fun reset(permissionKey: String) {}
-    override suspend fun resetAll() {}
+    override val grantedPermissions: Flow<Set<String>> = grantedState
+    override val deniedPermissions: Flow<Set<String>> = deniedState
+    override val permanentlyDeniedPermissions: Flow<Set<String>> = permanentlyDeniedState
+
+    override suspend fun markGranted(permissionKey: String) {
+        mutex.withLock {
+            grantedState.value = grantedState.value + permissionKey
+            deniedState.value = deniedState.value - permissionKey
+            permanentlyDeniedState.value = permanentlyDeniedState.value - permissionKey
+        }
+    }
+
+    override suspend fun markDenied(permissionKey: String) {
+        mutex.withLock {
+            grantedState.value = grantedState.value - permissionKey
+            deniedState.value = deniedState.value + permissionKey
+            permanentlyDeniedState.value = permanentlyDeniedState.value - permissionKey
+        }
+    }
+
+    override suspend fun markPermanentlyDenied(permissionKey: String) {
+        mutex.withLock {
+            grantedState.value = grantedState.value - permissionKey
+            deniedState.value = deniedState.value - permissionKey
+            permanentlyDeniedState.value = permanentlyDeniedState.value + permissionKey
+        }
+    }
+
+    override suspend fun reset(permissionKey: String) {
+        mutex.withLock {
+            grantedState.value = grantedState.value - permissionKey
+            deniedState.value = deniedState.value - permissionKey
+            permanentlyDeniedState.value = permanentlyDeniedState.value - permissionKey
+        }
+    }
+
+    override suspend fun resetAll() {
+        mutex.withLock {
+            grantedState.value = emptySet()
+            deniedState.value = emptySet()
+            permanentlyDeniedState.value = emptySet()
+        }
+    }
 
     override suspend fun getCurrentStatus(permission: Permission): PermissionStatus =
-        PermissionStatus.GRANTED
+        when (permission.key) {
+            in grantedPermissions.first() -> PermissionStatus.GRANTED
+            in deniedPermissions.first() -> PermissionStatus.DENIED
+            in permanentlyDeniedPermissions.first() -> PermissionStatus.PERMANENTLY_DENIED
+            else -> PermissionStatus.UNKNOWN
+        }
 }
 
 /**

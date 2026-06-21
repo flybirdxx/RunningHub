@@ -1,6 +1,6 @@
 package com.runninghub.core.network.auth
 
-import com.runninghub.core.network.RunningHubApiEnvironment
+import com.runninghub.core.network.isTrustedRunningHubHost
 import com.runninghub.core.storage.CredentialStore
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpSend
@@ -60,8 +60,7 @@ fun HttpClient.installRunningHubAuthInterceptors(
     }
 
     requestPipeline.intercept(HttpRequestPipeline.State) {
-        val url = context.url.buildString()
-        if (url.contains(RunningHubApiEnvironment.HOST_MARKER)) {
+        if (isTrustedRunningHubHost(context.url.host)) {
             val authHeaders = authHeaderProvider.provideForRunningHubRequest(
                 hasAuthorizationHeader = context.headers.contains(HttpHeaders.Authorization),
                 hasCookieHeader = context.headers.contains(HttpHeaders.Cookie),
@@ -73,7 +72,7 @@ fun HttpClient.installRunningHubAuthInterceptors(
 
     plugin(HttpSend).intercept { request ->
         val call = execute(request)
-        val isRunningHubRequest = call.request.url.host.contains(RunningHubApiEnvironment.HOST_MARKER)
+        val isRunningHubRequest = isTrustedRunningHubHost(call.request.url.host)
         if (!isRunningHubRequest || call.response.status != HttpStatusCode.Unauthorized) {
             return@intercept call
         }

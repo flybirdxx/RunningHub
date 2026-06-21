@@ -8,12 +8,12 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 /**
- * 基于 Preferences DataStore 的迁移期本地设置实现。
+ * 基于 Preferences DataStore 的非敏感本地设置实现。
  *
  * 本类同时实现 [CredentialStore]、[BalanceCache] 和 [QuickCreateDraftStore]，
- * 是为了在 L1 阶段先把启动组合根从 `sharedModule` 解耦。凭据仍暂存于普通
- * DataStore，不满足 L2 安全存储要求；后续 Android Keystore 与 iOS Keychain
- * 接入后，应只替换 [CredentialStore] 的实现，余额缓存和草稿继续保留在非敏感存储。
+ * 是为了兼容 L1 迁移期间已经写入 Preferences 的历史凭据。生产组合根不应再直接把本类绑定为
+ * [CredentialStore]；应通过 [MigratingCredentialStore] 把旧凭据迁移到平台安全存储。
+ * 余额缓存和草稿属于非敏感数据，继续由本类保存。
  *
  * @param dataStore 应用级 Preferences DataStore，由 [createDataStore] 创建并保证平台文件路径一致。
  */
@@ -24,8 +24,7 @@ class PreferencesSettingsStore(
     QuickCreateDraftStore {
 
     companion object {
-        // TODO(RH-storage-security): 当前凭据仍存于普通 DataStore，root 设备或备份提取存在泄露风险。
-        // Android 接入加密存储、iOS 接入 Keychain 后，应把 API Key、Cookie 和 token 键迁出本实现。
+        // 这些凭据键只用于读取和清理 L1 迁移前的旧数据；新凭据写入必须进入平台安全存储。
         private val KEY_API_KEY = stringPreferencesKey("api_key")
         private val KEY_ENTERPRISE_API_KEY = stringPreferencesKey("enterprise_api_key")
         private val KEY_COOKIE = stringPreferencesKey("user_cookie")
@@ -116,8 +115,8 @@ class PreferencesSettingsStore(
     }
 
     override suspend fun clearAll() {
-        // 迁移期该实现同时承载凭据、余额和草稿；注销时沿用旧行为整体清理。
-        // L2 安全存储拆分后，凭据清理不应再删除非敏感草稿。
+        // 该方法只保留给仍直接依赖本类的遗留 shared 组合根；composeApp 的生产组合根已经通过
+        // MigratingCredentialStore 逐项清理凭据，避免注销时误删快捷创作草稿。
         dataStore.edit { it.clear() }
     }
 }

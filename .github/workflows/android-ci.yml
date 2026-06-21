@@ -6,6 +6,12 @@ on:
     branches:
       - main
       - feature/kmp-refactoring
+  schedule:
+    - cron: "0 18 * * 0"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   android:
@@ -31,3 +37,13 @@ jobs:
 
       - name: Run Android L1 verification
         run: ./gradlew verifyL1Android
+
+      - name: Upload Android verification reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-verification-reports
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+          if-no-files-found: ignore

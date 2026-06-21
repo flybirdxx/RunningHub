@@ -115,7 +115,10 @@ android {
         }
 
         release {
-            isMinifyEnabled = false
+            // Release 包必须启用 R8 和资源压缩，避免生产构建携带未使用代码、资源或调试可见符号。
+            // 反射和序列化依赖由 proguard-rules.pro 显式保留；若新增运行期反射框架，需同步补规则。
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
