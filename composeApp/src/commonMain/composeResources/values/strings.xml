@@ -104,4 +104,11 @@
     <string name="settings_dialog_cookie_help">获取方式：浏览器 F12 → Application → Cookies</string>
     <string name="settings_dialog_cookie_confirm">确认登录</string>
     <string name="settings_dialog_cancel_action">取消</string>
+    <string name="search_screen_title">搜索</string>
+    <string name="search_back_content_description">返回</string>
+    <string name="search_bar_placeholder">搜索应用、工作流...</string>
+    <string name="search_empty_results_format">未找到 "%1$s" 相关结果</string>
+    <string name="search_end_of_results">没有更多了</string>
+    <string name="search_hot_content_description">热门</string>
+    <string name="search_hot_tags_title">热门标签</string>
 </resources>

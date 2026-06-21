@@ -67,8 +67,23 @@ import com.runninghub.app.ui.theme.adaptiveGridColumns
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.core.model.Tag
 import com.runninghub.feature.discovery.presentation.SearchUiState
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.search_back_content_description
+import runninghub.composeapp.generated.resources.search_bar_placeholder
+import runninghub.composeapp.generated.resources.search_empty_results_format
+import runninghub.composeapp.generated.resources.search_end_of_results
+import runninghub.composeapp.generated.resources.search_hot_content_description
+import runninghub.composeapp.generated.resources.search_hot_tags_title
+import runninghub.composeapp.generated.resources.search_screen_title
 
+/**
+ * 搜索页的 Voyager Screen。
+ *
+ * 该类型只负责把 Voyager 生命周期、导航返回和详情跳转适配到 [SearchScreenModel]；
+ * 搜索输入、防抖、分页和热门标签状态由 `feature:discovery:presentation` 维护。
+ */
 class SearchVoyagerScreen : Screen {
 
     @Composable
@@ -123,12 +138,12 @@ private fun SearchContent(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("搜索") },
+                title = { Text(stringResource(Res.string.search_screen_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回",
+                            contentDescription = stringResource(Res.string.search_back_content_description),
                         )
                     }
                 },
@@ -150,7 +165,7 @@ private fun SearchContent(
                 query = uiState.query,
                 onQueryChange = onQueryChange,
                 onSearch = onSearch,
-                placeholder = "搜索应用、工作流...",
+                placeholder = stringResource(Res.string.search_bar_placeholder),
                 modifier = Modifier.padding(
                     horizontal = Dimens.SpaceLG,
                     vertical = Dimens.SpaceSM,
@@ -189,7 +204,10 @@ private fun SearchContent(
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(
-                            text = "未找到 \"${uiState.query}\" 相关结果",
+                            text = stringResource(
+                                Res.string.search_empty_results_format,
+                                uiState.query,
+                            ),
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -243,7 +261,7 @@ private fun SearchContent(
                             if (!uiState.hasMore && uiState.results.isNotEmpty()) {
                                 item(key = "search_end", span = { GridItemSpan(maxLineSpan) }) {
                                     Text(
-                                        text = "没有更多了",
+                                        text = stringResource(Res.string.search_end_of_results),
                                         modifier = Modifier.fillMaxWidth().padding(Dimens.SpaceLG),
                                         textAlign = TextAlign.Center,
                                         style = MaterialTheme.typography.bodySmall,
@@ -298,7 +316,7 @@ private fun SearchContent(
                             if (!uiState.hasMore && uiState.results.isNotEmpty()) {
                                 item(key = "search_end") {
                                     Text(
-                                        text = "没有更多了",
+                                        text = stringResource(Res.string.search_end_of_results),
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(Dimens.SpaceLG),
@@ -339,13 +357,13 @@ private fun HotTagsSection(
         ) {
             Icon(
                 imageVector = Icons.Default.LocalFireDepartment,
-                contentDescription = "热门",
+                contentDescription = stringResource(Res.string.search_hot_content_description),
                 tint = extColors.hotBadge,
                 modifier = Modifier.size(Dimens.IconSizeMD),
             )
             Spacer(Modifier.padding(start = Dimens.SpaceXS))
             Text(
-                text = "热门标签",
+                text = stringResource(Res.string.search_hot_tags_title),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )

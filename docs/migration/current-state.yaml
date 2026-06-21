@@ -249,12 +249,18 @@ gate_status:
       - "2026-06-22 P8 CreatorProfileScreen 文案资源化继续收缩：标题兜底、返回按钮无障碍描述、作品区标题、空态、关注按钮、用户兜底名、统计标签、使用/点赞格式和指标分隔符迁入 composeApp commonMain Compose Resources；CreatorProfileScreen 硬编码 UI 文案基线从 5 下调为 0，CreatorProfileStateHolder 的错误状态文案仍保留在 Presentation 文案端口后续治理。"
       - "2026-06-22 P8 ProfileScreen 文案资源化继续收缩：个人中心默认用户名、设置/头像/会员/菜单/未登录空态等静态标签和无障碍描述，以及会员剩余单位/到期格式迁入 composeApp commonMain Compose Resources；ProfileScreen 硬编码 UI 文案基线从 2 下调为 0。迁移期 Profile UI 壳仍保留在 composeApp，体量基线同步记录本次资源导入增长；SettingsDialog 与 ProfileStateHolder 文案留给后续独立切片。"
       - "2026-06-22 P8 SettingsDialog 文案资源化继续收缩：API Key/Cookie 绑定弹窗标题、说明、输入标签、占位、帮助、确认和取消文案迁入 composeApp commonMain Compose Resources；SettingsDialog 硬编码 UI 文案基线从 14 下调为 0。真实 API Key/Cookie 输入仍只作为运行时敏感数据通过回调传递；ProfileStateHolder 文案留给后续独立切片。"
+      - "2026-06-22 P8 SearchScreen 文案资源化继续收缩：标题、返回无障碍描述、搜索占位、无结果格式化空态、到底提示和热门标签区域文案迁入 composeApp commonMain Compose Resources；SearchScreen 硬编码 UI 文案基线从 5 下调为 0。搜索词、热门标签名、应用标题、作者和错误信息仍保持运行时数据。"
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog 等叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估 SearchScreen、QuickCreateParamsSheetContent 或 AppDetailScreen 的剩余叶子 UI 文案资源化边界；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search 等叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估 QuickCreateParamsSheetContent、AppDetailScreen 或其他剩余叶子 UI 文案资源化边界；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "composeApp/src/commonMain/composeResources/values/strings.xml"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/search/SearchScreen.kt"
+    - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
     - "composeApp/src/commonMain/composeResources/values/strings.xml"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/SettingsDialog.kt"
     - "docs/governance/feature-presentation-thresholds.txt"
@@ -600,6 +606,12 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering SearchScreen hardcoded UI copy baseline from 5 to 0 before resource migration"
+    - "./gradlew.bat --console=plain checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"
+    - "./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64"
+    - "./gradlew.bat --console=plain :composeApp:assembleDebug"
+    - "git diff --check"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering SettingsDialog hardcoded UI copy baseline from 14 to 0 before resource migration"
     - "./gradlew.bat --console=plain checkLongTermGovernance"
     - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"

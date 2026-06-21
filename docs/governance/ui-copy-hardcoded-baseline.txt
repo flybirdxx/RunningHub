@@ -29,7 +29,7 @@ composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/prese
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/modelselector/QuickCreateModelSelectorContent.kt|0|QuickCreate model selector sheet copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/project/QuickCreateProjectContent.kt|12|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/result/QuickCreateResultContent.kt|0|QuickCreate result action copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/search/SearchScreen.kt|5|legacy hardcoded UI copy baseline
+composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/search/SearchScreen.kt|0|Search screen copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/navigation/MainScreen.kt|0|Main navigation copy moved to Compose Resources
 # 独立 Presentation 模块中的中文 UI 文案基线；后续应逐步迁移到 Compose Resources 或统一文案端口。
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateErrorMessages.kt|27|presentation hardcoded UI copy baseline

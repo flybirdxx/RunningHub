@@ -56,6 +56,8 @@ ProfileScreen 的个人中心默认用户名、设置/头像/会员/菜单/未�
 ProfileScreen 仍是迁移期留在 composeApp 的 UI 壳，体量基线同步记录本次资源导入增长，
 SettingsDialog 的 API Key/Cookie 绑定弹窗标题、说明、输入标签、占位、帮助、确认和取消文案也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 14 下调为 0；真实 API Key/Cookie 输入仍只作为运行时敏感数据通过回调传递。
+SearchScreen 的标题、返回无障碍描述、搜索占位、无结果格式化空态、到底提示和热门标签区域文案也已迁入
+commonMain Compose Resources，硬编码 UI 文案基线从 5 下调为 0；搜索词、热门标签名、应用标题、作者和错误信息仍保持运行时数据。
 ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
