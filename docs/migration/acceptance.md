@@ -94,6 +94,8 @@ Discovery 排序下拉的“推荐/口碑/最热/最新”固定标签已从 `fe
 TaskHistoryScreen 的页面标题、搜索/刷新无障碍描述、项目条、置顶项目、筛选 Tab、提示条、空态、详情面板标题、日期分组、任务 ID 格式、操作按钮、状态标签、参考 fallback 任务标题和错误兜底也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 14 下调为 0；任务标题、输出 URL、任务 ID、复用参数键值和服务端错误仍保持运行时或 Presentation 数据。
 PlazaScreen 的页面标题、搜索/刷新无障碍描述、排序/模式/分类标签、空态/分页、精选徽标、卡片兜底标题/归属、喜欢/使用计数格式和原乱码筛选标签已迁入 commonMain Compose Resources，硬编码 UI 文案基线从 5 下调为 0；服务端标签名、卡片标题、作者、媒体类型和错误文案仍保持运行时或 Presentation 数据。
+PlazaScreen 与 QuickCreateClassicComposerContent 的 `0/0` 旧文案基线已删除；后续如重新引入
+硬编码中文 UI 文案，将按未登记新增文件触发长期治理门禁。
 ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
