@@ -109,7 +109,34 @@ import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.detail.presentation.AppDetailUiState
 import com.runninghub.feature.detail.presentation.AppDetailUploadingState
 import com.runninghub.feature.detail.presentation.appDetailInputKey
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.app_detail_back_content_description
+import runninghub.composeapp.generated.resources.app_detail_default_app_name
+import runninghub.composeapp.generated.resources.app_detail_description_title
+import runninghub.composeapp.generated.resources.app_detail_fans_count_format
+import runninghub.composeapp.generated.resources.app_detail_float_placeholder
+import runninghub.composeapp.generated.resources.app_detail_int_placeholder
+import runninghub.composeapp.generated.resources.app_detail_list_placeholder
+import runninghub.composeapp.generated.resources.app_detail_multi_image_upload_title
+import runninghub.composeapp.generated.resources.app_detail_output_section_title
+import runninghub.composeapp.generated.resources.app_detail_parameter_count_format
+import runninghub.composeapp.generated.resources.app_detail_parameters_section_title
+import runninghub.composeapp.generated.resources.app_detail_rerun_action
+import runninghub.composeapp.generated.resources.app_detail_run_now_action
+import runninghub.composeapp.generated.resources.app_detail_stat_average_duration
+import runninghub.composeapp.generated.resources.app_detail_stat_success_rate
+import runninghub.composeapp.generated.resources.app_detail_stat_use_count
+import runninghub.composeapp.generated.resources.app_detail_status_completing
+import runninghub.composeapp.generated.resources.app_detail_status_queueing
+import runninghub.composeapp.generated.resources.app_detail_status_running
+import runninghub.composeapp.generated.resources.app_detail_status_running_fallback
+import runninghub.composeapp.generated.resources.app_detail_status_submitting
+import runninghub.composeapp.generated.resources.app_detail_switch_off
+import runninghub.composeapp.generated.resources.app_detail_switch_on
+import runninghub.composeapp.generated.resources.app_detail_text_placeholder
+import runninghub.composeapp.generated.resources.app_detail_video_file
 
 /* ═══════════════════════════════════════════════════
    Screen entry point
@@ -260,7 +287,7 @@ private fun DetailContent(
                 // 生成结果按服务端返回顺序展示；该顺序可能包含后端输出节点的业务顺序。
                 if (uiState.taskOutputs.isNotEmpty()) {
                     item(key = "output_header") {
-                        SectionHeader("生成结果")
+                        SectionHeader(stringResource(Res.string.app_detail_output_section_title))
                     }
                     items(
                         uiState.taskOutputs.filter { !it.fileUrl.isNullOrBlank() },
@@ -276,11 +303,17 @@ private fun DetailContent(
                 // 参数较多时默认折叠，减少详情内容和生成结果之间的滚动成本。
                 if (detail.inputNodes.isNotEmpty()) {
                     item(key = "input_header") {
-                        SectionHeader("配置参数", modifier = Modifier.padding(top = 16.dp))
+                        SectionHeader(
+                            stringResource(Res.string.app_detail_parameters_section_title),
+                            modifier = Modifier.padding(top = 16.dp),
+                        )
                     }
                     item(key = "input_section") {
                         CollapsibleSection(
-                            title = "${detail.inputNodes.size} 个参数",
+                            title = stringResource(
+                                Res.string.app_detail_parameter_count_format,
+                                detail.inputNodes.size,
+                            ),
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             initiallyExpanded = detail.inputNodes.size <= 5
                         ) {
@@ -363,7 +396,7 @@ private fun AppDetailHero(
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "返回",
+                    contentDescription = stringResource(Res.string.app_detail_back_content_description),
                     tint = Color.White
                 )
             }
@@ -376,7 +409,7 @@ private fun AppDetailHero(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text(
-                text = detail.name ?: "未命名应用",
+                text = detail.name ?: stringResource(Res.string.app_detail_default_app_name),
                 color = Color.White,
                 fontSize = 24.sp,
                 lineHeight = 30.sp,
@@ -451,7 +484,7 @@ private fun TopBar(onBack: () -> Unit) {
         IconButton(onClick = onBack) {
             Icon(
                 Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "返回",
+                contentDescription = stringResource(Res.string.app_detail_back_content_description),
                 tint = Color.White
             )
         }
@@ -519,7 +552,7 @@ private fun AppInfoSection(detail: AppDetail) {
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         Text(
-            text = detail.name ?: "未命名应用",
+            text = detail.name ?: stringResource(Res.string.app_detail_default_app_name),
             color = Color.White,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold
@@ -574,11 +607,17 @@ private fun StatsCard(
             .padding(vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        StatItem(value = useCount, label = "使用次数")
+        StatItem(value = useCount, label = stringResource(Res.string.app_detail_stat_use_count))
         StatDivider()
-        StatItem(value = successRate?.let { "${it}%" } ?: "--", label = "成功率")
+        StatItem(
+            value = successRate?.let { "${it}%" } ?: "--",
+            label = stringResource(Res.string.app_detail_stat_success_rate),
+        )
         StatDivider()
-        StatItem(value = avgSeconds?.let { "${it}s" } ?: "--", label = "平均用时")
+        StatItem(
+            value = avgSeconds?.let { "${it}s" } ?: "--",
+            label = stringResource(Res.string.app_detail_stat_average_duration),
+        )
     }
 }
 
@@ -649,7 +688,7 @@ private fun AuthorRow(
             if (owner != null) {
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    text = "${owner.fansCount} 粉丝",
+                    text = stringResource(Res.string.app_detail_fans_count_format, owner.fansCount),
                     color = Neutral400,
                     fontSize = 12.sp
                 )
@@ -681,7 +720,7 @@ private fun DescriptionSection(
             .padding(16.dp)
     ) {
         Text(
-            text = "简介",
+            text = stringResource(Res.string.app_detail_description_title),
             color = Color.White,
             fontSize = 15.sp,
             fontWeight = FontWeight.SemiBold
@@ -806,7 +845,7 @@ private fun MultiImageUploadRow(
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
-            text = "上传图片",
+            text = stringResource(Res.string.app_detail_multi_image_upload_title),
             color = Neutral400,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
@@ -992,7 +1031,7 @@ private fun InputNodeField(
                             onValueChanged(newVal)
                         }
                     },
-                    placeholder = "请输入整数",
+                    placeholder = stringResource(Res.string.app_detail_int_placeholder),
                     keyboardType = KeyboardType.Number,
                     singleLine = true
                 )
@@ -1008,7 +1047,7 @@ private fun InputNodeField(
                             onValueChanged(newVal)
                         }
                     },
-                    placeholder = "请输入数值",
+                    placeholder = stringResource(Res.string.app_detail_float_placeholder),
                     keyboardType = KeyboardType.Decimal,
                     singleLine = true
                 )
@@ -1026,7 +1065,7 @@ private fun InputNodeField(
                     DarkTextField(
                         value = currentValue,
                         onValueChange = onValueChanged,
-                        placeholder = "请输入内容",
+                        placeholder = stringResource(Res.string.app_detail_text_placeholder),
                         singleLine = !isMultiline,
                         minLines = if (isMultiline) 4 else 1
                     )
@@ -1044,7 +1083,7 @@ private fun InputNodeField(
                     DarkTextField(
                         value = currentValue,
                         onValueChange = onValueChanged,
-                        placeholder = "请输入内容",
+                        placeholder = stringResource(Res.string.app_detail_text_placeholder),
                         singleLine = true
                     )
                 }
@@ -1103,7 +1142,11 @@ private fun ListDropdown(
             onValueChange = {},
             readOnly = true,
             placeholder = {
-                Text("请选择", color = Neutral400.copy(alpha = 0.5f), fontSize = 14.sp)
+                Text(
+                    stringResource(Res.string.app_detail_list_placeholder),
+                    color = Neutral400.copy(alpha = 0.5f),
+                    fontSize = 14.sp,
+                )
             },
             trailingIcon = {
                 Text(
@@ -1172,7 +1215,13 @@ private fun BooleanSwitch(
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
         Text(
-            text = if (checked) "开启" else "关闭",
+            text = stringResource(
+                if (checked) {
+                    Res.string.app_detail_switch_on
+                } else {
+                    Res.string.app_detail_switch_off
+                },
+            ),
             color = if (checked) SuccessDark else Neutral400,
             fontSize = 14.sp,
             modifier = Modifier.weight(1f)
@@ -1309,7 +1358,7 @@ private fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        text = "视频文件",
+                        text = stringResource(Res.string.app_detail_video_file),
                         color = Neutral400,
                         fontSize = 12.sp
                     )
@@ -1378,11 +1427,11 @@ private fun RunTaskBottomBar(
                         )
                         Spacer(Modifier.width(8.dp))
                         val statusText = when (taskStep) {
-                            TaskStep.SUBMITTING -> "提交中..."
-                            TaskStep.QUEUEING -> "排队中..."
-                            TaskStep.RUNNING -> "生成中..."
-                            TaskStep.COMPLETING -> "完成中..."
-                            else -> "运行中..."
+                            TaskStep.SUBMITTING -> stringResource(Res.string.app_detail_status_submitting)
+                            TaskStep.QUEUEING -> stringResource(Res.string.app_detail_status_queueing)
+                            TaskStep.RUNNING -> stringResource(Res.string.app_detail_status_running)
+                            TaskStep.COMPLETING -> stringResource(Res.string.app_detail_status_completing)
+                            else -> stringResource(Res.string.app_detail_status_running_fallback)
                         }
                         Text(
                             text = statusText,
@@ -1393,7 +1442,7 @@ private fun RunTaskBottomBar(
                     }
                     hasResult -> {
                         Text(
-                            text = "重新运行",
+                            text = stringResource(Res.string.app_detail_rerun_action),
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
@@ -1408,7 +1457,7 @@ private fun RunTaskBottomBar(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "立即运行",
+                            text = stringResource(Res.string.app_detail_run_now_action),
                             color = Color.White,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.SemiBold
