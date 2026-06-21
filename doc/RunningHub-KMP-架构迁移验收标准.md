@@ -513,10 +513,12 @@ Xcode build 或 Simulator 运行证据。
 
 以下项目未完成前，不应宣布“架构迁移完成”：
 
-1. macOS iOS link/xcodebuild/Simulator 当前为显式 skipped，后续具备 macOS 环境后仍需补验。
-2. 当前完整代码和配置迁移补丁仍需提交后重新采集对应新 `HEAD` 的 Android/iOS CI 与外部证据。
-3. iOS 编译已有当前 `HEAD` 的 CI 证据，iOS Simulator 人工运行验收证据当前以 skipped 记录风险。
-4. Android 登录态 Tab 和退出登录后的稳定窗口网络证据已落盘；macOS iOS Simulator 登录、退出和 QuickCreate 冒烟路径后续仍需补测。
+1. 当前完整代码和配置迁移补丁必须先提交，并重新采集对应新 `HEAD` 的 Android/iOS CI 与外部证据。
+2. `checkL1SealEvidence` 必须通过，且 staged 差异只能是五个外部证据文件。
+
+当前状态：上述 L1 阻塞项已通过提交后补证流程清除。macOS iOS link/xcodebuild/Simulator
+当前按用户确认以 `overallResult: skipped` 留存风险证据，这不是 iOS runtime pass，
+后续具备 macOS 环境后仍应替换为 `overallResult: pass`，作为 L2 前补验项。
 
 ---
 
@@ -565,11 +567,11 @@ AC-12 完成安全存储、Release 和生产验收 L2
 [x] Gate C 唯一事实来源
 [x] Gate D 认证与 401
 [x] Gate E Discovery
-[ ] Gate F QuickCreate
-[ ] Gate G 生命周期与导航
+[x] Gate F QuickCreate
+[x] Gate G 生命周期与导航
 [x] Gate H Core 与 Shared 收口
-[ ] Gate I Android + iOS 编译
-[ ] Gate J CI
+[x] Gate I Android + iOS 编译
+[x] Gate J CI
 ```
 
 所有项目必须有可追溯证据：
@@ -583,7 +585,7 @@ AC-12 完成安全存储、Release 和生产验收 L2
 ### L2 生产发布
 
 ```text
-[ ] L1 已通过
+[x] L1 已通过
 [ ] Android 安全存储
 [ ] iOS Keychain
 [ ] Release 构建通过
