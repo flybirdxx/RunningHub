@@ -1,34 +1,6 @@
 # format: filePath|maxMatches|reason
 # 迁移期既有硬编码 UI 文案基线。新增用户可见文案应优先使用 Compose Resources；
 # 如果此文件中的计数增长，checkLongTermGovernance 会失败。
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/AppBarLogo.kt|0|common component copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/AppCard.kt|0|common component copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/CollapsibleSection.kt|0|common component copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/ErrorState.kt|0|common component copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/ImageUploadButton.kt|0|Image upload button copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/PermissionBottomSheet.kt|0|Permission bottom sheet copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/SmartAsyncImage.kt|0|common component copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/TaskProgressIndicator.kt|0|Task progress indicator copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/community/CommunityScreen.kt|0|Community header copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/creator/CreatorProfileScreen.kt|0|Creator profile copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/detail/AppDetailScreen.kt|0|App detail screen copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/discovery/DiscoveryScreen.kt|0|Discovery screen copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/TaskHistoryScreen.kt|0|Task history screen copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/login/LoginScreen.kt|0|legacy hardcoded UI copy baseline
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/ProfileScreen.kt|0|Profile screen copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/SettingsDialog.kt|0|Settings dialog copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/AdaptivePromptTextField.kt|0|char count is dynamic text, not hardcoded UI copy
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateGenerationInteractor.kt|0|QuickCreate generation runtime copy moved to Presentation text port
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateMediaUploadCoordinator.kt|0|QuickCreate upload runtime copy moved to Presentation text port
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateCompactComposerContent.kt|0|QuickCreate compact composer copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/params/QuickCreateParamsSheetContent.kt|0|QuickCreate params sheet copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/history/QuickCreateHistoryContent.kt|0|QuickCreate history content copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/inspiration/QuickCreateInspirationContent.kt|0|QuickCreate inspiration action copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/modelselector/QuickCreateModelSelectorContent.kt|0|QuickCreate model selector sheet copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/project/QuickCreateProjectContent.kt|0|QuickCreate project strip copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/result/QuickCreateResultContent.kt|0|QuickCreate result action copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/search/SearchScreen.kt|0|Search screen copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/navigation/MainScreen.kt|0|Main navigation copy moved to Compose Resources
 # 独立 Presentation 模块中的中文 UI 文案基线；后续应逐步迁移到 Compose Resources 或统一文案端口。
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateErrorMessages.kt|27|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt|8|presentation runtime UI text port; move to Compose Resources or injected text provider after QuickCreate UI leaves composeApp

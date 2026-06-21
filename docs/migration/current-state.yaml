@@ -269,6 +269,7 @@ gate_status:
       - "2026-06-22 Gate H/P7 shared 构建脚本继续瘦身：shared 自身不再声明 kotlinx.serialization 编译插件、Ktor content-negotiation/logging/auth/serialization、kotlinx-coroutines-android、koin-android、koin-test 或 ktor-client-mock；这些能力要么已由 core:network 封装并声明，要么在 shared 当前空测试集和 common Koin DSL 中无直接使用。shared 仍保留平台 Ktor engine 依赖，避免 HttpClient 默认 engine 运行期缺失。"
       - "2026-06-22 P8 UI 文案基线继续清账：PlazaScreen 和 QuickCreateClassicComposerContent 当前硬编码文案匹配数已为 0，删除对应 0/0 legacy baseline；后续若这两个文件重新引入硬编码中文 UI 文案，将作为未登记新增文件触发 checkLongTermGovernance 失败。"
       - "2026-06-22 P2 根构建脚本基线继续收紧：build.gradle.kts 当前实际行数为 1789，build-script-baseline 从 1800 下调到 1789，并同步 LongTermGovernancePlugin 文档片段检查，防止中期开发继续把新验收逻辑堆回根脚本。"
+      - "2026-06-22 P8 UI 文案基线继续清账：删除 composeApp/commonMain 中剩余所有 0/0 硬编码 UI 文案基线，并把 LongTermGovernancePlugin 的 ui-copy baseline 文档锚点改为仍有正数基线的 QuickCreateErrorMessages 与 CatalogErrorMessages；后续 composeApp 文件重新出现硬编码中文 UI 文案时会按未登记新增文件失败。"
     remaining: []
 next_action:
   id: "MID-02"

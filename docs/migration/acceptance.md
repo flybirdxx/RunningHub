@@ -98,6 +98,9 @@ commonMain Compose Resources，硬编码 UI 文案基线从 14 下调为 0；任
 PlazaScreen 的页面标题、搜索/刷新无障碍描述、排序/模式/分类标签、空态/分页、精选徽标、卡片兜底标题/归属、喜欢/使用计数格式和原乱码筛选标签已迁入 commonMain Compose Resources，硬编码 UI 文案基线从 5 下调为 0；服务端标签名、卡片标题、作者、媒体类型和错误文案仍保持运行时或 Presentation 数据。
 PlazaScreen 与 QuickCreateClassicComposerContent 的 `0/0` 旧文案基线已删除；后续如重新引入
 硬编码中文 UI 文案，将按未登记新增文件触发长期治理门禁。
+本轮继续删除 composeApp/commonMain 中剩余所有 `0/0` 硬编码 UI 文案基线，并把 baseline
+文档锚点改为仍有正数登记的 Presentation 文案文件；composeApp 文件后续回增硬编码中文 UI
+文案时仍会按未登记新增文件失败。
 ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
