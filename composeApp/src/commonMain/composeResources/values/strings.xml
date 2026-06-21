@@ -31,4 +31,16 @@
     <string name="task_progress_indicator_step_complete">完成</string>
     <string name="task_progress_indicator_completed_content_description">已完成</string>
     <string name="task_progress_indicator_failed_content_description">失败</string>
+    <string name="image_upload_button_upload_image">上传图片</string>
+    <string name="image_upload_button_upload_video">上传视频</string>
+    <string name="image_upload_button_upload_audio">上传音频</string>
+    <string name="image_upload_button_pick_image_hint">点击上传图片</string>
+    <string name="image_upload_button_pick_video_hint">点击上传视频</string>
+    <string name="image_upload_button_pick_audio_hint">点击上传音频</string>
+    <string name="image_upload_button_uploading_progress_format">上传中... %1$d%%</string>
+    <string name="image_upload_button_upload_failed_content_description">上传失败</string>
+    <string name="image_upload_button_upload_failed_retry">上传失败，点击重新选择</string>
+    <string name="image_upload_button_uploaded_badge">已上传</string>
+    <string name="image_upload_button_local_preview_badge">本地预览</string>
+    <string name="image_upload_button_remove_content_description">移除</string>
 </resources>

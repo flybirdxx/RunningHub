@@ -5,7 +5,7 @@ composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/AppBarLogo.kt|0
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/AppCard.kt|0|common component copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/CollapsibleSection.kt|0|common component copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/ErrorState.kt|0|common component copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/ImageUploadButton.kt|2|legacy hardcoded UI copy baseline
+composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/ImageUploadButton.kt|0|Image upload button copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/PermissionBottomSheet.kt|4|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/SmartAsyncImage.kt|0|common component copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/TaskProgressIndicator.kt|0|Task progress indicator copy moved to Compose Resources
