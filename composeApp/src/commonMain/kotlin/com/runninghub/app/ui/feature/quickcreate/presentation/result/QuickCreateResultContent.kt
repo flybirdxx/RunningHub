@@ -45,6 +45,10 @@ import com.runninghub.app.ui.theme.SuccessDark
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskIndicator
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPresentationStatus
 import com.runninghub.feature.quickcreate.presentation.result.quickCreateTaskStatusDisplay
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_result_clear_action
+import runninghub.composeapp.generated.resources.quick_create_result_section_title
 
 /**
  * 展示快捷创作任务的当前执行状态。
@@ -114,11 +118,12 @@ private fun QuickCreateTaskUiStatus.toPresentationStatus(): QuickCreateTaskPrese
 /**
  * 展示快捷创作生成结果列表。
  *
- * 该组件位于 result 子区域，只负责渲染生成结果和“重新创作”入口。结果来自 UiState，
+ * 该组件位于 result 子区域，只负责渲染生成结果和清空结果入口。结果来自 UiState，
  * 清空结果的行为通过 [onClear] 回传给 ScreenModel 门面，保持 UI 到 Action 的单向数据流。
+ * 区域标题和操作按钮使用 Compose Resources，避免 composeApp 叶子 UI 继续扩大硬编码文案基线。
  *
  * @param results 当前任务完成后得到的结果集合，顺序沿用服务端输出顺序，空集合时不会显示该区域。
- * @param onClear 用户点击“重新创作”时触发，用于清空当前结果并回到编辑状态。
+ * @param onClear 用户点击清空结果入口时触发，用于清空当前结果并回到编辑状态。
  */
 @Composable
 internal fun QuickCreateResultArea(results: List<QuickCreateResultUi>, onClear: () -> Unit) {
@@ -133,7 +138,7 @@ internal fun QuickCreateResultArea(results: List<QuickCreateResultUi>, onClear: 
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                "生成结果",
+                stringResource(Res.string.quick_create_result_section_title),
                 color = Color.White.copy(alpha = 0.6f),
                 fontSize = 13.sp,
             )
@@ -145,7 +150,7 @@ internal fun QuickCreateResultArea(results: List<QuickCreateResultUi>, onClear: 
                     tint = Primary300,
                 )
                 Spacer(Modifier.width(4.dp))
-                Text("重新创作", color = Primary300, fontSize = 12.sp)
+                Text(stringResource(Res.string.quick_create_result_clear_action), color = Primary300, fontSize = 12.sp)
             }
         }
 

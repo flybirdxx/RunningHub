@@ -55,6 +55,10 @@ import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateIn
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPlaceholderMediaType
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPreviewUi
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationTemplateUi
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_inspiration_empty_prompt
+import runninghub.composeapp.generated.resources.quick_create_inspiration_load_more_templates
 
 /**
  * 展示快捷创作的灵感模板区域。
@@ -62,6 +66,7 @@ import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateIn
  * 该组件位于 inspiration 子区域，只消费 [QuickCreateUiState] 中已经准备好的标签、
  * 模板和分页状态。模板应用与加载更多通过回调返回给 ScreenModel 门面，避免 UI
  * 直接触碰模板 Repository 或分页实现。
+ * 空状态和加载更多按钮使用 Compose Resources，模板标题、类别和徽标仍由 Presentation 状态提供。
  *
  * @param uiState 快捷创作页面状态，当前只读取灵感标签、模板列表和加载状态。
  * @param onApplyTemplate 用户选择模板时触发，参数为模板 ID。
@@ -148,7 +153,7 @@ internal fun QuickCreateInspirationArea(
                         )
                         Spacer(Modifier.width(Dimens.SpaceSM))
                     }
-                    Text("加载更多模板")
+                    Text(stringResource(Res.string.quick_create_inspiration_load_more_templates))
                 }
             }
         }
@@ -175,7 +180,7 @@ private fun QuickCreateInspirationEmptyArea() {
             )
             Spacer(Modifier.height(Dimens.SpaceMD))
             Text(
-                "输入提示词开始创作",
+                stringResource(Res.string.quick_create_inspiration_empty_prompt),
                 color = Color.White.copy(alpha = 0.35f),
                 fontSize = 14.sp,
             )

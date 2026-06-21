@@ -239,12 +239,19 @@ gate_status:
       - "本轮按复核建议补强 Release 构建治理：composeApp release 构建启用 R8 minify 和 resource shrink，proguard-rules.pro 移除 shared 时代规则并覆盖迁移后的 com.runninghub serializer/Koin/Ktor 场景，checkArchitectureBoundaries 和 verifyL1Android 已纳入防退化检查。"
       - "本轮按复核建议补强环境配置治理：core/network 暴露 ApiEnvironment，RunningHubApiEnvironment 不再依赖编译期 URL 常量，Android/iOS runtime module 在平台启动层注入当前环境；checkArchitectureBoundaries 已纳入该注入链路自检。"
       - "2026-06-22 P8 UI 文案资源化中期收缩：Community 页头标题和副标题迁入 composeApp commonMain Compose Resources，CommunityScreen 硬编码 UI 文案基线从 2 下调为 0；工具卡片目录文案仍按 Presentation 模块节奏后续迁移。"
+      - "2026-06-22 P8 UI 文案资源化继续收缩：QuickCreate 结果页标题/清空结果入口、灵感页空状态/加载更多入口迁入 composeApp commonMain Compose Resources；对应两个叶子 UI 文件硬编码文案基线从 1 下调为 0。"
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：Community 页头文案已完成 Compose Resources 试点，下一步优先评估剩余 composeApp 小文件 UI 文案资源化可收缩项；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：Community 与 QuickCreate 两组叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估剩余 composeApp 小文件 UI 文案资源化可收缩项或 Presentation 文案端口；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "composeApp/src/commonMain/composeResources/values/strings.xml"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/inspiration/QuickCreateInspirationContent.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/result/QuickCreateResultContent.kt"
+    - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
     - "composeApp/src/commonMain/composeResources/values/strings.xml"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/community/CommunityScreen.kt"
     - "docs/governance/ui-copy-hardcoded-baseline.txt"
@@ -533,6 +540,11 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering QuickCreate inspiration/result hardcoded UI copy baselines from 1 to 0 before resource migration"
+    - "./gradlew.bat --console=plain checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"
+    - "./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64"
+    - "./gradlew.bat --console=plain :composeApp:assembleDebug"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering CommunityScreen hardcoded UI copy baseline from 2 to 0 before resource migration"
     - "./gradlew.bat --console=plain checkLongTermGovernance"
     - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"

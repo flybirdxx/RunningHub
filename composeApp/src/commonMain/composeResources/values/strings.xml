@@ -2,4 +2,8 @@
 <resources>
     <string name="community_screen_title">创意工坊</string>
     <string name="community_screen_subtitle">探索 AI 创意工具，释放无限可能</string>
+    <string name="quick_create_inspiration_empty_prompt">输入提示词开始创作</string>
+    <string name="quick_create_inspiration_load_more_templates">加载更多模板</string>
+    <string name="quick_create_result_clear_action">重新创作</string>
+    <string name="quick_create_result_section_title">生成结果</string>
 </resources>
