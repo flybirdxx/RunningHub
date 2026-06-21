@@ -241,9 +241,16 @@ gate_status:
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：AppDetail 状态机已迁入 feature:detail:presentation，下一步按长期优先级继续收敛剩余 composeApp UI shell、旧 Create 兼容边界和 Data/Core 治理；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：Audio/Model Data 错误语义已收口为稳定错误码，下一步优先收敛旧 Create 兼容边界或 QuickCreate composeApp UI shell；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "feature/audio/domain/src/commonMain/kotlin/com/runninghub/feature/audio/domain/AudioGeneration.kt"
+    - "feature/audio/data/src/commonMain/kotlin/com/runninghub/feature/audio/data/repository/AudioRepositoryImpl.kt"
+    - "feature/audio/data/src/commonTest/kotlin/com/runninghub/feature/audio/data/repository/AudioRepositoryImplTest.kt"
+    - "feature/model/domain/src/commonMain/kotlin/com/runninghub/feature/model/domain/ModelInvocation.kt"
+    - "feature/model/data/src/commonMain/kotlin/com/runninghub/feature/model/data/repository/ModelInvocationRepositoryImpl.kt"
+    - "feature/model/data/src/commonTest/kotlin/com/runninghub/feature/model/data/repository/ModelInvocationRepositoryImplTest.kt"
+    - "docs/migration/current-state.yaml"
     - "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/create/CreateScreenModelTest.kt"
     - "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/detail/AppDetailScreenModelTest.kt"
     - "settings.gradle.kts"
@@ -487,6 +494,12 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain :feature:audio:data:testDebugUnitTest --tests \"com.runninghub.feature.audio.data.repository.AudioRepositoryImplTest\""
+    - "./gradlew.bat --console=plain :feature:model:data:testDebugUnitTest --tests \"com.runninghub.feature.model.data.repository.ModelInvocationRepositoryImplTest\""
+    - "./gradlew.bat --console=plain :feature:audio:data:testDebugUnitTest :feature:model:data:testDebugUnitTest"
+    - "./gradlew.bat --console=plain :feature:audio:data:compileKotlinIosSimulatorArm64 :feature:model:data:compileKotlinIosSimulatorArm64"
+    - "./gradlew.bat --console=plain checkArchitectureBoundaries checkLongTermGovernance"
+    - "rg -n \"submitResponse\\.errorMessage|queryResponse\\.errorMessage|error\\.message|e\\.message|Submission failed|Task failed|Task timed out|No result URL found|Network error occurred|Unknown error occurred|请先在设置中绑定 API Key|Upload response missing URL\" feature/audio feature/model -g \"*.kt\""
     - "./gradlew.bat --console=plain :feature:detail:presentation:testDebugUnitTest --tests \"com.runninghub.feature.detail.presentation.AppDetailStateHolderTest\""
     - "./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.detail.AppDetailScreenModelTest\""
     - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"
@@ -789,6 +802,8 @@ last_verification:
     - "2026-06-22 Auth Login Presentation 中期验收通过：:feature:auth:presentation:testDebugUnitTest、Android/iOS Kotlin 编译、Login 图形验证码 HTML/Callback 保留测试、:composeApp:assembleDebug、checkArchitectureBoundaries、checkLongTermGovernance 和 git diff --check 均已通过；本轮未补上线 CI、Release 或 L1 封板证据。"
     - "2026-06-22 AppDetail 中期 Presentation 拆分继续推进：新增 feature:detail:presentation，把 AppDetailUiState、媒体选择/上传状态、详情加载、任务提交、输出轮询和失败文案映射迁出 composeApp；composeApp AppDetailScreenModel 只保留 Voyager 生命周期、平台 MediaResolver 适配和 UI 事件转发。"
     - "2026-06-22 AppDetail Presentation 中期验收通过：:feature:detail:presentation:testDebugUnitTest、:composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.detail.AppDetailScreenModelTest\"、:composeApp:compileDebugKotlinAndroid 和 :feature:detail:presentation:compileKotlinIosSimulatorArm64 均已通过；本轮未补上线 CI、Release 或 L1 封板证据。"
+    - "2026-06-22 Audio/Model Data 错误语义继续收口：新增 AudioTaskIssueCode 和 ModelInvocationIssueCode，Audio 任务提交失败、轮询失败、缺少输出 URL、超时、网络异常和未知异常均返回稳定错误码；Model 媒体上传缺 API Key 与缺远端 URL 也返回稳定错误码，不再生成最终中文 UI 文案或透传底层异常 message。"
+    - "2026-06-22 Audio/Model Data 中期验收通过：:feature:audio:data:testDebugUnitTest、:feature:model:data:testDebugUnitTest、:feature:audio:data:compileKotlinIosSimulatorArm64、:feature:model:data:compileKotlinIosSimulatorArm64、checkArchitectureBoundaries、checkLongTermGovernance 和错误字符串静态搜索均已通过；本轮未补上线 CI、Release 或 L1 封板证据。"
     - "Gate G 本轮补齐登录态 Android Tab 网络观察证据：连接设备 2211133C 已成功安装并启动 com.runninghub.app.debug，UI dump 确认处于主界面；observe-tab-network.ps1 记录 120 秒登录态 Discover/History/Create/Plaza/Profile 操作路径，生成 android-tab-network.json，sampleCount=116、result=pass_candidate、stableWindowStartedDelta=0、stableWindowMaxInFlight=0、stableWindowSampleCount=30。"
     - "Gate J 早前复跑 checkL1SealEvidence，Android 登录态 Tab 网络观察证据已通过结构化校验；当时任务仍按预期失败，剩余缺口为 Android GitHub Actions、iOS GitHub Actions、macOS iOS link/Simulator 三个外部证据文件。"
     - "Gate J 本轮调整 .gitignore：保留全局 *.json 忽略规则，同时放行 docs/migration/evidence/*.json，避免最终封板要求的结构化证据必须使用 git add -f 才能入索引。"

@@ -5,7 +5,7 @@ package com.runninghub.feature.audio.domain
  *
  * Audio 功能的领域契约已经从 `shared` 迁出；本类型只表达业务状态，
  * 不携带 DTO、HTTP 状态码或平台对象。`feature:audio:data` 负责把远端响应映射为这些状态，
- * Presentation 层负责把 [Error.message] 转换为最终用户可见文案。
+ * Presentation 层负责把 [Error.message] 中的 [AudioTaskIssueCode] 转换为最终用户可见文案。
  */
 sealed class AudioTaskStatus {
     /**
@@ -38,12 +38,51 @@ sealed class AudioTaskStatus {
     /**
      * 音频任务提交、轮询或结果解析失败。
      *
-     * @property message 稳定的领域错误摘要，供 Presentation 映射用户文案。
-     * 该字段不得包含 Token、Cookie、API Key、密码、完整请求头或本地文件路径。
+     * @property message [AudioTaskIssueCode] 中定义的稳定错误码，供 Presentation 映射用户文案。
+     * 该字段不得包含服务端原始 `errorMessage`、Token、Cookie、API Key、密码、完整请求头或本地文件路径。
      */
     data class Error(
         val message: String,
     ) : AudioTaskStatus()
+}
+
+/**
+ * 音频任务状态流使用的稳定错误码。
+ *
+ * Data 层只能返回这些机器可识别的错误语义，不能把服务端 `errorMessage`、异常 message
+ * 或最终中文 UI 文案写入 [AudioTaskStatus.Error.message]。后续 Presentation 层根据页面场景
+ * 再把这些错误码映射为本地化提示。
+ */
+object AudioTaskIssueCode {
+    /**
+     * 音频任务提交接口明确返回失败，或提交响应缺少可轮询任务 ID。
+     */
+    const val SUBMIT_FAILED = "AUDIO_SUBMIT_FAILED"
+
+    /**
+     * 音频任务轮询到失败终态。
+     */
+    const val TASK_FAILED = "AUDIO_TASK_FAILED"
+
+    /**
+     * 音频任务成功终态缺少可播放的远端 URL。
+     */
+    const val RESULT_URL_MISSING = "AUDIO_RESULT_URL_MISSING"
+
+    /**
+     * 音频任务超过客户端允许的最大轮询次数。
+     */
+    const val TASK_TIMEOUT = "AUDIO_TASK_TIMEOUT"
+
+    /**
+     * 网络连接、DNS、超时等可归类为网络层的问题。
+     */
+    const val NETWORK_ERROR = "AUDIO_NETWORK_ERROR"
+
+    /**
+     * 无法归类的本地异常或响应解析异常。
+     */
+    const val UNKNOWN_ERROR = "AUDIO_UNKNOWN_ERROR"
 }
 
 /**

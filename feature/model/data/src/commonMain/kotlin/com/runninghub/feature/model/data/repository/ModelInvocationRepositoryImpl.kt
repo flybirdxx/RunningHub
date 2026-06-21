@@ -3,6 +3,7 @@
 import com.runninghub.core.network.RunningHubApiEnvironment
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.model.domain.ModelInvocationRepository
+import com.runninghub.feature.model.domain.ModelInvocationIssueCode
 import com.runninghub.feature.model.domain.ModelInvocationRequest
 import com.runninghub.feature.model.domain.ModelInvocationTask
 import com.runninghub.feature.model.data.remote.api.ModelCatalogApi
@@ -101,7 +102,7 @@ class ModelInvocationRepositoryImpl(
     ): Result<String> =
         runCatching {
             val apiKey = credentialStore.getApiKey()?.takeIf { it.isNotBlank() }
-                ?: error("请先在设置中绑定 API Key")
+                ?: error(ModelInvocationIssueCode.API_KEY_MISSING)
             val response = client.submitFormWithBinaryData(
                 url = RunningHubApiEnvironment.openApiV2Url("media/upload/binary"),
                 formData = formData {
@@ -116,7 +117,7 @@ class ModelInvocationRepositoryImpl(
 
             // 服务端历史上可能返回 downloadUrl，也可能只返回 fileName；后者沿用旧客户端的 CDN
             // 拼接规则，确保标准模型上传在接口未完全统一时仍能得到可访问 URL。
-            response.uploadUrl() ?: error("Upload response missing URL")
+            response.uploadUrl() ?: error(ModelInvocationIssueCode.MEDIA_UPLOAD_EMPTY_URL)
         }
 
     private suspend fun resolveEndpoint(modelId: String): String {

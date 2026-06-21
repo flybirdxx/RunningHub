@@ -5,6 +5,7 @@ import com.runninghub.feature.model.data.remote.api.ModelCatalogApi
 import com.runninghub.feature.model.domain.ApiModelField
 import com.runninghub.feature.model.domain.ApiModelFieldType
 import com.runninghub.feature.model.domain.ModelFieldValue
+import com.runninghub.feature.model.domain.ModelInvocationIssueCode
 import com.runninghub.feature.model.domain.ModelInvocationRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -99,7 +100,7 @@ class ModelInvocationRepositoryImplTest {
 
         assertTrue(result.isFailure)
         assertEquals(0, networkCalls)
-        assertEquals("请先在设置中绑定 API Key", result.exceptionOrNull()?.message)
+        assertEquals(ModelInvocationIssueCode.API_KEY_MISSING, result.exceptionOrNull()?.message)
     }
 
     @Test
@@ -130,6 +131,31 @@ class ModelInvocationRepositoryImplTest {
 
         assertEquals("Bearer local-api-key", authorizationHeader)
         assertEquals("https://cdn.example/image.png", url)
+    }
+
+    @Test
+    fun `uploadMedia maps missing remote url to stable issue code`() = runBlocking {
+        val repository = repositoryWithMock(
+            credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+            response = {
+                """
+                    {
+                      "code": 0,
+                      "message": "success",
+                      "data": {}
+                    }
+                """.trimIndent()
+            },
+        )
+
+        val result = repository.uploadMedia(
+            fileBytes = "image".encodeToByteArray(),
+            fileName = "image.png",
+            contentType = "image/png",
+        )
+
+        assertTrue(result.isFailure)
+        assertEquals(ModelInvocationIssueCode.MEDIA_UPLOAD_EMPTY_URL, result.exceptionOrNull()?.message)
     }
 
     private fun repositoryWithMock(

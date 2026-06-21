@@ -72,3 +72,22 @@ data class ModelInvocationTask(
     val errorMessage: String? = null,
     val resultUrls: List<String> = emptyList(),
 )
+
+/**
+ * 标准模型调用仓库使用的稳定错误码。
+ *
+ * Data 层通过这些常量表达可机器识别的失败语义，不直接返回最终中文 UI 文案、
+ * 服务端 `msg/message/errorMessage` 或底层异常 message。Presentation 层负责把这些错误码
+ * 映射为当前页面的本地化提示和重试策略。
+ */
+object ModelInvocationIssueCode {
+    /**
+     * 用户尚未绑定可用于 OpenAPI 上传的 API Key。
+     */
+    const val API_KEY_MISSING = "MODEL_API_KEY_MISSING"
+
+    /**
+     * 媒体上传响应缺少可访问的远端 URL 或可拼接文件名。
+     */
+    const val MEDIA_UPLOAD_EMPTY_URL = "MODEL_MEDIA_UPLOAD_EMPTY_URL"
+}

@@ -6,6 +6,7 @@ import com.runninghub.feature.audio.data.remote.dto.MiniMaxAudioRequestDto
 import com.runninghub.feature.audio.domain.AudioRepository
 import com.runninghub.feature.audio.domain.AudioRequest
 import com.runninghub.feature.audio.domain.AudioResult
+import com.runninghub.feature.audio.domain.AudioTaskIssueCode
 import com.runninghub.feature.audio.domain.AudioTaskResult
 import com.runninghub.feature.audio.domain.AudioTaskStatus
 import kotlinx.coroutines.delay
@@ -50,8 +51,10 @@ class AudioRepositoryImpl(
             )
             val submitResponse = audioApi.textToAudio(dto)
 
-            if (submitResponse.status == "FAILED") {
-                emit(AudioTaskStatus.Error(submitResponse.errorMessage ?: "Submission failed"))
+            if (submitResponse.status == "FAILED" || submitResponse.taskId.isBlank()) {
+                // 提交阶段的服务端 errorMessage 可能包含诊断细节或临时英文文案；
+                // Data 层只返回稳定错误码，最终展示文案由 Presentation 统一映射。
+                emit(AudioTaskStatus.Error(AudioTaskIssueCode.SUBMIT_FAILED))
                 return@flow
             }
 
@@ -70,12 +73,13 @@ class AudioRepositoryImpl(
                         if (resultUrl != null) {
                             emit(AudioTaskStatus.Success(resultUrl))
                         } else {
-                            emit(AudioTaskStatus.Error("No result URL found"))
+                            emit(AudioTaskStatus.Error(AudioTaskIssueCode.RESULT_URL_MISSING))
                         }
                         return@flow
                     }
                     "FAILED" -> {
-                        emit(AudioTaskStatus.Error(queryResponse.errorMessage ?: "Task failed"))
+                        // 失败终态只传递稳定错误语义，避免远端 errorMessage 直接进入 UI 文案链路。
+                        emit(AudioTaskStatus.Error(AudioTaskIssueCode.TASK_FAILED))
                         return@flow
                     }
                     else -> {
@@ -85,7 +89,7 @@ class AudioRepositoryImpl(
                 }
             }
 
-            emit(AudioTaskStatus.Error("Task timed out"))
+            emit(AudioTaskStatus.Error(AudioTaskIssueCode.TASK_TIMEOUT))
         } catch (e: CancellationException) {
             // Flow 收集方主动取消时必须继续向外传播取消信号，避免页面离开后被误写成任务失败状态。
             throw e
@@ -116,16 +120,15 @@ class AudioRepositoryImpl(
     }
 
     /**
-     * 将音频任务链路中的底层异常转换为仓库当前暴露的稳定错误信息。
+     * 将音频任务链路中的底层异常转换为仓库当前暴露的稳定错误码。
      *
-     * 当前 Repository API 仍以 [AudioTaskStatus.Error] 字符串承载失败状态，因此这里先复用
-     * [NetworkErrorMapper] 消除各仓库的重复网络字符串判断；后续迁移到类型化错误后，Presentation
-     * 层应接管最终文案映射。
+     * 当前 Repository API 仍以 [AudioTaskStatus.Error] 字符串承载失败状态，因此这里返回
+     * [AudioTaskIssueCode] 常量；这样既兼容现有 Domain 形状，又避免异常 message 成为 UI 文案来源。
      */
     private fun mapAudioErrorMessage(error: Throwable): String =
         if (NetworkErrorMapper.isNetworkError(error)) {
-            "Network error occurred"
+            AudioTaskIssueCode.NETWORK_ERROR
         } else {
-            error.message ?: "Unknown error occurred"
+            AudioTaskIssueCode.UNKNOWN_ERROR
         }
 }
