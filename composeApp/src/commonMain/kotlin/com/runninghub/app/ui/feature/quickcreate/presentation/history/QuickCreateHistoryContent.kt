@@ -50,6 +50,16 @@ import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryDetailUiItem
 import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryOutputMediaType
 import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryUiItem
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_history_cancel_task
+import runninghub.composeapp.generated.resources.quick_create_history_canceling_task
+import runninghub.composeapp.generated.resources.quick_create_history_detail_close
+import runninghub.composeapp.generated.resources.quick_create_history_detail_loading_body
+import runninghub.composeapp.generated.resources.quick_create_history_detail_loading_title
+import runninghub.composeapp.generated.resources.quick_create_history_detail_title
+import runninghub.composeapp.generated.resources.quick_create_history_load_more
+import runninghub.composeapp.generated.resources.quick_create_history_recent_title
 
 /**
  * 展示快捷创作默认页的历史列表区域。
@@ -117,7 +127,7 @@ internal fun QuickCreateHistoryArea(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    selectedProject?.name ?: "最近创作",
+                    selectedProject?.name ?: stringResource(Res.string.quick_create_history_recent_title),
                     color = Color.White.copy(alpha = 0.82f),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -162,7 +172,7 @@ internal fun QuickCreateHistoryArea(
                         )
                         Spacer(Modifier.width(Dimens.SpaceSM))
                     }
-                    Text("加载更多")
+                    Text(stringResource(Res.string.quick_create_history_load_more))
                 }
             }
         }
@@ -189,12 +199,16 @@ internal fun QuickCreateHistoryDetailDialog(
         onDismissRequest = onDismiss,
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("关闭")
+                Text(stringResource(Res.string.quick_create_history_detail_close))
             }
         },
         title = {
             Text(
-                if (isLoading) "加载详情" else "创作详情",
+                if (isLoading) {
+                    stringResource(Res.string.quick_create_history_detail_loading_title)
+                } else {
+                    stringResource(Res.string.quick_create_history_detail_title)
+                },
                 fontWeight = FontWeight.SemiBold,
             )
         },
@@ -206,7 +220,7 @@ internal fun QuickCreateHistoryDetailDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
-                    Text("正在加载历史详情")
+                    Text(stringResource(Res.string.quick_create_history_detail_loading_body))
                 }
             } else {
                 val output = item.primaryOutput
@@ -358,7 +372,11 @@ private fun HistoryItemRow(
                             Spacer(Modifier.width(Dimens.SpaceXS))
                         }
                         Text(
-                            text = if (isCancelling) "取消中" else "取消任务",
+                            text = if (isCancelling) {
+                                stringResource(Res.string.quick_create_history_canceling_task)
+                            } else {
+                                stringResource(Res.string.quick_create_history_cancel_task)
+                            },
                             color = Primary300,
                             fontSize = 12.sp,
                         )

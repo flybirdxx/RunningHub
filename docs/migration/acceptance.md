@@ -62,6 +62,8 @@ QuickCreate 参数面板的更多参数标题、关闭无障碍描述、本地�
 commonMain Compose Resources，硬编码 UI 文案基线从 4 下调为 0；模型名、服务端字段标题/描述/选项/占位和计数器仍保持运行时或 Presentation 映射数据。
 QuickCreate 项目条的项目标题、新建/重命名/删除弹窗、详情弹窗、最近创作、加载更多、项目操作菜单和项目名称标签也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 12 下调为 0；项目名、任务数、置顶无障碍描述、删除确认正文和详情行仍保持运行时或 Presentation 映射数据。
+QuickCreate 历史列表与详情弹窗的最近创作兜底、加载更多、关闭、详情加载/标题和取消任务状态文案也已迁入
+commonMain Compose Resources，硬编码 UI 文案基线从 3 下调为 0；历史标题、元信息、计费文本、项目名、输出和任务标识仍保持运行时或 Presentation 映射数据。
 ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
