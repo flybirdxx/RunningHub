@@ -39,6 +39,10 @@ Gate J 长期治理补充：`checkLongTermGovernance` 已继续纳入 Android Ke
 本轮继续把已迁移 Feature Data 的服务端错误消息收口扩展为全量门禁：`feature/*/data`
 不得把服务端 `msg/message` 直接作为异常消息或 QuickCreate 任务状态错误传播；
 Task Data、QuickCreate Data、QuickCreate Presentation 和 composeApp 相关测试已覆盖该边界。
+P8 UI 文案资源化按中期节奏继续收缩：AppBarLogo、AppCard、CollapsibleSection、
+ErrorState 和 SmartAsyncImage 的静态文案、格式化单位和无障碍描述已迁入
+commonMain Compose Resources，对应硬编码文案基线均从 1 下调为 0；TaskProgressIndicator
+和 QuickCreateModelSelectorContent 仍保留为后续小文件资源化候选，不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
 
