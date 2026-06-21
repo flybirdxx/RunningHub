@@ -2,7 +2,6 @@ plugins {
     id("runninghub.kotlin.multiplatform")
     id("runninghub.android.library")
     alias(libs.plugins.kotlinx.serialization)
-    alias(libs.plugins.sqldelight)
 }
 
 kotlin {
@@ -38,21 +37,17 @@ kotlin {
             implementation(libs.ktor.client.auth)
             implementation(libs.ktor.serialization.json)
 
-            implementation(libs.sqldelight.coroutines)
-
             implementation(libs.datastore.preferences.core)
         }
 
         androidMain.dependencies {
             implementation(libs.ktor.client.okhttp)
-            implementation(libs.sqldelight.android.driver)
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.koin.android)
         }
 
         iosMain.dependencies {
             implementation(libs.ktor.client.darwin)
-            implementation(libs.sqldelight.native.driver)
         }
 
         commonTest.dependencies {
@@ -65,12 +60,4 @@ kotlin {
 
 android {
     namespace = "com.runninghub.shared"
-}
-
-sqldelight {
-    databases {
-        create("RunningHubDatabase") {
-            packageName.set("com.runninghub.shared.db")
-        }
-    }
 }

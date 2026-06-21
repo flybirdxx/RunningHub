@@ -177,7 +177,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     )
                     requireDocumentSnippets(
                         relativePath = "docs/governance/database-contract-test-baseline.txt",
-                        snippets = listOf("schemaPath|testPath|scope", "DiscoveryCache.sq"),
+                        snippets = listOf("schemaPath|testPath|scope", "legacy-debt"),
                         violations = violations,
                     )
                     requireDocumentSnippets(
@@ -1342,13 +1342,11 @@ class LongTermGovernancePlugin : Plugin<Project> {
     /**
      * 校验 SQLDelight schema 已进入数据库契约基线。
      *
-     * 当前迁移期只允许已登记的历史 Discovery cache schema 以 `legacy-debt` 标注缺口；
-     * 所有新增 `.sq` / `.sqm` 文件都必须登记真实测试入口，防止数据库结构变化只停留在实现层。
+     * 当前仓库已经移除未使用的历史 Discovery cache schema，不再允许任何 schema 使用
+     * `legacy-debt` 标注缺口。所有新增 `.sq` / `.sqm` 文件都必须登记真实测试入口，
+     * 防止数据库结构变化只停留在实现层。
      */
     private fun Project.checkDatabaseContractBaseline(violations: MutableList<String>) {
-        val allowedLegacyDebtSchemas = setOf(
-            "shared/src/commonMain/sqldelight/com/runninghub/shared/db/DiscoveryCache.sq",
-        )
         val baselineFile = rootDir.resolve("docs/governance/database-contract-test-baseline.txt")
         val entries = readPipeSeparatedBaseline(
             file = baselineFile,
@@ -1378,8 +1376,8 @@ class LongTermGovernancePlugin : Plugin<Project> {
             if (!rootDir.resolve(schemaPath).isFile) {
                 violations += "Database contract baseline points to a missing schema file: $schemaPath."
             }
-            if (testPath == "legacy-debt" && schemaPath !in allowedLegacyDebtSchemas) {
-                violations += "$schemaPath must use a real database contract or migration test; legacy-debt is only allowed for existing shared DiscoveryCache."
+            if (testPath == "legacy-debt") {
+                violations += "$schemaPath must use a real database contract or migration test; legacy-debt is no longer allowed."
             }
             if (testPath != "legacy-debt" && !rootDir.resolve(testPath).isFile) {
                 violations += "Database contract baseline for $schemaPath points to a missing test file: $testPath."

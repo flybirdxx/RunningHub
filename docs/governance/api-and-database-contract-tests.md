@@ -18,7 +18,8 @@
 - 空表、有数据表和异常历史数据。
 - Android 与 iOS driver 差异。
 
-当前仓库的 SQLDelight 仍集中在 `shared`，迁出前仍按本规范补测试。
+当前仓库已移除未被生产代码持有的历史 SQLDelight schema；后续如果重新引入
+SQLDelight，必须同时确定归属模块并补齐真实数据库契约或 migration 测试。
 
 ## 自动门禁
 
@@ -28,5 +29,5 @@
 - `docs/governance/database-contract-test-baseline.txt`
 
 所有生产 `commonMain` 中的 `*Dto.kt`、`*Request.kt`、`*Response.kt` 必须登记对应契约测试入口；
-所有 `.sq` / `.sqm` 文件必须登记数据库契约测试状态。迁移期既有 SQLDelight schema 可以用
-`legacy-debt` 标明缺口，但该例外只允许当前已登记的 `DiscoveryCache.sq`；新增 schema 不得使用该标记。
+所有 `.sq` / `.sqm` 文件必须登记数据库契约测试状态，并指向真实数据库契约或 migration
+测试。`legacy-debt` 不再允许用于新增或既有 schema。

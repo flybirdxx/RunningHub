@@ -61,7 +61,6 @@ shared/src/commonMain/kotlin/com/runninghub/shared/domain/repository/WebAppTaskH
 shared/src/commonMain/kotlin/com/runninghub/shared/domain/repository/WebAppTaskRepository.kt
 shared/src/commonMain/kotlin/com/runninghub/shared/platform/Platform.kt
 shared/src/commonMain/kotlin/com/runninghub/shared/util/Md5.kt
-shared/src/commonMain/sqldelight/com/runninghub/shared/db/DiscoveryCache.sq
 shared/src/commonTest/kotlin/com/runninghub/shared/data/remote/api/AudioApiTest.kt
 shared/src/commonTest/kotlin/com/runninghub/shared/data/remote/api/ModelCatalogApiTest.kt
 shared/src/commonTest/kotlin/com/runninghub/shared/data/remote/api/PlazaApiTest.kt

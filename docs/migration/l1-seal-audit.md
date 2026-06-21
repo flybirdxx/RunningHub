@@ -179,7 +179,7 @@ Screen 构造只保留在 `App.kt`。
   - 使用 `docs/governance/api-contract-test-baseline.txt` 登记当前生产 DTO/Request/Response 与契约测试入口；
     新增协议模型未登记时会失败。
   - 使用 `docs/governance/database-contract-test-baseline.txt` 登记 SQLDelight schema 与 migration 测试状态；
-    只有当前已登记的历史 `DiscoveryCache.sq` 可以标为 `legacy-debt`，新增 schema 必须登记真实测试入口。
+    当前仓库没有生产 SQLDelight schema，新增 schema 必须登记真实测试入口，不得使用 `legacy-debt`。
   - 使用 `docs/governance/ui-copy-hardcoded-baseline.txt` 登记迁移期硬编码 UI 文案匹配数；
     扫描范围覆盖 composeApp commonMain 与 feature:*:presentation commonMain，新增或增长的硬编码文案会失败，
     推动后续逐步迁移到 Compose Resources。

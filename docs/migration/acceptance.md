@@ -39,6 +39,9 @@ Gate J 长期治理补充：`checkLongTermGovernance` 已继续纳入 Android Ke
 Feature Presentation 阈值基线已移除 stale 的 `create` 和 `discovery` 条目：
 `create` 当前没有遗留 Kotlin UI 文件，`discovery` 已具备 `feature:discovery:presentation` 模块；
 插件文档片段检查同步收窄到仍有效的 history、login、plaza、profile 基线。
+P7 数据库契约基线已移除历史 `DiscoveryCache.sq` 例外：该 SQLDelight schema 无生产引用，
+`shared` 不再应用 SQLDelight 插件或驱动依赖，Version Catalog 和根插件声明也已删除 SQLDelight 条目；
+后续新增 `.sq` / `.sqm` 必须登记真实数据库契约或 migration 测试，`legacy-debt` 不再允许。
 本轮继续把已迁移 Feature Data 的服务端错误消息收口扩展为全量门禁：`feature/*/data`
 不得把服务端 `msg/message` 直接作为异常消息或 QuickCreate 任务状态错误传播；
 Task Data、QuickCreate Data、QuickCreate Presentation 和 composeApp 相关测试已覆盖该边界。
