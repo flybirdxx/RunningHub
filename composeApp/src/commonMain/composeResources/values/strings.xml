@@ -171,4 +171,22 @@
     <string name="app_detail_status_running_fallback">运行中...</string>
     <string name="app_detail_rerun_action">重新运行</string>
     <string name="app_detail_run_now_action">立即运行</string>
+    <string name="discovery_search_content_description">搜索</string>
+    <string name="discovery_close_search_content_description">关闭</string>
+    <string name="discovery_empty_apps">暂无应用</string>
+    <string name="discovery_end_of_results">没有更多了</string>
+    <string name="discovery_inline_search_hint">输入关键词搜索 AI 应用</string>
+    <string name="discovery_search_empty_results_format">未找到 "%1$s" 相关结果</string>
+    <string name="discovery_search_results_title">搜索结果</string>
+    <string name="discovery_home_banner_eyebrow">EXCLUSIVE ON RUNNINGHUB</string>
+    <string name="discovery_home_banner_title">SEEDANCE\n2.0</string>
+    <string name="discovery_home_banner_action">GET OFFER</string>
+    <string name="discovery_model_api_badge">MODEL API</string>
+    <string name="discovery_category_all">全部</string>
+    <string name="discovery_all_apps_title">全部应用</string>
+    <string name="discovery_sort_content_description">排序</string>
+    <string name="discovery_default_author_name">RunningHub</string>
+    <string name="discovery_collect_stat_content_description">收藏</string>
+    <string name="discovery_use_stat_content_description">使用</string>
+    <string name="discovery_view_stat_content_description">浏览</string>
 </resources>

@@ -106,7 +106,27 @@ import com.runninghub.feature.discovery.domain.CatalogSort
 import com.runninghub.feature.discovery.presentation.DiscoveryUiState
 import com.runninghub.feature.discovery.presentation.label
 import kotlinx.coroutines.delay
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.discovery_all_apps_title
+import runninghub.composeapp.generated.resources.discovery_category_all
+import runninghub.composeapp.generated.resources.discovery_close_search_content_description
+import runninghub.composeapp.generated.resources.discovery_collect_stat_content_description
+import runninghub.composeapp.generated.resources.discovery_default_author_name
+import runninghub.composeapp.generated.resources.discovery_empty_apps
+import runninghub.composeapp.generated.resources.discovery_end_of_results
+import runninghub.composeapp.generated.resources.discovery_home_banner_action
+import runninghub.composeapp.generated.resources.discovery_home_banner_eyebrow
+import runninghub.composeapp.generated.resources.discovery_home_banner_title
+import runninghub.composeapp.generated.resources.discovery_inline_search_hint
+import runninghub.composeapp.generated.resources.discovery_model_api_badge
+import runninghub.composeapp.generated.resources.discovery_search_content_description
+import runninghub.composeapp.generated.resources.discovery_search_empty_results_format
+import runninghub.composeapp.generated.resources.discovery_search_results_title
+import runninghub.composeapp.generated.resources.discovery_sort_content_description
+import runninghub.composeapp.generated.resources.discovery_use_stat_content_description
+import runninghub.composeapp.generated.resources.discovery_view_stat_content_description
 
 class DiscoveryVoyagerScreen : Screen {
 
@@ -188,7 +208,7 @@ private fun DiscoveryContent(
                             IconButton(onClick = onExpandSearch) {
                                 Icon(
                                     imageVector = Icons.Default.Search,
-                                    contentDescription = "搜索",
+                                    contentDescription = stringResource(Res.string.discovery_search_content_description),
                                     tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
@@ -202,7 +222,7 @@ private fun DiscoveryContent(
                             IconButton(onClick = onCollapseSearch) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "关闭",
+                                    contentDescription = stringResource(Res.string.discovery_close_search_content_description),
                                     tint = MaterialTheme.colorScheme.onSurface,
                                 )
                             }
@@ -302,7 +322,11 @@ private fun DiscoveryContent(
                             modifier = Modifier.fillMaxWidth().height(300.dp),
                             contentAlignment = Alignment.Center,
                         ) {
-                            Text("暂无应用", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                stringResource(Res.string.discovery_empty_apps),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
                         }
                     }
                 } else {
@@ -350,7 +374,7 @@ private fun DiscoveryContent(
                             }
                             uiState.apps.isNotEmpty() -> {
                                 Text(
-                                    text = "没有更多了",
+                                    text = stringResource(Res.string.discovery_end_of_results),
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                                     textAlign = TextAlign.Center,
                                     style = MaterialTheme.typography.bodySmall,
@@ -397,7 +421,7 @@ private fun InlineSearchResults(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "输入关键词搜索 AI 应用",
+                        text = stringResource(Res.string.discovery_inline_search_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -409,7 +433,10 @@ private fun InlineSearchResults(
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
-                        text = "未找到 \"${uiState.searchQuery}\" 相关结果",
+                        text = stringResource(
+                            Res.string.discovery_search_empty_results_format,
+                            uiState.searchQuery,
+                        ),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -418,7 +445,7 @@ private fun InlineSearchResults(
             else -> {
                 Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
                     Text(
-                        text = "搜索结果",
+                        text = stringResource(Res.string.discovery_search_results_title),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(horizontal = Dimens.SpaceLG),
@@ -466,7 +493,7 @@ private fun InlineSearchResults(
                         }
                         if (!uiState.searchHasMore) {
                             Text(
-                                text = "没有更多了",
+                                text = stringResource(Res.string.discovery_end_of_results),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 modifier = Modifier.fillMaxWidth().padding(Dimens.SpaceMD),
@@ -619,7 +646,7 @@ private fun HomeModelBannerHeroSlide(
         ) {
             Column {
                 Text(
-                    text = "EXCLUSIVE ON RUNNINGHUB",
+                    text = stringResource(Res.string.discovery_home_banner_eyebrow),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.Black,
                     maxLines = 1,
@@ -627,7 +654,7 @@ private fun HomeModelBannerHeroSlide(
                 )
                 Spacer(Modifier.height(14.dp))
                 Text(
-                    text = "SEEDANCE\n2.0",
+                    text = stringResource(Res.string.discovery_home_banner_title),
                     fontSize = 52.sp,
                     lineHeight = 56.sp,
                     fontWeight = FontWeight.Normal,
@@ -645,7 +672,7 @@ private fun HomeModelBannerHeroSlide(
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text = "GET OFFER",
+                    text = stringResource(Res.string.discovery_home_banner_action),
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White,
                     letterSpacing = 2.sp,
@@ -705,7 +732,7 @@ private fun HomeModelBannerMediaSlide(
                 modifier = Modifier.align(Alignment.BottomStart).padding(18.dp),
             ) {
                 Text(
-                    text = "MODEL API",
+                    text = stringResource(Res.string.discovery_model_api_badge),
                     fontSize = 10.sp,
                     lineHeight = 12.sp,
                     fontWeight = FontWeight.Medium,
@@ -821,7 +848,7 @@ private fun CategoryTagsRow(
     ) {
         item(key = "category_all") {
             CategoryTag(
-                label = "全部",
+                label = stringResource(Res.string.discovery_category_all),
                 selected = selectedIndex == 0,
                 onClick = { onSelected(0) },
             )
@@ -876,7 +903,11 @@ private fun SortRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("全部应用", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+        Text(
+            stringResource(Res.string.discovery_all_apps_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+        )
 
         Box {
             Row(
@@ -889,7 +920,7 @@ private fun SortRow(
                 Text(selectedSort.label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Icon(
                     Icons.Default.KeyboardArrowDown,
-                    contentDescription = "排序",
+                    contentDescription = stringResource(Res.string.discovery_sort_content_description),
                     modifier = Modifier.size(16.dp),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1002,7 +1033,8 @@ private fun AppGridCard(
                         shape = CircleShape,
                     )
                     Text(
-                        text = app.author?.name?.takeIf { it.isNotBlank() } ?: "RunningHub",
+                        text = app.author?.name?.takeIf { it.isNotBlank() }
+                            ?: stringResource(Res.string.discovery_default_author_name),
                         style = MaterialTheme.typography.labelSmall,
                         color = Color.White.copy(alpha = 0.88f),
                         maxLines = 1,
@@ -1012,17 +1044,17 @@ private fun AppGridCard(
                     CardStatChip(
                         icon = Icons.Default.Favorite,
                         count = app.collectCount,
-                        label = "收藏",
+                        label = stringResource(Res.string.discovery_collect_stat_content_description),
                     )
                     CardStatChip(
                         icon = Icons.Default.Person,
                         count = app.useCount,
-                        label = "使用",
+                        label = stringResource(Res.string.discovery_use_stat_content_description),
                     )
                     CardStatChip(
                         icon = Icons.Default.Visibility,
                         count = app.pv,
-                        label = "浏览",
+                        label = stringResource(Res.string.discovery_view_stat_content_description),
                     )
                 }
             }

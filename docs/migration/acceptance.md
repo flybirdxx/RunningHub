@@ -66,6 +66,8 @@ QuickCreate 历史列表与详情弹窗的最近创作兜底、加载更多、�
 commonMain Compose Resources，硬编码 UI 文案基线从 3 下调为 0；历史标题、元信息、计费文本、项目名、输出和任务标识仍保持运行时或 Presentation 映射数据。
 AppDetailScreen 的详情输出/参数区标题、参数数量、返回无障碍描述、应用名兜底、统计标签、粉丝数量格式、简介标题、上传区标题、输入占位、下拉占位、布尔开关、视频输出占位和运行按钮状态文案也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 7 下调为 0；服务端字段识别关键字、输入节点标题/选项、应用标题、作者、任务输出文件名和错误信息仍保持运行时或 Presentation 映射数据。
+DiscoveryScreen 的搜索/关闭/排序无障碍描述、主列表空态/到底提示、内联搜索提示/空态/标题、首页模型 Banner 静态文案、全部分类、全部应用标题、作者兜底和卡片统计无障碍标签也已迁入
+commonMain Compose Resources，硬编码 UI 文案基线从 11 下调为 0；目录分类名、排序标签、应用标题、作者、Banner tile 标题与媒体 URL、搜索词和错误信息仍保持运行时或 Presentation 映射数据。
 ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序

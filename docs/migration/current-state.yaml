@@ -254,12 +254,18 @@ gate_status:
       - "2026-06-22 P8 QuickCreate 项目条文案资源化继续收缩：项目标题、新建/重命名/删除弹窗、详情弹窗、最近创作、加载更多、项目操作菜单和项目名称标签迁入 composeApp commonMain Compose Resources；QuickCreateProjectContent 硬编码 UI 文案基线从 12 下调为 0。项目名、任务数、置顶无障碍描述、删除确认正文和详情行仍保持运行时或 Presentation 映射数据。"
       - "2026-06-22 P8 QuickCreate 历史列表文案资源化继续收缩：最近创作兜底、加载更多、详情弹窗关闭/加载标题/正文/标题，以及取消任务状态文案迁入 composeApp commonMain Compose Resources；QuickCreateHistoryContent 硬编码 UI 文案基线从 3 下调为 0。历史标题、元信息、计费文本、项目名、输出和任务标识仍保持运行时或 Presentation 映射数据。"
       - "2026-06-22 P8 AppDetailScreen 文案资源化继续收缩：详情输出/参数区标题、参数数量、返回无障碍描述、应用名兜底、统计标签、粉丝数量格式、简介标题、上传区标题、输入占位、下拉占位、布尔开关、视频输出占位和运行按钮状态文案迁入 composeApp commonMain Compose Resources；AppDetailScreen 硬编码 UI 文案基线从 7 下调为 0。服务端字段识别关键字、输入节点标题/选项、应用标题、作者、任务输出文件名和错误信息仍保持运行时或 Presentation 映射数据。"
+      - "2026-06-22 P8 DiscoveryScreen 文案资源化继续收缩：搜索/关闭/排序无障碍描述、主列表空态/到底提示、内联搜索提示/空态/标题、首页模型 Banner 静态文案、全部分类、全部应用标题、作者兜底和卡片统计无障碍标签迁入 composeApp commonMain Compose Resources；DiscoveryScreen 硬编码 UI 文案基线从 11 下调为 0。目录分类名、排序标签、应用标题、作者、Banner tile 标题与媒体 URL、搜索词和错误信息仍保持运行时或 Presentation 映射数据。"
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/AppDetail/QuickCreateParams/QuickCreateProject/QuickCreateHistory 等叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估 DiscoveryScreen、TaskHistoryScreen、LoginScreen 或其他剩余叶子 UI 文案资源化边界；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/AppDetail/Discovery/QuickCreateParams/QuickCreateProject/QuickCreateHistory 等叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估 TaskHistoryScreen、LoginScreen、PlazaScreen 或剩余 QuickCreate composer 文案资源化边界；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "composeApp/src/commonMain/composeResources/values/strings.xml"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/discovery/DiscoveryScreen.kt"
+    - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
     - "composeApp/src/commonMain/composeResources/values/strings.xml"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/detail/AppDetailScreen.kt"
     - "docs/governance/ui-copy-hardcoded-baseline.txt"
@@ -630,6 +636,13 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering DiscoveryScreen hardcoded UI copy baseline from 11 to 0 before resource migration"
+    - "./gradlew.bat --console=plain checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"
+    - "./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64"
+    - "./gradlew.bat --console=plain :composeApp:assembleDebug"
+    - "git diff --check"
+    - "./gradlew.bat --console=plain checkLongTermGovernance checkArchitectureBoundaries"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering AppDetailScreen hardcoded UI copy baseline from 7 to 0 before resource migration"
     - "./gradlew.bat --console=plain checkLongTermGovernance"
     - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"
