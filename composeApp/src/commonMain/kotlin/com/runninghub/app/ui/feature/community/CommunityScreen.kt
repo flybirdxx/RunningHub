@@ -31,7 +31,17 @@ import com.runninghub.app.ui.theme.RunningHubThemeExt
 import com.runninghub.feature.community.presentation.CommunityTool
 import com.runninghub.feature.community.presentation.CommunityUiState
 import org.jetbrains.compose.ui.tooling.preview.Preview
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.community_screen_subtitle
+import runninghub.composeapp.generated.resources.community_screen_title
 
+/**
+ * 社区工具页的 Voyager 入口。
+ *
+ * 本类只负责从 Koin 获取 [CommunityScreenModel] 并把状态交给 Compose 内容层；
+ * 工具目录和后续导航 route 由 Presentation 状态提供，避免应用壳重新持有静态目录。
+ */
 class CommunityVoyagerScreen : Screen {
 
     @Composable
@@ -46,6 +56,17 @@ class CommunityVoyagerScreen : Screen {
     }
 }
 
+/**
+ * 渲染社区工具页的可复用内容。
+ *
+ * 页面标题文案通过 Compose Resources 读取，确保后续多语言和硬编码文案治理能在应用壳统一收口；
+ * 工具卡片标题仍来自 [CommunityUiState]，后续应随工具目录迁移节奏再接入资源化文案。
+ *
+ * @param modifier 外层布局修饰符，由调用方决定尺寸、测试标签或额外边距；默认不附加约束。
+ * @param uiState 社区工具页当前可渲染状态，包含工具入口列表和本地目录准备状态。
+ * @param onToolClick 用户点击工具卡片时触发的回调，参数为被点击的 [CommunityTool]；
+ * 应用壳负责根据其 route 决定真实导航目标。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CommunityScreenContent(
@@ -84,14 +105,14 @@ fun CommunityScreenContent(
             ) {
                 Column {
                     Text(
-                        text = "创意工坊",
+                        text = stringResource(Res.string.community_screen_title),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Spacer(Modifier.height(Dimens.SpaceXS))
                     Text(
-                        text = "探索 AI 创意工具，释放无限可能",
+                        text = stringResource(Res.string.community_screen_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = Color.White.copy(alpha = 0.8f)
                     )

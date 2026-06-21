@@ -238,12 +238,18 @@ gate_status:
       - "本轮按复核建议补强 TAC 图形验证码 HTML：外部脚本改为受控动态加载，脚本加载失败、加载超时和图片解码失败都会进入可重试中文降级状态；SmsCaptchaHtmlTest 已覆盖这些包装层契约。"
       - "本轮按复核建议补强 Release 构建治理：composeApp release 构建启用 R8 minify 和 resource shrink，proguard-rules.pro 移除 shared 时代规则并覆盖迁移后的 com.runninghub serializer/Koin/Ktor 场景，checkArchitectureBoundaries 和 verifyL1Android 已纳入防退化检查。"
       - "本轮按复核建议补强环境配置治理：core/network 暴露 ApiEnvironment，RunningHubApiEnvironment 不再依赖编译期 URL 常量，Android/iOS runtime module 在平台启动层注入当前环境；checkArchitectureBoundaries 已纳入该注入链路自检。"
+      - "2026-06-22 P8 UI 文案资源化中期收缩：Community 页头标题和副标题迁入 composeApp commonMain Compose Resources，CommunityScreen 硬编码 UI 文案基线从 2 下调为 0；工具卡片目录文案仍按 Presentation 模块节奏后续迁移。"
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：Community 工具页静态目录已迁入 feature:community:presentation，下一步优先评估剩余 composeApp UI 壳体基线和 UI 文案资源化的可收缩项；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：Community 页头文案已完成 Compose Resources 试点，下一步优先评估剩余 composeApp 小文件 UI 文案资源化可收缩项；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "composeApp/src/commonMain/composeResources/values/strings.xml"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/community/CommunityScreen.kt"
+    - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
     - "feature/community/presentation/src/commonMain/kotlin/com/runninghub/feature/community/presentation/CommunityStateHolder.kt"
     - "feature/community/presentation/src/commonTest/kotlin/com/runninghub/feature/community/presentation/CommunityStateHolderTest.kt"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/community/CommunityScreenModel.kt"
@@ -527,6 +533,11 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering CommunityScreen hardcoded UI copy baseline from 2 to 0 before resource migration"
+    - "./gradlew.bat --console=plain checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"
+    - "./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64"
+    - "./gradlew.bat --console=plain :composeApp:assembleDebug"
     - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\" # RED: failed before CommunityStateHolder existed"
     - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\""
     - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest :feature:community:presentation:compileDebugKotlinAndroid :feature:community:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
