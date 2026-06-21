@@ -48,9 +48,9 @@
 | 创作入口唯一性 | 满足 | 生产创作入口已统一到 `QuickCreateVoyagerScreen`，旧 `CreateScreenModel` 已从生产 Koin 图移除 |
 | Shared 退役 | 部分满足 | `shared` 已定义为迁移期兼容模块并由 baseline/allowlist 阻止增长；剩余 Audio、ModelCatalog、ModelInvocation 和旧兼容文件已登记归属与删除条件 |
 | 测试 | 部分满足 | Auth、network、QuickCreate 已有关键测试，远端 CI 已开始覆盖 L1 入口，但测试矩阵仍需继续补齐 |
-| CI | 部分满足 | 当前 HEAD 已有 Android CI 与 iOS CI completed/success 运行证据，最终封板仍缺 macOS iOS link/Simulator Markdown 证据 |
+| CI | 部分满足 | 当前 HEAD 已有 Android CI 与 iOS CI completed/success 运行证据；macOS iOS link/Simulator 因当前环境不可用已按用户要求留存 skipped Markdown 证据 |
 | Android 验证 | 基本满足 | 仓库报告记录 assemble/install 通过，当前 HEAD Android CI 成功，登录态 Tab 网络观察证据已落盘 |
-| iOS 验证 | 部分满足 | 当前 HEAD iOS CI 成功并覆盖 iOS Simulator Kotlin 编译和 framework link；仓库已补齐 iOS Xcode 薄包装工程和 iOS Koin 入口；仍缺 macOS Xcode build 与 Simulator 人工冒烟证据 |
+| iOS 验证 | 部分满足 | 当前 HEAD iOS CI 成功并覆盖 iOS Simulator Kotlin 编译和 framework link；仓库已补齐 iOS Xcode 薄包装工程和 iOS Koin 入口；macOS Xcode build 与 Simulator 人工冒烟当前按 skipped 留存，后续仍需 macOS 环境补验 |
 | 安全存储 | 未满足生产门槛 | 敏感凭据仍存于普通 DataStore |
 | Release | 未满足生产门槛 | Android release 仍未开启 minify |
 
@@ -475,16 +475,19 @@ composeApp
 - [ ] 禁止秘密和构建产物检查。
 - [ ] PR 上显示明确状态，不允许无检查合并。
 
-当前 HEAD `6b08f372b2b86546250d34f4ebb5e6054e78b69e` 已有可追溯的
-GitHub Actions 运行证据：`Android CI` run `27895942083` 与 `iOS CI`
-run `27895942081` 均为 completed/success。仓库已将运行编号、headSha 和
+当前 HEAD `d7510d8e398134dab92ce5a3ac38d42ff9762df2` 已有可追溯的
+GitHub Actions 运行证据：`Android CI` run `27896312527` 与 `iOS CI`
+run `27896312519` 均为 completed/success。仓库已将运行编号、headSha 和
 链接分别写入 `docs/migration/evidence/github-actions-android.json` 与
 `docs/migration/evidence/github-actions-ios.json`。
 
 CI 成功记录仍不能替代最终 L1 封板证据。`checkL1SealEvidence` 还要求
-`docs/migration/evidence/ios-macos-link-and-simulator.md`，该文件必须由
-macOS runner 或 macOS 开发机执行 `docs/migration/collect-ios-macos-evidence.sh`
-生成，并包含 iOS framework link 通过和 Simulator 冒烟说明。
+`docs/migration/evidence/ios-macos-link-and-simulator.md`。当前 macOS 环境不可用时，
+该文件允许按用户要求记录 `overallResult: skipped`、`skipReason` 和
+`followUpRequired`；这不是 iOS runtime 通过证明，只是明确留存跳过风险。
+后续具备 macOS runner 或 macOS 开发机时，应执行
+`docs/migration/collect-ios-macos-evidence.sh` 替换为 `overallResult: pass`
+证据，并包含 iOS framework link 通过和 Simulator 冒烟说明。
 最终封板时仓库还必须没有未暂存差异，且已暂存差异只能是最终外部证据文件；远端 CI、
 Android 运行观察和 macOS iOS 证据都必须绑定到已经提交的当前代码 Git `HEAD`，
 不能用旧提交的成功记录证明仍停留在索引中的代码或配置补丁。
@@ -510,10 +513,10 @@ Xcode build 或 Simulator 运行证据。
 
 以下项目未完成前，不应宣布“架构迁移完成”：
 
-1. 最终封板仍缺 macOS iOS link/xcodebuild/Simulator Markdown 证据。
-2. 当前完整代码和配置迁移补丁仍需提交后重新采集对应新 `HEAD` 的 Android/iOS CI 与 macOS iOS 证据。
-3. iOS 编译已有旧 `HEAD` 的 CI 证据，iOS Simulator 人工运行验收证据仍未补齐。
-4. Android 登录态 Tab 和退出登录后的稳定窗口网络证据已落盘；macOS iOS Simulator 仍需覆盖登录、退出和 QuickCreate 冒烟路径。
+1. macOS iOS link/xcodebuild/Simulator 当前为显式 skipped，后续具备 macOS 环境后仍需补验。
+2. 当前完整代码和配置迁移补丁仍需提交后重新采集对应新 `HEAD` 的 Android/iOS CI 与外部证据。
+3. iOS 编译已有当前 `HEAD` 的 CI 证据，iOS Simulator 人工运行验收证据当前以 skipped 记录风险。
+4. Android 登录态 Tab 和退出登录后的稳定窗口网络证据已落盘；macOS iOS Simulator 登录、退出和 QuickCreate 冒烟路径后续仍需补测。
 
 ---
 

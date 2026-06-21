@@ -17,8 +17,9 @@
 本轮继续把 Android 生产启动图从 `sharedModule` 切到 `androidRuntimeModule`，
 并把 DataStore-backed 凭据、余额、QuickCreate 草稿和权限状态存储实现迁入 `core:storage`，
 使 `composeApp` 对 `shared` 的 allowlist 归零；
-但仍缺少 macOS runner 或 macOS 开发机生成的 iOS framework link 实际执行记录
-以及 iOS Simulator 运行验收 Markdown 证据。2026-06-21
+macOS runner 或 macOS 开发机生成的 iOS framework link、Xcode build 和 iOS Simulator
+运行验收当前按用户说明留存 `overallResult: skipped` 证据；该记录不是通过证明，
+后续具备 macOS 环境后仍需补验并替换为 `overallResult: pass`。2026-06-21
 继续发现仓库中的 `iosApp` 此前只有 README，没有可打开的 Xcode 工程；
 本轮已补齐 `iosApp/iosApp.xcodeproj`、SwiftUI 壳、Info.plist 和 asset catalog，
 并在 `composeApp/src/iosMain` 增加 `MainViewController` 与 `iosRuntimeModule`，
@@ -54,8 +55,9 @@ workflow 已加入索引，无未暂存修改。
 `verifyL1Ios`，由 macOS runner 负责产生真实 framework link 记录。2026-06-21
 复查 `.github/workflows/android-ci.yml` 和 `.github/workflows/ios-ci.yml` 均存在，
 且本地复跑 `verifyL1Android`、`verifyL1Ios` 均通过；`.github/workflows`
-已加入本地 Git 索引。当前 `HEAD=f8075fc85639975e0b2829a650720d42cc680703` 的远端
-`Android CI` 与 `iOS CI` 均已 completed/success，对应运行证据已落盘到
+已加入本地 Git 索引。当前 `HEAD=d7510d8e398134dab92ce5a3ac38d42ff9762df2` 的远端
+`Android CI` run `27896312527` 与 `iOS CI` run `27896312519` 均已 completed/success，
+对应运行证据已落盘到
 `docs/migration/evidence/github-actions-android.json` 和
 `docs/migration/evidence/github-actions-ios.json`。
 本轮继续把完整架构迁移补丁加入 Git 索引，范围覆盖 `composeApp`、`core`、`feature`、
@@ -329,8 +331,8 @@ git diff --name-only
 - `:composeApp:linkDebugFrameworkIosSimulatorArm64` 在 Windows 本地为 `SKIPPED`，真实 link 仍需 macOS runner。
 - `gh auth status` 确认当前登录 `flybirdxx`；早前在 workflow 尚未进入远端时，
   `gh workflow list` 无输出，`gh run list` 返回 `[]`。
-- 2026-06-21 再次复查远端 GitHub Actions，当前 `HEAD=f8075fc85639975e0b2829a650720d42cc680703`
-  已有 `Android CI` run `27894118245` 和 `iOS CI` run `27894118250`，两者均 completed/success；
+- 2026-06-21 再次复查远端 GitHub Actions，当前 `HEAD=d7510d8e398134dab92ce5a3ac38d42ff9762df2`
+  已有 `Android CI` run `27896312527` 和 `iOS CI` run `27896312519`，两者均 completed/success；
   证据 JSON 已写入 `docs/migration/evidence/` 并加入 Git 索引。
   `.github/workflows` 下只有两个已加入索引的新增 workflow 文件，没有未暂存差异。
 - 2026-06-21 将完整迁移补丁加入 Git 索引后，`git diff --name-only` 为空；
@@ -405,8 +407,9 @@ git diff --name-only
   的 Android/iOS workflow 完成，避免远端 run 仍在 `in_progress` 时需要人工反复执行采集命令。
 - 早前复跑 `powershell -NoProfile -ExecutionPolicy Bypass -File docs/migration/collect-github-actions-evidence.ps1 -SelfTest`
   通过；随后复跑 `checkMigrationScripts`、`checkL1CiWorkflows` 和 `checkArchitectureBoundaries`
-  通过。后续 Android 登录态 Tab 网络观察证据已补齐，当前 `checkL1SealEvidence` 只剩远端 Android/iOS
-  CI 与 macOS iOS link/Simulator 三个外部证据缺口。
+  通过。后续 Android 登录态 Tab 网络观察证据已补齐，当前 Android/iOS CI 证据已重新绑定
+  `d7510d8e398134dab92ce5a3ac38d42ff9762df2`；macOS iOS link/Simulator 已按用户说明留存
+  `overallResult: skipped`，后续具备 macOS 环境后再补齐 pass 证据。
 - 本轮新增 `docs/migration/collect-ios-macos-evidence.sh`。该脚本只允许在 macOS 生成最终 iOS 证据，
   会执行 `:composeApp:linkDebugFrameworkIosSimulatorArm64`，并要求人工完成 Simulator 登录、
   退出和 QuickCreate 冒烟后显式传入 `--simulator-smoke-pass`，才会写出
@@ -418,6 +421,40 @@ git diff --name-only
   `ios-macos-link-and-simulator.md` 包含非空 `capturedAt`，`host` 必须包含 `Darwin`，
   `linkCommand` 必须等于 `./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64`，
   避免 Windows 本地 `SKIPPED` link 或其他命令输出被手工包装成 macOS 通过证据。
+- 用户已明确当前无法测试 macOS 环境，因此本轮将 `ios-macos-link-and-simulator.md`
+  调整为可记录 `overallResult: skipped` 的显式跳过证据。`checkL1SealEvidence`
+  只在 `headSha` 等于当前 Git `HEAD`、`skipReason` 非空、`followUpRequired` 非空且不是
+  `false`、`## Notes` 非空，并且 `linkResult`、`xcodebuildResult`、`simulatorSmokeResult`
+  全部为 `skipped` 时接受该状态。该状态不是 iOS runtime 通过证明；具备 macOS runner
+  或 macOS 开发机后仍应替换为 `overallResult: pass` 的真实 link、Xcode build 和 Simulator
+  冒烟证据。
+- 本轮在 skipped 证据和门禁规则暂存后复跑
+  `./gradlew.bat --console=plain checkArchitectureBoundaries verifyL1Ios` 通过；
+  Windows 本地仍将 `:composeApp:linkDebugFrameworkIosSimulatorArm64` 标记为 `SKIPPED`。
+  随后复跑 `./gradlew.bat --console=plain verifyL1Android` 通过，覆盖 Android
+  单元测试、lint 和 debug 构建。由于这些验证仍发生在未提交补丁上，最终封板仍要求先提交，
+  再基于新 `HEAD` 重新采集 Android/iOS CI 和外部证据。
+- 本轮新增 `docs/migration/finalize-l1-external-evidence.ps1`，作为提交后的补证总入口。
+  该脚本会先拒绝 staged 或 unstaged 的代码、配置和文档改动，再按当前 `HEAD` 调用
+  `collect-github-actions-evidence.ps1`，并根据 `-IosEvidenceMode skip/request/download`
+  生成 skipped 证据、请求真实 iOS workflow_dispatch 证据或下载既有 artifact。脚本
+  `-SelfTest` 已通过，用于防止 skipped 证据缺少 `skipReason` 或 `followUpRequired`。
+  直接运行 `finalize-l1-external-evidence.ps1 -IosEvidenceMode none` 时，脚本按预期拒绝
+  当前 staged 的非证据补丁，没有继续采集或覆盖最终外部证据。
+  本轮继续加固该脚本：显式 `-HeadSha` 必须等于当前 checkout 的 Git `HEAD`，
+  且预采集清洁检查会拒绝 untracked 文件，避免在错误提交或遗漏新增文件时生成封板证据。
+  本轮继续补齐该脚本的提交后收尾能力：`-StageEvidence` 只会暂存
+  Android/iOS CI、Android 登录态 Tab、Android 退出登录和 macOS/iOS 五个外部证据文件；
+  `-RunSealCheck` 可在采集后立即执行 `checkL1SealEvidence`，脚本 `-SelfTest`
+  已覆盖该暂存路径清单。
+- 本轮复跑 `./gradlew.bat --console=plain checkL1SealEvidence`，任务按预期失败；
+  失败项只剩当前 staged 的非证据门禁、脚本和文档补丁尚未提交。五个外部证据文件在当前结构化校验中
+  没有再报告字段、`headSha`、敏感信息或 skipped 证据格式问题。最终封板仍必须先提交这些非证据补丁，
+  再基于新 `HEAD` 重新采集 Android/iOS CI 和外部证据。
+- 本轮继续复跑 `./gradlew.bat --console=plain verifyL1Local` 通过，确认当前暂存补丁在
+  Windows 可执行范围内同时通过 `verifyL1Android` 与 `verifyL1Ios`。其中
+  `:composeApp:linkDebugFrameworkIosSimulatorArm64` 仍为 Windows 平台下的 `SKIPPED`，
+  不能替代 macOS runner 的真实 pass 证据。
 - 本轮继续加固 `checkL1SealEvidence`：所有已落盘外部证据会逐行扫描常见凭据形态，
   包括 Authorization header、Cookie header、access/refresh token、API Key、私钥块和请求 Body 字段；
   命中时拒绝 L1 封板，避免 CI 输出、logcat 或 Simulator 说明把认证材料带入 Git 索引。
@@ -499,23 +536,30 @@ adb shell dumpsys package com.runninghub.app
 | Gate C 唯一事实来源 | 通过 | 创作入口统一到 QuickCreate；旧 `CreateScreenModel` 已从生产 Koin 图移除；登录页和个人中心注销均不再直接替换根导航；生产 DI 使用 `SessionManager(get())` 注入恢复仓库；静态搜索确认业务 Feature 不再直接替换 Main/Login 根页面，根 `App` 是唯一根导航切换位置；`checkArchitectureBoundaries` 已禁止生产源码裸 `SessionManager()` 构造和 `App.kt` 之外构造 Main/Login 根 Screen，防止绕过 `SessionRestoreRepository` 或根 App。 | 无。 |
 | Gate D 认证与 401 | 通过 | `core:network`、`feature:auth:domain` 单元测试覆盖刷新、重试、并发和 logout 竞态；`feature:auth:data` 和 `shared` 遗留 Auth logout 的远端失败降级已从空 `catch` 改为显式 no-log 处理，避免认证请求细节进入日志。 | 无。 |
 | Gate E Discovery | 通过 | Discovery 依赖窄 `WebAppCatalogRepository`；Domain 已提供 `CatalogQuery`、`CatalogSort`、`CatalogTagRange` 和 `CatalogError`；Data 层集中映射远端协议参数；Presentation 使用 `toCatalogErrorMessage` 映射文案。`DiscoveryScreenModelTest` 已覆盖 index 0 语义、分类/排序/搜索旧响应隔离、分页去重、加载更多失败不推进页码、刷新保留筛选和目录错误文案映射。 | 无。 |
-| Gate F QuickCreate | 部分通过 | 唯一入口、Data 去 `shared`、Coordinator/StateHolder 结构、相关测试和构建通过；本轮已移除 QuickCreate Data 层裸 `println`，并将 `QuickCreateRepositoryImpl` 的 `AuthRepository` 改为必需依赖，测试统一使用 `FakeAuthRepository` 覆盖刷新语义。生成任务状态流本地兜底已迁移为 `QuickCreateTaskIssueCode`，`QuickCreateTaskPollingController` 负责映射中文展示文案，相关 Data 与 Presentation 测试通过。非任务状态 Data 本地兜底已迁移为 `QuickCreateRepositoryIssueCode` 和 `QuickCreateRepositoryException`，历史、项目、灵感、模型、上传和计费预览的最终展示文案由 `QuickCreateErrorMessages` 统一映射；静态搜索确认 Data commonMain 不再保留这些本地兜底异常文案。`QuickCreateHistoryStateHolderTest` 覆盖最近历史和项目任务按 `taskId` 去重、旧最近历史不覆盖选中项目任务；`QuickCreateProjectStateHolderTest` 覆盖项目分页按 `projectId` 去重和删除选中项目后的回调边界。`QuickCreateScreenModelTest` 覆盖上传超时/失败不提交远端任务，并覆盖活跃生成 Job 期间重复点击不会产生第二次远端提交；后续任务状态推进会清理重复点击产生的临时提示；本轮继续覆盖页面 `onDispose` 会取消正在收集的图片生成状态流。旧 OpenAPI queryTask 与 QuickCreation 任务列表收到 CANCELED/CANCELLED 后均映射为取消终态并停止轮询，Presentation 展示“任务已取消”。QuickCreation V2 失败只查询一次任务列表，旧 OpenAPI 失败只查询一次 queryTask；V2 长时间没有终态时在固定次数后发出 `TASK_TIMEOUT` 并结束 Flow。灵感视频模板应用后，编辑状态与计费预览请求共享同一份模型、动态参数和模板媒体。生成提交流程在点击生成时捕获状态快照，等待上传期间继续编辑 prompt 不会污染当前远端提交，上传完成只回填快照素材的远端 URL。计费预览成功后保存请求指纹，正式提交会按最终请求重新计算并匹配；上传完成但未重新计费的请求会以“价格待确认”拦截。成功提交进入 Queuing 后会清理本地草稿。composeApp commonMain 与 feature/quickcreate 源码静态搜索无裸 `println`。登录态 Tab 网络观察已证明切换 History/QuickCreate 等一级 Tab 后稳定窗口内无持续新增网络请求；Android 退出登录后 Login 根页面空闲观察已证明稳定窗口内没有持续后台请求。 | macOS iOS Simulator 运行路径仍需最终外部证据覆盖。 |
-| Gate G 生命周期与导航 | 部分通过 | `MainScreen` 改为只组合当前 Tab；`tab-lifecycle.md` 记录策略；Android 冷启动通过。`TaskHistoryScreenModelTest` 和 `QuickCreateHistoryStateHolderTest` 已覆盖 dispose 后轮询 Job 不触发下一次刷新。2026-06-21 debug 包已通过独立 applicationId 在 AVD 和连接设备 2211133C 上安装并启动；本轮新增 `NetworkActivityTracker` 和 Android debug `RunningHubNetwork` 聚合计数日志，单元测试覆盖成功和异常请求都会清空 inFlight，AVD 冷启动已看到 `started=0 completed=0 inFlight=0`；`observe-tab-network.ps1` 已沉淀为登录态 Tab 网络观察脚本，本轮新增 `-SelfTest` 与 `-OutputPath`，离线自检覆盖日志样本解析、稳定窗口判定和 JSON 证据写入读取；`checkMigrationScripts` 已把观察脚本完整性纳入 Gradle 门禁；当前 `android-tab-network.json` 已记录登录态 Discover/History/Create/Plaza/Profile 切换后 120 秒采样和 30 秒稳定窗口，结果为 `pass_candidate`、稳定窗口请求增量 0、最大 in-flight 0；Profile 注销不再直接操作 Voyager 根栈，根 App 统一根据 `SessionManager` 清空业务页面栈；`AppRootNavigationPolicyTest` 覆盖 Restoring/Authenticated/Unauthenticated/Expired 的根目标，证明退出或会话失效不会映射回业务主栈，Expired 会在进入 Login 后消费失效标记；`MainTabScreenRegistryTest` 覆盖同一 Tab 的 Screen 实例稳定、不同 Tab 的状态所有权隔离，以及创作 Tab 固定到 `QuickCreateVoyagerScreen`。本轮继续从 Profile 执行退出登录，UI dump 确认回到 Login 根页面，`android-logout-network.json` 记录退出完成后空闲 125 秒，结果为 `pass_candidate`、稳定窗口请求增量 0、最大 in-flight 0。 | macOS iOS Simulator 仍需执行登录、退出和 QuickCreate 冒烟，作为双端运行验收的剩余外部证据。 |
+| Gate F QuickCreate | 部分通过 | 唯一入口、Data 去 `shared`、Coordinator/StateHolder 结构、相关测试和构建通过；本轮已移除 QuickCreate Data 层裸 `println`，并将 `QuickCreateRepositoryImpl` 的 `AuthRepository` 改为必需依赖，测试统一使用 `FakeAuthRepository` 覆盖刷新语义。生成任务状态流本地兜底已迁移为 `QuickCreateTaskIssueCode`，`QuickCreateTaskPollingController` 负责映射中文展示文案，相关 Data 与 Presentation 测试通过。非任务状态 Data 本地兜底已迁移为 `QuickCreateRepositoryIssueCode` 和 `QuickCreateRepositoryException`，历史、项目、灵感、模型、上传和计费预览的最终展示文案由 `QuickCreateErrorMessages` 统一映射；静态搜索确认 Data commonMain 不再保留这些本地兜底异常文案。`QuickCreateHistoryStateHolderTest` 覆盖最近历史和项目任务按 `taskId` 去重、旧最近历史不覆盖选中项目任务；`QuickCreateProjectStateHolderTest` 覆盖项目分页按 `projectId` 去重和删除选中项目后的回调边界。`QuickCreateScreenModelTest` 覆盖上传超时/失败不提交远端任务，并覆盖活跃生成 Job 期间重复点击不会产生第二次远端提交；后续任务状态推进会清理重复点击产生的临时提示；本轮继续覆盖页面 `onDispose` 会取消正在收集的图片生成状态流。旧 OpenAPI queryTask 与 QuickCreation 任务列表收到 CANCELED/CANCELLED 后均映射为取消终态并停止轮询，Presentation 展示“任务已取消”。QuickCreation V2 失败只查询一次任务列表，旧 OpenAPI 失败只查询一次 queryTask；V2 长时间没有终态时在固定次数后发出 `TASK_TIMEOUT` 并结束 Flow。灵感视频模板应用后，编辑状态与计费预览请求共享同一份模型、动态参数和模板媒体。生成提交流程在点击生成时捕获状态快照，等待上传期间继续编辑 prompt 不会污染当前远端提交，上传完成只回填快照素材的远端 URL。计费预览成功后保存请求指纹，正式提交会按最终请求重新计算并匹配；上传完成但未重新计费的请求会以“价格待确认”拦截。成功提交进入 Queuing 后会清理本地草稿。composeApp commonMain 与 feature/quickcreate 源码静态搜索无裸 `println`。登录态 Tab 网络观察已证明切换 History/QuickCreate 等一级 Tab 后稳定窗口内无持续新增网络请求；Android 退出登录后 Login 根页面空闲观察已证明稳定窗口内没有持续后台请求。 | macOS iOS Simulator 运行路径当前以 `overallResult: skipped` 留存风险，后续具备 macOS 环境后补齐真实通过证据。 |
+| Gate G 生命周期与导航 | 部分通过 | `MainScreen` 改为只组合当前 Tab；`tab-lifecycle.md` 记录策略；Android 冷启动通过。`TaskHistoryScreenModelTest` 和 `QuickCreateHistoryStateHolderTest` 已覆盖 dispose 后轮询 Job 不触发下一次刷新。2026-06-21 debug 包已通过独立 applicationId 在 AVD 和连接设备 2211133C 上安装并启动；本轮新增 `NetworkActivityTracker` 和 Android debug `RunningHubNetwork` 聚合计数日志，单元测试覆盖成功和异常请求都会清空 inFlight，AVD 冷启动已看到 `started=0 completed=0 inFlight=0`；`observe-tab-network.ps1` 已沉淀为登录态 Tab 网络观察脚本，本轮新增 `-SelfTest` 与 `-OutputPath`，离线自检覆盖日志样本解析、稳定窗口判定和 JSON 证据写入读取；`checkMigrationScripts` 已把观察脚本完整性纳入 Gradle 门禁；当前 `android-tab-network.json` 已记录登录态 Discover/History/Create/Plaza/Profile 切换后 120 秒采样和 30 秒稳定窗口，结果为 `pass_candidate`、稳定窗口请求增量 0、最大 in-flight 0；Profile 注销不再直接操作 Voyager 根栈，根 App 统一根据 `SessionManager` 清空业务页面栈；`AppRootNavigationPolicyTest` 覆盖 Restoring/Authenticated/Unauthenticated/Expired 的根目标，证明退出或会话失效不会映射回业务主栈，Expired 会在进入 Login 后消费失效标记；`MainTabScreenRegistryTest` 覆盖同一 Tab 的 Screen 实例稳定、不同 Tab 的状态所有权隔离，以及创作 Tab 固定到 `QuickCreateVoyagerScreen`。本轮继续从 Profile 执行退出登录，UI dump 确认回到 Login 根页面，`android-logout-network.json` 记录退出完成后空闲 125 秒，结果为 `pass_candidate`、稳定窗口请求增量 0、最大 in-flight 0。 | macOS iOS Simulator 登录、退出和 QuickCreate 冒烟当前以 skipped 证据记录，后续仍需在 macOS 补验。 |
 | Gate H Core 与 Shared 收口 | 通过 | 删除空壳 designsystem；`core:model` 的 User、WebApp、Tag、PageData、AppDetail 及嵌套业务模型已补齐字段级中文 KDoc，并通过 Android 与 iOS Simulator Kotlin 编译；`core:common` 新增旧登录协议专用 `md5` 跨平台入口；权限模型、权限状态、权限存储边界、Android Manifest 映射、DataStore 平台工厂、DataStore-backed 凭据/余额/QuickCreate 草稿和权限状态存储实现已迁入 `core:storage`；WebApp 任务提交、输出、历史和任务执行状态模型已迁入 `core:model`；统一生成历史模型、`GenerationHistoryRepository` 和 `WebAppTaskRepository` 已迁入 `feature:task:domain`；Plaza 模型与 `PlazaRepository` 已迁入 `feature:community:domain`，Plaza API/DTO/Repository/DI 和测试已迁入 `feature:community:data`，shared 不再保留 Plaza Data 绑定；WebApp 公开目录、搜索、标签树、用户发布列表和详情 API/DTO/Repository/DI 已迁入 `feature:discovery:data`，shared 不再保留公开目录 endpoint 或 `WebAppCatalogRepository` 绑定；认证、用户资料、会话恢复、个人中心凭据和余额快照实现已迁入 `feature:auth:data`；WebApp Task API/DTO/Repository/DI 和测试已迁入 `feature:task:data`，shared 不再保留 Task endpoint、DTO、Repository 实现或 Data 绑定；Android 生产启动图不再装配 shared，新增 shared baseline 和 ownership 文档。2026-06-21 复核 `composeApp` debugCompileClasspath 无 `shared` 依赖，`composeApp`、`feature` 和 `core` 当前生产模块无实际 `shared` 引用；历史 `androidApp` 目录仍有旧 `shared` 引用，但未被 `settings.gradle.kts` include，不属于当前 L1 生产启动图。 | 无。`shared` 剩余 Audio、ModelCatalog、ModelInvocation 和旧兼容文件已登记归属与删除条件，属于 L1 后继续瘦身项。 |
 | Gate I Android + iOS 编译 | 部分通过 | Android assemble/lint 和 AVD install/launch 通过；2026-06-21 debug 构建增加 `.debug` applicationId 后缀，`com.runninghub.app.debug` 已在 Pixel_10_Pro AVD 上安装并冷启动成功；随后 `:composeApp:installDebug` 在连接设备 2211133C 上安装成功，并完成登录态主界面启动和 Tab 网络采样；`verifyL1Ios` 本地通过，覆盖 iOS Simulator Kotlin 编译；`checkArchitectureBoundaries` 已把 commonMain 平台 API 禁用自动化，覆盖 Android、UIKit、Foundation、java.awt 导入和 Android Context/Uri/Application 泄漏，本地复跑通过；本轮生产空 `catch` 修复后复跑 `:composeApp:compileDebugKotlinAndroid`、`:feature:auth:data:compileDebugKotlinAndroid` 和 `:shared:compileDebugKotlinAndroid` 通过。本轮补齐 `iosApp/iosApp.xcodeproj`、SwiftUI 壳和 iOS Koin runtime module；`:composeApp:compileKotlinIosSimulatorArm64` 与 `:composeApp:compileDebugKotlinAndroid` 通过。 | iOS framework link 需 macOS runner 实际执行；Windows 本地 `linkDebugFrameworkIosSimulatorArm64` 仍为 `SKIPPED`；iOS Xcode build 和 Simulator 运行未验收。 |
-| Gate J CI | 部分通过 | Android/iOS workflow 文件已存在，分别调用 `verifyL1Android` 和 `verifyL1Ios`；本地门禁覆盖依赖、commonMain 平台类型、生产 `runBlocking`/`GlobalScope`/空 `catch`、生产 `SessionManager()` 裸构造、根 Screen 构造唯一入口、迁移脚本完整性、测试、lint、构建、shared 增长、秘密和构建产物；新增 `checkL1CiWorkflows` 校验 workflow 文件、Git 跟踪状态、无未暂存差异、触发器、runner、JDK 17、chmod 和 L1 Gradle 入口；iOS workflow 已提供 `workflow_dispatch` 证据采集入口，手动确认 `simulator_smoke_pass` 和 `smoke_notes` 后会运行 `collect-ios-macos-evidence.sh` 并上传 `ios-macos-link-and-simulator.md` artifact；`checkMigrationScripts` 校验 Gate G 运行观察脚本、GitHub Actions 证据采集脚本和 macOS/iOS 证据采集脚本，确保 CI 证据拆为 Android/iOS 两个独立 JSON，iOS 证据必须包含 `linkResult: pass` 与 `simulatorSmokeResult: pass`；2026-06-21 首次自检暴露 workflow 未跟踪，加入 Git 索引后复跑 `checkL1CiWorkflows`、`verifyL1Android` 和 `verifyL1Ios` 均通过；当前 `HEAD=f8075fc85639975e0b2829a650720d42cc680703` 的远端 `Android CI` 和 `iOS CI` 均 completed/success，运行编号、headSha 和链接已分别落盘到 `github-actions-android.json` 与 `github-actions-ios.json`。 | GitHub Actions 运行记录已补齐；最终封板仍缺 macOS iOS link/Simulator Markdown 证据。 |
+| Gate J CI | 部分通过 | Android/iOS workflow 文件已存在，分别调用 `verifyL1Android` 和 `verifyL1Ios`；本地门禁覆盖依赖、commonMain 平台类型、生产 `runBlocking`/`GlobalScope`/空 `catch`、生产 `SessionManager()` 裸构造、根 Screen 构造唯一入口、迁移脚本完整性、测试、lint、构建、shared 增长、秘密和构建产物；新增 `checkL1CiWorkflows` 校验 workflow 文件、Git 跟踪状态、无未暂存差异、触发器、runner、JDK 17、chmod 和 L1 Gradle 入口；iOS workflow 已提供 `workflow_dispatch` 证据采集入口，手动确认 `simulator_smoke_pass` 和 `smoke_notes` 后会运行 `collect-ios-macos-evidence.sh` 并上传 `ios-macos-link-and-simulator.md` artifact；`checkMigrationScripts` 校验 Gate G 运行观察脚本、GitHub Actions 证据采集脚本和 macOS/iOS 证据采集脚本，确保 CI 证据拆为 Android/iOS 两个独立 JSON；macOS/iOS 证据在 `overallResult: pass` 时必须包含 `linkResult: pass`、`xcodebuildResult: pass` 与 `simulatorSmokeResult: pass`，在 `overallResult: skipped` 时必须包含跳过原因和后续补验要求；当前 `HEAD=d7510d8e398134dab92ce5a3ac38d42ff9762df2` 的远端 `Android CI` run `27896312527` 和 `iOS CI` run `27896312519` 均 completed/success，运行编号、headSha 和链接已分别落盘到 `github-actions-android.json` 与 `github-actions-ios.json`。 | GitHub Actions 运行记录已补齐；macOS iOS link/Simulator 当前按用户要求留存 skipped 证据，后续可替换为 pass 证据。 |
 
 ## 下一步
 
 AC-11 继续保持当前任务。下一轮应优先补齐：
 
-1. 在 macOS runner 或 macOS 开发机执行 `docs/migration/collect-ios-macos-evidence.sh`，
-   由脚本验证 Compose framework link 和 `RunningHub` scheme 的 `xcodebuild`。
-2. 也可以手动触发 `iOS CI` 的 `workflow_dispatch` 证据模式，填写
+1. 先提交并推送当前 staged 的非证据门禁、脚本和文档补丁；等待新 `HEAD` 的远端
+   Android/iOS CI 完成后，运行
+   `powershell -NoProfile -ExecutionPolicy Bypass -File docs\migration\finalize-l1-external-evidence.ps1 -Wait -WaitTimeoutSeconds 1800 -PollSeconds 30 -IosEvidenceMode skip -StageEvidence -RunSealCheck`。
+   该命令会重新采集新 `HEAD` 的 Android/iOS CI 证据，重写当前 macOS skipped 证据，
+   只暂存五个外部证据文件，并执行 `checkL1SealEvidence`。
+2. 当前已按用户说明留存 macOS 不可测的 `overallResult: skipped` 证据；具备 macOS runner
+   或 macOS 开发机后，执行 `docs/migration/collect-ios-macos-evidence.sh`，
+   由脚本验证 Compose framework link 和 `RunningHub` scheme 的 `xcodebuild`，并替换为
+   `overallResult: pass`。
+3. 也可以手动触发 `iOS CI` 的 `workflow_dispatch` 证据模式，填写
    `simulator_smoke_pass=true` 和 `smoke_notes`，下载生成的
    `ios-macos-link-and-simulator.md` artifact，或运行
    `docs/migration/download-ios-macos-evidence.ps1 -RunId <run id>` 自动落盘到
    `docs/migration/evidence/`。
-3. 在 macOS Simulator 冒烟时覆盖登录、退出和 QuickCreate 操作路径；Android 登录态 Tab 网络计数
+4. 在 macOS Simulator 冒烟时覆盖登录、退出和 QuickCreate 操作路径；Android 登录态 Tab 网络计数
    已由 `docs/migration/evidence/android-tab-network.json` 记录，Android 退出登录后的空闲网络观察
    已由 `docs/migration/evidence/android-logout-network.json` 记录。

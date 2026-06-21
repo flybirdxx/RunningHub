@@ -161,9 +161,9 @@ function Save-GitHubActionsEvidence {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
     }
 
-    $Run |
-        ConvertTo-Json -Depth 6 |
-        Set-Content -Path $Path -Encoding UTF8
+    $json = $Run | ConvertTo-Json -Compress -Depth 6
+    $utf8NoBom = New-Object System.Text.UTF8Encoding -ArgumentList $false
+    [System.IO.File]::WriteAllText($Path, "$json`n", $utf8NoBom)
 }
 
 function Assert-NonBlankEvidenceField {

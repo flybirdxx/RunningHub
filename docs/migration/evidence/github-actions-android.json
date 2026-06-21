@@ -1,12 +1,1 @@
-﻿{
-    "conclusion":  "success",
-    "createdAt":  "2026-06-21T06:27:18Z",
-    "databaseId":  27895942083,
-    "event":  "push",
-    "headBranch":  "feature/kmp-refactoring",
-    "headSha":  "6b08f372b2b86546250d34f4ebb5e6054e78b69e",
-    "status":  "completed",
-    "updatedAt":  "2026-06-21T06:39:06Z",
-    "url":  "https://github.com/flybirdxx/RunningHub/actions/runs/27895942083",
-    "workflowName":  "Android CI"
-}
+{"conclusion":"success","createdAt":"2026-06-21T06:44:52Z","databaseId":27896312527,"event":"push","headBranch":"feature/kmp-refactoring","headSha":"d7510d8e398134dab92ce5a3ac38d42ff9762df2","status":"completed","updatedAt":"2026-06-21T06:56:52Z","url":"https://github.com/flybirdxx/RunningHub/actions/runs/27896312527","workflowName":"Android CI"}

@@ -5,6 +5,9 @@ param(
     [string] $HeadSha = "",
     [string] $Branch = "",
     [string] $ArtifactName = "ios-macos-link-and-simulator",
+    [switch] $Wait,
+    [int] $WaitTimeoutSeconds = 1800,
+    [int] $PollSeconds = 30,
     [switch] $SelfTest
 )
 
@@ -79,6 +82,69 @@ function Select-IosEvidenceRun {
     }
 
     return $matches[0]
+}
+
+function Wait-IosEvidenceRun {
+    param(
+        [string] $Repository,
+        [string] $RequestedRunId,
+        [string] $RequestedHeadSha,
+        [string] $RequestedBranch,
+        [int] $TimeoutSeconds,
+        [int] $PollIntervalSeconds,
+        [scriptblock] $RunProvider = $null
+    )
+
+    $startedAt = Get-Date
+    $deadline = $startedAt.AddSeconds([Math]::Max(1, $TimeoutSeconds))
+    $sleepSeconds = [Math]::Max(1, $PollIntervalSeconds)
+
+    while ($true) {
+        if ($null -ne $RunProvider) {
+            $runs = @(& $RunProvider)
+        } else {
+            $runs = Invoke-GhRunList -Repository $Repository
+        }
+
+        try {
+            return Select-IosEvidenceRun `
+                -Runs $runs `
+                -RequestedRunId $RequestedRunId `
+                -RequestedHeadSha $RequestedHeadSha `
+                -RequestedBranch $RequestedBranch
+        } catch {
+            $now = Get-Date
+            if ($now -ge $deadline) {
+                throw
+            }
+
+            $matches = @($runs | Where-Object {
+                $_.workflowName -eq "iOS CI" -and
+                $_.event -eq "workflow_dispatch"
+            })
+            if (-not [string]::IsNullOrWhiteSpace($RequestedRunId)) {
+                $matches = @($matches | Where-Object { [string] $_.databaseId -eq $RequestedRunId.Trim() })
+            }
+            if (-not [string]::IsNullOrWhiteSpace($RequestedHeadSha)) {
+                $matches = @($matches | Where-Object { $_.headSha -eq $RequestedHeadSha })
+            }
+            if (-not [string]::IsNullOrWhiteSpace($RequestedBranch)) {
+                $matches = @($matches | Where-Object { $_.headBranch -eq $RequestedBranch })
+            }
+
+            $elapsedSeconds = [int]($now - $startedAt).TotalSeconds
+            $latest = @($matches | Select-Object -First 3 | ForEach-Object {
+                "run=$($_.databaseId) status=$($_.status) conclusion=$($_.conclusion) branch=$($_.headBranch) sha=$($_.headSha)"
+            })
+            Write-Host "waiting workflow_dispatch='iOS CI' status=in_progress elapsedSeconds=$elapsedSeconds latest=$($latest -join '; ')"
+
+            if ($null -ne $RunProvider) {
+                throw "SelfTest wait provider did not return a completed successful iOS evidence run."
+            }
+
+            Start-Sleep -Seconds $sleepSeconds
+        }
+    }
 }
 
 function Invoke-GhRunDownload {
@@ -180,8 +246,19 @@ function Invoke-SelfTest {
         -RequestedRunId "" `
         -RequestedHeadSha "expected-sha" `
         -RequestedBranch "feature/kmp-refactoring"
+    $waitSelected = Wait-IosEvidenceRun `
+        -Repository "flybirdxx/RunningHub" `
+        -RequestedRunId "" `
+        -RequestedHeadSha "expected-sha" `
+        -RequestedBranch "feature/kmp-refactoring" `
+        -TimeoutSeconds 1 `
+        -PollIntervalSeconds 1 `
+        -RunProvider { $runs }
     if ($selected.databaseId -ne 3001) {
         throw "SelfTest failed: unexpected iOS evidence run selected."
+    }
+    if ($waitSelected.databaseId -ne 3001) {
+        throw "SelfTest failed: unexpected waited iOS evidence run selected."
     }
 
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("rh-ios-evidence-selftest-" + [guid]::NewGuid().ToString("N"))
@@ -223,11 +300,21 @@ if ($SelfTest) {
 
 $resolvedHeadSha = Resolve-GitHeadSha -RequestedHeadSha $HeadSha
 $runs = Invoke-GhRunList -Repository $Repo
-$selectedRun = Select-IosEvidenceRun `
-    -Runs $runs `
-    -RequestedRunId $RunId `
-    -RequestedHeadSha $resolvedHeadSha `
-    -RequestedBranch $Branch
+if ($Wait) {
+    $selectedRun = Wait-IosEvidenceRun `
+        -Repository $Repo `
+        -RequestedRunId $RunId `
+        -RequestedHeadSha $resolvedHeadSha `
+        -RequestedBranch $Branch `
+        -TimeoutSeconds $WaitTimeoutSeconds `
+        -PollIntervalSeconds $PollSeconds
+} else {
+    $selectedRun = Select-IosEvidenceRun `
+        -Runs $runs `
+        -RequestedRunId $RunId `
+        -RequestedHeadSha $resolvedHeadSha `
+        -RequestedBranch $Branch
+}
 
 $downloadDir = Join-Path ([System.IO.Path]::GetTempPath()) ("rh-ios-evidence-" + [guid]::NewGuid().ToString("N"))
 try {

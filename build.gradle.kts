@@ -567,6 +567,9 @@ tasks.register("checkMigrationScripts") {
         val tabNetworkScript = rootDir.resolve("docs/migration/observe-tab-network.ps1")
         val githubActionsScript = rootDir.resolve("docs/migration/collect-github-actions-evidence.ps1")
         val iosMacosScript = rootDir.resolve("docs/migration/collect-ios-macos-evidence.sh")
+        val iosEvidenceDownloadScript = rootDir.resolve("docs/migration/download-ios-macos-evidence.ps1")
+        val iosEvidenceRequestScript = rootDir.resolve("docs/migration/request-ios-macos-evidence.ps1")
+        val l1EvidenceFinalizeScript = rootDir.resolve("docs/migration/finalize-l1-external-evidence.ps1")
         val androidNetworkObserver = rootDir.resolve("composeApp/src/androidMain/kotlin/com/runninghub/app/di/AndroidNetworkActivityLogObserver.kt")
         val iosKoinEntry = rootDir.resolve("composeApp/src/iosMain/kotlin/com/runninghub/app/di/IosRuntimeModule.kt")
         val iosMainViewController = rootDir.resolve("composeApp/src/iosMain/kotlin/com/runninghub/app/MainViewController.kt")
@@ -613,10 +616,12 @@ tasks.register("checkMigrationScripts") {
             "docs/migration/current-state.yaml",
             "docs/migration/dependency-rules.md",
             "docs/migration/download-ios-macos-evidence.ps1",
+            "docs/migration/finalize-l1-external-evidence.ps1",
             "docs/migration/evidence/android-logout-network.json",
             "docs/migration/l1-external-evidence.md",
             "docs/migration/l1-seal-audit.md",
             "docs/migration/observe-tab-network.ps1",
+            "docs/migration/request-ios-macos-evidence.ps1",
             "docs/migration/shared-allowlist.txt",
             "docs/migration/shared-baseline.txt",
             "docs/migration/shared-ownership.md",
@@ -725,6 +730,8 @@ tasks.register("checkMigrationScripts") {
             "function Assert-NonBlankEvidenceField",
             "function Assert-GitHubActionsEvidence",
             "function Assert-MatchingWorkflowHeadSha",
+            "ConvertTo-Json -Compress",
+            "UTF8Encoding",
             "Start-Sleep",
             "status=in_progress",
             "databaseId",
@@ -757,17 +764,66 @@ tasks.register("checkMigrationScripts") {
         val requiredIosEvidenceDownloadSnippets = listOf(
             "[string] \$RunId",
             "[string] \$ArtifactName",
+            "[switch] \$Wait",
+            "[int] \$WaitTimeoutSeconds",
+            "[int] \$PollSeconds",
             "[switch] \$SelfTest",
             "function Select-IosEvidenceRun",
+            "function Wait-IosEvidenceRun",
             "function Invoke-GhRunDownload",
             "function Copy-IosEvidenceArtifact",
             "function Assert-IosEvidenceMarkdown",
+            "Start-Sleep",
+            "workflow_dispatch='iOS CI' status=in_progress",
             "workflow_dispatch",
             "ios-macos-link-and-simulator.md",
             "gh run download",
             "linkResult: pass",
             "xcodebuildResult: pass",
             "simulatorSmokeResult: pass",
+        )
+        val requiredIosEvidenceRequestSnippets = listOf(
+            "[switch] \$ConfirmSimulatorSmokePass",
+            "[string] \$SmokeNotes",
+            "[switch] \$Wait",
+            "[switch] \$SelfTest",
+            "function Assert-SmokeConfirmation",
+            "function Invoke-GhWorkflowRun",
+            "function Invoke-IosEvidenceDownload",
+            "gh workflow run",
+            "simulator_smoke_pass=true",
+            "smoke_notes=",
+            "download-ios-macos-evidence.ps1",
+        )
+        val requiredL1EvidenceFinalizeSnippets = listOf(
+            "[ValidateSet(\"skip\", \"request\", \"download\", \"none\")]",
+            "[switch] \$StageEvidence",
+            "[switch] \$RunSealCheck",
+            "[switch] \$SelfTest",
+            "function Assert-CleanPreCollectionState",
+            "function Invoke-CiEvidenceCollection",
+            "function Write-SkippedIosEvidence",
+            "function Invoke-IosEvidenceRequest",
+            "function Invoke-IosEvidenceDownload",
+            "function Get-L1EvidencePaths",
+            "function Add-L1EvidenceFiles",
+            "function Invoke-L1SealEvidenceCheck",
+            "collect-github-actions-evidence.ps1",
+            "request-ios-macos-evidence.ps1",
+            "download-ios-macos-evidence.ps1",
+            "git add --",
+            "git diff --cached --name-only",
+            "git ls-files --others --exclude-standard",
+            "Requested -HeadSha",
+            "preCollectionClean=true",
+            "evidenceStaged=true",
+            "sealEvidenceCheck=pass",
+            "untracked file was accepted",
+            "overallResult: skipped",
+            "linkResult: skipped",
+            "xcodebuildResult: skipped",
+            "simulatorSmokeResult: skipped",
+            "checkL1SealEvidence",
         )
         val requiredAndroidNetworkObserverSnippets = listOf(
             "NETWORK_ACTIVITY_HEARTBEAT_MILLIS",
@@ -822,6 +878,11 @@ tasks.register("checkMigrationScripts") {
             "allowedStagedEvidenceFiles",
             "val stagedFiles",
             "has staged non-evidence changes; commit code/config changes",
+            "overallResult",
+            "skipped",
+            "followUpRequired",
+            "must use linkResult=pass when overallResult=pass",
+            "must use linkResult=skipped",
         )
         requiredTabNetworkSnippets
             .filterNot { it in tabNetworkScriptText }
@@ -832,11 +893,18 @@ tasks.register("checkMigrationScripts") {
         requiredIosMacosSnippets
             .filterNot { it in iosMacosScriptText }
             .forEach { snippet -> violations += "collect-ios-macos-evidence.sh must contain `$snippet`." }
-        val iosEvidenceDownloadScript = rootDir.resolve("docs/migration/download-ios-macos-evidence.ps1")
         val iosEvidenceDownloadScriptText = iosEvidenceDownloadScript.takeIf { it.exists() }?.readText().orEmpty()
+        val iosEvidenceRequestScriptText = iosEvidenceRequestScript.takeIf { it.exists() }?.readText().orEmpty()
+        val l1EvidenceFinalizeScriptText = l1EvidenceFinalizeScript.takeIf { it.exists() }?.readText().orEmpty()
         requiredIosEvidenceDownloadSnippets
             .filterNot { it in iosEvidenceDownloadScriptText }
             .forEach { snippet -> violations += "download-ios-macos-evidence.ps1 must contain `$snippet`." }
+        requiredIosEvidenceRequestSnippets
+            .filterNot { it in iosEvidenceRequestScriptText }
+            .forEach { snippet -> violations += "request-ios-macos-evidence.ps1 must contain `$snippet`." }
+        requiredL1EvidenceFinalizeSnippets
+            .filterNot { it in l1EvidenceFinalizeScriptText }
+            .forEach { snippet -> violations += "finalize-l1-external-evidence.ps1 must contain `$snippet`." }
         requiredAndroidNetworkObserverSnippets
             .filterNot { it in androidNetworkObserverText }
             .forEach { snippet -> violations += "AndroidNetworkActivityLogObserver.kt must contain `$snippet`." }
@@ -862,7 +930,7 @@ tasks.register("checkMigrationScripts") {
         // 该脚本需要能被 Windows PowerShell 5 直接执行。仓库当前没有统一保存 BOM，
         // 同时 shell 脚本需要能在 macOS runner 上直接执行；运行时字符串保持 ASCII，
         // 中文说明放在 Markdown/YAML 文档中记录。
-        listOf(tabNetworkScript, githubActionsScript).forEach { script ->
+        listOf(tabNetworkScript, githubActionsScript, iosEvidenceDownloadScript, iosEvidenceRequestScript).forEach { script ->
             script.readLines().forEachIndexed { index, line ->
                 if (line.any { it.code > 127 }) {
                     violations += "${script.name}:${index + 1} contains non-ASCII runtime text."
@@ -944,15 +1012,10 @@ tasks.register("checkL1SealEvidence") {
                 label = "macOS iOS link and Simulator smoke",
                 relativePath = "docs/migration/evidence/ios-macos-link-and-simulator.md",
                 requiredSnippets = listOf(
-                    ":composeApp:linkDebugFrameworkIosSimulatorArm64",
-                    "BUILD SUCCESSFUL",
                     "headSha:",
-                    "linkResult: pass",
-                    "xcodebuildResult: pass",
-                    "xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub",
-                    "simulatorSmokeResult: pass",
-                    "Simulator login flow observed: pass",
-                    "Simulator QuickCreate flow observed: pass",
+                    "overallResult:",
+                    "skipReason:",
+                    "followUpRequired:",
                 ),
             ),
         )
@@ -1210,8 +1273,14 @@ tasks.register("checkL1SealEvidence") {
             val capturedAt = markdownField(text, "capturedAt")
             val evidenceHeadSha = markdownField(text, "headSha")
             val host = markdownField(text, "host")
+            val overallResult = markdownField(text, "overallResult")
+            val skipReason = markdownField(text, "skipReason")
+            val followUpRequired = markdownField(text, "followUpRequired")
             val linkCommand = markdownField(text, "linkCommand")
+            val linkResult = markdownField(text, "linkResult")
             val xcodebuildCommand = markdownField(text, "xcodebuildCommand")
+            val xcodebuildResult = markdownField(text, "xcodebuildResult")
+            val simulatorSmokeResult = markdownField(text, "simulatorSmokeResult")
             if (capturedAt.isBlank()) {
                 violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank capturedAt."
             }
@@ -1220,22 +1289,56 @@ tasks.register("checkL1SealEvidence") {
             } else if (evidenceHeadSha != currentHeadSha) {
                 violations += "${evidence.label} evidence at ${evidence.relativePath} must use current HEAD $currentHeadSha; found $evidenceHeadSha."
             }
-            if (!host.contains("Darwin")) {
-                violations += "${evidence.label} evidence at ${evidence.relativePath} must be captured on macOS with host containing Darwin."
+            if (overallResult !in setOf("pass", "skipped")) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must set overallResult to pass or skipped."
             }
-            val expectedLinkCommand = "./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64"
-            if (linkCommand != expectedLinkCommand) {
-                violations += "${evidence.label} evidence at ${evidence.relativePath} must use linkCommand=$expectedLinkCommand."
-            }
-            val expectedXcodebuildCommand = "xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination generic/platform=iOS Simulator build CODE_SIGNING_ALLOWED=NO"
-            if (xcodebuildCommand != expectedXcodebuildCommand) {
-                violations += "${evidence.label} evidence at ${evidence.relativePath} must use xcodebuildCommand=$expectedXcodebuildCommand."
-            }
-            // iOS 运行验收依赖人工 Simulator 冒烟说明；空说明无法证明登录、退出和 QuickCreate
-            // 的实际操作环境，不能作为 Windows 本地 SKIPPED link 的替代证据。
+
             val notes = text.substringAfter("## Notes", missingDelimiterValue = "").substringBefore("## Gradle output tail")
             if (notes.isBlank()) {
-                violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank notes for the Simulator smoke run."
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank notes describing the pass evidence or skip decision."
+            }
+
+            if (overallResult == "pass") {
+                if (!host.contains("Darwin")) {
+                    violations += "${evidence.label} evidence at ${evidence.relativePath} must be captured on macOS with host containing Darwin."
+                }
+                val expectedLinkCommand = "./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64"
+                if (linkCommand != expectedLinkCommand) {
+                    violations += "${evidence.label} evidence at ${evidence.relativePath} must use linkCommand=$expectedLinkCommand."
+                }
+                if (linkResult != "pass") {
+                    violations += "${evidence.label} evidence at ${evidence.relativePath} must use linkResult=pass when overallResult=pass."
+                }
+                val expectedXcodebuildCommand = "xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination generic/platform=iOS Simulator build CODE_SIGNING_ALLOWED=NO"
+                if (xcodebuildCommand != expectedXcodebuildCommand) {
+                    violations += "${evidence.label} evidence at ${evidence.relativePath} must use xcodebuildCommand=$expectedXcodebuildCommand."
+                }
+                if (xcodebuildResult != "pass") {
+                    violations += "${evidence.label} evidence at ${evidence.relativePath} must use xcodebuildResult=pass when overallResult=pass."
+                }
+                if (simulatorSmokeResult != "pass") {
+                    violations += "${evidence.label} evidence at ${evidence.relativePath} must use simulatorSmokeResult=pass when overallResult=pass."
+                }
+            }
+
+            // 用户已明确当前无法测试 macOS 环境，因此允许把 iOS link/Simulator 作为有记录的 skip。
+            // skip 仍必须绑定当前 HEAD、说明风险和后续补验条件，避免被误读为真实 macOS 通过证据。
+            if (overallResult == "skipped") {
+                if (skipReason.isBlank()) {
+                    violations += "${evidence.label} skip evidence at ${evidence.relativePath} must include non-blank skipReason."
+                }
+                if (followUpRequired.isBlank() || followUpRequired.equals("false", ignoreCase = true)) {
+                    violations += "${evidence.label} skip evidence at ${evidence.relativePath} must keep followUpRequired non-blank and not false."
+                }
+                if (linkResult != "skipped") {
+                    violations += "${evidence.label} skip evidence at ${evidence.relativePath} must use linkResult=skipped; found $linkResult."
+                }
+                if (xcodebuildResult != "skipped") {
+                    violations += "${evidence.label} skip evidence at ${evidence.relativePath} must use xcodebuildResult=skipped; found $xcodebuildResult."
+                }
+                if (simulatorSmokeResult != "skipped") {
+                    violations += "${evidence.label} skip evidence at ${evidence.relativePath} must use simulatorSmokeResult=skipped; found $simulatorSmokeResult."
+                }
             }
         }
 

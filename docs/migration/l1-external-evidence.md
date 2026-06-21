@@ -20,7 +20,7 @@
 | iOS GitHub Actions | `docs/migration/evidence/github-actions-ios.json` | 完整补丁提交并推送后，运行 `docs/migration/collect-github-actions-evidence.ps1`；默认绑定当前 Git `HEAD`，也可显式追加 `-HeadSha <commit>`。若目标 run 尚未完成，可追加 `-Wait -WaitTimeoutSeconds 1800 -PollSeconds 30` 等待 completed/success。 | iOS CI 在 macOS runner 实际运行，并且结论为 `success`。 |
 | Android 登录态 Tab 网络观察 | `docs/migration/evidence/android-tab-network.json` | 登录 debug 包后，切换 History/QuickCreate 等 Tab，再运行 `docs/migration/observe-tab-network.ps1 -DurationSeconds 120 -StableWindowSeconds 30 -OutputPath docs/migration/evidence/android-tab-network.json -OperationNotes "<登录态操作路径>"`。 | 至少 120 秒采样和 30 秒稳定窗口内 `started` 不继续增长且 `inFlight` 归零，证明不可见 Tab 没有持续后台请求。 |
 | Android 退出登录网络观察 | `docs/migration/evidence/android-logout-network.json` | 从 Profile 执行退出登录并确认回到 Login 根页面后，运行 `docs/migration/observe-tab-network.ps1 -DurationSeconds 120 -StableWindowSeconds 30 -OutputPath docs/migration/evidence/android-logout-network.json -OperationNotes "<退出登录后的 Login 根页面空闲路径>"`。 | 退出登录清空业务主栈后，至少 120 秒采样和 30 秒稳定窗口内 `started` 不继续增长且 `inFlight` 归零，证明 Android 侧业务页面释放后没有持续后台请求。 |
-| macOS iOS link 与 Simulator 冒烟 | `docs/migration/evidence/ios-macos-link-and-simulator.md` | 在 macOS runner 或 macOS 开发机完成 iOS Simulator 登录、退出和 QuickCreate 冒烟后，运行 `docs/migration/collect-ios-macos-evidence.sh --simulator-smoke-pass --smoke-notes "<设备、系统和操作路径说明>"`。也可以手动触发 `iOS CI` 的 `workflow_dispatch`，填写 `simulator_smoke_pass=true` 和 `smoke_notes`，由 macOS runner 生成并上传 `ios-macos-link-and-simulator.md` artifact，再用 `docs/migration/download-ios-macos-evidence.ps1` 下载并写入证据目录。 | Windows 本地被跳过的 iOS framework link 已在 macOS 对当前待封板提交执行，`iosApp/iosApp.xcodeproj` 的 `RunningHub` scheme 已通过 `xcodebuild`，且 iOS 运行时关键装配可启动。 |
+| macOS iOS link 与 Simulator 冒烟 | `docs/migration/evidence/ios-macos-link-and-simulator.md` | 在 macOS runner 或 macOS 开发机完成 iOS Simulator 登录、退出和 QuickCreate 冒烟后，运行 `docs/migration/collect-ios-macos-evidence.sh --simulator-smoke-pass --smoke-notes "<设备、系统和操作路径说明>"`。也可以运行 `docs/migration/request-ios-macos-evidence.ps1 -ConfirmSimulatorSmokePass -SmokeNotes "<设备、系统和操作路径说明>" -Wait` 触发 `iOS CI` 的 `workflow_dispatch` 并等待下载 artifact；该脚本未显式确认和 notes 时会失败。当前 macOS 环境不可用时，允许以 `overallResult: skipped` 留存跳过证据，但必须写明 `skipReason`、`followUpRequired` 和当前 `headSha`。 | `overallResult: pass` 表示 Windows 本地被跳过的 iOS framework link 已在 macOS 对当前待封板提交执行；`overallResult: skipped` 只表示用户确认当前无法测试 macOS，仍需后续补验。 |
 
 ## 判定规则
 
@@ -32,13 +32,12 @@
   `status=completed`、`conclusion=success` 运行；该运行还必须包含非空 `databaseId`、
   `headSha` 和 `url`。
 - Android CI 与 iOS CI 的 `headSha` 必须一致，并且必须等于当前 Git `HEAD`，证明双端远端门禁运行在当前待封板提交上。
-- macOS iOS link/Simulator 证据必须包含非空 `capturedAt`、`headSha`、`host` 和 `linkCommand`；
-  `headSha` 必须等于当前 Git `HEAD`，`host` 必须包含 `Darwin`，`linkCommand` 必须等于
-  `./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64`；
-  `xcodebuildCommand` 必须等于
-  `xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination generic/platform=iOS Simulator build CODE_SIGNING_ALLOWED=NO`；
-  证据必须包含 `xcodebuildResult: pass`，避免只验证 Compose framework link 却没有验证 iOS 包装工程；
-  `## Notes` 必须记录非空的 Simulator 设备、系统和操作路径说明。
+- macOS iOS link/Simulator 证据必须包含非空 `capturedAt`、`headSha`、`overallResult`、`skipReason`、`followUpRequired` 和 `## Notes`；
+  `headSha` 必须等于当前 Git `HEAD`。`overallResult: pass` 时，`host` 必须包含 `Darwin`，`linkCommand` 必须等于
+  `./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64`，`xcodebuildCommand` 必须等于
+  `xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination generic/platform=iOS Simulator build CODE_SIGNING_ALLOWED=NO`，
+  且 `linkResult`、`xcodebuildResult`、`simulatorSmokeResult` 必须均为 `pass`。
+  `overallResult: skipped` 时，三项结果必须均为 `skipped`，并且 `followUpRequired` 不能为 `false`。
 - Android Tab 与退出登录网络观察证据必须是 JSON 对象，并满足 `packageName=com.runninghub.app.debug`、
   非空 `operationNotes`、`durationSeconds >= 120`、`stableWindowSeconds >= 30`、
   `result=pass_candidate`、`sampleCount > 0`、`sampleCount` 与 `samples.size` 一致、
@@ -47,7 +46,19 @@
 - `collect-github-actions-evidence.ps1` 会分别选择 Android CI 和 iOS CI 当前 Git `HEAD` 对应的 completed/success 运行，并写入两个独立 JSON；写入后会立即断言 `databaseId`、`headSha` 和 `url` 非空，且 Android/iOS `headSha` 相同，避免一个汇总输出、不完整运行对象、旧提交或两个不同提交上的成功运行误判双 CI 通过。脚本的 `-Wait` 只在显式传入时轮询，默认仍快速失败，防止本地门禁被远端排队状态长时间阻塞。
 - `collect-ios-macos-evidence.sh` 只在 macOS 生成最终证据；未显式传入 `--simulator-smoke-pass` 和非空 `--smoke-notes` 时不会写出可通过 `checkL1SealEvidence` 的 iOS 冒烟证据。脚本会记录当前 Git `HEAD`，先执行 Compose framework link，再以 `CODE_SIGNING_ALLOWED=NO` 执行 `xcodebuild` 构建 `RunningHub` scheme，防止复用旧提交上的 macOS link 结果、遗漏 iOS 包装工程或被本机签名团队配置影响。
 - `iOS CI` 支持手动 `workflow_dispatch` 证据模式。手动触发前必须先在对应 macOS Simulator 操作登录、退出和 QuickCreate 冒烟；workflow 会校验 `simulator_smoke_pass=true` 和非空 `smoke_notes`，然后运行同一个采集脚本并上传 `ios-macos-link-and-simulator.md` artifact。
-- `download-ios-macos-evidence.ps1` 用于把手动 iOS CI 运行的 artifact 落盘到 `docs/migration/evidence/ios-macos-link-and-simulator.md`。它会筛选当前 Git `HEAD` 对应的 successful `workflow_dispatch` iOS CI run，也可用 `-RunId` 绑定指定 run，并在写入后校验 `linkResult: pass`、`xcodebuildResult: pass` 和 `simulatorSmokeResult: pass` 等关键字段。
+- `request-ios-macos-evidence.ps1` 只负责编排手动证据流程：它要求调用方显式传入 `-ConfirmSimulatorSmokePass` 和非空 `-SmokeNotes`，再触发 `iOS CI` 的 `workflow_dispatch`。该脚本不能替代真实 Simulator 操作；没有人工确认时不会触发远端证据 workflow。
+- `download-ios-macos-evidence.ps1` 用于把手动 iOS CI 运行的 artifact 落盘到 `docs/migration/evidence/ios-macos-link-and-simulator.md`。它会筛选当前 Git `HEAD` 对应的 successful `workflow_dispatch` iOS CI run，也可用 `-RunId` 绑定指定 run，并在写入后校验 `linkResult: pass`、`xcodebuildResult: pass` 和 `simulatorSmokeResult: pass` 等关键字段。若手动 workflow 正在运行，可显式追加 `-Wait -WaitTimeoutSeconds 1800 -PollSeconds 30` 等待 artifact 所属 run completed/success。
+- `finalize-l1-external-evidence.ps1` 是提交后的总编排入口。它会先拒绝未暂存或已暂存的代码、配置和文档改动，
+  也会拒绝未跟踪文件，并要求显式传入的 `-HeadSha` 必须等于当前 checkout 的 Git `HEAD`。这样可以确保
+  当前 Git `HEAD` 已固定，再调用 `collect-github-actions-evidence.ps1` 重新采集 Android/iOS CI 证据。
+  `-IosEvidenceMode skip` 会为当前 `HEAD` 写入显式 skipped 的 macOS/iOS 证据；`request` 或 `download`
+  则分别编排真实 Simulator 冒烟后的 workflow_dispatch 或 artifact 下载流程。可追加 `-StageEvidence`
+  只暂存五个允许参与封板的外部证据文件；可追加 `-RunSealCheck` 在证据采集后执行
+  `./gradlew.bat --console=plain checkL1SealEvidence`。
+- 当前补丁提交并推送后，如果仍按用户确认留存 macOS skipped 证据，可在远端 Android/iOS CI 对新 `HEAD`
+  完成后运行：
+  `powershell -NoProfile -ExecutionPolicy Bypass -File docs\migration\finalize-l1-external-evidence.ps1 -Wait -WaitTimeoutSeconds 1800 -PollSeconds 30 -IosEvidenceMode skip -StageEvidence -RunSealCheck`。
+  该命令会拒绝任何非证据 staged/unstaged/untracked 状态，因此必须在代码、配置和文档补丁已经提交后执行。
 - 证据中不得包含 Token、Cookie、API Key、Authorization header、请求 Body 或用户隐私数据；`checkL1SealEvidence` 会扫描已落盘证据中的常见凭据形态并拒绝封板。
 - 如果登录态 Tab 或退出登录观察失败，应先保留失败证据，再回到 Gate G 修复根因；不要手工编辑 JSON 使其通过。
 - 如果 macOS iOS link 在 Windows 本地显示 `SKIPPED`，只能作为本地限制说明，不能作为通过证据。
@@ -55,11 +66,11 @@
 ## 当前状态
 
 - Android GitHub Actions：已落盘并加入 Git 索引，`github-actions-android.json`
-  记录当前 `HEAD=6b08f372b2b86546250d34f4ebb5e6054e78b69e` 上的
-  `Android CI` completed/success 运行，run id 为 `27895942083`。
+  记录当前 `HEAD=d7510d8e398134dab92ce5a3ac38d42ff9762df2` 上的
+  `Android CI` completed/success 运行，run id 为 `27896312527`。
 - iOS GitHub Actions：已落盘并加入 Git 索引，`github-actions-ios.json`
-  记录当前 `HEAD=6b08f372b2b86546250d34f4ebb5e6054e78b69e` 上的
-  `iOS CI` completed/success 运行，run id 为 `27895942081`。
+  记录当前 `HEAD=d7510d8e398134dab92ce5a3ac38d42ff9762df2` 上的
+  `iOS CI` completed/success 运行，run id 为 `27896312519`。
 - Android 登录态 Tab 网络观察：已落盘并加入 Git 索引，`docs/migration/evidence/android-tab-network.json`
   记录了登录态 `Discover -> History -> Create/QuickCreate -> Plaza -> Profile` 操作路径，
   `durationSeconds=120`、`stableWindowSeconds=30`、`sampleCount=116`、
@@ -68,12 +79,13 @@
   记录了 Profile 退出登录完成后 Login 根页面空闲路径，
   `durationSeconds=125`、`stableWindowSeconds=30`、`sampleCount=118`、
   `result=pass_candidate`、`stableWindowStartedDelta=0`、`stableWindowMaxInFlight=0`。
-- macOS iOS link 与 Simulator 冒烟：缺失，Windows 本地 link 仍按平台能力跳过；
-  需要在 macOS runner 或 macOS 开发机执行 `collect-ios-macos-evidence.sh`，或手动触发
-  `iOS CI` 的证据采集模式，并完成 Xcode build、Simulator 登录、退出和 QuickCreate
-  冒烟说明后生成最终 Markdown 证据。若使用 workflow artifact，下载落盘命令为
-  `powershell -NoProfile -ExecutionPolicy Bypass -File docs/migration/download-ios-macos-evidence.ps1 -RunId <run id>`。
-- 当前 Git `HEAD` 为 `6b08f372b2b86546250d34f4ebb5e6054e78b69e`，Android/iOS CI
-  证据已用 `collect-github-actions-evidence.ps1 -HeadSha 6b08f372b2b86546250d34f4ebb5e6054e78b69e -Wait`
-  重新采集到该 HEAD 的 completed/success run。由于当前仍有脚本和文档门禁补丁处于 Git 索引中，
-  这些 CI 证据不能证明后续提交产生的新 HEAD；最终封板前仍需先提交非证据变更，再对新 HEAD 重新采集外部证据。
+- macOS iOS link 与 Simulator 冒烟：当前按用户说明留存跳过证据，`overallResult=skipped`。
+  Windows 本地 link 仍按平台能力跳过；后续如需补齐真实通过证据，需要在 macOS runner 或 macOS 开发机执行
+  `collect-ios-macos-evidence.sh`，或手动触发 `iOS CI` 的证据采集模式，并完成 Xcode build、
+  Simulator 登录、退出和 QuickCreate 冒烟说明后生成最终 Markdown 证据。
+- 当前 Git `HEAD` 为 `d7510d8e398134dab92ce5a3ac38d42ff9762df2`，Android/iOS CI
+  证据已用 `collect-github-actions-evidence.ps1 -HeadSha d7510d8e398134dab92ce5a3ac38d42ff9762df2 -Wait`
+  重新采集到该 HEAD 的 completed/success run。macOS iOS link/Simulator 证据文件已落盘，
+  当前为 `overallResult=skipped`，后续具备 macOS 环境后可替换为 `overallResult=pass`。
+- `finalize-l1-external-evidence.ps1 -SelfTest` 已覆盖 skipped 证据必填字段、脏工作区拒绝、未跟踪文件拒绝，
+  以及 `-StageEvidence` 使用的五个外部证据路径清单。
