@@ -713,14 +713,20 @@ tasks.register("checkMigrationScripts") {
             "[string] \$OutputDir",
             "[string] \$HeadSha",
             "[string] \$Branch",
+            "[switch] \$Wait",
+            "[int] \$WaitTimeoutSeconds",
+            "[int] \$PollSeconds",
             "[switch] \$SelfTest",
             "function Resolve-GitHeadSha",
             "function Invoke-GhRunList",
             "function Select-SuccessfulWorkflowRun",
+            "function Wait-SuccessfulWorkflowRun",
             "function Save-GitHubActionsEvidence",
             "function Assert-NonBlankEvidenceField",
             "function Assert-GitHubActionsEvidence",
             "function Assert-MatchingWorkflowHeadSha",
+            "Start-Sleep",
+            "status=in_progress",
             "databaseId",
             "headSha",
             "targetHeadSha=",
@@ -813,8 +819,9 @@ tasks.register("checkMigrationScripts") {
         )
         val requiredL1SealEvidenceSnippets = listOf(
             "\"diff\", \"--cached\", \"--name-only\"",
+            "allowedStagedEvidenceFiles",
             "val stagedFiles",
-            "has staged changes; commit it and recollect CI evidence",
+            "has staged non-evidence changes; commit code/config changes",
         )
         requiredTabNetworkSnippets
             .filterNot { it in tabNetworkScriptText }
@@ -997,14 +1004,18 @@ tasks.register("checkL1SealEvidence") {
             }
 
         val violations = mutableListOf<String>()
-        // 外部证据必须绑定到已经提交的 HEAD。若仍存在未暂存或已暂存补丁，
-        // 远端 CI 与 macOS 证据只能证明旧提交，不能证明当前待交付内容。
+        val allowedStagedEvidenceFiles = evidenceFiles.map { it.relativePath }.toSet()
+
+        // 外部证据必须绑定到已经提交的代码 HEAD。证据文件本身通常在 CI/macOS
+        // 运行结束后才落盘，因此允许只暂存证据文件；其他 staged 变更仍说明代码未被当前 HEAD 覆盖。
         unstagedFiles.forEach { file ->
             violations += "$file has unstaged changes; stage it before using L1 seal evidence."
         }
-        stagedFiles.forEach { file ->
-            violations += "$file has staged changes; commit it and recollect CI evidence for the resulting HEAD before using L1 seal evidence."
-        }
+        stagedFiles
+            .filterNot { it in allowedStagedEvidenceFiles }
+            .forEach { file ->
+                violations += "$file has staged non-evidence changes; commit code/config changes and recollect CI evidence for that HEAD before using L1 seal evidence."
+            }
 
         val evidenceSensitivePatterns = listOf(
             "OpenAI API key" to Regex("""sk-[A-Za-z0-9_-]{20,}"""),

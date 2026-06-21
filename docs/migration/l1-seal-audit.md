@@ -124,8 +124,8 @@ Screen 构造只保留在 `App.kt`。
   - 脚本运行文本必须保持 ASCII，避免 Windows PowerShell 5 按本地代码页执行时解析失败。
   - `docs/migration` 下的 L1 证据文件必须进入 Git 索引且没有未暂存差异，避免远端 CI
     缺少观察脚本、shared 基线、allowlist 或当前 Gate 状态。
-- `checkL1SealEvidence` 额外要求最终封板时没有未暂存或已暂存差异；所有外部证据必须绑定到
-  已提交的当前 Git `HEAD`，不能用旧 `HEAD` 的远端 CI 结果证明仍停留在索引中的补丁。
+- `checkL1SealEvidence` 额外要求最终封板时没有未暂存差异，并且已暂存差异只能是五个外部证据文件；
+  所有外部证据必须绑定到已提交的当前代码 Git `HEAD`，不能用旧 `HEAD` 的远端 CI 结果证明仍停留在索引中的代码补丁。
 - `checkArchitectureBoundaries` 现在同时检查：
   - Feature / Domain / Presentation 依赖边界。
   - `commonMain` 是否导入 Android、UIKit、Foundation、java.awt 等平台 API，或泄漏 Android
@@ -354,11 +354,11 @@ git diff --name-only
   该任务不接入 `verifyL1Local`，只在准备宣称 L1 封板时执行，用于确认 Android GitHub Actions、
   iOS GitHub Actions、Android 登录态 Tab 网络观察、Android 退出登录网络观察、
   macOS iOS link/Simulator 五个外部证据文件已经落盘、
-  对应当前 Git `HEAD`，且仓库没有未暂存或已暂存差异。
+  对应当前代码 Git `HEAD`，且仓库没有未暂存差异，已暂存差异仅限这些外部证据文件。
   当前缺失这些外部证据时该任务预期失败，因此不能用本地 `verifyL1Local` 结果替代最终封板。
 - 本轮继续加固 `checkL1SealEvidence`：Android CI 与 iOS CI 远端运行记录拆为两个独立 JSON 文件，
   避免一个汇总 `success` 字段被误判为双 CI 均通过；同时最终封板检查会拒绝整个仓库的未暂存差异和
-  已暂存差异，避免外部证据证明的是旧 `HEAD`，而不是当前待交付补丁。
+  staged 的非证据变更，避免外部证据证明的是旧 `HEAD`，而不是当前待交付代码。
 - 本轮继续把 `checkL1SealEvidence` 从文本片段检查升级为结构化 JSON 校验：GitHub Actions
   证据必须能解析为对象或运行数组，并包含目标 workflow 的 `completed/success` 运行以及非空
   `databaseId`、`headSha`、`url`；Android Tab 与退出登录网络观察证据必须能解析为对象，并满足
@@ -369,8 +369,9 @@ git diff --name-only
   这避免只包含 `success` 或 `pass_candidate` 文本的手工文件被误当成 L1 封板证据。
 - 本轮继续收紧 `checkL1SealEvidence`：Android CI 和 iOS CI 的 `headSha` 必须一致，且必须等于
   当前 Git `HEAD`，确保双端远端门禁证明的是当前待封板提交，而不是旧提交或两个不同提交上的成功运行。
-- 本轮继续收紧 `checkL1SealEvidence`：若 `git diff --cached --name-only` 仍有输出，任务会失败并要求先提交补丁、
-  再重新采集对应新 `HEAD` 的 CI 与 macOS iOS 证据。
+- 本轮继续收紧 `checkL1SealEvidence`：若 `git diff --cached --name-only` 输出了外部证据文件之外的路径，
+  任务会失败并要求先提交代码或配置补丁，再重新采集对应新 `HEAD` 的 CI 与 macOS iOS 证据。证据文件本身允许暂存，
+  因为它们只能在外部运行完成后落盘，用于证明当前已提交代码 `HEAD`。
 - 本轮继续收紧 Android 登录态 Tab 网络观察证据：`observe-tab-network.ps1` 新增 `-OperationNotes`
   参数并写入 JSON；`checkL1SealEvidence` 要求 `operationNotes` 非空。这样最终证据不仅包含
   `RunningHubNetwork` 稳定窗口计数，也会记录登录态 Tab 操作路径，避免未登录冷启动样本被误当成
@@ -399,6 +400,9 @@ git diff --name-only
   `-HeadSha` 绑定目标提交。
 - 本轮继续加固 CI 证据采集脚本：未显式传入 `-HeadSha` 时会自动解析当前 Git `HEAD` 并输出
   `targetHeadSha=`，避免默认选择最新成功运行时拿到旧提交证据。
+- 本轮继续加固 CI 证据采集脚本：新增显式 `-Wait`、`-WaitTimeoutSeconds` 与 `-PollSeconds`
+  参数。默认调用仍只选择已完成的成功 run 并快速失败；封板补证时可以显式等待目标 `HEAD`
+  的 Android/iOS workflow 完成，避免远端 run 仍在 `in_progress` 时需要人工反复执行采集命令。
 - 早前复跑 `powershell -NoProfile -ExecutionPolicy Bypass -File docs/migration/collect-github-actions-evidence.ps1 -SelfTest`
   通过；随后复跑 `checkMigrationScripts`、`checkL1CiWorkflows` 和 `checkArchitectureBoundaries`
   通过。后续 Android 登录态 Tab 网络观察证据已补齐，当前 `checkL1SealEvidence` 只剩远端 Android/iOS

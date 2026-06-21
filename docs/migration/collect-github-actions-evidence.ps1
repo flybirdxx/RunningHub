@@ -3,6 +3,9 @@ param(
     [string] $OutputDir = "docs/migration/evidence",
     [string] $HeadSha = "",
     [string] $Branch = "",
+    [switch] $Wait,
+    [int] $WaitTimeoutSeconds = 1800,
+    [int] $PollSeconds = 30,
     [switch] $SelfTest
 )
 
@@ -76,6 +79,77 @@ function Select-SuccessfulWorkflowRun {
     return $matches[0]
 }
 
+function Wait-SuccessfulWorkflowRun {
+    param(
+        [string] $Repository,
+        [string] $WorkflowName,
+        [string] $RequestedHeadSha,
+        [string] $RequestedBranch,
+        [int] $TimeoutSeconds,
+        [int] $PollIntervalSeconds,
+        [scriptblock] $RunProvider = $null
+    )
+
+    $startedAt = Get-Date
+    $deadline = $startedAt.AddSeconds([Math]::Max(1, $TimeoutSeconds))
+    $sleepSeconds = [Math]::Max(1, $PollIntervalSeconds)
+
+    while ($true) {
+        if ($null -ne $RunProvider) {
+            $runs = @(& $RunProvider)
+        } else {
+            $runs = Invoke-GhRunList -Repository $Repository -WorkflowName $WorkflowName
+        }
+
+        $matches = @($runs | Where-Object {
+            $_.workflowName -eq $WorkflowName
+        })
+
+        if (-not [string]::IsNullOrWhiteSpace($RequestedHeadSha)) {
+            $matches = @($matches | Where-Object { $_.headSha -eq $RequestedHeadSha })
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($RequestedBranch)) {
+            $matches = @($matches | Where-Object { $_.headBranch -eq $RequestedBranch })
+        }
+
+        $successful = @($matches | Where-Object {
+            $_.status -eq "completed" -and $_.conclusion -eq "success"
+        })
+        if ($successful.Count -gt 0) {
+            return $successful[0]
+        }
+
+        $completedFailures = @($matches | Where-Object {
+            $_.status -eq "completed" -and $_.conclusion -ne "success"
+        })
+        if ($completedFailures.Count -gt 0) {
+            $latestFailure = $completedFailures[0]
+            throw "Workflow '$WorkflowName' completed without success for target head. status=$($latestFailure.status) conclusion=$($latestFailure.conclusion) branch=$($latestFailure.headBranch) sha=$($latestFailure.headSha) url=$($latestFailure.url)"
+        }
+
+        $now = Get-Date
+        if ($now -ge $deadline) {
+            $latest = @($matches | Select-Object -First 5 | ForEach-Object {
+                "$($_.workflowName) status=$($_.status) conclusion=$($_.conclusion) branch=$($_.headBranch) sha=$($_.headSha)"
+            })
+            throw "Timed out waiting for successful completed run for '$WorkflowName'. Latest candidates: $($latest -join '; ')"
+        }
+
+        $elapsedSeconds = [int]($now - $startedAt).TotalSeconds
+        $latestStatus = @($matches | Select-Object -First 3 | ForEach-Object {
+            "status=$($_.status) conclusion=$($_.conclusion) branch=$($_.headBranch) sha=$($_.headSha)"
+        })
+        Write-Host "waiting workflow='$WorkflowName' status=in_progress elapsedSeconds=$elapsedSeconds latest=$($latestStatus -join '; ')"
+
+        if ($null -ne $RunProvider) {
+            throw "SelfTest wait provider did not return a completed successful run."
+        }
+
+        Start-Sleep -Seconds $sleepSeconds
+    }
+}
+
 function Save-GitHubActionsEvidence {
     param(
         [object] $Run,
@@ -146,15 +220,28 @@ function Save-WorkflowEvidence {
         [string] $WorkflowName,
         [string] $OutputPath,
         [string] $RequestedHeadSha,
-        [string] $RequestedBranch
+        [string] $RequestedBranch,
+        [bool] $ShouldWait,
+        [int] $TimeoutSeconds,
+        [int] $PollIntervalSeconds
     )
 
-    $runs = Invoke-GhRunList -Repository $Repository -WorkflowName $WorkflowName
-    $run = Select-SuccessfulWorkflowRun `
-        -Runs $runs `
-        -WorkflowName $WorkflowName `
-        -RequestedHeadSha $RequestedHeadSha `
-        -RequestedBranch $RequestedBranch
+    if ($ShouldWait) {
+        $run = Wait-SuccessfulWorkflowRun `
+            -Repository $Repository `
+            -WorkflowName $WorkflowName `
+            -RequestedHeadSha $RequestedHeadSha `
+            -RequestedBranch $RequestedBranch `
+            -TimeoutSeconds $TimeoutSeconds `
+            -PollIntervalSeconds $PollIntervalSeconds
+    } else {
+        $runs = Invoke-GhRunList -Repository $Repository -WorkflowName $WorkflowName
+        $run = Select-SuccessfulWorkflowRun `
+            -Runs $runs `
+            -WorkflowName $WorkflowName `
+            -RequestedHeadSha $RequestedHeadSha `
+            -RequestedBranch $RequestedBranch
+    }
 
     Save-GitHubActionsEvidence -Run $run -Path $OutputPath
     Assert-GitHubActionsEvidence -Path $OutputPath -WorkflowName $WorkflowName
@@ -213,9 +300,20 @@ function Invoke-SelfTest {
         -WorkflowName "iOS CI" `
         -RequestedHeadSha "expected-sha" `
         -RequestedBranch "feature/kmp-refactoring"
+    $waitSelected = Wait-SuccessfulWorkflowRun `
+        -Repository "flybirdxx/RunningHub" `
+        -WorkflowName "Android CI" `
+        -RequestedHeadSha "expected-sha" `
+        -RequestedBranch "feature/kmp-refactoring" `
+        -TimeoutSeconds 1 `
+        -PollIntervalSeconds 1 `
+        -RunProvider { $androidRuns }
 
     if ($selected.databaseId -ne 1001) {
         throw "SelfTest failed: unexpected run selected."
+    }
+    if ($waitSelected.databaseId -ne 1001) {
+        throw "SelfTest failed: unexpected waited run selected."
     }
     Assert-MatchingWorkflowHeadSha -AndroidRun $selected -IosRun $selectedIos
 
@@ -248,14 +346,20 @@ $androidRun = Save-WorkflowEvidence `
     -WorkflowName "Android CI" `
     -OutputPath $androidOutputPath `
     -RequestedHeadSha $resolvedHeadSha `
-    -RequestedBranch $Branch
+    -RequestedBranch $Branch `
+    -ShouldWait $Wait.IsPresent `
+    -TimeoutSeconds $WaitTimeoutSeconds `
+    -PollIntervalSeconds $PollSeconds
 
 $iosRun = Save-WorkflowEvidence `
     -Repository $Repo `
     -WorkflowName "iOS CI" `
     -OutputPath $iosOutputPath `
     -RequestedHeadSha $resolvedHeadSha `
-    -RequestedBranch $Branch
+    -RequestedBranch $Branch `
+    -ShouldWait $Wait.IsPresent `
+    -TimeoutSeconds $WaitTimeoutSeconds `
+    -PollIntervalSeconds $PollSeconds
 Assert-MatchingWorkflowHeadSha -AndroidRun $androidRun -IosRun $iosRun
 
 Write-Host "androidEvidence=$androidOutputPath"

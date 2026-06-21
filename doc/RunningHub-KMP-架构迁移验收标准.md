@@ -475,9 +475,9 @@ composeApp
 - [ ] 禁止秘密和构建产物检查。
 - [ ] PR 上显示明确状态，不允许无检查合并。
 
-当前 HEAD `f8075fc85639975e0b2829a650720d42cc680703` 已有可追溯的
-GitHub Actions 运行证据：`Android CI` run `27894118245` 与 `iOS CI`
-run `27894118250` 均为 completed/success。仓库已将运行编号、headSha 和
+当前 HEAD `6b08f372b2b86546250d34f4ebb5e6054e78b69e` 已有可追溯的
+GitHub Actions 运行证据：`Android CI` run `27895942083` 与 `iOS CI`
+run `27895942081` 均为 completed/success。仓库已将运行编号、headSha 和
 链接分别写入 `docs/migration/evidence/github-actions-android.json` 与
 `docs/migration/evidence/github-actions-ios.json`。
 
@@ -485,8 +485,12 @@ CI 成功记录仍不能替代最终 L1 封板证据。`checkL1SealEvidence` 还
 `docs/migration/evidence/ios-macos-link-and-simulator.md`，该文件必须由
 macOS runner 或 macOS 开发机执行 `docs/migration/collect-ios-macos-evidence.sh`
 生成，并包含 iOS framework link 通过和 Simulator 冒烟说明。
-最终封板时仓库还必须没有未暂存或已暂存差异；远端 CI、Android 运行观察和 macOS iOS
-证据都必须绑定到已经提交的当前 Git `HEAD`，不能用旧提交的成功记录证明仍停留在索引中的补丁。
+最终封板时仓库还必须没有未暂存差异，且已暂存差异只能是最终外部证据文件；远端 CI、
+Android 运行观察和 macOS iOS 证据都必须绑定到已经提交的当前代码 Git `HEAD`，
+不能用旧提交的成功记录证明仍停留在索引中的代码或配置补丁。
+若远端 Android/iOS workflow 已触发但尚未完成，使用
+`docs/migration/collect-github-actions-evidence.ps1 -Wait` 显式等待目标 `HEAD`
+的 completed/success 运行；默认采集命令仍快速失败，避免把排队或运行中的 CI 当成通过证据。
 
 Android 退出登录后的运行观察已补齐：`docs/migration/evidence/android-logout-network.json`
 记录 Profile 退出登录后回到 Login 根页面并空闲 125 秒，30 秒稳定窗口内
@@ -507,7 +511,7 @@ Xcode build 或 Simulator 运行证据。
 以下项目未完成前，不应宣布“架构迁移完成”：
 
 1. 最终封板仍缺 macOS iOS link/xcodebuild/Simulator Markdown 证据。
-2. 当前完整迁移补丁仍需提交后重新采集对应新 `HEAD` 的 Android/iOS CI 与 macOS iOS 证据。
+2. 当前完整代码和配置迁移补丁仍需提交后重新采集对应新 `HEAD` 的 Android/iOS CI 与 macOS iOS 证据。
 3. iOS 编译已有旧 `HEAD` 的 CI 证据，iOS Simulator 人工运行验收证据仍未补齐。
 4. Android 登录态 Tab 和退出登录后的稳定窗口网络证据已落盘；macOS iOS Simulator 仍需覆盖登录、退出和 QuickCreate 冒烟路径。
 
