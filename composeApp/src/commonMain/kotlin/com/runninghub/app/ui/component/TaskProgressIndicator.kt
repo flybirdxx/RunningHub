@@ -21,6 +21,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,18 +32,67 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.MaterialTheme
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.task_progress_indicator_completed_content_description
+import runninghub.composeapp.generated.resources.task_progress_indicator_elapsed_seconds_format
+import runninghub.composeapp.generated.resources.task_progress_indicator_failed_content_description
+import runninghub.composeapp.generated.resources.task_progress_indicator_status_completing
+import runninghub.composeapp.generated.resources.task_progress_indicator_status_failed
+import runninghub.composeapp.generated.resources.task_progress_indicator_status_idle
+import runninghub.composeapp.generated.resources.task_progress_indicator_status_queueing
+import runninghub.composeapp.generated.resources.task_progress_indicator_status_running
+import runninghub.composeapp.generated.resources.task_progress_indicator_status_submitting
+import runninghub.composeapp.generated.resources.task_progress_indicator_status_success
+import runninghub.composeapp.generated.resources.task_progress_indicator_step_complete
+import runninghub.composeapp.generated.resources.task_progress_indicator_step_generate
+import runninghub.composeapp.generated.resources.task_progress_indicator_step_queue
+import runninghub.composeapp.generated.resources.task_progress_indicator_step_submit
 
+/**
+ * AppDetail 任务进度条支持展示的阶段。
+ *
+ * 枚举顺序参与进度点完成态判断：后续阶段的 ordinal 大于前序阶段时，
+ * 对应步骤会被标记为已完成。因此新增或调整阶段时必须同步检查
+ * [TaskProgressIndicator] 中的进度比例和步骤完成条件。
+ */
 enum class TaskStep {
+    /** 任务尚未提交或进度条处于初始化状态。 */
     IDLE,
+
+    /** 正在把用户输入和媒体参数提交到远端任务接口。 */
     SUBMITTING,
+
+    /** 服务端已接收任务，正在等待调度执行。 */
     QUEUEING,
+
+    /** 远端 AI 任务正在生成输出内容。 */
     RUNNING,
+
+    /** 生成任务已接近终态，客户端等待服务端输出整理完成。 */
     COMPLETING,
+
+    /** 任务已成功完成，进度条展示完成态。 */
     SUCCESS,
+
+    /** 任务提交、排队、生成或收尾阶段失败，进度条展示失败态。 */
     FAILED
 }
 
+/**
+ * 渲染 AppDetail 任务提交后的阶段进度。
+ *
+ * 组件只接收 Presentation 层映射后的阶段和耗时秒数，不发起轮询或网络请求。
+ * 状态标题、步骤标签、耗时格式和图标无障碍描述统一来自 Compose Resources；
+ * 动画调试 label 不是用户可见文案，保留为稳定英文标识。
+ *
+ * @param currentStep 当前任务阶段，决定进度条比例、步骤完成态和状态标题。
+ * @param totalSteps 预留的步骤总数参数，当前视觉布局固定为提交、排队、生成、完成四步。
+ * 调用方不应依赖该参数改变布局。
+ * @param elapsedSeconds 已运行耗时，单位为秒；小于等于 `0` 时仍按传入值格式化，
+ * 是否展示由 [currentStep] 是否处于运行中阶段决定。
+ * @param modifier 外层调用方用于控制组件位置和尺寸的修饰符。
+ */
 @Composable
 fun TaskProgressIndicator(
     currentStep: TaskStep,
@@ -80,13 +130,13 @@ fun TaskProgressIndicator(
         ) {
             Text(
                 text = when (currentStep) {
-                    TaskStep.IDLE -> "准备中"
-                    TaskStep.SUBMITTING -> "提交任务中..."
-                    TaskStep.QUEUEING -> "排队等待"
-                    TaskStep.RUNNING -> "AI 生成中"
-                    TaskStep.COMPLETING -> "完成中"
-                    TaskStep.SUCCESS -> "生成完成"
-                    TaskStep.FAILED -> "任务失败"
+                    TaskStep.IDLE -> stringResource(Res.string.task_progress_indicator_status_idle)
+                    TaskStep.SUBMITTING -> stringResource(Res.string.task_progress_indicator_status_submitting)
+                    TaskStep.QUEUEING -> stringResource(Res.string.task_progress_indicator_status_queueing)
+                    TaskStep.RUNNING -> stringResource(Res.string.task_progress_indicator_status_running)
+                    TaskStep.COMPLETING -> stringResource(Res.string.task_progress_indicator_status_completing)
+                    TaskStep.SUCCESS -> stringResource(Res.string.task_progress_indicator_status_success)
+                    TaskStep.FAILED -> stringResource(Res.string.task_progress_indicator_status_failed)
                 },
                 color = MaterialTheme.colorScheme.onSurface,
                 fontSize = 15.sp,
@@ -101,7 +151,10 @@ fun TaskProgressIndicator(
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
-                        text = "${elapsedSeconds}s",
+                        text = stringResource(
+                            Res.string.task_progress_indicator_elapsed_seconds_format,
+                            elapsedSeconds,
+                        ),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
@@ -132,28 +185,28 @@ fun TaskProgressIndicator(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             StepIndicator(
-                label = "提交",
+                label = stringResource(Res.string.task_progress_indicator_step_submit),
                 isActive = currentStep == TaskStep.SUBMITTING,
                 isCompleted = currentStep.ordinal > TaskStep.SUBMITTING.ordinal,
                 isFailed = currentStep == TaskStep.FAILED
             )
             StepConnector(isActive = currentStep.ordinal > TaskStep.SUBMITTING.ordinal)
             StepIndicator(
-                label = "排队",
+                label = stringResource(Res.string.task_progress_indicator_step_queue),
                 isActive = currentStep == TaskStep.QUEUEING,
                 isCompleted = currentStep.ordinal > TaskStep.QUEUEING.ordinal,
                 isFailed = currentStep == TaskStep.FAILED
             )
             StepConnector(isActive = currentStep.ordinal > TaskStep.QUEUEING.ordinal)
             StepIndicator(
-                label = "生成",
+                label = stringResource(Res.string.task_progress_indicator_step_generate),
                 isActive = currentStep == TaskStep.RUNNING,
                 isCompleted = currentStep.ordinal > TaskStep.RUNNING.ordinal,
                 isFailed = currentStep == TaskStep.FAILED
             )
             StepConnector(isActive = currentStep.ordinal > TaskStep.RUNNING.ordinal)
             StepIndicator(
-                label = "完成",
+                label = stringResource(Res.string.task_progress_indicator_step_complete),
                 isActive = currentStep == TaskStep.COMPLETING,
                 isCompleted = currentStep == TaskStep.SUCCESS,
                 isFailed = currentStep == TaskStep.FAILED
@@ -162,6 +215,19 @@ fun TaskProgressIndicator(
     }
 }
 
+/**
+ * 渲染单个进度步骤的圆点、图标和标签。
+ *
+ * 三个布尔状态由 [TaskProgressIndicator] 根据 [TaskStep] 顺序计算：
+ * [isCompleted] 为 `true` 表示该步骤已经跨过并展示完成图标；
+ * [isFailed] 为 `true` 表示整条任务链路失败，步骤使用错误色和失败图标；
+ * [isActive] 为 `true` 表示任务当前停留在该步骤，圆点展示加载态。
+ *
+ * @param label 步骤标签，来自 Compose Resources，不在本函数内生成业务文案。
+ * @param isActive 当前步骤是否正在执行，`true` 时展示小型进度圈；`false` 表示不是当前执行点。
+ * @param isCompleted 当前步骤是否已经完成，`true` 时展示完成图标；`false` 表示尚未完成或失败态接管。
+ * @param isFailed 整体任务是否失败，`true` 时展示失败图标和错误色；`false` 表示按普通进度态渲染。
+ */
 @Composable
 private fun StepIndicator(
     label: String,
@@ -187,13 +253,17 @@ private fun StepIndicator(
             when {
                 isCompleted -> Icon(
                     Icons.Default.CheckCircle,
-                    contentDescription = "已完成",
+                    contentDescription = stringResource(
+                        Res.string.task_progress_indicator_completed_content_description,
+                    ),
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(16.dp)
                 )
                 isFailed -> Icon(
                     Icons.Default.Error,
-                    contentDescription = "失败",
+                    contentDescription = stringResource(
+                        Res.string.task_progress_indicator_failed_content_description,
+                    ),
                     tint = MaterialTheme.colorScheme.onError,
                     modifier = Modifier.size(16.dp)
                 )
@@ -219,6 +289,12 @@ private fun StepIndicator(
     }
 }
 
+/**
+ * 渲染两个任务步骤之间的连接线。
+ *
+ * @param isActive 连接线左侧步骤是否已经跨过，`true` 时使用主色表示链路推进；
+ * `false` 表示后续步骤尚未开始。
+ */
 @Composable
 private fun StepConnector(isActive: Boolean) {
     Box(

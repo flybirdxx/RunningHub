@@ -17,4 +17,18 @@
     <string name="quick_create_model_selector_close_content_description">关闭</string>
     <string name="quick_create_model_selector_loading">正在加载模型</string>
     <string name="quick_create_model_selector_empty">暂未获取到服务端模型，将继续使用本地兼容参数。</string>
+    <string name="task_progress_indicator_status_idle">准备中</string>
+    <string name="task_progress_indicator_status_submitting">提交任务中...</string>
+    <string name="task_progress_indicator_status_queueing">排队等待</string>
+    <string name="task_progress_indicator_status_running">AI 生成中</string>
+    <string name="task_progress_indicator_status_completing">完成中</string>
+    <string name="task_progress_indicator_status_success">生成完成</string>
+    <string name="task_progress_indicator_status_failed">任务失败</string>
+    <string name="task_progress_indicator_elapsed_seconds_format">%1$ds</string>
+    <string name="task_progress_indicator_step_submit">提交</string>
+    <string name="task_progress_indicator_step_queue">排队</string>
+    <string name="task_progress_indicator_step_generate">生成</string>
+    <string name="task_progress_indicator_step_complete">完成</string>
+    <string name="task_progress_indicator_completed_content_description">已完成</string>
+    <string name="task_progress_indicator_failed_content_description">失败</string>
 </resources>
