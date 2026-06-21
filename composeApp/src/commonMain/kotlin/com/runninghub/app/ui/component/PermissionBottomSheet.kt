@@ -1,7 +1,14 @@
 package com.runninghub.app.ui.component
 
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Folder
@@ -10,7 +17,14 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Videocam
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -22,7 +36,27 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.runninghub.core.storage.Permission
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.permission_bottom_sheet_authorize
+import runninghub.composeapp.generated.resources.permission_bottom_sheet_dont_ask_again
+import runninghub.composeapp.generated.resources.permission_bottom_sheet_not_now
+import runninghub.composeapp.generated.resources.permission_bottom_sheet_open_settings
 
+/**
+ * 展示跨平台权限请求的底部引导弹窗。
+ *
+ * 组件只承担权限说明、授权入口、跳转设置入口和“不再提示”选择的 UI 展示；
+ * 实际系统权限请求、永久拒绝记录和设置页跳转由调用方通过回调完成。
+ * [Permission.description] 是业务层为具体权限提供的说明文案，本组件不会重新映射；
+ * 弹窗自身的按钮、复选框和设置引导文案来自 Compose Resources。
+ *
+ * @param permission 当前需要解释和申请的业务权限，包含展示图标 key 与说明文案。
+ * @param onDismiss 用户关闭弹窗或选择暂不需要时触发，调用方应同步清理当前权限请求状态。
+ * @param onAuthorize 用户点击授权按钮时触发，调用方负责调用平台权限 API 并处理授权结果。
+ * @param onOpenSettings 当权限已被系统永久拒绝时使用；非空表示展示设置入口，由调用方打开系统设置。
+ * @param onDontAskAgain 当调用方需要记录“不再提示”选择时使用；非空时弹窗展示复选框。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PermissionBottomSheet(
@@ -62,7 +96,7 @@ fun PermissionBottomSheet(
 
             Spacer(Modifier.height(16.dp))
 
-            // "Don't ask again" checkbox
+            // “不再提示”只记录用户对当前业务引导的偏好，不等同于系统级永久拒绝。
             if (onDontAskAgain != null) {
                 Row(
                     modifier = Modifier
@@ -77,7 +111,7 @@ fun PermissionBottomSheet(
                     )
                     Spacer(Modifier.width(4.dp))
                     Text(
-                        text = "不再提示",
+                        text = stringResource(Res.string.permission_bottom_sheet_dont_ask_again),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -89,7 +123,7 @@ fun PermissionBottomSheet(
                 onClick = onAuthorize,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("授权")
+                Text(stringResource(Res.string.permission_bottom_sheet_authorize))
             }
 
             if (onOpenSettings != null) {
@@ -97,7 +131,7 @@ fun PermissionBottomSheet(
                     onClick = onOpenSettings,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("权限已被拒绝，前往设置开启")
+                    Text(stringResource(Res.string.permission_bottom_sheet_open_settings))
                 }
             } else {
                 TextButton(
@@ -107,7 +141,7 @@ fun PermissionBottomSheet(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("暂不需要")
+                    Text(stringResource(Res.string.permission_bottom_sheet_not_now))
                 }
             }
         }

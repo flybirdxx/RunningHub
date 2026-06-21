@@ -244,12 +244,18 @@ gate_status:
       - "2026-06-22 P8 QuickCreate 模型选择面板文案资源化继续收缩：标题、加载态、空态和关闭按钮无障碍描述迁入 composeApp commonMain Compose Resources；QuickCreateModelSelectorContent 硬编码文案基线从 1 下调为 0，模型名称、分组和副标题仍由 Presentation 状态提供。"
       - "2026-06-22 P8 TaskProgressIndicator 文案资源化继续收缩：任务阶段标题、耗时格式、步骤标签和完成/失败图标无障碍描述迁入 composeApp commonMain Compose Resources；TaskProgressIndicator 硬编码 UI 文案基线从 1 下调为 0，动画调试 label 仍保留英文非用户可见标识。"
       - "2026-06-22 P8 ImageUploadButton 文案资源化继续收缩：图片/视频/音频上传入口、点击上传提示、上传进度、失败重试提示、上传状态徽标和移除按钮无障碍描述迁入 composeApp commonMain Compose Resources；ImageUploadButton 硬编码 UI 文案基线从 2 下调为 0，文件名和 URL 派生名称仍作为运行时媒体数据展示。"
+      - "2026-06-22 P8 PermissionBottomSheet 文案资源化继续收缩：弹窗自有的不再提示、授权、设置引导和暂不需要操作文案迁入 composeApp commonMain Compose Resources；PermissionBottomSheet 硬编码 UI 文案基线从 4 下调为 0，Permission.description 仍由 core/storage 权限模型提供。"
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件和部分叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估 PermissionBottomSheet 等剩余小文件的 UI 文案资源化；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件和部分叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估剩余小文件、叶子 UI 或 Presentation 文案端口的资源化边界；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "composeApp/src/commonMain/composeResources/values/strings.xml"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/PermissionBottomSheet.kt"
+    - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
     - "composeApp/src/commonMain/composeResources/values/strings.xml"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/ImageUploadButton.kt"
     - "docs/governance/ui-copy-hardcoded-baseline.txt"
@@ -568,6 +574,12 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering PermissionBottomSheet hardcoded UI copy baseline from 4 to 0 before resource migration"
+    - "./gradlew.bat --console=plain checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"
+    - "./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64"
+    - "./gradlew.bat --console=plain :composeApp:assembleDebug"
+    - "git diff --check"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering ImageUploadButton hardcoded UI copy baseline from 2 to 0 before resource migration"
     - "./gradlew.bat --console=plain checkLongTermGovernance"
     - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"

@@ -43,4 +43,8 @@
     <string name="image_upload_button_uploaded_badge">已上传</string>
     <string name="image_upload_button_local_preview_badge">本地预览</string>
     <string name="image_upload_button_remove_content_description">移除</string>
+    <string name="permission_bottom_sheet_dont_ask_again">不再提示</string>
+    <string name="permission_bottom_sheet_authorize">授权</string>
+    <string name="permission_bottom_sheet_open_settings">权限已被拒绝，前往设置开启</string>
+    <string name="permission_bottom_sheet_not_now">暂不需要</string>
 </resources>
