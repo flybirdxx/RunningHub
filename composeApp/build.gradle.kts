@@ -32,6 +32,7 @@ kotlin {
             implementation(projects.feature.community.domain)
             implementation(projects.feature.community.presentation)
             implementation(projects.feature.discovery.domain)
+            implementation(projects.feature.discovery.presentation)
             implementation(projects.feature.task.domain)
             implementation(projects.feature.task.presentation)
             implementation(projects.feature.quickcreate.domain)

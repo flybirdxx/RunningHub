@@ -49,7 +49,12 @@
 
 # 二、必须先处理的高优先级问题
 
-## P0-1 当前 HEAD 的 CI 与验收证据需要重新生成
+> 当前执行口径（2026-06-22）：项目仍处于中期开发和框架整理阶段。
+> 本节中的 CI 证据、Release 和 L1 封板项保留为未来恢复封板或发布验收时的标准；
+> 当前迭代优先落地 Presentation/Data/Core 边界整理，并按影响范围执行模块测试、
+> 架构边界和必要 Android/iOS Kotlin 编译。
+
+## P0-1 当前 HEAD 的 CI 与验收证据需要重新生成（封板时处理）
 
 当前 HEAD 为：
 
@@ -502,7 +507,8 @@ Logout 只清理认证凭据和用户级缓存，不应无差别删除用户草�
 普通 commonMain 变更：
 
 ```bash
-./gradlew checkArchitectureBoundaries verifyL1Android
+./gradlew checkArchitectureBoundaries
+# 再按影响模块执行对应单元测试和 Android/iOS Kotlin 编译。
 ```
 
 涉及 iOS/expect-actual/平台依赖：
@@ -604,7 +610,7 @@ chore(scope): ...
 [ ] 平台功能完成对应运行验证
 [ ] 未泄露敏感信息
 [ ] 文档与实际代码一致
-[ ] CI 绑定当前提交 SHA
+[ ] 封板或发布任务中，CI 绑定当前提交 SHA
 ```
 
 ---
@@ -614,7 +620,7 @@ chore(scope): ...
 ## 近期：1～2 个迭代
 
 1. 修复可信 Host 判断。
-2. 为当前 HEAD 重新生成 Android/iOS CI 证据。
+2. 继续拆分达到阈值的 Feature Presentation，避免 `composeApp` 重新变成 UI 单体。
 3. 实现真实 iOS 权限和媒体选择。
 4. 验证新 WKWebView 验证码流程。
 5. 统一迁移文档结论，移除“已完成/待完成”矛盾。

@@ -10,7 +10,6 @@ import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaTy
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
-import com.runninghub.app.ui.feature.discovery.DiscoveryUiState
 import com.runninghub.app.ui.feature.search.SearchUiState
 import com.runninghub.core.model.AppDetail
 import com.runninghub.core.model.Author
@@ -25,6 +24,7 @@ import com.runninghub.core.model.User
 import com.runninghub.core.model.WalletInfo
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogSort
+import com.runninghub.feature.discovery.presentation.DiscoveryUiState
 import com.runninghub.feature.auth.presentation.profile.ProfileUiState
 import com.runninghub.feature.task.presentation.TaskHistoryEntry
 import com.runninghub.feature.task.presentation.TaskHistoryFilter

@@ -1,4 +1,4 @@
-package com.runninghub.app.ui.feature.discovery
+package com.runninghub.feature.discovery.presentation
 
 import com.runninghub.core.model.AppDetail
 import com.runninghub.core.model.Author
@@ -26,7 +26,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class DiscoveryScreenModelTest {
+class DiscoveryStateHolderTest {
     private val dispatcher = StandardTestDispatcher()
 
     @BeforeTest
@@ -42,7 +42,7 @@ class DiscoveryScreenModelTest {
     @Test
     fun `category index zero means all and first real category starts at one`() = runTest(dispatcher) {
         val repository = FakeWebAppCatalogRepository()
-        val screenModel = DiscoveryScreenModel(repository)
+        val screenModel = DiscoveryStateHolder(repository, this)
 
         screenModel.loadInitialData()
         advanceUntilIdle()
@@ -59,7 +59,7 @@ class DiscoveryScreenModelTest {
     @Test
     fun `delayed category response does not overwrite latest category result`() = runTest(dispatcher) {
         val repository = FakeWebAppCatalogRepository()
-        val screenModel = DiscoveryScreenModel(repository)
+        val screenModel = DiscoveryStateHolder(repository, this)
         screenModel.loadInitialData()
         advanceUntilIdle()
 
@@ -83,7 +83,7 @@ class DiscoveryScreenModelTest {
     @Test
     fun `delayed sort response does not overwrite latest sort result`() = runTest(dispatcher) {
         val repository = FakeWebAppCatalogRepository()
-        val screenModel = DiscoveryScreenModel(repository)
+        val screenModel = DiscoveryStateHolder(repository, this)
         screenModel.loadInitialData()
         advanceUntilIdle()
 
@@ -107,7 +107,7 @@ class DiscoveryScreenModelTest {
     @Test
     fun `load more appends by stable id and failure does not advance page`() = runTest(dispatcher) {
         val repository = FakeWebAppCatalogRepository()
-        val screenModel = DiscoveryScreenModel(repository)
+        val screenModel = DiscoveryStateHolder(repository, this)
         screenModel.loadInitialData()
         advanceUntilIdle()
 
@@ -129,7 +129,7 @@ class DiscoveryScreenModelTest {
     @Test
     fun `refresh preserves selected filter`() = runTest(dispatcher) {
         val repository = FakeWebAppCatalogRepository()
-        val screenModel = DiscoveryScreenModel(repository)
+        val screenModel = DiscoveryStateHolder(repository, this)
         screenModel.loadInitialData()
         advanceUntilIdle()
         screenModel.selectCategory(1)
@@ -150,7 +150,7 @@ class DiscoveryScreenModelTest {
     @Test
     fun `catalog server message is mapped to stable presentation error`() = runTest(dispatcher) {
         val repository = FakeWebAppCatalogRepository()
-        val screenModel = DiscoveryScreenModel(repository)
+        val screenModel = DiscoveryStateHolder(repository, this)
         repository.enqueueAppListResult(Result.failure(CatalogError.Remote(code = 500, serverMessage = "raw server msg")))
 
         screenModel.loadInitialData()
@@ -162,7 +162,7 @@ class DiscoveryScreenModelTest {
     @Test
     fun `delayed search response does not overwrite latest keyword result`() = runTest(dispatcher) {
         val repository = FakeWebAppCatalogRepository()
-        val screenModel = DiscoveryScreenModel(repository)
+        val screenModel = DiscoveryStateHolder(repository, this)
 
         val oldSearch = repository.enqueueSearchResponse()
         val newSearch = repository.enqueueSearchResponse()

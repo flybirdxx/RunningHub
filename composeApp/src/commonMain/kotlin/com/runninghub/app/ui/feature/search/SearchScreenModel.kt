@@ -2,10 +2,10 @@ package com.runninghub.app.ui.feature.search
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import com.runninghub.app.ui.feature.discovery.toCatalogErrorMessage
 import com.runninghub.core.model.Tag
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
+import com.runninghub.feature.discovery.presentation.toCatalogErrorMessage
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow

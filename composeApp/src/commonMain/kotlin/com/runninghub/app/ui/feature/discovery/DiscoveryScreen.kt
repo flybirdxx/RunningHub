@@ -103,6 +103,8 @@ import com.runninghub.core.model.Tag
 import com.runninghub.core.model.TagSimple
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogSort
+import com.runninghub.feature.discovery.presentation.DiscoveryUiState
+import com.runninghub.feature.discovery.presentation.label
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -224,9 +226,10 @@ private fun DiscoveryContent(
             return@Scaffold
         }
 
-        if (uiState.error != null && uiState.apps.isEmpty()) {
+        val discoveryError = uiState.error
+        if (discoveryError != null && uiState.apps.isEmpty()) {
             ErrorState(
-                message = uiState.error,
+                message = discoveryError,
                 modifier = Modifier.padding(padding),
                 onRetry = onRefresh,
             )
@@ -381,8 +384,9 @@ private fun InlineSearchResults(
                 LoadingIndicator(modifier = Modifier.fillMaxWidth().height(200.dp))
             }
             uiState.searchError != null && uiState.searchResults.isEmpty() -> {
+                val searchError = uiState.searchError.orEmpty()
                 ErrorState(
-                    message = uiState.searchError,
+                    message = searchError,
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                     onRetry = { onLoadMore() },
                 )

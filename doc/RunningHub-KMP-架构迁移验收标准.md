@@ -516,9 +516,11 @@ Xcode build 或 Simulator 运行证据。
 1. 当前完整代码和配置迁移补丁必须先提交，并重新采集对应新 `HEAD` 的 Android/iOS CI 与外部证据。
 2. `checkL1SealEvidence` 必须通过，且 staged 差异只能是五个外部证据文件。
 
-当前状态：上述 L1 阻塞项已通过提交后补证流程清除。macOS iOS link/xcodebuild/Simulator
-当前按用户确认以 `overallResult: skipped` 留存风险证据，这不是 iOS runtime pass，
-后续具备 macOS 环境后仍应替换为 `overallResult: pass`，作为 L2 前补验项。
+当前执行口径：2026-06-22 用户已明确当前代码仍处于中期开发阶段，
+暂不继续补上线级 CI、Release 或 L1 封板外部证据。上述条目保留为未来恢复
+L1 封板任务时的判定标准；当前中期代码整理只按影响范围执行模块单测、
+架构边界和必要 Android/iOS Kotlin 编译。macOS iOS link/xcodebuild/Simulator
+若仍以 `overallResult: skipped` 留存，只能作为风险记录，不能解读为 iOS runtime pass。
 
 ---
 

@@ -8,7 +8,7 @@
 
 - 新增长期治理规则放入 `LongTermGovernancePlugin`，由 `checkLongTermGovernance` 统一执行。
 - `docs/governance/build-script-baseline.txt` 锁定根 `build.gradle.kts` 行数，防止继续增长。
-- 根脚本仍暂存既有 L1 Gate 聚合入口，避免一次性大迁移影响当前封板补证。
+- 根脚本仍暂存既有 L1 Gate 聚合入口；待未来恢复封板补证或执行构建脚本迁出任务时再分步处理。
 
 ## 迁出顺序
 

@@ -1,19 +1,20 @@
 updated_at: "2026-06-22"
 acceptance_source: "doc/RunningHub-KMP-架构迁移验收标准.md"
 baseline: "5f62cca0f1b2c0ad24a8ec12e963185d259f3636"
-active_level: "L1 架构迁移封板"
+active_level: "中期架构整理"
 active_task:
-  id: "AC-11"
-  title: "执行双端回归并封板 L1"
-  gate: "Gate A-J"
-  status: "pending_current_head_external_evidence"
+  id: "MID-01"
+  title: "按复核长期建议继续拆分 Presentation/Data/Core 边界"
+  gate: "中期治理"
+  status: "in_progress"
   owner: "Codex"
   scope:
-    - "汇总 Gate A-J 已有证据。"
-    - "执行 Android 与 iOS 可用回归命令。"
-    - "记录无法自动化的人工验收路径和剩余风险。"
+    - "继续把达到规模阈值的 composeApp Feature 状态机迁入独立 Presentation 模块。"
+    - "按影响范围执行模块测试、架构边界和必要 Android/iOS Kotlin 编译。"
+    - "同步记录本轮代码验证结果和未验证风险。"
   out_of_scope:
-    - "正式签名、Release 安装回归、真机安全存储升级回归和生产验收 L2，归 AC-12。"
+    - "暂不补上线级 CI、Release、Branch Protection 或 L1 封板外部证据。"
+    - "正式签名、Release 安装回归、真机安全存储升级回归和生产验收 L2，归后续发布任务。"
 gate_status:
   Gate A 构建系统唯一性:
     status: "completed"
@@ -88,7 +89,7 @@ gate_status:
       - "搜索按请求版本隔离关键词和分页旧响应，清空或收起搜索会使旧请求失效。"
       - "主列表和搜索分页追加均按 WebApp.id 去重。"
       - "加载更多失败不会推进 currentPage，刷新会保留当前分类和排序筛选。"
-      - "新增 DiscoveryScreenModelTest 覆盖 index 0 语义、分类旧响应、排序旧响应、分页去重、分页失败、刷新保留筛选、搜索旧响应和目录错误文案映射。"
+      - "feature:discovery:presentation 的 DiscoveryStateHolderTest 覆盖 index 0 语义、分类旧响应、排序旧响应、分页去重、分页失败、刷新保留筛选、搜索旧响应和目录错误文案映射；composeApp 的 DiscoveryScreenModel 仅保留 Voyager 生命周期适配。"
     remaining: []
   Gate F QuickCreate:
     status: "completed"
@@ -239,10 +240,22 @@ gate_status:
       - "本轮按复核建议补强环境配置治理：core/network 暴露 ApiEnvironment，RunningHubApiEnvironment 不再依赖编译期 URL 常量，Android/iOS runtime module 在平台启动层注入当前环境；checkArchitectureBoundaries 已纳入该注入链路自检。"
     remaining: []
 next_action:
-  id: "AC-11"
-  description: "本地 P0 修复和 Windows 可执行门禁已完成；L1 封板仍等待提交后新 HEAD 的 Android/iOS GitHub Actions 证据、macOS iOS link/xcodebuild/Simulator 证据，并要求 checkL1SealEvidence 通过。完成后进入 AC-12：真机安全存储升级回归、正式签名、Release 安装回归、staging/dev 真实地址绑定、App Store 隐私表单人工确认和生产验收 L2。"
+  id: "MID-02"
+  description: "继续中期框架整理：优先处理仍留在 composeApp 的大体量 UI Feature，下一候选为 detail/AppDetail 或 Login Presentation 抽离；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "settings.gradle.kts"
+    - "composeApp/build.gradle.kts"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/discovery/DiscoveryScreen.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/discovery/DiscoveryScreenModel.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/search/SearchScreenModel.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/adaptive/RhPreviewData.kt"
+    - "feature/discovery/presentation/build.gradle.kts"
+    - "feature/discovery/presentation/src/commonMain/kotlin/com/runninghub/feature/discovery/presentation/CatalogErrorMessages.kt"
+    - "feature/discovery/presentation/src/commonMain/kotlin/com/runninghub/feature/discovery/presentation/DiscoveryStateHolder.kt"
+    - "feature/discovery/presentation/src/commonTest/kotlin/com/runninghub/feature/discovery/presentation/DiscoveryStateHolderTest.kt"
+    - "docs/governance/feature-presentation-thresholds.txt"
+    - "docs/governance/build-logic-migration.md"
     - "build.gradle.kts"
     - "doc/RunningHub-KMP-架构迁移验收标准.md"
     - "composeApp/build.gradle.kts"
@@ -449,6 +462,7 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain :feature:discovery:presentation:testDebugUnitTest :feature:discovery:presentation:compileDebugKotlinAndroid :feature:discovery:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid"
     - "./gradlew.bat --console=plain :core:common:testDebugUnitTest :core:common:compileKotlinIosSimulatorArm64 :feature:auth:data:testDebugUnitTest :feature:auth:data:compileKotlinIosSimulatorArm64"
     - "$matches = rg 'com\\.runninghub\\.shared|project\\(\":shared\"\\)|projects\\.shared' feature/auth/data -g '*.kt' -g '*.kts'; if ($LASTEXITCODE -eq 1) { 'feature auth data has no shared refs' } else { $matches; exit $LASTEXITCODE }"
     - "rg 'AuthRepositoryImpl|UserRepositoryImpl|SessionRestoreRepositoryImpl|ProfileCredentialRepositoryImpl|BalanceSnapshotRepositoryImpl|GetLastKnownBalanceUseCase|single<AuthRepository>|single<UserRepository>|single<SessionRestoreRepository>|single<ProfileCredentialRepository>|single<BalanceSnapshotRepository>' shared/src/commonMain/kotlin/com/runninghub/shared/di/SharedModule.kt feature/auth/data/src/commonMain/kotlin/com/runninghub/feature/auth/data/di/AuthDataModule.kt"
@@ -733,6 +747,8 @@ last_verification:
     - "2026-06-22 Task Presentation 中期验收通过：:feature:task:presentation:testDebugUnitTest、:feature:task:presentation:compileDebugKotlinAndroid、:composeApp:compileDebugKotlinAndroid 和 :feature:task:presentation:compileKotlinIosSimulatorArm64 均已通过；本轮未补上线 CI 或 release 封板证据。"
     - "2026-06-22 中期瘦身继续推进：新增 feature:auth:presentation，把 ProfileUiState、ProfileStateHolder、用户资料刷新、个人中心凭据绑定/解绑和注销后的状态清理迁出 composeApp；composeApp ProfileScreenModel 只保留 Voyager 生命周期适配职责，ProfileStateHolderTest 迁入 Auth Presentation 模块。"
     - "2026-06-22 Auth Profile Presentation 中期验收通过：:feature:auth:presentation:testDebugUnitTest、:feature:auth:presentation:compileDebugKotlinAndroid、:feature:auth:presentation:compileKotlinIosSimulatorArm64 和 :composeApp:compileDebugKotlinAndroid 均已通过；本轮未补上线 CI、Release 或 L1 封板证据。"
+    - "2026-06-22 中期瘦身继续推进：新增 feature:discovery:presentation，把 DiscoveryUiState、DiscoveryStateHolder、排序展示名、目录错误文案、分类/排序/分页/搜索状态机和旧响应隔离迁出 composeApp；composeApp DiscoveryScreenModel 只保留 Voyager 生命周期适配职责，DiscoveryStateHolderTest 迁入 Discovery Presentation 模块。"
+    - "2026-06-22 Discovery Presentation 中期验收通过：:feature:discovery:presentation:testDebugUnitTest、:feature:discovery:presentation:compileDebugKotlinAndroid、:feature:discovery:presentation:compileKotlinIosSimulatorArm64 和 :composeApp:compileDebugKotlinAndroid 均已通过；本轮未补上线 CI、Release 或 L1 封板证据。"
     - "Gate G 本轮补齐登录态 Android Tab 网络观察证据：连接设备 2211133C 已成功安装并启动 com.runninghub.app.debug，UI dump 确认处于主界面；observe-tab-network.ps1 记录 120 秒登录态 Discover/History/Create/Plaza/Profile 操作路径，生成 android-tab-network.json，sampleCount=116、result=pass_candidate、stableWindowStartedDelta=0、stableWindowMaxInFlight=0、stableWindowSampleCount=30。"
     - "Gate J 早前复跑 checkL1SealEvidence，Android 登录态 Tab 网络观察证据已通过结构化校验；当时任务仍按预期失败，剩余缺口为 Android GitHub Actions、iOS GitHub Actions、macOS iOS link/Simulator 三个外部证据文件。"
     - "Gate J 本轮调整 .gitignore：保留全局 *.json 忽略规则，同时放行 docs/migration/evidence/*.json，避免最终封板要求的结构化证据必须使用 git add -f 才能入索引。"
