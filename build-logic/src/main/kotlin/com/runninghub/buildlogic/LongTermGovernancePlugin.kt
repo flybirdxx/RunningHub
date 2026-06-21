@@ -157,7 +157,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     )
                     requireDocumentSnippets(
                         relativePath = "docs/governance/feature-presentation-thresholds.txt",
-                        snippets = listOf("feature|maxLines|reason", "history|", "login|", "plaza|", "profile|"),
+                        snippets = listOf("feature|maxLines|reason", "history|", "login|", "profile|"),
                         violations = violations,
                     )
                     requireDocumentSnippets(

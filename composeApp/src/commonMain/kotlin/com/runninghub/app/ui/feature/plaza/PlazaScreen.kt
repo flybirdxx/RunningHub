@@ -54,13 +54,13 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.theme.BrandLime
-import com.runninghub.app.ui.theme.RhAppBackground
-import com.runninghub.app.ui.theme.RhAppCard
-import com.runninghub.app.ui.theme.RhAppLine
-import com.runninghub.app.ui.theme.RhAppMuted
-import com.runninghub.app.ui.theme.RhAppSelected
-import com.runninghub.app.ui.theme.RhAppSurface
-import com.runninghub.app.ui.theme.RhAppText
+import com.runninghub.app.ui.theme.RhAppBackground as RhBackground
+import com.runninghub.app.ui.theme.RhAppCard as RhCard
+import com.runninghub.app.ui.theme.RhAppLine as RhLine
+import com.runninghub.app.ui.theme.RhAppMuted as RhMuted
+import com.runninghub.app.ui.theme.RhAppSelected as RhSelected
+import com.runninghub.app.ui.theme.RhAppSurface as RhSurface
+import com.runninghub.app.ui.theme.RhAppText as RhText
 import com.runninghub.app.ui.theme.StatusError
 import com.runninghub.feature.community.domain.PlazaCreationCard
 import com.runninghub.feature.community.domain.PlazaShortCard
@@ -691,11 +691,3 @@ private fun ErrorPanel(message: String) {
         )
     }
 }
-
-private val RhBackground = RhAppBackground
-private val RhSurface = RhAppSurface
-private val RhCard = RhAppCard
-private val RhSelected = RhAppSelected
-private val RhLine = RhAppLine
-private val RhText = RhAppText
-private val RhMuted = RhAppMuted

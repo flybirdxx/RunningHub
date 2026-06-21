@@ -270,6 +270,7 @@ gate_status:
       - "2026-06-22 P8 UI 文案基线继续清账：PlazaScreen 和 QuickCreateClassicComposerContent 当前硬编码文案匹配数已为 0，删除对应 0/0 legacy baseline；后续若这两个文件重新引入硬编码中文 UI 文案，将作为未登记新增文件触发 checkLongTermGovernance 失败。"
       - "2026-06-22 P2 根构建脚本基线继续收紧：build.gradle.kts 当前实际行数为 1789，build-script-baseline 从 1800 下调到 1789，并同步 LongTermGovernancePlugin 文档片段检查，防止中期开发继续把新验收逻辑堆回根脚本。"
       - "2026-06-22 P8 UI 文案基线继续清账：删除 composeApp/commonMain 中剩余所有 0/0 硬编码 UI 文案基线，并把 LongTermGovernancePlugin 的 ui-copy baseline 文档锚点改为仍有正数基线的 QuickCreateErrorMessages 与 CatalogErrorMessages；后续 composeApp 文件重新出现硬编码中文 UI 文案时会按未登记新增文件失败。"
+      - "2026-06-22 P5 Feature Presentation 阈值继续清账：PlazaScreen 使用 import alias 替代末尾本地颜色别名，Plaza UI 壳体总行数从 805 降到 797；状态机仍由 feature:community:presentation 持有，feature-presentation-thresholds 移除 plaza 基线，后续 plaza 若重新超过 800 行且无进一步拆分会被 checkLongTermGovernance 拦截。"
     remaining: []
 next_action:
   id: "MID-02"
