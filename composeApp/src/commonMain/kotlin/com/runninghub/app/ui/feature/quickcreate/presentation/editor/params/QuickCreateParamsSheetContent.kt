@@ -61,6 +61,15 @@ import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServi
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceUploadMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_params_close_content_description
+import runninghub.composeapp.generated.resources.quick_create_params_local_models_title
+import runninghub.composeapp.generated.resources.quick_create_params_realistic_mode
+import runninghub.composeapp.generated.resources.quick_create_params_seed_label
+import runninghub.composeapp.generated.resources.quick_create_params_seed_random_placeholder
+import runninghub.composeapp.generated.resources.quick_create_params_service_params_title
+import runninghub.composeapp.generated.resources.quick_create_params_sheet_title
 
 /**
  * 展示当前快捷创作入口使用的“更多参数”底部面板。
@@ -118,7 +127,10 @@ internal fun QuickCreateParamsSheet(
                     .navigationBarsPadding()
                     .padding(bottom = Dimens.SpaceLG),
             ) {
-                ParamsSheetHeader(title = "更多参数", onDismiss = onDismiss)
+                ParamsSheetHeader(
+                    title = stringResource(Res.string.quick_create_params_sheet_title),
+                    onDismiss = onDismiss,
+                )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -178,7 +190,7 @@ private fun ParamsSheetHeader(title: String, onDismiss: () -> Unit) {
         ) {
             Icon(
                 Icons.Default.Close,
-                contentDescription = "关闭",
+                contentDescription = stringResource(Res.string.quick_create_params_close_content_description),
                 tint = Neutral500,
                 modifier = Modifier.size(18.dp),
             )
@@ -214,7 +226,7 @@ private fun ImageParamsContent(
             }
 
         Text(
-            text = "本地兼容模型",
+            text = stringResource(Res.string.quick_create_params_local_models_title),
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             color = Primary300,
@@ -288,7 +300,7 @@ private fun VideoParamsContent(
             }
 
         ToggleChip(
-            label = "真人模式",
+            label = stringResource(Res.string.quick_create_params_realistic_mode),
             enabled = realistic,
             onClick = onRealisticToggle,
             modifier = Modifier.fillMaxWidth(),
@@ -322,7 +334,7 @@ internal fun ServiceFieldOptionsContent(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
         Text(
-            text = "服务端参数",
+            text = stringResource(Res.string.quick_create_params_service_params_title),
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
             color = Primary300,
@@ -482,7 +494,7 @@ internal fun SeedInput(seed: Int?, onSeedChange: (Int?) -> Unit) {
     var text by remember(seed) { mutableStateOf(seed?.toString() ?: "") }
 
     Text(
-        text = "Seed（留空为随机）",
+        text = stringResource(Res.string.quick_create_params_seed_label),
         fontSize = 12.sp,
         fontWeight = FontWeight.SemiBold,
         color = Primary300,
@@ -495,7 +507,13 @@ internal fun SeedInput(seed: Int?, onSeedChange: (Int?) -> Unit) {
             val num = newVal.toIntOrNull()
             onSeedChange(num)
         },
-        placeholder = { Text("随机", color = Neutral500, fontSize = 13.sp) },
+        placeholder = {
+            Text(
+                stringResource(Res.string.quick_create_params_seed_random_placeholder),
+                color = Neutral500,
+                fontSize = 13.sp,
+            )
+        },
         singleLine = true,
         shape = RoundedCornerShape(Dimens.RadiusSM),
         colors = OutlinedTextFieldDefaults.colors(

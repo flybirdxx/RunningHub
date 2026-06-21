@@ -23,7 +23,7 @@ composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/Quick
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateMediaUploadCoordinator.kt|1|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateClassicComposerContent.kt|2|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateCompactComposerContent.kt|2|legacy hardcoded UI copy baseline
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/params/QuickCreateParamsSheetContent.kt|4|legacy hardcoded UI copy baseline
+composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/params/QuickCreateParamsSheetContent.kt|0|QuickCreate params sheet copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/history/QuickCreateHistoryContent.kt|3|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/inspiration/QuickCreateInspirationContent.kt|0|QuickCreate inspiration action copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/modelselector/QuickCreateModelSelectorContent.kt|0|QuickCreate model selector sheet copy moved to Compose Resources

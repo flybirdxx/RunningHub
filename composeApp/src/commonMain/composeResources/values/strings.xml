@@ -111,4 +111,11 @@
     <string name="search_end_of_results">没有更多了</string>
     <string name="search_hot_content_description">热门</string>
     <string name="search_hot_tags_title">热门标签</string>
+    <string name="quick_create_params_sheet_title">更多参数</string>
+    <string name="quick_create_params_close_content_description">关闭</string>
+    <string name="quick_create_params_local_models_title">本地兼容模型</string>
+    <string name="quick_create_params_realistic_mode">真人模式</string>
+    <string name="quick_create_params_service_params_title">服务端参数</string>
+    <string name="quick_create_params_seed_label">Seed（留空为随机）</string>
+    <string name="quick_create_params_seed_random_placeholder">随机</string>
 </resources>
