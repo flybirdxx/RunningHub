@@ -241,12 +241,18 @@ gate_status:
       - "2026-06-22 P8 UI 文案资源化中期收缩：Community 页头标题和副标题迁入 composeApp commonMain Compose Resources，CommunityScreen 硬编码 UI 文案基线从 2 下调为 0；工具卡片目录文案仍按 Presentation 模块节奏后续迁移。"
       - "2026-06-22 P8 UI 文案资源化继续收缩：QuickCreate 结果页标题/清空结果入口、灵感页空状态/加载更多入口迁入 composeApp commonMain Compose Resources；对应两个叶子 UI 文件硬编码文案基线从 1 下调为 0。"
       - "2026-06-22 P8 通用组件文案资源化继续收缩：AppBarLogo、AppCard、CollapsibleSection、ErrorState 和 SmartAsyncImage 的静态文案、格式化单位和无障碍描述迁入 composeApp commonMain Compose Resources；对应硬编码文案基线均从 1 下调为 0。"
+      - "2026-06-22 P8 QuickCreate 模型选择面板文案资源化继续收缩：标题、加载态、空态和关闭按钮无障碍描述迁入 composeApp commonMain Compose Resources；QuickCreateModelSelectorContent 硬编码文案基线从 1 下调为 0，模型名称、分组和副标题仍由 Presentation 状态提供。"
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件和部分叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估 QuickCreateModelSelectorContent 或 TaskProgressIndicator 等剩余小文件的 UI 文案资源化；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件和部分叶子 UI 文案已完成 Compose Resources 试点，下一步优先评估 TaskProgressIndicator 等剩余小文件的 UI 文案资源化；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
+    - "composeApp/src/commonMain/composeResources/values/strings.xml"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/modelselector/QuickCreateModelSelectorContent.kt"
+    - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
     - "composeApp/src/commonMain/composeResources/values/strings.xml"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/AppBarLogo.kt"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component/AppCard.kt"
@@ -550,6 +556,12 @@ last_verification:
     - "shared/src/androidMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
     - "shared/src/iosMain/kotlin/com/runninghub/shared/data/local/PermissionDataStoreImpl.kt"
   commands:
+    - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering QuickCreateModelSelectorContent hardcoded UI copy baseline from 1 to 0 before resource migration"
+    - "./gradlew.bat --console=plain checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"
+    - "./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64"
+    - "./gradlew.bat --console=plain :composeApp:assembleDebug"
+    - "git diff --check"
     - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after lowering five common component hardcoded UI copy baselines from 1 to 0 before resource migration"
     - "./gradlew.bat --console=plain checkLongTermGovernance"
     - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid"

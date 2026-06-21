@@ -13,4 +13,8 @@
     <string name="collapsible_section_expand_hint">点击展开</string>
     <string name="error_state_retry_action">重试</string>
     <string name="smart_async_image_error">图片加载失败</string>
+    <string name="quick_create_model_selector_title">选择模型</string>
+    <string name="quick_create_model_selector_close_content_description">关闭</string>
+    <string name="quick_create_model_selector_loading">正在加载模型</string>
+    <string name="quick_create_model_selector_empty">暂未获取到服务端模型，将继续使用本地兼容参数。</string>
 </resources>

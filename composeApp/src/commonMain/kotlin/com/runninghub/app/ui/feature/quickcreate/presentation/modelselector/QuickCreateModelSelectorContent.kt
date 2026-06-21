@@ -43,6 +43,12 @@ import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_model_selector_close_content_description
+import runninghub.composeapp.generated.resources.quick_create_model_selector_empty
+import runninghub.composeapp.generated.resources.quick_create_model_selector_loading
+import runninghub.composeapp.generated.resources.quick_create_model_selector_title
 
 /**
  * 展示快捷创作的服务端模型选择面板。
@@ -50,6 +56,8 @@ import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateS
  * 该组件属于 modelselector 子区域，只读取 [QuickCreateUiState] 中已经加载好的模型列表、
  * 当前选中模型和加载状态。模型选择通过回调交给 ScreenModel/ModelCatalogInteractor，
  * 组件自身不发起网络请求，也不写入当前创作配置。
+ * 面板标题、加载态、空态和关闭按钮无障碍描述使用 Compose Resources；模型名称、
+ * 分组和副标题来自 Presentation 状态，避免 UI 层重新理解服务端模型目录语义。
  *
  * @param visible 是否显示模型选择面板，`true` 时播放底部进入动画。
  * @param isImage 当前是否处于图片创作 tab；`true` 读取图片模型，`false` 读取视频模型。
@@ -89,7 +97,10 @@ internal fun QuickCreateModelSheet(
                     .navigationBarsPadding()
                     .padding(bottom = Dimens.SpaceLG),
             ) {
-                ModelSheetHeader(title = "选择模型", onDismiss = onDismiss)
+                ModelSheetHeader(
+                    title = stringResource(Res.string.quick_create_model_selector_title),
+                    onDismiss = onDismiss,
+                )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -109,10 +120,14 @@ internal fun QuickCreateModelSheet(
                                 color = Primary300,
                                 strokeWidth = 2.dp,
                             )
-                            Text("正在加载模型", fontSize = 13.sp, color = Neutral400)
+                            Text(
+                                stringResource(Res.string.quick_create_model_selector_loading),
+                                fontSize = 13.sp,
+                                color = Neutral400,
+                            )
                         }
                         models.isEmpty() -> Text(
-                            "暂未获取到服务端模型，将继续使用本地兼容参数。",
+                            stringResource(Res.string.quick_create_model_selector_empty),
                             fontSize = 13.sp,
                             color = Neutral500,
                             lineHeight = 18.sp,
@@ -147,6 +162,15 @@ internal fun QuickCreateModelSheet(
     }
 }
 
+/**
+ * 渲染模型选择面板顶部栏。
+ *
+ * 标题由上层传入，便于调用方使用资源化文案；关闭按钮的无障碍描述在此处读取资源，
+ * 与按钮图标保持同一可访问语义。
+ *
+ * @param title 面板标题，通常来自 Compose Resources。
+ * @param onDismiss 用户点击关闭按钮时触发。
+ */
 @Composable
 private fun ModelSheetHeader(title: String, onDismiss: () -> Unit) {
     Row(
@@ -168,7 +192,9 @@ private fun ModelSheetHeader(title: String, onDismiss: () -> Unit) {
         ) {
             Icon(
                 Icons.Default.Close,
-                contentDescription = "关闭",
+                contentDescription = stringResource(
+                    Res.string.quick_create_model_selector_close_content_description,
+                ),
                 tint = Neutral500,
                 modifier = Modifier.size(18.dp),
             )
@@ -176,6 +202,15 @@ private fun ModelSheetHeader(title: String, onDismiss: () -> Unit) {
     }
 }
 
+/**
+ * 渲染服务端模型列表中的单行模型。
+ *
+ * 模型展示名称、分组和副标题均由 Presentation 层映射完成；本组件只根据选中状态渲染颜色、
+ * 边框和勾选图标，不生成新的用户可见业务文案。
+ *
+ * @param model 已映射为 UI 形态的服务端模型条目。
+ * @param onClick 用户点击该模型行时触发。
+ */
 @Composable
 private fun ServiceModelListRow(
     model: QuickCreateServiceModelUi,
