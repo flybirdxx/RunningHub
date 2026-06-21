@@ -1,4 +1,5 @@
 plugins {
+    id("runninghub.long-term-governance")
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.kotlin.android) apply false
@@ -820,6 +821,10 @@ tasks.register("checkL1CiWorkflows") {
                 "未验证项与剩余风险",
                 "截图或录屏",
                 "兼容性、数据迁移与安全影响",
+                "依赖升级与重大版本人工回归",
+                "本 PR 不包含依赖或构建工具升级",
+                "major 级依赖、Gradle、AGP、Kotlin、Xcode 或运行时 SDK 升级",
+                "本 PR 不启用自动合并",
                 "回滚方案",
             ).forEach { snippet ->
                 if (snippet !in prTemplateText) {
@@ -864,6 +869,7 @@ tasks.register("checkMigrationScripts") {
         val iosXcodeProject = rootDir.resolve("iosApp/iosApp.xcodeproj/project.pbxproj")
         val iosSwiftApp = rootDir.resolve("iosApp/iosApp/iOSApp.swift")
         val iosContentView = rootDir.resolve("iosApp/iosApp/ContentView.swift")
+        val iosPrivacyManifest = rootDir.resolve("iosApp/iosApp/PrivacyInfo.xcprivacy")
         val violations = mutableListOf<String>()
 
         if (!tabNetworkScript.exists()) {
@@ -925,6 +931,7 @@ tasks.register("checkMigrationScripts") {
             "iosApp/iosApp/ContentView.swift",
             "iosApp/iosApp/Info.plist",
             "iosApp/iosApp/iOSApp.swift",
+            "iosApp/iosApp/PrivacyInfo.xcprivacy",
         )
         val trackedMigrationFiles = ProcessBuilder(
             "git",
@@ -1164,6 +1171,17 @@ tasks.register("checkMigrationScripts") {
             "PRODUCT_BUNDLE_IDENTIFIER = com.runninghub.app.ios",
             "IPHONEOS_DEPLOYMENT_TARGET = 16.0",
             "SWIFT_VERSION = 5.0",
+            "PrivacyInfo.xcprivacy in Resources",
+        )
+        val iosPrivacyManifestText = iosPrivacyManifest.takeIf { it.exists() }?.readText().orEmpty()
+        val requiredIosPrivacyManifestSnippets = listOf(
+            "NSPrivacyAccessedAPITypes",
+            "NSPrivacyAccessedAPICategoryUserDefaults",
+            "CA92.1",
+            "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "C617.1",
+            "NSPrivacyCollectedDataTypes",
+            "NSPrivacyTracking",
         )
         val requiredIosSwiftSnippets = listOf(
             "IosRuntimeModuleKt.startRunningHubKoin()",
@@ -1225,6 +1243,9 @@ tasks.register("checkMigrationScripts") {
         requiredIosXcodeProjectSnippets
             .filterNot { it in iosXcodeProjectText }
             .forEach { snippet -> violations += "iosApp.xcodeproj/project.pbxproj must contain `$snippet`." }
+        requiredIosPrivacyManifestSnippets
+            .filterNot { it in iosPrivacyManifestText }
+            .forEach { snippet -> violations += "PrivacyInfo.xcprivacy must contain `$snippet`." }
         requiredIosSchemeSnippets
             .filterNot { it in iosSharedSchemeText }
             .forEach { snippet -> violations += "RunningHub.xcscheme must contain `$snippet`." }
@@ -1719,6 +1740,7 @@ tasks.register("verifyL1Android") {
     dependsOn(
         "checkL1CiWorkflows",
         "checkMigrationScripts",
+        "checkLongTermGovernance",
         "checkArchitectureBoundaries",
         "verifyL1UnitTests",
         ":composeApp:lintDebug",
@@ -1741,6 +1763,7 @@ tasks.register("verifyL1Ios") {
     dependsOn(
         "checkL1CiWorkflows",
         "checkMigrationScripts",
+        "checkLongTermGovernance",
         "checkArchitectureBoundaries",
         ":shared:compileKotlinIosSimulatorArm64",
         ":composeApp:compileKotlinIosSimulatorArm64",

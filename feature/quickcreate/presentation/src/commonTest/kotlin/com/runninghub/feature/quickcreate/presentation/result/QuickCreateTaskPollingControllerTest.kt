@@ -34,14 +34,14 @@ class QuickCreateTaskPollingControllerTest {
                 QuickCreateTaskStatus.Submitting,
                 QuickCreateTaskStatus.Queuing("task-1"),
                 QuickCreateTaskStatus.Running("task-1", progress = 42),
-                QuickCreateTaskStatus.Failed("task-1", errorMessage = "render failed"),
+                QuickCreateTaskStatus.Failed("task-1", errorMessage = QuickCreateTaskIssueCode.TASK_FAILED),
             )
         )
 
         assertEquals(1, queuedCallbacks)
         assertEquals(QuickCreateTaskUiStatus.FAILED, uiState.value.taskStatus)
-        assertEquals("render failed", uiState.value.statusText)
-        assertEquals("render failed", uiState.value.error)
+        assertEquals("任务失败", uiState.value.statusText)
+        assertEquals("任务失败", uiState.value.error)
         assertEquals(emptyList(), uiState.value.results)
     }
 
@@ -104,7 +104,7 @@ class QuickCreateTaskPollingControllerTest {
     }
 
     @Test
-    fun `collect maps error to idle and clears transient status text`() = runTest {
+    fun `collect maps unknown error to generic message and clears transient status text`() = runTest {
         val uiState = MutableStateFlow(
             QuickCreateUiState(
                 taskStatus = QuickCreateTaskUiStatus.RUNNING,
@@ -121,7 +121,7 @@ class QuickCreateTaskPollingControllerTest {
 
         assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
         assertEquals(null, uiState.value.statusText)
-        assertEquals("network unavailable", uiState.value.error)
+        assertEquals("生成失败，请稍后重试", uiState.value.error)
     }
 
     @Test

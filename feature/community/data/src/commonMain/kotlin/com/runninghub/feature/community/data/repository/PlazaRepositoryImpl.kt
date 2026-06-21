@@ -28,7 +28,7 @@ class PlazaRepositoryImpl(
     override suspend fun getTags(): Result<List<PlazaTag>> =
         runCatching {
             val response = api.getCreationTags()
-            check(response.code == 0) { response.msg.ifEmpty { "Plaza tags load failed" } }
+            requireSuccessfulResponse(response.code, "PLAZA_TAGS_LOAD_FAILED")
             response.data.orEmpty().flatMap { it.flatten() }
         }
 
@@ -47,7 +47,7 @@ class PlazaRepositoryImpl(
             val response = api.listCreations(
                 PlazaCreationListRequestDto(current = page, size = size, sort = sort, tags = tags)
             )
-            check(response.code == 0) { response.msg.ifEmpty { "Plaza creations load failed" } }
+            requireSuccessfulResponse(response.code, "PLAZA_CREATIONS_LOAD_FAILED")
             response.data?.toDomain() ?: PlazaCreationPage(page = page, total = 0, items = emptyList())
         }
 
@@ -59,7 +59,7 @@ class PlazaRepositoryImpl(
     override suspend fun listShortCategories(): Result<List<PlazaShortCategory>> =
         runCatching {
             val response = api.listShortCategories()
-            check(response.code == 0) { response.msg.ifEmpty { "Short categories load failed" } }
+            requireSuccessfulResponse(response.code, "PLAZA_SHORT_CATEGORIES_LOAD_FAILED")
             response.data.orEmpty().map { it.toDomain() }
         }
 
@@ -71,7 +71,14 @@ class PlazaRepositoryImpl(
     override suspend fun listShorts(page: Int, size: Int, categoryCode: String?): Result<List<PlazaShortCard>> =
         runCatching {
             val response = api.listShorts(PlazaShortListRequestDto(page = page, size = size, categoryCode = categoryCode))
-            check(response.code == 0) { response.msg.ifEmpty { "Short list load failed" } }
+            requireSuccessfulResponse(response.code, "PLAZA_SHORT_LIST_LOAD_FAILED")
             response.data?.items.orEmpty().map { it.toDomain() }
         }
+
+    private fun requireSuccessfulResponse(code: Int, fallbackCode: String) {
+        if (code != 0) {
+            // Community Data 只输出稳定错误码，最终中文文案由 Presentation 根据页面上下文映射。
+            throw IllegalStateException("${fallbackCode}_CODE_$code")
+        }
+    }
 }

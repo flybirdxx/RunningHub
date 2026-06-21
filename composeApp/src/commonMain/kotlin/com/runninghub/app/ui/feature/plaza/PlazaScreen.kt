@@ -66,6 +66,8 @@ import com.runninghub.feature.community.domain.PlazaCreationCard
 import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
 import com.runninghub.feature.community.domain.PlazaTag
+import com.runninghub.feature.community.presentation.PlazaMode
+import com.runninghub.feature.community.presentation.PlazaUiState
 
 class PlazaVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
@@ -133,11 +135,12 @@ fun PlazaScreenContent(
             }
 
             val showingShorts = uiState.mode == PlazaMode.SHORTS
+            val errorMessage = uiState.error
             when {
                 showingShorts && uiState.isShortsLoading && uiState.shorts.isEmpty() -> LoadingPanel()
                 !showingShorts && uiState.isLoading && uiState.creations.isEmpty() -> LoadingPanel()
-                uiState.error != null && showingShorts && uiState.shorts.isEmpty() -> ErrorPanel(uiState.error)
-                uiState.error != null && !showingShorts && uiState.creations.isEmpty() -> ErrorPanel(uiState.error)
+                errorMessage != null && showingShorts && uiState.shorts.isEmpty() -> ErrorPanel(errorMessage)
+                errorMessage != null && !showingShorts && uiState.creations.isEmpty() -> ErrorPanel(errorMessage)
                 else -> LazyVerticalGrid(
                     columns = GridCells.Fixed(columns),
                     modifier = Modifier.fillMaxSize(),

@@ -3,6 +3,7 @@ package com.runninghub.feature.auth.data.repository
 import com.runninghub.core.network.auth.TokenRefresher
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.auth.data.remote.api.AuthApi
+import com.runninghub.feature.auth.domain.AuthError
 import com.runninghub.feature.auth.domain.SessionManager
 import com.runninghub.feature.auth.domain.SmsError
 import io.ktor.client.HttpClient
@@ -16,6 +17,8 @@ import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /**
@@ -67,7 +70,92 @@ class AuthRepositoryImplTest {
         assertTrue(result.exceptionOrNull() is SmsError.CaptchaRequired)
     }
 
-    private class FakeCredentialStore : CredentialStore {
+    /**
+     * 密码登录业务失败时不得把服务端 msg 作为异常消息透出。
+     *
+     * 登录页会把未知异常映射到 Snackbar；如果 Data 层直接抛出远端 msg，
+     * 内部错误码、诊断文本或非中文内容就会成为最终 UI 文案。
+     */
+    @Test
+    fun `login failure does not expose remote msg as exception message`() = runBlocking {
+        val remoteMessage = "REMOTE_INTERNAL_AUTH_REASON"
+        val client = HttpClient(
+            MockEngine {
+                respond(
+                    content = """{"code":499,"msg":"$remoteMessage","data":null}""",
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            },
+        ) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val credentialStore = FakeCredentialStore()
+        val repository = AuthRepositoryImpl(
+            api = AuthApi(client),
+            credentialStore = credentialStore,
+            sessionManager = SessionManager(),
+            tokenRefresher = TokenRefresher(
+                refreshClient = client,
+                credentialStore = credentialStore,
+            ),
+        )
+
+        val result = repository.login("13800138000", "password")
+
+        val error = assertIs<AuthError.Unknown>(result.exceptionOrNull())
+        assertEquals("AUTH_FAILED_CODE_499", error.serverMessage)
+        assertTrue(error.message != remoteMessage)
+    }
+
+    @Test
+    fun `getCurrentUserId decodes escaped JWT subject with JSON semantics`() = runBlocking {
+        val credentialStore = FakeCredentialStore(
+            authToken = jwtWithPayload("""{"sub":"user\u002D123","exp":4102444800}"""),
+        )
+        val client = HttpClient(
+            MockEngine {
+                respond(
+                    content = """{"code":0,"msg":"ok","data":null}""",
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            },
+        ) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = AuthRepositoryImpl(
+            api = AuthApi(client),
+            credentialStore = credentialStore,
+            sessionManager = SessionManager(),
+            tokenRefresher = TokenRefresher(
+                refreshClient = client,
+                credentialStore = credentialStore,
+            ),
+        )
+
+        assertEquals("user-123", repository.getCurrentUserId())
+    }
+
+    @OptIn(kotlin.io.encoding.ExperimentalEncodingApi::class)
+    private fun jwtWithPayload(payload: String): String {
+        fun encode(value: String): String =
+            kotlin.io.encoding.Base64.UrlSafe
+                .encode(value.encodeToByteArray())
+                .trimEnd('=')
+
+        return listOf(
+            encode("""{"alg":"none"}"""),
+            encode(payload),
+            "signature",
+        ).joinToString(".")
+    }
+
+    private class FakeCredentialStore(
+        var authToken: String? = null,
+    ) : CredentialStore {
         override suspend fun getApiKey(): String? = null
         override suspend fun setApiKey(key: String) = Unit
         override suspend fun clearApiKey() = Unit
@@ -77,13 +165,19 @@ class AuthRepositoryImplTest {
         override suspend fun getCookie(): String? = null
         override suspend fun setCookie(cookie: String) = Unit
         override suspend fun clearCookie() = Unit
-        override suspend fun getAuthToken(): String? = null
-        override suspend fun setAuthToken(token: String) = Unit
-        override suspend fun clearAuthToken() = Unit
+        override suspend fun getAuthToken(): String? = authToken
+        override suspend fun setAuthToken(token: String) {
+            authToken = token
+        }
+        override suspend fun clearAuthToken() {
+            authToken = null
+        }
         override suspend fun getRefreshToken(): String? = null
         override suspend fun setRefreshToken(token: String) = Unit
         override suspend fun clearRefreshToken() = Unit
-        override suspend fun isLoggedIn(): Boolean = false
-        override suspend fun clearAll() = Unit
+        override suspend fun isLoggedIn(): Boolean = !authToken.isNullOrEmpty()
+        override suspend fun clearAll() {
+            authToken = null
+        }
     }
 }

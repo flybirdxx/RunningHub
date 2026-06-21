@@ -153,7 +153,7 @@ class QuickCreateInspirationStateHolderTest {
         assertEquals(QuickCreateMode.CREATION, state.value.currentMode)
         assertEquals(QuickCreateTab.IMAGE, state.value.currentTab)
         assertFalse(state.value.inspirationLoading)
-        assertEquals("模板不存在", state.value.error)
+        assertEquals("模板详情加载失败", state.value.error)
     }
 
     private fun createHolder(

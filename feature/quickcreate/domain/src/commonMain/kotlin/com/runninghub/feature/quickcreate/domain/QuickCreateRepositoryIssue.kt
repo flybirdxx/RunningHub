@@ -70,12 +70,12 @@ object QuickCreateRepositoryIssueCode {
  * 快捷创作 Repository 边界使用的结构化异常。
  *
  * @property issueCode [QuickCreateRepositoryIssueCode] 或任务错误码中的稳定错误语义。
- * @property remoteMessage 服务端返回的业务错误摘要；`null` 表示服务端没有提供可展示摘要，
- * 调用方应按 [issueCode] 映射本地文案。
+ * @property remoteMessage 服务端返回的业务错误摘要；`null` 表示服务端没有提供诊断摘要。
+ * 该字段只能用于日志脱敏后的诊断、测试或后续错误分类，不得直接作为最终 UI 文案。
  * @property remoteStatusCode 服务端业务响应码；仅用于诊断和测试，不应直接展示给用户。
  */
 class QuickCreateRepositoryException(
     val issueCode: String,
     val remoteMessage: String? = null,
     val remoteStatusCode: Int? = null,
-) : IllegalStateException(remoteMessage?.takeIf { it.isNotBlank() } ?: issueCode)
+) : IllegalStateException(issueCode)

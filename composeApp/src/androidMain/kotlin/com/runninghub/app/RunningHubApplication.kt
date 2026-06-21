@@ -5,9 +5,11 @@ import com.runninghub.app.di.androidRuntimeModule
 import com.runninghub.app.di.appModule
 import com.runninghub.app.platform.initMediaResolver
 import com.runninghub.core.storage.initDataStore
+import com.runninghub.feature.audio.data.di.audioDataModule
 import com.runninghub.feature.auth.data.di.authDataModule
 import com.runninghub.feature.community.data.di.communityDataModule
 import com.runninghub.feature.discovery.data.di.discoveryDataModule
+import com.runninghub.feature.model.data.di.modelDataModule
 import com.runninghub.feature.quickcreate.data.di.quickCreateDataModule
 import com.runninghub.feature.task.data.di.taskDataModule
 import org.koin.android.ext.koin.androidContext
@@ -32,9 +34,11 @@ class RunningHubApplication : Application() {
             // 应用组合根负责装配运行期核心能力和已迁出的 feature data 模块，shared 不再参与生产启动图。
             modules(
                 androidRuntimeModule,
+                audioDataModule,
                 authDataModule,
                 communityDataModule,
                 discoveryDataModule,
+                modelDataModule,
                 taskDataModule,
                 quickCreateDataModule,
                 appModule,

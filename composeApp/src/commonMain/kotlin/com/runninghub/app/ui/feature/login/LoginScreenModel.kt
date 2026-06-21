@@ -273,9 +273,9 @@ class LoginScreenModel(
             is SmsError.DailyLimit -> "今日发送次数已达上限，请明日再试"
             is SmsError.CaptchaRequired -> "请先完成图形验证后再获取验证码"
             is SmsError.Network -> "网络连接失败，请检查网络后重试"
-            is SmsError.Unknown -> serverMessage?.takeIf { it.isNotBlank() } ?: "登录失败，请稍后重试"
+            is SmsError.Unknown -> "登录失败，请稍后重试"
             is AuthError.Network -> "网络连接失败，请检查网络后重试"
-            is AuthError.Unknown -> serverMessage?.takeIf { it.isNotBlank() } ?: "登录失败，请稍后重试"
+            is AuthError.Unknown -> "登录失败，请稍后重试"
             else -> message ?: "登录失败，请稍后重试"
         }
     }

@@ -17,6 +17,12 @@ import com.runninghub.feature.auth.domain.AuthRepository
 import com.runninghub.feature.auth.domain.SessionManager
 import com.runninghub.feature.auth.domain.SmsError
 import kotlinx.datetime.Clock
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.longOrNull
 
 /**
  * Auth Repository 的 Data 层实现。
@@ -51,7 +57,7 @@ class AuthRepositoryImpl(
             if (!NetworkErrorMapper.isNetworkError(e)) throw e
             throw AuthError.Network()
         }
-        check(response.code == 0) { response.msg.ifEmpty { "Login failed" } }
+        if (response.code != 0) throw AuthError.Unknown("AUTH_FAILED_CODE_${response.code}")
 
         val tokenData = response.data ?: throw IllegalStateException("Empty login response")
         check(tokenData.accessToken.isNotEmpty()) { "No access token received" }
@@ -195,7 +201,7 @@ class AuthRepositoryImpl(
     private suspend fun fetchAndCacheUser(accessToken: String): User {
         val userId = extractUserIdFromJwt(accessToken)
         val userResponse = api.getUserInfoWithToken(accessToken, userId)
-        check(userResponse.code == 0) { userResponse.msg.ifEmpty { "Failed to get user info" } }
+        if (userResponse.code != 0) throw AuthError.Unknown("AUTH_USER_INFO_FAILED_CODE_${userResponse.code}")
 
         val user = userResponse.data?.toDomain() ?: throw IllegalStateException("Empty user response")
         user.apiKey?.let { credentialStore.setApiKey(it) }
@@ -211,7 +217,7 @@ class AuthRepositoryImpl(
             upper.contains("SMS_SEND_TOO_FREQUENT") -> SmsError.RateLimited()
             upper.contains("SMS_DAILY_LIMIT") -> SmsError.DailyLimit()
             upper.contains("CAPTCHA_VERIFY_ERROR") -> SmsError.CaptchaRequired()
-            msg.isNotEmpty() -> SmsError.Unknown(msg)
+            msg.isNotEmpty() -> SmsError.Unknown("AUTH_FAILED_CODE_$code")
             else -> SmsError.Unknown("AUTH_FAILED_CODE_$code")
         }
     }
@@ -223,29 +229,25 @@ class AuthRepositoryImpl(
     }
 
     private fun extractUserIdFromJwt(jwt: String): String {
-        return try {
-            val payload = jwt.split(".").getOrNull(1) ?: return ""
-            val decoded = decodeBase64Url(payload)
-            val subRegex = """"sub"\s*:\s*"([^"]+)"""".toRegex()
-            subRegex.find(decoded)?.groupValues?.get(1) ?: ""
-        } catch (_: Exception) {
-            ""
-        }
+        val payload = decodeJwtPayload(jwt) ?: return ""
+        return payload["sub"]?.jsonPrimitive?.contentOrNull.orEmpty()
     }
 
     private fun String.isExpiredJwt(): Boolean {
+        val payload = decodeJwtPayload(this) ?: return true
+        val exp = payload["exp"]?.jsonPrimitive?.longOrNull ?: return true
+        return exp <= Clock.System.now().epochSeconds + TOKEN_REFRESH_SKEW_SECONDS
+    }
+
+    private fun decodeJwtPayload(jwt: String): JsonObject? {
         return try {
-            val payload = split(".").getOrNull(1) ?: return true
+            val payload = jwt.split(".").getOrNull(1) ?: return null
             val decoded = decodeBase64Url(payload)
-            val exp = """"exp"\s*:\s*(\d+)""".toRegex()
-                .find(decoded)
-                ?.groupValues
-                ?.getOrNull(1)
-                ?.toLongOrNull()
-                ?: return true
-            exp <= Clock.System.now().epochSeconds + TOKEN_REFRESH_SKEW_SECONDS
+            // JWT payload 本质是 JSON，必须交给 JSON 解析器处理 unicode escape 和字段类型；
+            // 正则截取会把 `\uXXXX` 原样当成用户 ID，并可能误判带空白或字段顺序变化的响应。
+            JWT_PAYLOAD_JSON.parseToJsonElement(decoded).jsonObject
         } catch (_: Exception) {
-            true
+            null
         }
     }
 
@@ -263,5 +265,9 @@ class AuthRepositoryImpl(
 
     private companion object {
         const val TOKEN_REFRESH_SKEW_SECONDS = 60L
+        val JWT_PAYLOAD_JSON = Json {
+            ignoreUnknownKeys = true
+            explicitNulls = false
+        }
     }
 }

@@ -1,5 +1,6 @@
 package com.runninghub.app.di
 
+import com.runninghub.app.BuildConfig
 import com.runninghub.core.network.auth.TokenRefresher
 import com.runninghub.core.network.auth.installRunningHubAuthInterceptors
 import com.runninghub.core.network.ApiEnvironment
@@ -34,9 +35,9 @@ import org.koin.dsl.module
  */
 val androidRuntimeModule = module {
     single<ApiEnvironment>(createdAtStart = true) {
-        // 当前仓库尚未登记 staging/dev 公开地址，Android 启动层先显式注入生产环境；
-        // 后续只需在这里按构建类型替换 ApiEnvironment，不再改 Data 层 endpoint 拼接代码。
-        RunningHubApiEnvironment.production().also(RunningHubApiEnvironment::configure)
+        // Android 环境只从 BuildConfig 读取公开 base URL 和可信主机；debug/release 的差异由
+        // Gradle build type 注入，避免 Data 层或 commonMain 直接判断构建类型。
+        androidApiEnvironment().also(RunningHubApiEnvironment::configure)
     }
 
     single {
@@ -101,3 +102,26 @@ val androidRuntimeModule = module {
         }
     }
 }
+
+/**
+ * 根据 Android build type 注入的 BuildConfig 构造 API 环境。
+ *
+ * 这些值不是凭据，只包含公开服务地址和允许携带认证头的精确主机。没有显式传入 Gradle
+ * property 时，debug 与 release 都会回退到生产地址，保证本地构建不依赖外部配置；
+ * 需要 staging/dev 时只改构建参数，不改 Data 层 endpoint。
+ */
+private fun androidApiEnvironment(): ApiEnvironment =
+    ApiEnvironment(
+        webBaseUrl = BuildConfig.RUNNINGHUB_WEB_BASE_URL,
+        apiBaseUrl = BuildConfig.RUNNINGHUB_API_BASE_URL,
+        userCenterBaseUrl = BuildConfig.RUNNINGHUB_USER_CENTER_BASE_URL,
+        taskBaseUrl = BuildConfig.RUNNINGHUB_TASK_BASE_URL,
+        openApiV2BaseUrl = BuildConfig.RUNNINGHUB_OPEN_API_V2_BASE_URL,
+        trustedAuthHosts = BuildConfig.RUNNINGHUB_TRUSTED_AUTH_HOSTS.toTrustedHostSet(),
+    )
+
+private fun String.toTrustedHostSet(): Set<String> =
+    split(',')
+        .map { it.trim().lowercase() }
+        .filter { it.isNotEmpty() }
+        .toSet()

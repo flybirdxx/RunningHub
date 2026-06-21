@@ -151,8 +151,9 @@ private fun QuickCreateResultItem.toQuickCreateResultMediaType(): QuickCreateRes
 /**
  * 将 Domain/Data 返回的稳定任务错误码映射为页面可展示文案。
  *
- * Data 层只负责返回远端错误摘要或 [QuickCreateTaskIssueCode]，不再生成最终中文 UI 文案。
- * 未识别的非空字符串按服务端摘要保留，便于用户看到运营侧配置的具体失败原因；空字符串统一降级为通用失败提示。
+ * Data 层只负责返回 [QuickCreateTaskIssueCode] 这类稳定错误码，不生成最终中文 UI 文案。
+ * 未识别的非空字符串可能来自远端 `msg/message` 或内部异常消息，统一降级为通用失败提示，
+ * 避免服务端原始摘要直接进入页面。
  */
 private fun String.toQuickCreateTaskDisplayMessage(): String =
     when (this) {
@@ -164,5 +165,5 @@ private fun String.toQuickCreateTaskDisplayMessage(): String =
         QuickCreateTaskIssueCode.PREPARE_FAILED -> "任务预提交失败"
         QuickCreateTaskIssueCode.COMMIT_FAILED -> "任务提交失败"
         QuickCreateTaskIssueCode.UNKNOWN_ERROR -> "生成失败，请稍后重试"
-        else -> takeIf { it.isNotBlank() } ?: "生成失败，请稍后重试"
+        else -> "生成失败，请稍后重试"
     }

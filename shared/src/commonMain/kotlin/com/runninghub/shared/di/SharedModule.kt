@@ -12,16 +12,6 @@ import com.runninghub.core.storage.createPermissionDataStore
 import com.runninghub.core.network.auth.installRunningHubAuthInterceptors
 import com.runninghub.core.network.auth.TokenRefresher
 import com.runninghub.feature.auth.domain.SessionManager
-import com.runninghub.shared.data.remote.api.AudioApi
-import com.runninghub.shared.data.remote.api.ModelCatalogApi
-import com.runninghub.shared.data.remote.api.RunningHubApi
-import com.runninghub.shared.data.repository.AudioRepositoryImpl
-import com.runninghub.shared.data.repository.ModelCatalogRepositoryImpl
-import com.runninghub.shared.data.repository.ModelEndpointRegistry
-import com.runninghub.shared.data.repository.ModelInvocationRepositoryImpl
-import com.runninghub.shared.domain.repository.AudioRepository
-import com.runninghub.shared.domain.repository.ModelCatalogRepository
-import com.runninghub.shared.domain.repository.ModelInvocationRepository
 import io.ktor.client.HttpClient
 import kotlinx.serialization.json.Json
 import org.koin.core.qualifier.named
@@ -30,8 +20,9 @@ import org.koin.dsl.module
 /**
  * shared 模块的 Koin 依赖图。
  *
- * 该模块集中注册跨平台数据存储、网络客户端、Repository 实现和会话状态对象。
- * Data 层依赖通过接口暴露给上层，认证凭据、余额缓存和会话状态分别由
+ * 该模块是迁移期遗留组合入口，只保留跨平台存储、网络客户端和会话状态对象。
+ * 生产 Android/iOS 启动图已改为直接装配 core 与各 Feature Data 模块；这里继续保留是为了
+ * 兼容尚未删除的 shared 编译目标。认证凭据、余额缓存和会话状态分别由
  * [CredentialStore]、[BalanceCache] 与 [SessionManager] 承担。
  * [QuickCreateDraftStore] 只作为原始持久化端口暴露给 QuickCreate data 模块，避免 shared
  * 继续持有具体业务 Repository 实现。
@@ -94,13 +85,4 @@ val sharedModule = module {
             )
         }
     }
-
-    single { RunningHubApi(get()) }
-    single { AudioApi(get()) }
-    single { ModelCatalogApi(get()) }
-    single { ModelEndpointRegistry() }
-
-    single<AudioRepository> { AudioRepositoryImpl(get()) }
-    single<ModelCatalogRepository> { ModelCatalogRepositoryImpl(get(), get(), get()) }
-    single<ModelInvocationRepository> { ModelInvocationRepositoryImpl(get(), get(), get(), get()) }
 }

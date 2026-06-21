@@ -70,7 +70,9 @@ class SmsCaptchaHtmlTest {
         )
 
         assertTrue(html.contains("window[bridgeName] && typeof window[bridgeName].onToken === 'function'"))
+        assertTrue(html.contains("window[bridgeName] && typeof window[bridgeName].onClose === 'function'"))
         assertTrue(html.contains("window.webkit.messageHandlers[bridgeName]"))
+        assertTrue(html.contains("window.webkit.messageHandlers[bridgeName].postMessage('close')"))
         assertTrue(html.contains("runninghub-sms-captcha://token"))
         assertTrue(html.contains("runninghub-sms-captcha://close"))
     }
@@ -113,5 +115,27 @@ class SmsCaptchaHtmlTest {
         assertTrue(html.contains("图形验证脚本加载失败，请点击重试"))
         assertTrue(html.contains("图形验证脚本加载超时，请点击重试"))
         assertTrue(html.contains("onclick=\"window.__loadSmsCaptchaScript()\""))
+    }
+
+    /**
+     * 重试加载脚本前必须清理旧 script 和旧计时器。
+     *
+     * 用户多次打开验证码或点击重试时，旧的 TAC script / watchdog 若继续存活，
+     * 可能晚于新实例回调并覆盖当前弹窗状态，表现为已关闭弹窗又收到旧 token。
+     */
+    @Test
+    fun `captcha html clears stale script and timers before retry`() {
+        val html = smsCaptchaHtml(
+            tokenCallbackExpression = "window.bridge.onToken(token)",
+            closeCallbackExpression = "window.bridge.onClose()",
+        )
+
+        assertTrue(html.contains("window.clearTimeout(window.__captchaScriptTimer)"))
+        assertTrue(html.contains("window.clearTimeout(window.__captchaWatchdog)"))
+        assertTrue(html.contains("var oldScript = document.getElementById('runninghub-tac-script')"))
+        assertTrue(html.contains("oldScript.parentNode.removeChild(oldScript)"))
+        assertTrue(html.contains("script.id = 'runninghub-tac-script'"))
+        assertTrue(html.contains("window.__initSmsCaptcha = initCaptcha"))
+        assertTrue(html.contains("window.__loadSmsCaptchaScript = loadCaptchaScript"))
     }
 }

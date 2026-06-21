@@ -18,10 +18,12 @@ import com.runninghub.core.storage.QuickCreateDraftStore
 import com.runninghub.core.storage.createDataStore
 import com.runninghub.core.storage.createPermissionDataStore
 import com.runninghub.core.storage.createSecureCredentialStore
+import com.runninghub.feature.audio.data.di.audioDataModule
 import com.runninghub.feature.auth.data.di.authDataModule
 import com.runninghub.feature.auth.domain.SessionManager
 import com.runninghub.feature.community.data.di.communityDataModule
 import com.runninghub.feature.discovery.data.di.discoveryDataModule
+import com.runninghub.feature.model.data.di.modelDataModule
 import com.runninghub.feature.quickcreate.data.di.quickCreateDataModule
 import com.runninghub.feature.task.data.di.taskDataModule
 import io.ktor.client.HttpClient
@@ -30,6 +32,7 @@ import org.koin.core.context.startKoin
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
 import org.koin.mp.KoinPlatformTools
+import platform.Foundation.NSProcessInfo
 
 /**
  * iOS 应用运行期核心依赖图。
@@ -41,9 +44,9 @@ import org.koin.mp.KoinPlatformTools
  */
 val iosRuntimeModule = module {
     single<ApiEnvironment>(createdAtStart = true) {
-        // iOS 启动层与 Android 使用同一个环境注入口；当前未登记 staging/dev 地址时先注入生产环境。
-        // 后续可由构建配置或 Swift 包装层传入不同 ApiEnvironment，而不改 commonMain 或 Data 层代码。
-        RunningHubApiEnvironment.production().also(RunningHubApiEnvironment::configure)
+        // iOS 环境只从进程环境变量读取公开 base URL 和可信主机；没有显式传入时回退生产环境。
+        // 这样 macOS runner、Xcode scheme 或 TestFlight 包装层都可以切换环境，而不改 Data 层 endpoint。
+        iosApiEnvironment().also(RunningHubApiEnvironment::configure)
     }
 
     single {
@@ -122,12 +125,44 @@ fun startRunningHubKoin() {
     startKoin {
         modules(
             iosRuntimeModule,
+            audioDataModule,
             authDataModule,
             communityDataModule,
             discoveryDataModule,
+            modelDataModule,
             taskDataModule,
             quickCreateDataModule,
             appModule,
         )
     }
+}
+
+/**
+ * 根据 iOS 进程环境变量构造 API 环境。
+ *
+ * Xcode scheme、macOS CI 或包装层可以通过 `RUNNINGHUB_*` 环境变量注入 staging/dev 地址；
+ * 未设置时使用生产默认值。这里不读取 Token、Cookie 或 API Key，只读取公开服务地址和认证主机白名单。
+ */
+private fun iosApiEnvironment(): ApiEnvironment {
+    val defaults = RunningHubApiEnvironment.production()
+    val environment = NSProcessInfo.processInfo.environment
+
+    fun value(name: String, fallback: String): String =
+        (environment[name] as? String)?.takeIf { it.isNotBlank() } ?: fallback
+
+    fun hosts(fallback: Set<String>): Set<String> =
+        value("RUNNINGHUB_TRUSTED_AUTH_HOSTS", fallback.joinToString(","))
+            .split(',')
+            .map { it.trim().lowercase() }
+            .filter { it.isNotEmpty() }
+            .toSet()
+
+    return ApiEnvironment(
+        webBaseUrl = value("RUNNINGHUB_WEB_BASE_URL", defaults.webBaseUrl),
+        apiBaseUrl = value("RUNNINGHUB_API_BASE_URL", defaults.apiBaseUrl),
+        userCenterBaseUrl = value("RUNNINGHUB_USER_CENTER_BASE_URL", defaults.userCenterBaseUrl),
+        taskBaseUrl = value("RUNNINGHUB_TASK_BASE_URL", defaults.taskBaseUrl),
+        openApiV2BaseUrl = value("RUNNINGHUB_OPEN_API_V2_BASE_URL", defaults.openApiV2BaseUrl),
+        trustedAuthHosts = hosts(defaults.trustedAuthHosts),
+    )
 }

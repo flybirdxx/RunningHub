@@ -6,6 +6,9 @@ import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
+import io.ktor.client.request.header
+import io.ktor.client.request.post
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
@@ -133,6 +136,155 @@ class RunningHubAuthInterceptorsTest {
         assertEquals(0, expirationNotifications)
         assertEquals("new-access", store.authToken)
         assertEquals("new-refresh", store.refreshToken)
+    }
+
+    @Test
+    fun `post unauthorized response refreshes token but does not retry without replay marker`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "refresh-token",
+            cookie = null,
+        )
+        val authorizationHeaders = mutableListOf<String?>()
+        var refreshCalls = 0
+        var expirationNotifications = 0
+        val client = HttpClient(
+            MockEngine { request ->
+                authorizationHeaders += request.headers[HttpHeaders.Authorization]
+                respond(content = """{"error":"expired"}""", status = HttpStatusCode.Unauthorized)
+            }
+        ).applyAuthInterceptors(
+            store = store,
+            refreshResponseBody = {
+                refreshCalls += 1
+                """{"access_token":"new-access","refresh_token":"new-refresh"}"""
+            },
+            onSessionExpired = { expirationNotifications += 1 },
+        )
+
+        val body = client.post("https://www.runninghub.cn/api/submit") {
+            setBody("""{"name":"sample"}""")
+        }.bodyAsText()
+
+        assertEquals("""{"error":"expired"}""", body)
+        assertEquals(listOf<String?>("Bearer old-access"), authorizationHeaders)
+        assertEquals(1, refreshCalls)
+        assertEquals(0, expirationNotifications)
+        assertEquals("new-access", store.authToken)
+    }
+
+    @Test
+    fun `post unauthorized response retries once when request marks body replayable`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "refresh-token",
+            cookie = null,
+        )
+        val authorizationHeaders = mutableListOf<String?>()
+        var refreshCalls = 0
+        val client = HttpClient(
+            MockEngine { request ->
+                val authorization = request.headers[HttpHeaders.Authorization]
+                authorizationHeaders += authorization
+                if (authorization == "Bearer new-access") {
+                    respond(content = """{"ok":true}""", status = HttpStatusCode.OK)
+                } else {
+                    respond(content = """{"error":"expired"}""", status = HttpStatusCode.Unauthorized)
+                }
+            }
+        ).applyAuthInterceptors(
+            store = store,
+            refreshResponseBody = {
+                refreshCalls += 1
+                """{"access_token":"new-access","refresh_token":"new-refresh"}"""
+            },
+        )
+
+        val body = client.post("https://www.runninghub.cn/api/submit") {
+            setBody("""{"name":"sample"}""")
+            markRunningHubAuthRetryAllowed()
+        }.bodyAsText()
+
+        assertEquals("""{"ok":true}""", body)
+        assertEquals(listOf<String?>("Bearer old-access", "Bearer new-access"), authorizationHeaders)
+        assertEquals(1, refreshCalls)
+        assertEquals("new-access", store.authToken)
+    }
+
+    @Test
+    fun `explicit authorization is not replaced or retried after unauthorized response`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "stored-access",
+            refreshToken = "refresh-token",
+            cookie = "SESSION=abc",
+        )
+        val authorizationHeaders = mutableListOf<String?>()
+        var refreshCalls = 0
+        val client = HttpClient(
+            MockEngine { request ->
+                authorizationHeaders += request.headers[HttpHeaders.Authorization]
+                respond(content = """{"error":"custom-auth-expired"}""", status = HttpStatusCode.Unauthorized)
+            }
+        ).applyAuthInterceptors(
+            store = store,
+            refreshResponseBody = {
+                refreshCalls += 1
+                """{"access_token":"new-access","refresh_token":"new-refresh"}"""
+            },
+        )
+
+        val body = client.get("https://www.runninghub.cn/api/custom-auth") {
+            header(HttpHeaders.Authorization, "Bearer custom-token")
+        }.bodyAsText()
+
+        assertEquals("""{"error":"custom-auth-expired"}""", body)
+        assertEquals(listOf<String?>("Bearer custom-token"), authorizationHeaders)
+        assertEquals(0, refreshCalls)
+        assertEquals("stored-access", store.authToken)
+    }
+
+    @Test
+    fun `explicit cookie is preserved when stored authorization is refreshed and retried`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "refresh-token",
+            cookie = "SESSION=stored",
+        )
+        val capturedHeaders = mutableListOf<Pair<String?, String?>>()
+        var refreshCalls = 0
+        val client = HttpClient(
+            MockEngine { request ->
+                val authorization = request.headers[HttpHeaders.Authorization]
+                val cookie = request.headers[HttpHeaders.Cookie]
+                capturedHeaders += authorization to cookie
+                if (authorization == "Bearer new-access" && cookie == "SESSION=custom") {
+                    respond(content = """{"ok":true}""", status = HttpStatusCode.OK)
+                } else {
+                    respond(content = """{"error":"expired"}""", status = HttpStatusCode.Unauthorized)
+                }
+            }
+        ).applyAuthInterceptors(
+            store = store,
+            refreshResponseBody = {
+                refreshCalls += 1
+                """{"access_token":"new-access","refresh_token":"new-refresh"}"""
+            },
+        )
+
+        val body = client.get("https://www.runninghub.cn/api/custom-cookie") {
+            header(HttpHeaders.Cookie, "SESSION=custom")
+        }.bodyAsText()
+
+        assertEquals("""{"ok":true}""", body)
+        assertEquals(
+            listOf<Pair<String?, String?>>(
+                "Bearer old-access" to "SESSION=custom",
+                "Bearer new-access" to "SESSION=custom",
+            ),
+            capturedHeaders,
+        )
+        assertEquals(1, refreshCalls)
+        assertEquals("new-access", store.authToken)
     }
 
     @Test

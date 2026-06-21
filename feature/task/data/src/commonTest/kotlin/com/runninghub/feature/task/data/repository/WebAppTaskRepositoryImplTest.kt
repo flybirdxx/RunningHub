@@ -88,6 +88,38 @@ class WebAppTaskRepositoryImplTest {
     }
 
     /**
+     * 服务端业务失败时不应把原始 msg 放入异常消息。
+     *
+     * 该异常可能被上层统一错误处理读取；Data 层只暴露稳定错误码，
+     * 避免后端诊断文本被误当作最终 UI 文案。
+     */
+    @Test
+    fun `task business failure does not expose remote msg as exception message`() = runBlocking {
+        val repository = repositoryWithMock(
+            credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+            response = {
+                """
+                    {
+                      "code": 503,
+                      "msg": "raw task server failure",
+                      "data": null
+                    }
+                """.trimIndent()
+            },
+        )
+
+        val result = repository.runTask(
+            webappId = 10L,
+            nodeInfoList = listOf(inputNode()),
+        )
+
+        val message = result.exceptionOrNull()?.message.orEmpty()
+        assertTrue(result.isFailure)
+        assertEquals("TASK_RUNTASK_FAILED_CODE_503", message)
+        assertTrue("raw task server failure" !in message)
+    }
+
+    /**
      * 历史接口应把分页 records 映射为领域历史条目。
      */
     @Test

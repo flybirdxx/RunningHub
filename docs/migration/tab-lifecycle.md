@@ -27,7 +27,7 @@
 |---|---|
 | 非当前 Tab 不执行轮询、自动刷新或上传 | 非当前 Tab 不再进入 Composition，相关协程随页面离开取消。 |
 | Tab 切换后滚动和输入状态可恢复 | 使用 `SaveableStateHolder` 保存可序列化 UI 状态；长生命周期业务状态通过草稿或仓库恢复。 |
-| 页面离开导航栈后所有 Job 被取消 | 主页面退出时当前 Tab 离开 Composition；QuickCreate、History 等 ScreenModel 的 `onDispose` 负责取消 Job；QuickCreate 活跃生成状态流和媒体上传已有取消测试。 |
+| 页面离开导航栈后所有 Job 被取消 | 主页面退出时当前 Tab 离开 Composition；QuickCreate 由 ScreenModel/Coordinator 释放，History 的普通历史轮询由 `feature:task:presentation` 持有，`composeApp` Voyager 适配在 `onDispose` 中调用释放入口；QuickCreate 活跃生成状态流和媒体上传已有取消测试。 |
 | 重组不会重复初始化同一个 ScreenModel | `MainTabScreenRegistryTest` 验证同一 Tab 切换返回后仍获得同一个 Screen 实例。 |
 | 每个 Tab 的 Screen 实例和状态所有权明确 | `MainTabScreenRegistry` 集中维护 Tab 到 Screen 的映射；测试验证不同一级 Tab 不共享 Screen，创作 Tab 固定到 `QuickCreateVoyagerScreen`。 |
 | 会话失效清空所有业务页面栈 | 根入口由 `SessionManager.state` 切换登录/主页面，主页面离开后当前业务 Tab 被释放。 |
@@ -37,6 +37,7 @@
 ```bash
 ./gradlew.bat checkArchitectureBoundaries :composeApp:assembleDebug :composeApp:compileKotlinIosSimulatorArm64
 ./gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.history.TaskHistoryScreenModelTest.onDispose cancels active polling before next refresh"
+./gradlew.bat --console=plain :feature:task:presentation:testDebugUnitTest --tests "com.runninghub.feature.task.presentation.TaskHistoryStateHolderTest.dispose cancels active polling before next refresh"
 ./gradlew.bat :feature:quickcreate:presentation:testDebugUnitTest --tests "com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryStateHolderTest.dispose cancels polling before next history refresh"
 ./gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.history.TaskHistoryScreenModelTest" :feature:quickcreate:presentation:testDebugUnitTest --tests "com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryStateHolderTest" checkArchitectureBoundaries :composeApp:assembleDebug
 ./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.navigation.MainTabScreenRegistryTest" --tests "com.runninghub.app.AppRootNavigationPolicyTest"

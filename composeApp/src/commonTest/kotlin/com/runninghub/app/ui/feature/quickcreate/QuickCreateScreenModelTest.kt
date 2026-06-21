@@ -12,6 +12,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplate
 import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplateDetail
 import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplatePage
 import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
+import com.runninghub.feature.quickcreate.domain.QuickCreateTaskIssueCode
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
@@ -1328,7 +1329,7 @@ class QuickCreateScreenModelTest {
 
         assertEquals(listOf("missing-template"), repository.requestedTemplateDetailIds)
         assertEquals(false, model.uiState.value.inspirationLoading)
-        assertEquals("模板不存在", model.uiState.value.error)
+        assertEquals("模板详情加载失败", model.uiState.value.error)
         assertEquals(QuickCreateMode.CREATION, model.uiState.value.currentMode)
         assertEquals(QuickCreateTab.IMAGE, model.uiState.value.currentTab)
         assertEquals("original prompt", model.uiState.value.imageConfig.prompt)
@@ -2576,7 +2577,7 @@ class QuickCreateScreenModelTest {
         model.generate()
         runCurrent()
 
-        assertEquals("preview unavailable", model.uiState.value.feePreviewError)
+        assertEquals("价格预览失败", model.uiState.value.feePreviewError)
         assertEquals(null, repository.lastImageRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertEquals("价格待确认", model.uiState.value.error)
@@ -2629,7 +2630,7 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         assertEquals(model.uiState.value.imageConfig.estimatedCost, model.uiState.value.estimatedCost)
-        assertEquals("preview unavailable", model.uiState.value.feePreviewError)
+        assertEquals("价格预览失败", model.uiState.value.feePreviewError)
         assertEquals(false, model.uiState.value.feePreviewLoading)
     }
 
@@ -2650,7 +2651,7 @@ class QuickCreateScreenModelTest {
         model.generate()
         runCurrent()
 
-        assertEquals("preview unavailable", model.uiState.value.feePreviewError)
+        assertEquals("价格预览失败", model.uiState.value.feePreviewError)
         assertEquals(null, repository.lastVideoRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertEquals("价格待确认", model.uiState.value.error)
@@ -3559,7 +3560,7 @@ class QuickCreateScreenModelTest {
 
         assertEquals(null, repository.lastImageRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
-        assertEquals("素材上传超时: test.jpg", model.uiState.value.error)
+        assertEquals("素材上传超时，请重新选择或稍后重试", model.uiState.value.error)
     }
 
     @Test
@@ -3583,7 +3584,7 @@ class QuickCreateScreenModelTest {
         assertEquals(null, repository.lastImageRequest)
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
         assertEquals(null, model.uiState.value.statusText)
-        assertEquals("素材上传失败: test.jpg", model.uiState.value.error)
+        assertEquals("素材上传失败，请重新选择或稍后重试", model.uiState.value.error)
     }
 
     @Test
@@ -4973,7 +4974,7 @@ class QuickCreateScreenModelTest {
         val repository = FakeQuickCreateRepository().apply {
             imageTaskStatuses = listOf(
                 QuickCreateTaskStatus.Running("task-1", progress = 42),
-                QuickCreateTaskStatus.Failed("task-1", "render failed"),
+                QuickCreateTaskStatus.Failed("task-1", QuickCreateTaskIssueCode.TASK_FAILED),
             )
         }
         val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
@@ -4986,8 +4987,8 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         assertEquals(QuickCreateTaskUiStatus.FAILED, model.uiState.value.taskStatus)
-        assertEquals("render failed", model.uiState.value.error)
-        assertEquals("render failed", model.uiState.value.statusText)
+        assertEquals("任务失败", model.uiState.value.error)
+        assertEquals("任务失败", model.uiState.value.statusText)
     }
 
     @Test
@@ -5010,7 +5011,7 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
-        assertEquals("network unavailable", model.uiState.value.error)
+        assertEquals("生成失败，请稍后重试", model.uiState.value.error)
         assertEquals(null, model.uiState.value.statusText)
     }
 

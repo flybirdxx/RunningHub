@@ -18,14 +18,15 @@ class QuickCreateErrorMessagesTest {
     }
 
     @Test
-    fun `remote business summary is preserved instead of fallback mapping`() {
+    fun `remote business summary is not exposed as display message`() {
         val error = QuickCreateRepositoryException(
             issueCode = QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED,
             remoteMessage = "duplicate project name",
             remoteStatusCode = 409,
         )
 
-        assertEquals("duplicate project name", error.toQuickCreateDisplayMessage("项目创建失败"))
+        assertEquals("项目创建失败", error.toQuickCreateDisplayMessage("项目创建失败"))
+        assertEquals(QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED, error.message)
     }
 
     @Test

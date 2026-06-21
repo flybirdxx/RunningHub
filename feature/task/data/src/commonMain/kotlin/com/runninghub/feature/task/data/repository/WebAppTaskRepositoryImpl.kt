@@ -114,8 +114,10 @@ class WebAppTaskRepositoryImpl(
 
     private fun <T> TaskBaseResponseDto<T>.requireTaskData(operation: String): T {
         // Task 接口统一在 Data 层校验服务端业务码和空响应，
-        // 调用方只处理 Kotlin Result，不直接解析 DTO 或远端 msg。
-        check(code == 0) { msg.ifEmpty { "$operation failed" } }
+        // 调用方只处理 Kotlin Result，不直接解析 DTO，也不能把远端 msg 当成最终展示文案。
+        if (code != 0) {
+            throw IllegalStateException("TASK_${operation.uppercase()}_FAILED_CODE_$code")
+        }
         return data ?: throw IllegalStateException("Empty response data")
     }
 }

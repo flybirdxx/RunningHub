@@ -389,6 +389,7 @@ class CreateScreenModel(
                 }
                 scheduleFeePreview()
             } catch (error: Throwable) {
+                val uploadErrorMessage = error.toUploadErrorMessage()
                 _uiState.update {
                     it.copy(
                         uploadFieldStates = it.uploadFieldStates + (
@@ -396,11 +397,11 @@ class CreateScreenModel(
                                 localUri = uriString,
                                 fileName = fileName,
                                 isError = true,
-                                errorMessage = error.message ?: "上传失败",
+                                errorMessage = uploadErrorMessage,
                             )
                         ),
                         feePreview = null,
-                        feePreviewError = error.message ?: "上传失败",
+                        feePreviewError = uploadErrorMessage,
                     )
                 }
             }
@@ -569,7 +570,7 @@ class CreateScreenModel(
                         it.copy(
                             historyDetailLoading = false,
                             selectedHistoryDetail = null,
-                            historyDetailError = error.message ?: "历史详情加载失败",
+                            historyDetailError = error.toHistoryErrorMessage(),
                         )
                     }
                 }
@@ -1011,7 +1012,20 @@ class CreateScreenModel(
         return if (text.looksLikeAuthError()) {
             "登录后可同步历史记录"
         } else {
-            text.toSafeUiMessage("历史记录加载失败")
+            // 历史接口失败可能来自远端 msg 或迁移期仓库异常，页面保持稳定提示，
+            // 具体诊断信息由数据层日志和测试覆盖承担。
+            "历史记录加载失败"
+        }
+    }
+
+    private fun Throwable.toUploadErrorMessage(): String {
+        val text = message.orEmpty()
+        return if (text.looksLikeAuthError()) {
+            "登录后可上传素材"
+        } else {
+            // 上传失败可能来自本地文件权限、网络层或服务端校验；页面只展示稳定文案，
+            // 避免把底层异常、远端 msg 或包含路径/凭据片段的诊断信息暴露给用户。
+            "上传失败，请稍后重试"
         }
     }
 

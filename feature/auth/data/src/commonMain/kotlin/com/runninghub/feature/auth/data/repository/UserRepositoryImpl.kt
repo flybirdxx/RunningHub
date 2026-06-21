@@ -30,7 +30,7 @@ class UserRepositoryImpl(
         val apiKey = credentialStore.getApiKey()?.takeIf { it.isNotBlank() }
             ?: throw IllegalStateException("请先在设置中绑定 API Key")
         val response = api.getAccountStatus(AccountStatusRequestDto(apikey = apiKey))
-        check(response.code == 0) { response.msg }
+        requireSuccessfulResponse(response.code, "ACCOUNT_STATUS_FAILED")
         response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
@@ -43,7 +43,7 @@ class UserRepositoryImpl(
     override suspend fun getUserInfo(userId: String?): Result<User> = runCatching {
         val params = if (!userId.isNullOrEmpty()) mapOf("userId" to userId) else emptyMap()
         val response = api.getUserInfo(params)
-        check(response.code == 0) { response.msg }
+        requireSuccessfulResponse(response.code, "USER_INFO_FAILED")
         response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
@@ -56,7 +56,7 @@ class UserRepositoryImpl(
     override suspend fun getUserDetail(userId: String): Result<User> = runCatching {
         val referer = profileReferer(userId)
         val response = api.getUserDetail(referer, mapOf("userId" to userId))
-        check(response.code == 0) { response.msg }
+        requireSuccessfulResponse(response.code, "USER_DETAIL_FAILED")
         response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
     }
 
@@ -67,7 +67,7 @@ class UserRepositoryImpl(
      */
     override suspend fun isFollow(targetUserId: String): Result<Boolean> = runCatching {
         val response = api.isFollow(profileReferer(targetUserId), mapOf("followId" to targetUserId))
-        check(response.code == 0) { response.msg }
+        requireSuccessfulResponse(response.code, "FOLLOW_STATUS_FAILED")
         response.data ?: false
     }
 
@@ -79,7 +79,7 @@ class UserRepositoryImpl(
      */
     override suspend fun followUser(targetUserId: String): Result<Boolean> = runCatching {
         val response = api.followUser(profileReferer(targetUserId), mapOf("followId" to targetUserId))
-        check(response.code == 0) { response.msg }
+        requireSuccessfulResponse(response.code, "FOLLOW_USER_FAILED")
         response.data ?: false
     }
 
@@ -91,8 +91,15 @@ class UserRepositoryImpl(
      */
     override suspend fun unFollowUser(targetUserId: String): Result<Boolean> = runCatching {
         val response = api.unFollowUser(profileReferer(targetUserId), mapOf("followId" to targetUserId))
-        check(response.code == 0) { response.msg }
+        requireSuccessfulResponse(response.code, "UNFOLLOW_USER_FAILED")
         response.data ?: false
+    }
+
+    private fun requireSuccessfulResponse(code: Int, fallbackCode: String) {
+        if (code != 0) {
+            // 服务端 msg 只用于 Data 层诊断和分类，不能直接进入异常消息后被 UI 当作展示文案。
+            throw IllegalStateException("${fallbackCode}_CODE_$code")
+        }
     }
 
     private fun profileReferer(userId: String): String =

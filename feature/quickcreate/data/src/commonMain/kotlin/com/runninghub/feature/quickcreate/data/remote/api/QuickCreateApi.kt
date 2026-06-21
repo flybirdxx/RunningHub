@@ -446,10 +446,11 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         contentType: String = "application/octet-stream"
     ): MediaUploadResponseDto {
         val url = RunningHubApiEnvironment.openApiV2Url("media/upload/binary")
+        val hasMediaName = fileName.isNotBlank()
         debug(TAG, "uploadMedia: START")
-        debug(TAG, "  url        = $url")
-        debug(TAG, "  apiKey     = <redacted>")
-        debug(TAG, "  fileName   = $fileName")
+        debug(TAG, "  endpoint   = media-upload-binary")
+        debug(TAG, "  credential = <redacted>")
+        debug(TAG, "  mediaNamePresent = $hasMediaName")
         debug(TAG, "  contentType= $contentType")
         debug(TAG, "  fileBytes  = ${fileBytes.size} bytes")
 
@@ -465,10 +466,12 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
             header(HttpHeaders.Authorization, "Bearer $apiKey")
         }.body()
 
+        val hasMediaLocation = !response.url.isNullOrBlank()
+        val hasResponseMediaName = !response.data?.fileName.isNullOrBlank()
         debug(TAG, "uploadMedia: code=${response.code} message=${response.message}")
-        debug(TAG, "  response.url       = ${response.url}")
+        debug(TAG, "  response.hasMediaLocation = $hasMediaLocation")
         debug(TAG, "  response.data.type = ${response.data?.type}")
-        debug(TAG, "  response.data.fileName = ${response.data?.fileName}")
+        debug(TAG, "  response.hasMediaName = $hasResponseMediaName")
         return response
     }
 

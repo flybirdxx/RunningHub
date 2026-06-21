@@ -1,0 +1,2 @@
+filePath|maxLines|reason
+build.gradle.kts|1800|复核建议要求根构建脚本中的长期验收逻辑迁入 build-logic 或独立脚本；当前基线只允许既有 L1 Gate 留存，不允许继续新增根脚本门禁。

@@ -662,13 +662,14 @@ class QuickCreateRepositoryImplVideoV2Test {
             )
         ).toList()
 
-        // 旧 OpenAPI 轮询同样必须在失败终态结束，避免继续请求 queryTask 并覆盖真实失败原因。
+        // 旧 OpenAPI 轮询同样必须在失败终态结束，并把服务端 errorMessage 收口为稳定错误码，
+        // 避免远端诊断文本被 Presentation 当作最终展示文案。
         assertEquals(listOf(QuickCreateApi.IMAGE_X_TEXT, QuickCreateApi.TASK_QUERY), paths)
         assertIs<QuickCreateTaskStatus.Submitting>(statuses[0])
         assertIs<QuickCreateTaskStatus.Queuing>(statuses[1])
         val failed = assertIs<QuickCreateTaskStatus.Failed>(statuses.last())
         assertEquals("legacy-task-1", failed.taskId)
-        assertEquals("render failed", failed.errorMessage)
+        assertEquals(QuickCreateTaskIssueCode.TASK_FAILED, failed.errorMessage)
     }
 
     private class FakeSettingsRepository : CredentialStore {

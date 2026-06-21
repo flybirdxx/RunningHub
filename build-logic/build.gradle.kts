@@ -27,5 +27,9 @@ gradlePlugin {
             id = "runninghub.kotlin.multiplatform"
             implementationClass = "com.runninghub.buildlogic.KotlinMultiplatformConventionPlugin"
         }
+        register("longTermGovernance") {
+            id = "runninghub.long-term-governance"
+            implementationClass = "com.runninghub.buildlogic.LongTermGovernancePlugin"
+        }
     }
 }

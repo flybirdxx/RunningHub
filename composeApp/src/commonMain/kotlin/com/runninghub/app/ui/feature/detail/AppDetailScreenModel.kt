@@ -279,12 +279,14 @@ class AppDetailScreenModel(
                 nodeInfoList = inputNodes
             ).onSuccess {
                 pollTaskOutputs(it.taskId)
-            }.onFailure { e ->
+            }.onFailure {
                 _uiState.update {
                     it.copy(
                         isRunningTask = false,
                         taskStep = com.runninghub.app.ui.component.TaskStep.FAILED,
-                        taskError = e.message ?: "提交失败"
+                        // 任务提交失败可能包含远端 msg、状态码或底层异常摘要；详情页只展示可操作文案，
+                        // 避免把数据层诊断信息直接暴露给终端用户。
+                        taskError = "提交失败，请稍后重试"
                     )
                 }
             }
@@ -323,7 +325,9 @@ class AppDetailScreenModel(
                                 it.copy(
                                     isRunningTask = false,
                                     taskStep = com.runninghub.app.ui.component.TaskStep.FAILED,
-                                    taskError = failed.failedReason?.exceptionMessage ?: "任务失败"
+                                    // failedReason 来自任务输出协议，可能携带服务端内部失败原因；
+                                    // UI 保持稳定文案，后续排错应依赖仓库日志和领域状态码。
+                                    taskError = "任务失败，请稍后重试"
                                 )
                             }
                             return@launch

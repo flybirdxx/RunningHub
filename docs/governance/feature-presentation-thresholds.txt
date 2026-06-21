@@ -1,0 +1,11 @@
+# format: feature|maxLines|reason
+# 这些是迁移期仍留在 composeApp 的大体量 UI Feature 基线。
+# 没有独立 feature:<name>:presentation 模块的 Feature 超过 800 行时必须登记；
+# 后续继续增长会触发 checkLongTermGovernance，除非先拆分 Presentation 模块或更新治理说明。
+# quickcreate 已有 feature:quickcreate:presentation，因此不需要在此登记。
+create|2697|Legacy create UI retained only to keep migration compatibility while new creation flow moves to QuickCreate.
+detail|1879|App detail page still lives in composeApp and needs a later feature presentation split.
+discovery|1581|Discovery has domain/data modules but presentation remains in composeApp during migration.
+history|1002|History UI/Voyager adapter remains in composeApp; state machine, polling, detail loading, cancellation and tests are now owned by feature:task:presentation.
+login|1011|Login UI maps to auth domain/data but still lives in composeApp.
+profile|920|Profile UI maps to auth domain/data and still needs an auth presentation module.

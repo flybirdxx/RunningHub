@@ -92,7 +92,7 @@ class CreateScreenModelTest {
         advanceUntilIdle()
 
         assertEquals(false, screenModel.uiState.value.historyLoading)
-        assertEquals("history failed", screenModel.uiState.value.historyError)
+        assertEquals("历史记录加载失败", screenModel.uiState.value.historyError)
         assertEquals(emptyList(), screenModel.uiState.value.recentHistory)
 
         repository.historyFailureMessage = null
@@ -328,6 +328,25 @@ class CreateScreenModelTest {
     }
 
     @Test
+    fun `upload field failure does not expose repository exception message`() = runTest {
+        val repository = FakeQuickCreateRepository().apply {
+            includeUploadField = true
+            uploadFailureMessage = "TOKEN_INVALID msg=internal render path Bearer secret-token"
+        }
+        val screenModel = createScreenModel(repository, UnconfinedTestDispatcher(testScheduler))
+
+        screenModel.loadModels()
+        advanceUntilIdle()
+        screenModel.pickUploadField("referenceImage", "content://local/image.png")
+        advanceUntilIdle()
+
+        val uploadState = assertNotNull(screenModel.uiState.value.uploadFieldStates["referenceImage"])
+        assertEquals(true, uploadState.isError)
+        assertEquals("登录后可上传素材", uploadState.errorMessage)
+        assertEquals("登录后可上传素材", screenModel.uiState.value.feePreviewError)
+    }
+
+    @Test
     fun `conditional input child is submitted only when visible condition matches`() = runTest {
         val repository = FakeQuickCreateRepository().apply {
             includeConditionalChildField = true
@@ -395,6 +414,21 @@ class CreateScreenModelTest {
     }
 
     @Test
+    fun `history detail failure does not expose repository exception message`() = runTest {
+        val repository = FakeQuickCreateRepository().apply {
+            historyDetailFailureMessage = "DETAIL_CODE_500 msg=remote detail shard internal"
+        }
+        val screenModel = createScreenModel(repository)
+
+        screenModel.loadModels()
+        advanceUntilIdle()
+        screenModel.selectHistoryOutput("output-1")
+        advanceUntilIdle()
+
+        assertEquals("历史记录加载失败", screenModel.uiState.value.historyDetailError)
+    }
+
+    @Test
     fun `non terminal history refreshes every five seconds until terminal`() = runTest {
         val repository = FakeQuickCreateRepository().apply {
             historyStatuses.clear()
@@ -447,9 +481,11 @@ class CreateScreenModelTest {
         var scalarAcceptFormats: List<String> = emptyList()
         var modelFailureMessage: String? = null
         var previewFailureMessage: String? = null
+        var uploadFailureMessage: String? = null
         var feePreviewPassed: Boolean = true
         var feePreviewInsufficientType: String? = null
         var historyFailureMessage: String? = null
+        var historyDetailFailureMessage: String? = null
         var customHistoryItems: List<QuickCreationHistoryItem>? = null
         val historyStatuses = mutableListOf("SUCCESS")
 
@@ -488,6 +524,7 @@ class CreateScreenModelTest {
             uploadMediaCalls += 1
             lastUploadFileName = fileName
             lastUploadMimeType = mimeType
+            uploadFailureMessage?.let { return Result.failure(IllegalStateException(it)) }
             return Result.success("https://example.com/uploaded.png")
         }
 
@@ -528,6 +565,7 @@ class CreateScreenModelTest {
 
         override suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem> {
             lastDetailOutputId = outputId
+            historyDetailFailureMessage?.let { return Result.failure(IllegalStateException(it)) }
             return Result.success(
                 QuickCreationHistoryItem(
                     taskId = "detail-history",

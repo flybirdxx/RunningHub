@@ -160,7 +160,7 @@ internal class QuickCreateMediaUploadCoordinator(
         val mediaRefs = generationRequestFactory.currentRelevantMediaReferences(stateSnapshot)
         val alreadyFailed = mediaRefs.filter { it.uploadStatus == UploadStatus.FAILED }
         if (alreadyFailed.isNotEmpty()) {
-            throw IllegalStateException("素材上传失败: ${alreadyFailed.joinToString { it.displayName }}")
+            throw IllegalStateException(MEDIA_UPLOAD_FAILED_MESSAGE)
         }
         val pending = mediaRefs.filter { it.isUploadPending() }
         if (pending.isEmpty()) return stateSnapshot
@@ -175,14 +175,11 @@ internal class QuickCreateMediaUploadCoordinator(
             val currentReferences = uiState.value.mediaReferencesById()
             val removed = pendingIds.filter { it !in currentReferences.keys }
             if (removed.isNotEmpty()) {
-                val removedNames = pending
-                    .filter { it.id in removed }
-                    .joinToString { it.displayName }
-                throw IllegalStateException("素材上传失败: $removedNames")
+                throw IllegalStateException(MEDIA_UPLOAD_FAILED_MESSAGE)
             }
             val failed = currentReferences.values.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
             if (failed.isNotEmpty()) {
-                throw IllegalStateException("素材上传失败: ${failed.joinToString { it.displayName }}")
+                throw IllegalStateException(MEDIA_UPLOAD_FAILED_MESSAGE)
             }
             val stillPending = currentReferences.values
                 .filter { it.id in pendingIds && it.isUploadPending() }
@@ -196,13 +193,13 @@ internal class QuickCreateMediaUploadCoordinator(
         val currentReferences = uiState.value.mediaReferencesById()
         val failed = currentReferences.values.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
         if (failed.isNotEmpty()) {
-            throw IllegalStateException("素材上传失败: ${failed.joinToString { it.displayName }}")
+            throw IllegalStateException(MEDIA_UPLOAD_FAILED_MESSAGE)
         }
         val timedOut = pending.filter { reference ->
             currentReferences[reference.id]?.isUploadPending() != false
         }
         if (timedOut.isNotEmpty()) {
-            throw IllegalStateException("素材上传超时: ${timedOut.joinToString { it.displayName }}")
+            throw IllegalStateException(MEDIA_UPLOAD_TIMEOUT_MESSAGE)
         }
         return stateSnapshot.withUploadedMediaFrom(uiState.value, pendingIds)
     }
@@ -371,3 +368,7 @@ internal class QuickCreateMediaUploadCoordinator(
         return "${name.lowercase()}_${Clock.System.now().toEpochMilliseconds()}.$extension"
     }
 }
+
+// 等待上传完成时抛给页面的错误不拼接 displayName，避免本地媒体文件名进入错误上报或日志链路。
+private const val MEDIA_UPLOAD_FAILED_MESSAGE = "素材上传失败，请重新选择或稍后重试"
+private const val MEDIA_UPLOAD_TIMEOUT_MESSAGE = "素材上传超时，请重新选择或稍后重试"

@@ -258,7 +258,7 @@ private fun pollTaskStatus(
             QuickCreateResult.STATUS_SUCCESS -> QuickCreateTaskStatus.Success(taskId, results)
             QuickCreateResult.STATUS_FAILED -> QuickCreateTaskStatus.Failed(
                 taskId,
-                queryResponse.errorMessage ?: QuickCreateTaskIssueCode.TASK_FAILED,
+                QuickCreateTaskIssueCode.TASK_FAILED,
             )
             QuickCreateResult.STATUS_RUNNING -> QuickCreateTaskStatus.Running(taskId, queryResponse.progress)
             QuickCreateResult.STATUS_QUEUING -> QuickCreateTaskStatus.Queuing(taskId)
@@ -287,7 +287,8 @@ private fun pollQuickCreationTaskStatus(
         attempts++
 
         if (page.code != 0) {
-            emit(QuickCreateTaskStatus.Error(page.msg ?: page.message ?: QuickCreateTaskIssueCode.TASK_QUERY_FAILED))
+            // 任务轮询失败只向上游暴露稳定错误码，避免远端 msg/message 直接进入页面状态。
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.TASK_QUERY_FAILED))
             return@flow
         }
 
@@ -361,7 +362,7 @@ class QuickCreateRepositoryImpl(
         if (!first.isTokenInvalid()) return first
 
         val refreshed = authRepository.refreshTokenIfNeeded().isSuccess
-        debug("QuickCreationV2", "token refresh retry refreshed=$refreshed")
+        debug("QuickCreationV2", "credential refresh retry refreshed=$refreshed")
         return if (refreshed) request() else first
     }
 
@@ -395,7 +396,7 @@ class QuickCreateRepositoryImpl(
         debug("QuickCreationV2", "commit response code=${firstCommit.code}")
         if (!firstCommit.isPrepareTokenExpired()) return firstCommit
 
-        debug("QuickCreationV2", "commit prepare-token expired; re-prepare")
+        debug("QuickCreationV2", "commit prepare credential expired; re-prepare")
         val refreshedPrepare = quickCreationRequestWithTokenRetry {
             quickCreateApi.prepareQuickCreation(createRequest)
         }
@@ -403,7 +404,7 @@ class QuickCreateRepositoryImpl(
         if (refreshedPrepare.code != 0 || refreshedPrepare.data == null) {
             return QuickCreationEnvelopeDto(
                 code = refreshedPrepare.code,
-                msg = refreshedPrepare.msg ?: refreshedPrepare.message ?: QuickCreateTaskIssueCode.PREPARE_FAILED,
+                msg = QuickCreateTaskIssueCode.PREPARE_FAILED,
                 data = null,
             )
         }
@@ -455,7 +456,7 @@ class QuickCreateRepositoryImpl(
         }
         debug("QuickCreationV2", "image fee-preview response code=${feePreview.code}")
         if (feePreview.code != 0) {
-            emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED))
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED))
             return@flow
         }
         val fee = feePreview.data
@@ -469,7 +470,7 @@ class QuickCreateRepositoryImpl(
         }
         debug("QuickCreationV2", "image prepare response code=${prepare.code}")
         if (prepare.code != 0 || prepare.data == null) {
-            emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: QuickCreateTaskIssueCode.PREPARE_FAILED))
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.PREPARE_FAILED))
             return@flow
         }
 
@@ -478,7 +479,7 @@ class QuickCreateRepositoryImpl(
             prepareToken = prepare.data.prepareToken,
         )
         if (commit.code != 0 || commit.data == null) {
-            emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: QuickCreateTaskIssueCode.COMMIT_FAILED))
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.COMMIT_FAILED))
             return@flow
         }
 
@@ -498,7 +499,7 @@ class QuickCreateRepositoryImpl(
         }
         debug("QuickCreationV2", "video fee-preview response code=${feePreview.code}")
         if (feePreview.code != 0) {
-            emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED))
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED))
             return@flow
         }
         val fee = feePreview.data
@@ -512,7 +513,7 @@ class QuickCreateRepositoryImpl(
         }
         debug("QuickCreationV2", "video prepare response code=${prepare.code}")
         if (prepare.code != 0 || prepare.data == null) {
-            emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: QuickCreateTaskIssueCode.PREPARE_FAILED))
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.PREPARE_FAILED))
             return@flow
         }
 
@@ -521,7 +522,7 @@ class QuickCreateRepositoryImpl(
             prepareToken = prepare.data.prepareToken,
         )
         if (commit.code != 0 || commit.data == null) {
-            emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: QuickCreateTaskIssueCode.COMMIT_FAILED))
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.COMMIT_FAILED))
             return@flow
         }
 
@@ -761,15 +762,15 @@ class QuickCreateRepositoryImpl(
             val taskId = response.taskId
 
             if (response.status == QuickCreateResult.STATUS_FAILED || response.errorCode.isNotBlank()) {
-                emit(QuickCreateTaskStatus.Failed(taskId, response.errorMessage ?: QuickCreateTaskIssueCode.COMMIT_FAILED))
+                emit(QuickCreateTaskStatus.Failed(taskId, QuickCreateTaskIssueCode.TASK_FAILED))
                 return@flow
             }
 
             emit(QuickCreateTaskStatus.Queuing(taskId))
             pollTaskStatus(quickCreateApi, taskId).collect { emit(it) }
 
-        } catch (e: Exception) {
-            emit(QuickCreateTaskStatus.Error(e.message ?: QuickCreateTaskIssueCode.UNKNOWN_ERROR))
+        } catch (_: Exception) {
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.UNKNOWN_ERROR))
         }
     }
 
@@ -1321,15 +1322,15 @@ class QuickCreateRepositoryImpl(
             }
 
             if (response.status == QuickCreateResult.STATUS_FAILED || response.errorCode.isNotBlank()) {
-                emit(QuickCreateTaskStatus.Failed(taskId, response.errorMessage ?: QuickCreateTaskIssueCode.COMMIT_FAILED))
+                emit(QuickCreateTaskStatus.Failed(taskId, QuickCreateTaskIssueCode.TASK_FAILED))
                 return@flow
             }
 
             emit(QuickCreateTaskStatus.Queuing(taskId))
             pollTaskStatus(quickCreateApi, taskId).collect { emit(it) }
 
-        } catch (e: Exception) {
-            emit(QuickCreateTaskStatus.Error(e.message ?: QuickCreateTaskIssueCode.UNKNOWN_ERROR))
+        } catch (_: Exception) {
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.UNKNOWN_ERROR))
         }
     }
 
@@ -1341,22 +1342,25 @@ class QuickCreateRepositoryImpl(
         mimeType: String,
     ): Result<String> = runCatching {
         val TAG = "QuickCreateRepo"
+        val hasMediaName = fileName.isNotBlank()
         debug(TAG, "uploadMedia: START")
-        debug(TAG, "  fileName  = $fileName")
+        debug(TAG, "  mediaNamePresent = $hasMediaName")
         debug(TAG, "  mimeType  = $mimeType")
         debug(TAG, "  fileBytes = ${fileBytes.size} bytes")
 
         val apiKey = credentialStore.getApiKey()
-        debug(TAG, "  apiKey found = ${!apiKey.isNullOrBlank()}")
+        val hasCredential = !apiKey.isNullOrBlank()
+        debug(TAG, "  credential found = $hasCredential")
         if (apiKey.isNullOrBlank()) {
             throw QuickCreateRepositoryException(QuickCreateRepositoryIssueCode.API_KEY_MISSING)
         }
 
         debug(TAG, "  calling QuickCreateApi.uploadMedia...")
         val uploadResp = quickCreateApi.uploadMedia(apiKey, fileBytes, fileName, mimeType)
+        val hasMediaLocation = !uploadResp.url.isNullOrBlank()
         debug(TAG, "  response.code    = ${uploadResp.code}")
         debug(TAG, "  response.message = ${uploadResp.message}")
-        debug(TAG, "  response.url     = ${uploadResp.url}")
+        debug(TAG, "  response.hasMediaLocation = $hasMediaLocation")
 
         if (!uploadResp.isSuccess) {
             throw uploadResp.toRepositoryException(QuickCreateRepositoryIssueCode.MEDIA_UPLOAD_FAILED)

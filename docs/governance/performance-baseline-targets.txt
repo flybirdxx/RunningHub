@@ -1,0 +1,8 @@
+# format: metric|platform|evidence|owner
+# 本文件只定义必须维护的性能指标和证据产物，不代表当前数据已经通过。
+cold-start|android-ios|docs/governance/performance-baselines.md#cold-start|App startup owner
+first-render|android-ios|docs/governance/performance-baselines.md#first-render|Compose UI owner
+steady-memory|android-ios|docs/governance/performance-baselines.md#steady-memory|Runtime owner
+image-cache|android-ios|docs/governance/performance-baselines.md#image-cache|Media owner
+video-preview|android-ios|docs/governance/performance-baselines.md#video-preview|Media owner
+long-polling-network-idle|android-ios|docs/migration/observe-tab-network.ps1|Networking owner

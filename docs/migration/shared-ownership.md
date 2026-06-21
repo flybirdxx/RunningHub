@@ -7,13 +7,13 @@
 
 | 遗留区域 | 当前职责 | 目标归属 | 删除条件 |
 |---|---|---|---|
-| `shared/data/remote/api` | 未迁移业务的 Ktor API 调用；Auth API 已迁出到 `feature:auth:data`，Plaza API 已迁出到 `feature:community:data`，WebApp 公开目录 API 已迁出到 `feature:discovery:data`，WebApp Task API 已迁出到 `feature:task:data`。 | 对应 Feature 的 `data` 模块或 `core:network`。 | Audio 等剩余功能完成 Feature/Data 拆分，旧 Auth/Plaza/Discovery/Task 调用点全部删除。 |
-| `shared/data/remote/dto` | 未迁移接口 DTO 与旧响应兼容；Auth/User DTO 已迁出到 `feature:auth:data`，Plaza DTO 已迁出到 `feature:community:data`，WebApp 公开目录 DTO 已迁出到 `feature:discovery:data`，WebApp Task DTO 已迁出到 `feature:task:data`。 | 对应 Feature 的 `data/remote/dto`。 | 对应 Repository 不再从 `composeApp` 直接依赖 `shared`，旧 Auth/Plaza/Discovery/Task DTO 无使用方。 |
-| `shared/data/repository` | Audio 等旧仓库实现；Auth/User/ProfileCredential/BalanceSnapshot 实现已迁出到 `feature:auth:data`，Plaza 实现已迁出到 `feature:community:data`，WebApp 公开目录实现已迁出到 `feature:discovery:data`，WebApp Task 实现已迁出到 `feature:task:data`。 | 对应 Feature 的 `data/repository`。 | Presentation 只依赖窄 Domain Repository，组合根完成实现绑定迁移。 |
-| `shared/domain/model` | 旧 UI 和旧仓库共享的业务模型；权限模型、WebApp 任务模型、统一生成历史模型和 Plaza 模型已迁出，Audio 等遗留模型暂留。 | `core:model`、`core:storage` 或对应 Feature Domain。 | 所有使用方完成模型迁移并删除 `composeApp` allowlist 条目。 |
-| `shared/domain/repository` | 旧仓库接口；统一生成历史仓库契约、WebApp 任务执行仓库契约和 WebApp 任务历史仓库契约已迁出到 `feature:task:domain`，Plaza 仓库契约已迁出到 `feature:community:domain`。 | 对应 Feature Domain。 | `composeApp` 不再直接引用这些接口。 |
+| `shared/data/remote/api` | 标准模型目录 API、Audio API、Auth 旧 `RunningHubApi`、Plaza、WebApp 公开目录和 WebApp Task API 均已迁出或删除；shared 不再承载业务远端 API。 | 对应 Feature 的 `data` 模块或 `core:network`。 | 删除 shared 中已无人使用的业务远端 API 目录。 |
+| `shared/data/remote/dto` | 标准模型 DTO/响应信封、Audio DTO、Auth/User DTO、Plaza DTO、WebApp 公开目录 DTO 和 WebApp Task DTO 均已迁出或删除；shared 不再承载业务 DTO。 | 对应 Feature 的 `data/remote/dto`。 | 删除 shared 中已无人使用的业务 DTO 目录。 |
+| `shared/data/repository` | 标准模型 Data、Audio Data、Auth/User/ProfileCredential/BalanceSnapshot/SessionRestore、Plaza、WebApp 公开目录和 WebApp Task 实现均已迁出或删除；shared 不再承载业务 Repository 实现。 | 对应 Feature 的 `data/repository`。 | 删除 shared 中已无人使用的业务 Repository 目录。 |
+| `shared/domain/model` | 旧 UI 和旧仓库共享的业务模型；权限模型、WebApp 任务模型、统一生成历史模型、Plaza 模型、Audio 模型、标准模型目录/调用模型，以及 `User`、`WebApp`、`Tag`、`PageData`、`AppDetail` 的旧 typealias 兼容层均已迁出或删除。 | `core:model`、`core:storage` 或对应 Feature Domain。 | shared domain 不再承载业务模型。 |
+| `shared/domain/repository` | 旧仓库接口；统一生成历史仓库契约、WebApp 任务执行仓库契约和 WebApp 任务历史仓库契约已迁出到 `feature:task:domain`，Plaza 仓库契约已迁出到 `feature:community:domain`，Audio 仓库契约已迁出到 `feature:audio:domain`，标准模型目录和调用仓库契约已迁出到 `feature:model:domain`。 | 对应 Feature Domain。 | shared domain 不再承载仓库契约。 |
 | `shared/data/local` | 旧设置存储实现、权限状态临时实现、DataStore 平台工厂均已迁到 `core:storage`；当前不再承担生产启动图的本地存储职责。 | `core:storage` 或平台 source set。 | 删除 shared 中已无人使用的 local 包；敏感凭据迁移到安全存储属于 L2。 |
-| `shared/di` | 旧 Koin 组合入口；Auth Data 绑定已迁到 `feature:auth:data`，Community Data 绑定已迁到 `feature:community:data`，Discovery Data 绑定已迁到 `feature:discovery:data`，Task Data 绑定已迁到 `feature:task:data`，Android 生产启动层已改为装配 `androidRuntimeModule`，不再装配 `sharedModule`。 | `composeApp/di` 只做装配，具体实现进入 Feature/Core。 | 删除或继续瘦身未接入生产启动图的 shared 旧兼容模块。 |
+| `shared/di` | 旧 Koin 组合入口；Auth、Community、Discovery、Task、Audio 和标准模型 Data 绑定均已迁到对应 Feature Data 模块，Android/iOS 生产启动层直接装配平台 runtime module 和 Feature Data 模块，不再装配 `sharedModule`。 | `composeApp/di` 只做装配，具体实现进入 Feature/Core。 | 删除或继续瘦身未接入生产启动图的 shared 旧兼容模块。 |
 
 ## 自动门禁
 
@@ -29,13 +29,14 @@
 清单没有任何允许项。
 该清单不是扩展点；新增条目必须说明为什么不能进入 Feature/Core，以及后续删除条件。
 
-## 历史目录说明
+## 历史 androidApp 清理
 
-`androidApp/` 仍作为 Git 跟踪的历史 Android 目录存在，且其中 `RunningHubApplication.kt`
-保留了旧 `sharedModule` 引用。`settings.gradle.kts` 当前没有 include `:androidApp`，
-因此该目录不属于 L1 当前 Gradle 模块图、生产启动图或 `checkArchitectureBoundaries`
-的 composeApp allowlist 范围。
+`androidApp/` 的历史 Android 入口源码已删除，Git 跟踪文件不再保留旧
+`RunningHubApplication.kt`、`MainActivity.kt`、`AndroidManifest.xml` 或
+`build.gradle.kts`。`settings.gradle.kts` 当前没有 include `:androidApp`，
+当前 Android 生产入口以 `composeApp/src/androidMain` 为唯一来源。
 
-后续如果决定恢复、删除或迁移 `androidApp/`，必须先新增独立 AC，并同步更新
-`settings.gradle.kts`、本文件和对应验证命令；在当前 AC-11 中不得把该历史目录当作
-`composeApp` 仍依赖 `shared` 的证据。
+本地 `androidApp/build` 可能因历史构建残留而继续存在；它属于忽略的构建产物，
+不代表 Gradle 模块、生产启动图或 `sharedModule` 依赖。后续如果决定恢复独立
+Android App 模块，必须先新增独立 AC，并同步更新 `settings.gradle.kts`、本文件和
+对应验证命令。

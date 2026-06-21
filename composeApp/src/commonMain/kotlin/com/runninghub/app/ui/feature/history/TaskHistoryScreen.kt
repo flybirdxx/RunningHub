@@ -60,6 +60,9 @@ import com.runninghub.app.ui.theme.RhAppSurface
 import com.runninghub.app.ui.theme.RhAppText
 import com.runninghub.app.ui.theme.StatusError
 import com.runninghub.feature.task.domain.GenerationHistoryOutput
+import com.runninghub.feature.task.presentation.TaskHistoryEntry
+import com.runninghub.feature.task.presentation.TaskHistoryFilter
+import com.runninghub.feature.task.presentation.TaskHistoryUiState
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
@@ -101,6 +104,7 @@ internal fun TaskHistoryContent(
     val useReferenceFallback = loadedEntries.isEmpty() && uiState.error.isAuthError()
     val timelineEntries = if (useReferenceFallback) referenceHistoryEntries() else loadedEntries
     val filteredItems = timelineEntries.filteredBy(uiState.filter)
+    val errorMessage = uiState.error
 
     Scaffold(
         modifier = modifier,
@@ -137,8 +141,8 @@ internal fun TaskHistoryContent(
 
             when {
                 uiState.isLoading && timelineEntries.isEmpty() -> item { LoadingPanel(Modifier.height(360.dp)) }
-                !useReferenceFallback && uiState.error != null && timelineEntries.isEmpty() -> item {
-                    TaskHistoryErrorState(message = uiState.error.toDisplayHistoryError(), onRetry = onRetry)
+                !useReferenceFallback && errorMessage != null && timelineEntries.isEmpty() -> item {
+                    TaskHistoryErrorState(message = errorMessage.toDisplayHistoryError(), onRetry = onRetry)
                 }
                 timelineEntries.isEmpty() -> item { TaskHistoryEmptyState(message = "\u6682\u65e0\u751f\u6210\u5386\u53f2") }
                 filteredItems.isEmpty() -> item { TaskHistoryEmptyState(message = "\u5f53\u524d\u7b5b\u9009\u4e0b\u6ca1\u6709\u4efb\u52a1") }

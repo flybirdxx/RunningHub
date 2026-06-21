@@ -7,9 +7,9 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateTaskIssueCode
 /**
  * 将 QuickCreate Domain/Data 错误语义映射为页面可展示文案。
  *
- * Repository 可能返回 [QuickCreateRepositoryException]、任务错误码字符串，或服务端提供的业务错误摘要。
- * Presentation 在这里集中处理这些情况：稳定错误码映射为本地文案，服务端摘要和普通异常摘要按原样保留，
- * 空错误则使用调用方给定的场景兜底文案。
+ * Repository 可能返回 [QuickCreateRepositoryException]、任务错误码字符串或普通异常摘要。
+ * Presentation 在这里集中处理这些情况：稳定错误码映射为本地文案，未识别摘要统一使用调用方给定的
+ * 场景兜底文案，避免服务端 `msg/message` 或内部异常消息直接成为最终 UI 文案。
  *
  * @param fallbackMessage 当前 UI 场景的兜底文案，用于未知空错误。
  * @return 可直接写入 [com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState.error]
@@ -18,16 +18,15 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateTaskIssueCode
 fun Throwable.toQuickCreateDisplayMessage(fallbackMessage: String): String =
     when (this) {
         is QuickCreateRepositoryException ->
-            remoteMessage?.takeIf { it.isNotBlank() } ?: issueCode.toQuickCreateIssueMessage(fallbackMessage)
-        else -> message?.let { it.toQuickCreateIssueMessageOrNull() ?: it.takeIf { value -> value.isNotBlank() } }
-            ?: fallbackMessage
+            issueCode.toQuickCreateIssueMessage(fallbackMessage)
+        else -> message?.let { it.toQuickCreateIssueMessageOrNull() } ?: fallbackMessage
     }
 
 /**
  * 将稳定错误码映射为 QuickCreate 页面文案。
  *
- * 本函数只处理客户端定义的错误码；服务端返回的非空业务摘要不应在这里改写，
- * 以免丢失运营侧配置的具体失败原因。
+ * 本函数只处理客户端定义的错误码；未识别字符串统一交给调用方兜底，
+ * 避免服务端原始摘要、异常消息或调试信息越过 Presentation 的文案边界。
  */
 private fun String.toQuickCreateIssueMessageOrNull(): String? =
     when (this) {
@@ -62,4 +61,4 @@ private fun String.toQuickCreateIssueMessageOrNull(): String? =
     }
 
 private fun String.toQuickCreateIssueMessage(fallbackMessage: String): String =
-    toQuickCreateIssueMessageOrNull() ?: takeIf { it.isNotBlank() } ?: fallbackMessage
+    toQuickCreateIssueMessageOrNull() ?: fallbackMessage
