@@ -108,6 +108,7 @@ private fun QuickCreateTaskUiStatus.toPresentationStatus(): QuickCreateTaskPrese
         QuickCreateTaskUiStatus.RUNNING -> QuickCreateTaskPresentationStatus.RUNNING
         QuickCreateTaskUiStatus.SUCCESS -> QuickCreateTaskPresentationStatus.SUCCESS
         QuickCreateTaskUiStatus.FAILED -> QuickCreateTaskPresentationStatus.FAILED
+        QuickCreateTaskUiStatus.CANCELED -> QuickCreateTaskPresentationStatus.CANCELED
     }
 
 /**

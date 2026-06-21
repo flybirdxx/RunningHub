@@ -34,10 +34,8 @@ import kotlinx.coroutines.launch
  * `0` 表示允许重新发送；大于 `0` 时发送按钮保持禁用。
  * @property errorMessage 等待页面展示的一次性中文错误提示。
  * `null` 表示当前没有待展示错误；非空时由页面展示并在用户处理后清理。
- * @property loginSuccess 本次登录是否已经成功完成。
- * `true` 时页面执行一次性导航；`false` 表示仍停留在登录流程。
  * @property user 登录成功后服务端返回并映射得到的当前用户信息。
- * 登录前以及登录失败时为 `null`；持久会话恢复不得依赖此字段。
+ * 登录前以及登录失败时为 `null`；根导航不得依赖此字段，只能观察 SessionManager。
  */
 data class LoginUiState(
     val phone: String = "",
@@ -48,7 +46,6 @@ data class LoginUiState(
     val isSendingCode: Boolean = false,
     val countdownSeconds: Int = 0,
     val errorMessage: String? = null,
-    val loginSuccess: Boolean = false,
     val user: User? = null
 )
 
@@ -145,7 +142,7 @@ class LoginScreenModel(
             authRepository.smsLogin(state.phone, state.smsCode)
                 .onSuccess { user ->
                     _uiState.update {
-                        it.copy(isLoading = false, loginSuccess = true, user = user)
+                        it.copy(isLoading = false, user = user)
                     }
                 }
                 .onFailure { e ->
@@ -177,7 +174,7 @@ class LoginScreenModel(
     /**
      * 使用手机号和密码登录。
      *
-     * 该路径仍复用 AuthRepository 的认证契约；后续会话状态迁移后，成功状态应由 SessionManager 统一驱动。
+     * 该路径仍复用 AuthRepository 的认证契约；成功后只写入 SessionManager，由根 App 统一导航。
      */
     fun pwdLogin() {
         val state = _uiState.value
@@ -199,7 +196,7 @@ class LoginScreenModel(
             authRepository.login(state.phone, state.password)
                 .onSuccess { user ->
                     _uiState.update {
-                        it.copy(isLoading = false, loginSuccess = true, user = user)
+                        it.copy(isLoading = false, user = user)
                     }
                 }
                 .onFailure { e ->

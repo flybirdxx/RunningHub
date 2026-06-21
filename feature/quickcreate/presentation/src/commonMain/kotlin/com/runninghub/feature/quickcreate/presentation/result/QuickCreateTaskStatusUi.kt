@@ -25,6 +25,9 @@ enum class QuickCreateTaskPresentationStatus {
 
     /** 任务提交、轮询或服务端执行失败。 */
     FAILED,
+
+    /** 任务已被用户或服务端取消，属于已停止轮询的终态。 */
+    CANCELED,
 }
 
 /**
@@ -77,6 +80,10 @@ fun quickCreateTaskStatusDisplay(
         QuickCreateTaskPresentationStatus.SUCCESS -> QuickCreateTaskStatusDisplay(
             text = statusText ?: "生成完成",
             indicator = QuickCreateTaskIndicator.Success,
+        )
+        QuickCreateTaskPresentationStatus.CANCELED -> QuickCreateTaskStatusDisplay(
+            text = statusText ?: "任务已取消",
+            indicator = QuickCreateTaskIndicator.Error,
         )
         QuickCreateTaskPresentationStatus.IDLE,
         QuickCreateTaskPresentationStatus.SUBMITTING,

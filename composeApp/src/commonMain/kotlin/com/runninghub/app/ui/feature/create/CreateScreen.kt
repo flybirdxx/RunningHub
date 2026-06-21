@@ -80,8 +80,8 @@ import com.runninghub.app.ui.theme.RhAppMuted
 import com.runninghub.app.ui.theme.RhAppSurface
 import com.runninghub.app.ui.theme.RhAppText
 import com.runninghub.app.ui.theme.StatusError
-import com.runninghub.shared.domain.model.Permission
-import com.runninghub.shared.domain.permission.PermissionStateStore
+import com.runninghub.core.storage.Permission
+import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField

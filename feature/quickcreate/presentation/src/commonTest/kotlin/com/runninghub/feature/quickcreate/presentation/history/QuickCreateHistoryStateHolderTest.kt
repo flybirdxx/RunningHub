@@ -141,6 +141,39 @@ class QuickCreateHistoryStateHolderTest {
     }
 
     @Test
+    fun `load more selected project tasks deduplicates by task id`() = runTest {
+        val repository = FakeHistoryRepository().apply {
+            projectTaskPages = mapOf(
+                ("project-1" to 1) to historyPage(
+                    page = 1,
+                    size = 2,
+                    total = 3,
+                    items = listOf(historyItem("project-task-1"), historyItem("project-task-2")),
+                ),
+                ("project-1" to 2) to historyPage(
+                    page = 2,
+                    size = 2,
+                    total = 3,
+                    items = listOf(historyItem("project-task-2"), historyItem("project-task-3")),
+                ),
+            )
+        }
+        val state = MutableStateFlow(QuickCreateUiState())
+        val holder = createHolder(repository, state, this)
+
+        holder.selectProject("project-1")
+        runCurrent()
+        holder.loadMoreHistory()
+        runCurrent()
+
+        assertEquals(listOf("project-1" to 1, "project-1" to 2), repository.requestedProjectTaskPages)
+        assertEquals(listOf("project-task-1", "project-task-2", "project-task-3"), state.value.historyItems.map { it.taskId })
+        assertEquals(2, state.value.historyPage)
+        assertFalse(state.value.historyHasMore)
+        assertFalse(state.value.historyLoadingMore)
+    }
+
+    @Test
     fun `switching to project ignores delayed recent history result`() = runTest {
         val recentGate = CompletableDeferred<Unit>()
         val repository = FakeHistoryRepository().apply {
@@ -234,6 +267,26 @@ class QuickCreateHistoryStateHolderTest {
         assertEquals(listOf(1 to 2, 1 to 2), repository.requestedHistoryPages)
         assertEquals("SUCCESS", state.value.historyItems.single().source.status)
         assertFalse(state.value.historyItems.single().needsRefresh)
+    }
+
+    @Test
+    fun `dispose cancels polling before next history refresh`() = runTest {
+        val repository = FakeHistoryRepository().apply {
+            historyPages = mapOf(
+                1 to historyPage(items = listOf(historyItem("polling-task", status = "RUNNING"))),
+            )
+        }
+        val state = MutableStateFlow(QuickCreateUiState())
+        val holder = createHolder(repository, state, this, refreshIntervalMillis = 1_000L)
+
+        holder.loadRecentHistory()
+        runCurrent()
+        holder.dispose()
+        advanceTimeBy(1_000L)
+        runCurrent()
+
+        // 页面或 Tab 离开后，历史轮询不能继续触发下一次请求并回写失效状态。
+        assertEquals(listOf(1 to 2), repository.requestedHistoryPages)
     }
 
     @Test

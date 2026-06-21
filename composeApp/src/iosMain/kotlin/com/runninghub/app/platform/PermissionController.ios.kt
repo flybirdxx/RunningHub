@@ -3,8 +3,8 @@ package com.runninghub.app.platform
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import com.runninghub.app.ui.component.MediaType
-import com.runninghub.shared.domain.model.Permission
-import com.runninghub.shared.domain.permission.PermissionStateStore
+import com.runninghub.core.storage.Permission
+import com.runninghub.core.storage.PermissionStateStore
 
 /**
  * 创建 iOS 平台权限控制器。

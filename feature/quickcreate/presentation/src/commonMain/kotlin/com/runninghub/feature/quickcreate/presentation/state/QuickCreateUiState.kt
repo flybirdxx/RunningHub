@@ -49,6 +49,9 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * `true` 表示生成入口应避免提交并展示等待状态；`false` 表示当前没有进行中的计费预览。
  * @property feePreviewError 计费预览失败或余额不足时的阻塞原因。
  * `null` 表示当前价格可用或尚未触发远程预览；非空时生成流程应先拦截提交。
+ * @property feePreviewRequestKey 最近一次成功通过计费预览的请求指纹。
+ * `null` 表示还没有任何可用于正式提交的远端计费结果；生成流程必须用当前提交请求重新计算指纹并匹配该值，
+ * 防止用户在价格预览完成后修改参数却仍沿用旧价格提交。
  * @property activeSheet 当前打开的底部业务弹层。
  * `null` 表示没有弹层；非空值只能同时表示一个模型选择或参数编辑弹层。
  * @property inspirationLoading 是否正在加载灵感标签、模板列表或模板详情。
@@ -140,6 +143,7 @@ data class QuickCreateUiState(
     val estimatedCost: Double = 0.0,
     val feePreviewLoading: Boolean = false,
     val feePreviewError: String? = null,
+    val feePreviewRequestKey: String? = null,
     val activeSheet: QuickCreateSheet? = null,
     val inspirationLoading: Boolean = false,
     val inspirationTags: List<QuickCreateInspirationTagUi> = emptyList(),

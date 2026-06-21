@@ -119,8 +119,14 @@ class SessionManager(
      *
      * 该函数由 401 拦截器或令牌刷新失败路径调用。它不清理本地凭证，避免网络层在未知上下文中
      * 执行破坏性操作；凭证清理仍由明确的登录、注销或后续 Session UseCase 负责。
+     * 如果用户已经主动 logout 并进入未认证状态，迟到的 401 不得重新制造 Expired 状态，
+     * 否则根导航会把一次已完成的注销误判为会话异常。
      */
     fun expire() {
+        if (_state.value == SessionState.Unauthenticated) {
+            _isExpired.value = false
+            return
+        }
         _state.value = SessionState.Expired
         _isExpired.value = true
     }

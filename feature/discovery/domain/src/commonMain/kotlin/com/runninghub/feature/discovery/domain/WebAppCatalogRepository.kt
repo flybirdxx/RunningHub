@@ -17,21 +17,12 @@ interface WebAppCatalogRepository {
     /**
      * 分页读取 WebApp 列表。
      *
-     * @param pageNum 页码，从 1 开始；调用方应避免传入 0 或负数。
-     * @param pageSize 每页数量，单位为条；具体上限由服务端控制。
-     * @param tags 标签 ID 列表；空列表表示不过滤标签，列表顺序按服务端约定透传。
-     * @param keyword 搜索关键词；`null` 表示不过滤关键词，空字符串应由调用方在进入仓库前规整。
-     * @param sort 排序枚举字符串，由 Data 层透传给目录接口；`null` 表示使用服务端默认排序。
-     * @param days 时间窗口天数；`null` 表示不限制，正整数表示读取对应天数内的热度数据。
-     * @return 成功时返回分页目录数据；网络异常、响应码错误或响应体缺失以 [Result.failure] 返回。
+     * @param query 稳定目录查询模型，包含分页、标签、关键词和排序语义。
+     * @return 成功时返回分页目录数据；网络异常、响应码错误或响应体缺失以 [Result.failure] 返回，
+     * 失败类型应优先使用 [CatalogError]，便于 Presentation 做稳定文案映射。
      */
     suspend fun getAppList(
-        pageNum: Int,
-        pageSize: Int,
-        tags: List<String> = emptyList(),
-        keyword: String? = null,
-        sort: String? = null,
-        days: Int? = null,
+        query: CatalogQuery,
     ): Result<PageData<WebApp>>
 
     /**
@@ -66,10 +57,10 @@ interface WebAppCatalogRepository {
     /**
      * 读取 WebApp 标签树。
      *
-     * @param rang 服务端标签范围参数，默认读取 WebApp 标签；该值仍是远端兼容参数，调用方不应用于 UI 文案。
+     * @param range 标签业务范围，默认读取 WebApp 标签；Data 层负责把该值映射为远端 `rang` 参数。
      * @return 成功时返回标签树；空列表表示当前没有可用标签。
      */
-    suspend fun getTagTree(rang: String = "WEBAPP"): Result<List<Tag>>
+    suspend fun getTagTree(range: CatalogTagRange = CatalogTagRange.WEB_APP): Result<List<Tag>>
 
     /**
      * 读取公开 WebApp 详情。

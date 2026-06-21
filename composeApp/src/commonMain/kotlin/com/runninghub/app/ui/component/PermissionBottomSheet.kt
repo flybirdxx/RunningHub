@@ -21,7 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.runninghub.shared.domain.model.Permission
+import com.runninghub.core.storage.Permission
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

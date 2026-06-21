@@ -7,9 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,11 +53,11 @@ import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
-import com.runninghub.app.ui.feature.create.CreateVoyagerScreen
 import com.runninghub.app.ui.feature.discovery.DiscoveryVoyagerScreen
 import com.runninghub.app.ui.feature.history.TaskHistoryVoyagerScreen
 import com.runninghub.app.ui.feature.plaza.PlazaVoyagerScreen
 import com.runninghub.app.ui.feature.profile.ProfileVoyagerScreen
+import com.runninghub.app.ui.feature.quickcreate.QuickCreateVoyagerScreen
 import com.runninghub.app.ui.theme.BrandLime
 import com.runninghub.app.ui.theme.RhAppBackground
 import com.runninghub.app.ui.theme.RhAppMuted
@@ -68,6 +66,12 @@ import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.feature.auth.domain.GetLastKnownBalanceUseCase
 import org.koin.compose.koinInject
 
+/**
+ * 主导航可切换的一级 Tab。
+ *
+ * 每个枚举值对应一个长期存在的 Voyager Screen 实例，但只有当前选中的 Tab 会进入
+ * Composition。这样可以保留明确的状态所有权，同时避免不可见页面继续执行轮询、上传或自动刷新。
+ */
 enum class BottomNavTab(
     val label: String,
     val selectedIcon: ImageVector,
@@ -88,6 +92,36 @@ private val BottomNavTab.displayLabel: String
         BottomNavTab.History -> "History"
         BottomNavTab.Profile -> "Profile"
     }
+
+/**
+ * 持有主导航一级 Tab 对应的 Voyager Screen 实例。
+ *
+ * 该类型位于 Presentation 导航壳层，只负责把稳定的 Tab 选择映射到稳定的 Screen 实例：
+ * - 普通重组不会重新创建 Screen，避免同一 Tab 反复初始化 ScreenModel。
+ * - `screenFor` 每次只返回当前 Tab 的 Screen，由 `TabContent` 决定唯一进入 Composition 的页面。
+ * - 创作入口固定为 [QuickCreateVoyagerScreen]，旧 Create 页面不会从主导航进入生产状态机。
+ */
+internal class MainTabScreenRegistry(
+    private val discoveryScreen: Screen = DiscoveryVoyagerScreen(),
+    private val quickCreateScreen: Screen = QuickCreateVoyagerScreen(),
+    private val plazaScreen: Screen = PlazaVoyagerScreen(),
+    private val historyScreen: Screen = TaskHistoryVoyagerScreen(),
+    private val profileScreen: Screen = ProfileVoyagerScreen(),
+) {
+    /**
+     * 返回指定一级 Tab 当前应组合的唯一 Screen。
+     *
+     * 调用方只应组合返回值，不应遍历全部 Screen；这样不可见 Tab 会离开 Composition，
+     * 其页面协程、轮询和上传任务才能按 Voyager ScreenModel 生命周期释放。
+     */
+    internal fun screenFor(tab: BottomNavTab): Screen = when (tab) {
+        BottomNavTab.Discovery -> discoveryScreen
+        BottomNavTab.QuickCreate -> quickCreateScreen
+        BottomNavTab.Studio -> plazaScreen
+        BottomNavTab.History -> historyScreen
+        BottomNavTab.Profile -> profileScreen
+    }
+}
 
 /**
  * 应用主导航容器。
@@ -188,22 +222,15 @@ class MainVoyagerScreen : Screen {
 
     @Composable
     private fun TabContent(tab: BottomNavTab) {
-        // Use AnimatedVisibility to keep all tabs in composition 鈥?preserves scroll position and input state
+        val saveableStateHolder = rememberSaveableStateHolder()
+        val screenRegistry = remember { MainTabScreenRegistry() }
+
         Box(Modifier.fillMaxSize()) {
-            AnimatedVisibility(tab == BottomNavTab.Discovery, enter = fadeIn(), exit = fadeOut()) {
-                remember { DiscoveryVoyagerScreen() }.Content()
-            }
-            AnimatedVisibility(tab == BottomNavTab.QuickCreate, enter = fadeIn(), exit = fadeOut()) {
-                remember { CreateVoyagerScreen() }.Content()
-            }
-            AnimatedVisibility(tab == BottomNavTab.Studio, enter = fadeIn(), exit = fadeOut()) {
-                remember { PlazaVoyagerScreen() }.Content()
-            }
-            AnimatedVisibility(tab == BottomNavTab.History, enter = fadeIn(), exit = fadeOut()) {
-                remember { TaskHistoryVoyagerScreen() }.Content()
-            }
-            AnimatedVisibility(tab == BottomNavTab.Profile, enter = fadeIn(), exit = fadeOut()) {
-                remember { ProfileVoyagerScreen() }.Content()
+            saveableStateHolder.SaveableStateProvider(tab.name) {
+                // AC-10：只组合当前 Tab。不可见页面离开 Composition 后，页面 LaunchedEffect、
+                // Voyager ScreenModel scope 和轮询/上传 Job 会随生命周期释放；返回时只恢复
+                // rememberSaveable 能表达的滚动、输入等轻量 UI 状态，长生命周期业务状态由草稿或仓库恢复。
+                screenRegistry.screenFor(tab).Content()
             }
         }
     }

@@ -16,8 +16,8 @@ import kotlinx.serialization.json.put
  * 该实现复用 core/storage 的原始字符串存储能力，并把 JSON 结构解析、旧数据兼容和坏草稿清理
  * 封装在 Data 层。Presentation 只接收 [QuickCreateDraftSnapshot]，不会再直接处理持久化格式。
  *
- * @param draftStore 非敏感草稿的底层字符串存储端口，当前由 SettingsRepositoryImpl 提供。
- * @param json 跨 shared 模块复用的 JSON 配置，用于解析旧草稿时兼容未知字段。
+ * @param draftStore 非敏感草稿的底层字符串存储端口，当前由 PreferencesSettingsStore 提供。
+ * @param json 注入的 JSON 配置，用于解析旧草稿时兼容未知字段。
  */
 class QuickCreateDraftRepositoryImpl(
     private val draftStore: QuickCreateDraftStore,

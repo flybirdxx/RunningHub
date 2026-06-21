@@ -1,0 +1,33 @@
+name: Android CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - feature/kmp-refactoring
+
+jobs:
+  android:
+    name: Android checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Run Android L1 verification
+        run: ./gradlew verifyL1Android

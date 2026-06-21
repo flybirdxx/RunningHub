@@ -14,16 +14,39 @@ UI 使用 Compose Multiplatform。
 
 当前 Gradle 模块以 `settings.gradle.kts` 为准：
 
-- `:shared`：共享业务模型、Repository 接口与实现、Ktor 网络层、
-  SQLDelight/DataStore、本地存储和平台抽象。
-- `:composeApp`：Compose Multiplatform UI、导航、ScreenModel、
-  应用入口和平台 UI 实现。
+- `:core:model`：跨功能共享的纯业务模型和值对象，不承载网络、
+  存储、平台 SDK 或 UI 依赖。
+- `:core:common`：跨平台通用结果类型、错误语义、日志和基础工具。
+- `:core:network`：Ktor 客户端、认证插件、DTO 编解码和网络错误映射。
+- `:core:storage`：会话、凭据、偏好、草稿等存储抽象及平台实现。
+- `:feature:auth:domain`：认证领域契约、会话状态和 SessionManager。
+- `:feature:auth:data`：认证、用户资料、会话恢复和个人中心凭据的数据层实现。
+- `:feature:community:domain`：社区广场内容模型和仓库契约。
+- `:feature:community:data`：社区广场内容、标签和短片的数据层实现。
+- `:feature:discovery:domain`：发现页领域模型和目录仓库契约。
+- `:feature:discovery:data`：发现页目录、搜索、标签树和详情的数据层实现。
+- `:feature:task:domain`：生成任务与统一历史页的领域模型和仓库契约。
+- `:feature:task:data`：WebApp 任务运行、上传和历史记录的数据层实现。
+- `:feature:quickcreate:domain`：快捷创作领域模型、仓库接口和业务契约。
+- `:feature:quickcreate:data`：快捷创作数据实现；不再依赖 `:shared`。
+- `:feature:quickcreate:presentation`：快捷创作 Coordinator、
+  StateHolder、Interactor、ScreenModel 门面和 UI 状态。
+- `:shared`：迁移期兼容模块，仍承载未完成拆分的遗留网络、数据库、
+  Repository、DI、存储和平台抽象；不得作为新业务代码的默认落点。
+- `:composeApp`：Compose Multiplatform 应用壳、根导航、DI 组装、
+  平台入口和仍处于迁移期的页面实现。
 
 不要假设历史模块仍然有效。修改构建配置前，先检查：
 
 - `settings.gradle.kts`
 - `gradle/libs.versions.toml`
 - 目标模块的 `build.gradle.kts`
+
+架构迁移执行状态以以下文件为准：
+
+- `doc/RunningHub-KMP-架构迁移验收标准.md`
+- `docs/migration/current-state.yaml`
+- `docs/migration/acceptance.md`
 
 ## Sources of Truth
 
@@ -35,6 +58,9 @@ UI 使用 Compose Multiplatform。
 - API 接口及产品资料：`doc/` 和相关接口文档
 - 数据库结构：SQLDelight `.sq` 文件
 - Android 配置：`composeApp/src/androidMain/AndroidManifest.xml`
+- 架构迁移验收标准：`doc/RunningHub-KMP-架构迁移验收标准.md`
+- 架构迁移当前状态：`docs/migration/current-state.yaml`
+- 架构迁移 Gate/AC 跟踪：`docs/migration/acceptance.md`
 
 不要在本文件、源码注释或其他说明文档中复制具体依赖版本。
 版本发生变化时只修改 Version Catalog。

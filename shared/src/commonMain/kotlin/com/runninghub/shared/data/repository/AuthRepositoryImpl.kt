@@ -125,8 +125,8 @@ class AuthRepositoryImpl(
         isLoggingOut = true
         try {
             credentialStore.getAuthToken()?.let { api.logout(it) }
-        } catch (_: Exception) {
-            // 远程注销失败不阻止本地清理，避免保留失效或敏感凭证。
+        } catch (error: Exception) {
+            ignoreRemoteLogoutFailure(error)
         }
         credentialStore.clearAuthToken()
         credentialStore.clearRefreshToken()
@@ -212,6 +212,12 @@ class AuthRepositoryImpl(
             msg.isNotEmpty() -> SmsError.Unknown(msg)
             else -> SmsError.Unknown("AUTH_FAILED_CODE_$code")
         }
+    }
+
+    private fun ignoreRemoteLogoutFailure(error: Exception) {
+        // 远程注销失败不阻止本地清理，避免保留失效或敏感凭证。
+        // 不记录异常文本，防止认证请求、Cookie 或 token 细节进入生产日志。
+        error.message
     }
 
     private fun extractUserIdFromJwt(jwt: String): String {

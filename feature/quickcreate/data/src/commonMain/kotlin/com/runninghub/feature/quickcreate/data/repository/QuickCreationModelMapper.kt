@@ -26,7 +26,7 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * 将快捷创作模型目录 DTO 映射为 quickcreate Domain 模型。
  *
- * 该对象属于 shared Data 层，是远端接口协议与 `feature:quickcreate:domain` 之间的隔离边界。
+ * 该对象属于 QuickCreate Data 层，是远端接口协议与 `feature:quickcreate:domain` 之间的隔离边界。
  * 它负责过滤缺少绑定 ID 或 SKU ID 的异常模型、解析服务端动态字段扩展 JSON、兼容 child 字段结构，
  * 并把上传媒体类型推断结果写入 Domain 模型。Domain 层因此不需要依赖 DTO、JSON 解析或接口字段名。
  */

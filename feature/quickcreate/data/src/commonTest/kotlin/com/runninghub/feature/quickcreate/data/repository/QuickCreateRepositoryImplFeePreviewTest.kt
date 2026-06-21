@@ -1,8 +1,6 @@
 ﻿package com.runninghub.feature.quickcreate.data.repository
 
 import com.runninghub.core.storage.CredentialStore
-import com.runninghub.core.model.User
-import com.runninghub.feature.auth.domain.AuthRepository
 import com.runninghub.feature.quickcreate.data.remote.api.QuickCreateApi
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
@@ -57,6 +55,7 @@ class QuickCreateRepositoryImplFeePreviewTest {
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
             credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
         )
 
         val preview = repository.previewImageQuickCreationFee(
@@ -114,6 +113,7 @@ class QuickCreateRepositoryImplFeePreviewTest {
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
             credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
         )
 
         val preview = repository.previewVideoQuickCreationFee(
@@ -216,31 +216,5 @@ class QuickCreateRepositoryImplFeePreviewTest {
         override suspend fun clearRefreshToken() {}
         override suspend fun isLoggedIn(): Boolean = false
         override suspend fun clearAll() {}
-    }
-
-    private class FakeAuthRepository : AuthRepository {
-        var refreshCalls: Int = 0
-
-        override suspend fun login(phone: String, password: String): Result<User> =
-            Result.failure(NotImplementedError())
-
-        override suspend fun sendSmsCode(phone: String): Result<Unit> =
-            Result.failure(NotImplementedError())
-
-        override suspend fun smsLogin(phone: String, code: String): Result<User> =
-            Result.failure(NotImplementedError())
-
-        override suspend fun logout() {}
-
-        override suspend fun isLoggedIn(): Boolean = true
-
-        override suspend fun refreshTokenIfNeeded(): Result<String> {
-            refreshCalls += 1
-            return Result.success("fresh-token")
-        }
-
-        override suspend fun getCurrentAuthToken(): String? = "fresh-token"
-
-        override suspend fun getCurrentUserId(): String? = "user-1"
     }
 }

@@ -1,11 +1,11 @@
 package com.runninghub.app.ui.feature.plaza
 
-import com.runninghub.shared.domain.model.PlazaCreationCard
-import com.runninghub.shared.domain.model.PlazaCreationPage
-import com.runninghub.shared.domain.model.PlazaShortCard
-import com.runninghub.shared.domain.model.PlazaShortCategory
-import com.runninghub.shared.domain.model.PlazaTag
-import com.runninghub.shared.domain.repository.PlazaRepository
+import com.runninghub.feature.community.domain.PlazaCreationCard
+import com.runninghub.feature.community.domain.PlazaCreationPage
+import com.runninghub.feature.community.domain.PlazaRepository
+import com.runninghub.feature.community.domain.PlazaShortCard
+import com.runninghub.feature.community.domain.PlazaShortCategory
+import com.runninghub.feature.community.domain.PlazaTag
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher

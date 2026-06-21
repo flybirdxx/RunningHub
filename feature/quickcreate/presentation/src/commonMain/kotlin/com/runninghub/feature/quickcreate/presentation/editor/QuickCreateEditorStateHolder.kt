@@ -67,6 +67,7 @@ class QuickCreateEditorStateHolder(
                 estimatedCost = cost,
                 feePreviewLoading = false,
                 feePreviewError = null,
+                feePreviewRequestKey = null,
             )
         }
         onFeePreviewRequired()
@@ -110,6 +111,7 @@ class QuickCreateEditorStateHolder(
                 currentTab = restore.tab,
                 imageConfig = it.imageConfig.copy(prompt = restore.imagePrompt),
                 videoConfig = it.videoConfig.copy(prompt = restore.videoPrompt),
+                feePreviewRequestKey = null,
             )
         }
     }

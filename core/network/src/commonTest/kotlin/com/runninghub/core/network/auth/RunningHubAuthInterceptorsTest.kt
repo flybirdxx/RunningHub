@@ -4,11 +4,20 @@ import com.runninghub.core.storage.CredentialStore
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.headersOf
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -37,6 +46,125 @@ class RunningHubAuthInterceptorsTest {
     }
 
     @Test
+    fun `unauthorized response refreshes token and retries original request once`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "refresh-token",
+            cookie = "SESSION=abc",
+        )
+        val authorizationHeaders = mutableListOf<String?>()
+        var refreshCalls = 0
+        var expirationNotifications = 0
+        val client = HttpClient(
+            MockEngine { request ->
+                val authorization = request.headers[HttpHeaders.Authorization]
+                authorizationHeaders += authorization
+                if (authorization == "Bearer new-access") {
+                    respond(content = """{"ok":true}""", status = HttpStatusCode.OK)
+                } else {
+                    respond(content = """{"error":"expired"}""", status = HttpStatusCode.Unauthorized)
+                }
+            }
+        ).applyAuthInterceptors(
+            store = store,
+            refreshResponseBody = {
+                refreshCalls += 1
+                """{"access_token":"new-access","refresh_token":"new-refresh"}"""
+            },
+            onSessionExpired = { expirationNotifications += 1 },
+        )
+
+        val body = client.get("https://www.runninghub.cn/api/needs-auth").bodyAsText()
+
+        assertEquals("""{"ok":true}""", body)
+        assertEquals(listOf<String?>("Bearer old-access", "Bearer new-access"), authorizationHeaders)
+        assertEquals(1, refreshCalls)
+        assertEquals(0, expirationNotifications)
+        assertEquals("new-access", store.authToken)
+        assertEquals("new-refresh", store.refreshToken)
+    }
+
+    @Test
+    fun `concurrent unauthorized responses share one refresh request`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "refresh-token",
+            cookie = null,
+        )
+        val bothOldRequestsSeen = CompletableDeferred<Unit>()
+        val lock = Mutex()
+        var oldRequests = 0
+        var newRequests = 0
+        var refreshCalls = 0
+        val client = HttpClient(
+            MockEngine { request ->
+                when (request.headers[HttpHeaders.Authorization]) {
+                    "Bearer old-access" -> {
+                        lock.withLock {
+                            oldRequests += 1
+                            if (oldRequests == 2) bothOldRequestsSeen.complete(Unit)
+                        }
+                        bothOldRequestsSeen.await()
+                        respond(content = """{"error":"expired"}""", status = HttpStatusCode.Unauthorized)
+                    }
+                    "Bearer new-access" -> {
+                        lock.withLock { newRequests += 1 }
+                        respond(content = """{"ok":true}""", status = HttpStatusCode.OK)
+                    }
+                    else -> respond(content = """{"error":"missing"}""", status = HttpStatusCode.Unauthorized)
+                }
+            }
+        ).applyAuthInterceptors(
+            store = store,
+            refreshResponseBody = {
+                refreshCalls += 1
+                """{"access_token":"new-access","refresh_token":"new-refresh"}"""
+            },
+        )
+
+        listOf(
+            async { client.get("https://www.runninghub.cn/api/needs-auth").bodyAsText() },
+            async { client.get("https://www.runninghub.cn/api/needs-auth").bodyAsText() },
+        ).awaitAll()
+
+        assertEquals(2, oldRequests)
+        assertEquals(2, newRequests)
+        assertEquals(1, refreshCalls)
+        assertEquals("new-access", store.authToken)
+    }
+
+    @Test
+    fun `retry still unauthorized notifies expiration once and does not refresh again`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "refresh-token",
+            cookie = null,
+        )
+        val authorizationHeaders = mutableListOf<String?>()
+        var refreshCalls = 0
+        var expirationNotifications = 0
+        val client = HttpClient(
+            MockEngine { request ->
+                authorizationHeaders += request.headers[HttpHeaders.Authorization]
+                respond(content = """{"error":"still-expired"}""", status = HttpStatusCode.Unauthorized)
+            }
+        ).applyAuthInterceptors(
+            store = store,
+            refreshResponseBody = {
+                refreshCalls += 1
+                """{"access_token":"new-access","refresh_token":"new-refresh"}"""
+            },
+            onSessionExpired = { expirationNotifications += 1 },
+        )
+
+        client.get("https://www.runninghub.cn/api/needs-auth").bodyAsText()
+
+        assertEquals(listOf<String?>("Bearer old-access", "Bearer new-access"), authorizationHeaders)
+        assertEquals(1, refreshCalls)
+        assertEquals(1, expirationNotifications)
+    }
+
+    @Test
     fun `unauthorized response notifies session expiration when refresh fails`() = runBlocking {
         val store = FakeCredentialStore(
             authToken = "expired-token",
@@ -57,15 +185,50 @@ class RunningHubAuthInterceptorsTest {
         assertEquals(1, expirationNotifications)
     }
 
+    @Test
+    fun `concurrent refresh failures notify session expiration once`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "expired-token",
+            refreshToken = null,
+            cookie = null,
+        )
+        var expirationNotifications = 0
+        val client = HttpClient(
+            MockEngine {
+                respond(content = "{}", status = HttpStatusCode.Unauthorized)
+            }
+        ).applyAuthInterceptors(store) {
+            expirationNotifications += 1
+        }
+
+        listOf(
+            async { client.get("https://www.runninghub.cn/api/needs-auth").bodyAsText() },
+            async { client.get("https://www.runninghub.cn/api/needs-auth").bodyAsText() },
+        ).awaitAll()
+
+        assertEquals(1, expirationNotifications)
+    }
+
     private fun HttpClient.applyAuthInterceptors(
         store: FakeCredentialStore,
+        refreshResponseBody: (() -> String)? = null,
         onSessionExpired: suspend () -> Unit = {},
     ): HttpClient {
         val refreshClient = HttpClient(
             MockEngine {
-                error("Refresh client should not be called in this test")
+                val responseBody = refreshResponseBody?.invoke()
+                    ?: error("Refresh client should not be called in this test")
+                respond(
+                    content = responseBody,
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
             }
-        )
+        ) {
+            install(ContentNegotiation) {
+                json()
+            }
+        }
         installRunningHubAuthInterceptors(
             credentialStore = store,
             tokenRefresher = TokenRefresher(

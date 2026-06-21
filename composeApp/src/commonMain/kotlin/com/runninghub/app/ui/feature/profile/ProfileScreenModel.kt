@@ -188,15 +188,15 @@ class ProfileScreenModel(
      * 注销当前会话。
      *
      * 注销动作交给 [AuthRepository] 处理远程 best-effort 请求和本地凭据清理；
-     * 本 ScreenModel 只在完成后清空个人中心状态，并通过 [onLoggedOut] 通知页面执行导航。
-     *
-     * @param onLoggedOut 注销完成后的导航回调，应只执行页面跳转，不应再次清理凭据。
+     * 本 ScreenModel 只在完成后清空个人中心状态。根 [com.runninghub.app.App] 会观察
+     * SessionManager 的会话状态并统一替换根导航栈，个人中心不得直接跳转登录页，
+     * 否则会重新引入第二套会话导航事实来源。
      */
-    fun logout(onLoggedOut: () -> Unit = {}) {
+    fun logout() {
         screenModelScope.launch {
             authRepository.logout()
+            // 本地状态立即回到未登录轻量态，避免根导航切走前继续展示旧用户资料或余额。
             _uiState.update { ProfileUiState(isLoading = false) }
-            onLoggedOut()
         }
     }
 

@@ -23,6 +23,9 @@ enum class QuickCreateTaskUiStatus {
 
     /** 提交、轮询或服务端执行过程失败。 */
     FAILED,
+
+    /** 服务端确认任务已取消。 */
+    CANCELED,
 }
 
 /**

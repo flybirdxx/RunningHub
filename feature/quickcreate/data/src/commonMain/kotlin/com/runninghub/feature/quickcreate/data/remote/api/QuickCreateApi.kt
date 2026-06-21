@@ -10,8 +10,10 @@ import io.ktor.http.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
+@Suppress("UNUSED_PARAMETER")
 private fun debug(tag: String, msg: String) {
-    println("[$tag] $msg")
+    // QuickCreate Data 层默认不输出生产日志，避免媒体文件名、接口响应或认证上下文进入 stdout。
+    // 后续如需诊断，应通过可注入且支持脱敏/构建类型开关的日志抽象接入。
 }
 
 private const val OPEN_API_V2_PATH_PREFIX = "/openapi/v2/"
@@ -433,7 +435,8 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
      * 上传模型直调所需的媒体文件。
      *
      * 上传接口属于 `/openapi/v2` 分组，API Key 仅通过 Authorization 请求头发送。
-     * 日志只记录文件元信息和脱敏状态，不输出 API Key 前缀，避免调试日志泄露凭据。
+     * Data 层默认不输出上传日志；如后续接入诊断日志，必须只记录脱敏后的文件元信息，
+     * 不能输出 API Key、Cookie 或完整响应体，避免调试日志泄露凭据。
      */
     suspend fun uploadMedia(
         apiKey: String,

@@ -65,6 +65,16 @@ class TokenRefresher(
             val body = refreshResponse.bodyAsText()
             val accessToken = ACCESS_TOKEN_REGEX.find(body)?.groupValues?.getOrNull(1)
                 ?: return@withLock false
+            val tokenBeforeWrite = credentialStore.getAuthToken()
+            if (tokenBeforeLock != null && tokenBeforeWrite.isNullOrEmpty()) {
+                // refresh 请求飞行期间若 logout 已经清理 access token，不得再写回新 token，
+                // 否则用户主动结束的会话会被并发 401 恢复成已登录状态。
+                return@withLock false
+            }
+            if (tokenBeforeLock != null && tokenBeforeWrite != tokenBeforeLock) {
+                // 其他路径已经建立了新会话或完成刷新时，保留现有凭据，避免旧 refresh 响应覆盖较新的登录结果。
+                return@withLock true
+            }
             credentialStore.setAuthToken(accessToken)
             REFRESH_TOKEN_REGEX.find(body)
                 ?.groupValues

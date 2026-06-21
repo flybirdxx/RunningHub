@@ -19,6 +19,7 @@ import com.runninghub.feature.quickcreate.presentation.modelcatalog.toQuickCreat
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -67,8 +68,8 @@ class QuickCreateInspirationStateHolder(
                 val tags = tagsResult.getOrElse { emptyList() }.toQuickCreateInspirationTagUiItems()
                 val templatePage = templatesResult.getOrNull()
                 val templates = templatePage?.items.orEmpty().map { it.toQuickCreateInspirationTemplateUi() }
-                val error = tagsResult.exceptionOrNull()?.message
-                    ?: templatesResult.exceptionOrNull()?.message
+                val error = tagsResult.exceptionOrNull()?.toQuickCreateDisplayMessage("灵感标签加载失败")
+                    ?: templatesResult.exceptionOrNull()?.toQuickCreateDisplayMessage("灵感模板加载失败")
 
                 state.copy(
                     inspirationLoading = false,
@@ -122,7 +123,7 @@ class QuickCreateInspirationStateHolder(
                     onFailure = { error ->
                         state.copy(
                             inspirationTemplatesLoadingMore = false,
-                            error = error.message,
+                            error = error.toQuickCreateDisplayMessage("灵感模板加载失败"),
                         )
                     },
                 )
@@ -152,7 +153,7 @@ class QuickCreateInspirationStateHolder(
                     uiState.update {
                         it.copy(
                             inspirationLoading = false,
-                            error = error.message ?: "模板详情加载失败",
+                            error = error.toQuickCreateDisplayMessage("模板详情加载失败"),
                         )
                     }
                 },

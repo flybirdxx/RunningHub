@@ -62,10 +62,10 @@ import com.runninghub.app.ui.theme.RhAppSelected
 import com.runninghub.app.ui.theme.RhAppSurface
 import com.runninghub.app.ui.theme.RhAppText
 import com.runninghub.app.ui.theme.StatusError
-import com.runninghub.shared.domain.model.PlazaCreationCard
-import com.runninghub.shared.domain.model.PlazaShortCard
-import com.runninghub.shared.domain.model.PlazaShortCategory
-import com.runninghub.shared.domain.model.PlazaTag
+import com.runninghub.feature.community.domain.PlazaCreationCard
+import com.runninghub.feature.community.domain.PlazaShortCard
+import com.runninghub.feature.community.domain.PlazaShortCategory
+import com.runninghub.feature.community.domain.PlazaTag
 
 class PlazaVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey

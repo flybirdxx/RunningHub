@@ -1,4 +1,4 @@
-package com.runninghub.app.ui.adaptive
+﻿package com.runninghub.app.ui.adaptive
 
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
@@ -11,7 +11,6 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.app.ui.feature.discovery.DiscoveryUiState
-import com.runninghub.app.ui.feature.discovery.SortOption
 import com.runninghub.app.ui.feature.history.TaskHistoryEntry
 import com.runninghub.app.ui.feature.history.TaskHistoryFilter
 import com.runninghub.app.ui.feature.history.TaskHistoryUiState
@@ -29,12 +28,13 @@ import com.runninghub.core.model.TagSimple
 import com.runninghub.core.model.User
 import com.runninghub.core.model.WalletInfo
 import com.runninghub.core.model.WebApp
-import com.runninghub.shared.domain.model.TaskHistoryItem
-import com.runninghub.shared.domain.model.TaskHistoryOutput
-import com.runninghub.shared.domain.model.TaskOutput
-import com.runninghub.shared.domain.model.TaskExecutionStatus
-import com.runninghub.shared.domain.model.isFailed
-import com.runninghub.shared.domain.model.isTerminal
+import com.runninghub.feature.discovery.domain.CatalogSort
+import com.runninghub.core.model.TaskHistoryItem
+import com.runninghub.core.model.TaskHistoryOutput
+import com.runninghub.core.model.TaskOutput
+import com.runninghub.core.model.TaskExecutionStatus
+import com.runninghub.core.model.isFailed
+import com.runninghub.core.model.isTerminal
 
 internal fun previewTag(
     id: String,
@@ -164,7 +164,7 @@ internal fun previewDiscoveryUiState(
         banners = apps.take(4),
         categories = previewCategories(),
         selectedCategoryIndex = 1,
-        selectedSort = SortOption.RECOMMEND,
+        selectedSort = CatalogSort.RECOMMEND,
         apps = apps,
         currentPage = 2,
         hasMore = false,

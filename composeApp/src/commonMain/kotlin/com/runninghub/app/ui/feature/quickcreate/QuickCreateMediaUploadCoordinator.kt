@@ -1,11 +1,16 @@
 package com.runninghub.app.ui.feature.quickcreate
 
-import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
-
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
+import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -16,19 +21,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.datetime.Clock
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
-import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
-import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
-import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
-import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
-import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 
 private const val UPLOAD_WAIT_MAX_TICKS = 120
 private const val UPLOAD_WAIT_TICK_MILLIS = 500L
-
-private fun debugUpload(message: String) {
-    println("[QuickCreateMediaUpload] $message")
-}
 
 /**
  * 协调快捷创作页面的媒体选择、上传和待上传素材等待流程。
@@ -149,20 +144,26 @@ internal class QuickCreateMediaUploadCoordinator(
     }
 
     /**
-     * 等待当前生成请求所需素材完成上传。
+     * 等待指定生成快照所需素材完成上传。
      *
      * 生成提交前调用该方法。已失败的素材会立即中断生成；上传中的素材最多等待
      * [UPLOAD_WAIT_MAX_TICKS] 次，每次 [UPLOAD_WAIT_TICK_MILLIS] 毫秒。超时仍未完成时抛出业务错误，
      * 由 ScreenModel 映射为页面错误并恢复空闲状态。
+     *
+     * @param stateSnapshot 用户点击生成时的页面快照。等待上传期间页面仍可能继续编辑，
+     * 因此本方法只跟踪快照中相关素材的上传结果，并把 remoteUrl 回填到同一份快照后返回。
+     * @return 已合并上传终态的提交快照，可直接用于最终生成请求构建。
      */
-    suspend fun awaitPendingUploads() {
-        val mediaRefs = generationRequestFactory.currentRelevantMediaReferences(uiState.value)
+    suspend fun awaitPendingUploads(
+        stateSnapshot: QuickCreateUiState = uiState.value,
+    ): QuickCreateUiState {
+        val mediaRefs = generationRequestFactory.currentRelevantMediaReferences(stateSnapshot)
         val alreadyFailed = mediaRefs.filter { it.uploadStatus == UploadStatus.FAILED }
         if (alreadyFailed.isNotEmpty()) {
             throw IllegalStateException("素材上传失败: ${alreadyFailed.joinToString { it.displayName }}")
         }
         val pending = mediaRefs.filter { it.isUploadPending() }
-        if (pending.isEmpty()) return
+        if (pending.isEmpty()) return stateSnapshot
 
         uiState.update { it.copy(statusText = "正在上传素材(${pending.size})...") }
 
@@ -171,29 +172,39 @@ internal class QuickCreateMediaUploadCoordinator(
         while (waited < UPLOAD_WAIT_MAX_TICKS) {
             delay(UPLOAD_WAIT_TICK_MILLIS)
             waited++
-            val stillPending = uiState.value.let { state ->
-                generationRequestFactory.currentRelevantMediaReferences(state)
-                    .filter { it.id in pendingIds && it.isUploadPending() }
-                    .map { it.id }
-                    .toSet()
+            val currentReferences = uiState.value.mediaReferencesById()
+            val removed = pendingIds.filter { it !in currentReferences.keys }
+            if (removed.isNotEmpty()) {
+                val removedNames = pending
+                    .filter { it.id in removed }
+                    .joinToString { it.displayName }
+                throw IllegalStateException("素材上传失败: $removedNames")
             }
-            if (stillPending.isEmpty()) return
+            val failed = currentReferences.values.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
+            if (failed.isNotEmpty()) {
+                throw IllegalStateException("素材上传失败: ${failed.joinToString { it.displayName }}")
+            }
+            val stillPending = currentReferences.values
+                .filter { it.id in pendingIds && it.isUploadPending() }
+                .map { it.id }
+                .toSet()
+            if (stillPending.isEmpty()) {
+                return stateSnapshot.withUploadedMediaFrom(uiState.value, pendingIds)
+            }
         }
 
-        val failed = uiState.value.let { state ->
-            generationRequestFactory.currentRelevantMediaReferences(state)
-                .filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
-        }
+        val currentReferences = uiState.value.mediaReferencesById()
+        val failed = currentReferences.values.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
         if (failed.isNotEmpty()) {
             throw IllegalStateException("素材上传失败: ${failed.joinToString { it.displayName }}")
         }
-        val timedOut = uiState.value.let { state ->
-            generationRequestFactory.currentRelevantMediaReferences(state)
-                .filter { it.id in pendingIds && it.isUploadPending() }
+        val timedOut = pending.filter { reference ->
+            currentReferences[reference.id]?.isUploadPending() != false
         }
         if (timedOut.isNotEmpty()) {
             throw IllegalStateException("素材上传超时: ${timedOut.joinToString { it.displayName }}")
         }
+        return stateSnapshot.withUploadedMediaFrom(uiState.value, pendingIds)
     }
 
     /**
@@ -230,7 +241,7 @@ internal class QuickCreateMediaUploadCoordinator(
                     fileName = actualFileName,
                     mimeType = mimeType,
                 ).getOrElse { error ->
-                    debugUpload("upload failed for $fileName: ${error::class.simpleName}: ${error.message}")
+                    // 上传失败会在下方统一映射为页面错误状态；这里不写控制台日志，避免生产包泄露本地文件名或服务端异常细节。
                     throw error
                 }
 
@@ -241,6 +252,7 @@ internal class QuickCreateMediaUploadCoordinator(
                             uploadStatus = UploadStatus.DONE,
                             uploadProgress = 1f,
                             remoteUrl = remoteUrl,
+                            errorMessage = null,
                         )
                     }
                 }
@@ -250,10 +262,13 @@ internal class QuickCreateMediaUploadCoordinator(
                 // 不应把媒体标记为失败，也不能继续触发计费预览。
                 throw error
             } catch (error: Exception) {
-                debugUpload("upload exception for $fileName: ${error::class.simpleName}: ${error.message}")
+                val displayMessage = error.toQuickCreateDisplayMessage("素材上传失败")
                 uiState.update { state ->
                     state.withUpdatedMediaReference(targetTab, id) { reference ->
-                        reference.copy(uploadStatus = UploadStatus.FAILED)
+                        reference.copy(
+                            uploadStatus = UploadStatus.FAILED,
+                            errorMessage = displayMessage,
+                        )
                     }
                 }
                 scheduleFeePreviewForMediaReference(id)
@@ -299,6 +314,41 @@ internal class QuickCreateMediaUploadCoordinator(
         withMediaReference(targetTab) { mediaReferences ->
             mediaReferences.map { reference ->
                 if (reference.id == id) transform(reference) else reference
+            }
+        }
+
+    private fun QuickCreateUiState.mediaReferencesById(): Map<String, MediaReference> =
+        (imageConfig.mediaReferences + videoConfig.mediaReferences).associateBy { it.id }
+
+    private fun QuickCreateUiState.withUploadedMediaFrom(
+        currentState: QuickCreateUiState,
+        ids: Set<String>,
+    ): QuickCreateUiState {
+        val currentReferences = currentState.mediaReferencesById()
+        return copy(
+            imageConfig = imageConfig.copy(
+                mediaReferences = imageConfig.mediaReferences.mergeUploadedMedia(currentReferences, ids),
+            ),
+            videoConfig = videoConfig.copy(
+                mediaReferences = videoConfig.mediaReferences.mergeUploadedMedia(currentReferences, ids),
+            ),
+        )
+    }
+
+    private fun List<MediaReference>.mergeUploadedMedia(
+        currentReferences: Map<String, MediaReference>,
+        ids: Set<String>,
+    ): List<MediaReference> =
+        map { snapshotReference ->
+            val currentReference = currentReferences[snapshotReference.id]
+            if (snapshotReference.id in ids && currentReference != null) {
+                snapshotReference.copy(
+                    uploadStatus = currentReference.uploadStatus,
+                    uploadProgress = currentReference.uploadProgress,
+                    remoteUrl = currentReference.remoteUrl,
+                )
+            } else {
+                snapshotReference
             }
         }
 

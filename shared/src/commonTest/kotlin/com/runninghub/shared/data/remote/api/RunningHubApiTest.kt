@@ -1,14 +1,9 @@
 package com.runninghub.shared.data.remote.api
 
 import com.runninghub.shared.data.remote.dto.AccountStatusRequest
-import com.runninghub.shared.data.remote.dto.CustomMadeWebappRequest
-import com.runninghub.shared.data.remote.dto.InputNodeDto
 import com.runninghub.shared.data.remote.dto.PwdLoginRequest
 import com.runninghub.shared.data.remote.dto.SmsCodeRequest
 import com.runninghub.shared.data.remote.dto.SmsLoginRequest
-import com.runninghub.shared.data.remote.dto.TaskRunRequest
-import com.runninghub.shared.data.remote.dto.TaskStatusRequest
-import com.runninghub.shared.data.remote.dto.WebAppListRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -41,28 +36,6 @@ class RunningHubApiTest {
         api.smsLogin(SmsLoginRequest(mobile = "13800000000", code = "123456"))
         api.logout("access-token")
         api.getUserInfoWithToken(accessToken = "access-token", userId = "user-1")
-        api.getWebAppList(WebAppListRequest(pageSize = 10, pageNum = 1))
-        api.getCarefullyChosenList()
-        api.getCustomMadeWebappList(CustomMadeWebappRequest())
-        api.getWebAppUserList(mapOf("userId" to "user-1"))
-        api.getTagTree()
-        api.getApiCallDemo(apiKey = "api-key", webappId = "100")
-        api.getWebAppDetail(mapOf("webappId" to "100"))
-        api.runTask(
-            TaskRunRequest(
-                webappId = 100L,
-                apiKey = "api-key",
-                nodeInfoList = listOf(InputNodeDto(nodeId = "1")),
-            ),
-        )
-        api.getTaskOutputs(TaskStatusRequest(taskId = 200L, apiKey = "api-key"))
-        api.uploadFile(
-            apiKey = "api-key",
-            fileType = "image",
-            fileBytes = byteArrayOf(1, 2, 3),
-            fileName = "input.png",
-        )
-        api.getTaskHistory(mapOf("current" to 1, "size" to 10))
         api.getAccountStatus(AccountStatusRequest(apikey = "api-key"))
         api.getUserInfo()
         api.getUserDetail(
@@ -90,17 +63,6 @@ class RunningHubApiTest {
                 HttpMethod.Post to "/uc/smsLogin",
                 HttpMethod.Post to "/uc/logout",
                 HttpMethod.Post to "/uc/getUserInfo",
-                HttpMethod.Post to "/api/webapp/list",
-                HttpMethod.Post to "/api/webapp/carefullyChosenList",
-                HttpMethod.Post to "/api/webapp/customMadeWebappList",
-                HttpMethod.Post to "/api/webapp/user/list",
-                HttpMethod.Post to "/api/portal/tag/tree",
-                HttpMethod.Post to "/api/webapp/apiCallDemo",
-                HttpMethod.Post to "/api/webapp/detail",
-                HttpMethod.Post to "/task/openapi/ai-app/run",
-                HttpMethod.Post to "/task/openapi/outputs",
-                HttpMethod.Post to "/task/openapi/upload",
-                HttpMethod.Post to "/api/output/v2/history",
                 HttpMethod.Post to "/uc/openapi/accountStatus",
                 HttpMethod.Post to "/uc/getUserInfo",
                 HttpMethod.Post to "/uc/getUserInfo",
@@ -120,7 +82,6 @@ class RunningHubApiTest {
         api.tokenRefresh("refresh-token")
         api.logout("access-token")
         api.getUserInfoWithToken(accessToken = "access-token", userId = "user-1")
-        api.getApiCallDemo(apiKey = "api-key", webappId = "100")
         api.getUserDetail(
             referer = "https://www.runninghub.cn/user/user-1",
             params = mapOf("userId" to "user-1"),
@@ -129,8 +90,7 @@ class RunningHubApiTest {
         assertEquals("Bearer refresh-token", captured[0].authorization)
         assertEquals("Bearer access-token", captured[1].authorization)
         assertEquals("Bearer access-token", captured[2].authorization)
-        assertEquals("api-key", captured[3].apiKey)
-        assertEquals("https://www.runninghub.cn/user/user-1", captured[4].referer)
+        assertEquals("https://www.runninghub.cn/user/user-1", captured[3].referer)
     }
 
     private fun clientWithPathCapture(
@@ -142,7 +102,6 @@ class RunningHubApiTest {
                     method = request.method,
                     path = request.url.encodedPath,
                     authorization = request.headers[HttpHeaders.Authorization],
-                    apiKey = request.headers["X-API-Key"],
                     referer = request.headers[HttpHeaders.Referrer],
                 )
                 respond(
@@ -161,7 +120,6 @@ class RunningHubApiTest {
         val method: HttpMethod,
         val path: String,
         val authorization: String?,
-        val apiKey: String?,
         val referer: String?,
     )
 }

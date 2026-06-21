@@ -2,11 +2,11 @@ package com.runninghub.app.ui.feature.plaza
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import com.runninghub.shared.domain.model.PlazaCreationCard
-import com.runninghub.shared.domain.model.PlazaShortCard
-import com.runninghub.shared.domain.model.PlazaShortCategory
-import com.runninghub.shared.domain.model.PlazaTag
-import com.runninghub.shared.domain.repository.PlazaRepository
+import com.runninghub.feature.community.domain.PlazaCreationCard
+import com.runninghub.feature.community.domain.PlazaRepository
+import com.runninghub.feature.community.domain.PlazaShortCard
+import com.runninghub.feature.community.domain.PlazaShortCategory
+import com.runninghub.feature.community.domain.PlazaTag
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow

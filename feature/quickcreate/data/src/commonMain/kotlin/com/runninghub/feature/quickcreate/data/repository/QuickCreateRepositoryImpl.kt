@@ -11,7 +11,10 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTag
 import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplate
 import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplateDetail
 import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplatePage
+import com.runninghub.feature.quickcreate.domain.QuickCreateRepositoryException
+import com.runninghub.feature.quickcreate.domain.QuickCreateRepositoryIssueCode
 import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
+import com.runninghub.feature.quickcreate.domain.QuickCreateTaskIssueCode
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
@@ -40,8 +43,10 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
+@Suppress("UNUSED_PARAMETER")
 private fun debug(tag: String, msg: String) {
-    println("[$tag] $msg")
+    // QuickCreate 仓库默认不把调试信息写入 stdout。生成、上传和计费链路可能包含文件名、
+    // 任务 ID、余额状态等敏感上下文；需要排障时应接入统一脱敏日志，而不是裸 println。
 }
 
 private fun mapResults(results: List<QuickCreateResultDto>?): List<QuickCreateResultItem> =
@@ -142,7 +147,7 @@ private fun QuickCreationProjectDto.toProjectOrNull(): QuickCreationProject? {
 }
 
 private fun QuickCreationProjectDto.toProject(): QuickCreationProject =
-    toProjectOrNull() ?: throw IllegalStateException("Project id missing")
+    toProjectOrNull() ?: throw QuickCreateRepositoryException(QuickCreateRepositoryIssueCode.PROJECT_ID_MISSING)
 
 private fun QuickCreationTaskRecordDto.toHistoryItem(): QuickCreationHistoryItem {
     val params = parseJsonObjectOrNull(apiRequestParams)
@@ -167,6 +172,46 @@ private fun QuickCreationTaskRecordDto.toHistoryItem(): QuickCreationHistoryItem
         outputs = outputList.map { it.toHistoryOutput() },
     )
 }
+
+/**
+ * 将 QuickCreation 标准响应失败转换为 Domain 稳定错误语义。
+ *
+ * Data 层只保留服务端返回的业务摘要和响应码，不在这里生成最终中文 UI 文案；
+ * Presentation 会根据 [fallbackIssueCode] 或远端摘要决定展示内容。
+ */
+private fun QuickCreationEnvelopeDto<*>.toRepositoryException(
+    fallbackIssueCode: String,
+): QuickCreateRepositoryException =
+    QuickCreateRepositoryException(
+        issueCode = fallbackIssueCode,
+        remoteMessage = remoteFailureMessage(),
+        remoteStatusCode = code,
+    )
+
+/**
+ * 将媒体上传接口失败转换为 Domain 稳定错误语义。
+ *
+ * 上传接口使用独立响应结构，仍遵守同一条边界规则：Data 只携带错误码和远端摘要，
+ * 不把本地兜底文案直接暴露给 UI。
+ */
+private fun MediaUploadResponseDto.toRepositoryException(
+    fallbackIssueCode: String,
+): QuickCreateRepositoryException =
+    QuickCreateRepositoryException(
+        issueCode = fallbackIssueCode,
+        remoteMessage = message?.takeIf { code != 0 && it.isMeaningfulFailureMessage() },
+        remoteStatusCode = code,
+    )
+
+private fun QuickCreationEnvelopeDto<*>.remoteFailureMessage(): String? =
+    if (code == 0) {
+        null
+    } else {
+        listOf(msg, message).firstOrNull { it.isMeaningfulFailureMessage() }
+    }
+
+private fun String?.isMeaningfulFailureMessage(): Boolean =
+    !isNullOrBlank() && !equals("success", ignoreCase = true)
 
 private fun QuickCreationFeePreviewDto.toDomain(): QuickCreationFeePreview =
     QuickCreationFeePreview(
@@ -211,19 +256,24 @@ private fun pollTaskStatus(
 
         val taskStatus: QuickCreateTaskStatus = when (queryResponse.status) {
             QuickCreateResult.STATUS_SUCCESS -> QuickCreateTaskStatus.Success(taskId, results)
-            QuickCreateResult.STATUS_FAILED -> QuickCreateTaskStatus.Failed(taskId, queryResponse.errorMessage ?: "任务失败")
+            QuickCreateResult.STATUS_FAILED -> QuickCreateTaskStatus.Failed(
+                taskId,
+                queryResponse.errorMessage ?: QuickCreateTaskIssueCode.TASK_FAILED,
+            )
             QuickCreateResult.STATUS_RUNNING -> QuickCreateTaskStatus.Running(taskId, queryResponse.progress)
             QuickCreateResult.STATUS_QUEUING -> QuickCreateTaskStatus.Queuing(taskId)
+            QuickCreateResult.STATUS_CANCELED,
+            QuickCreateResult.STATUS_CANCELLED -> QuickCreateTaskStatus.Cancelled(taskId)
             else -> QuickCreateTaskStatus.Queuing(taskId)
         }
 
         emit(taskStatus)
-        if (taskStatus is QuickCreateTaskStatus.Success || taskStatus is QuickCreateTaskStatus.Failed) {
+        if (taskStatus.isTerminalPollingStatus()) {
             return@flow
         }
         delay(2000)
     }
-    emit(QuickCreateTaskStatus.Error("任务超时"))
+    emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.TASK_TIMEOUT))
 }
 
 private fun pollQuickCreationTaskStatus(
@@ -237,7 +287,7 @@ private fun pollQuickCreationTaskStatus(
         attempts++
 
         if (page.code != 0) {
-            emit(QuickCreateTaskStatus.Error(page.msg ?: page.message ?: "任务查询失败"))
+            emit(QuickCreateTaskStatus.Error(page.msg ?: page.message ?: QuickCreateTaskIssueCode.TASK_QUERY_FAILED))
             return@flow
         }
 
@@ -250,19 +300,31 @@ private fun pollQuickCreationTaskStatus(
 
         val status: QuickCreateTaskStatus = when (record.taskStatus) {
             "SUCCESS" -> QuickCreateTaskStatus.Success(taskId, mapQuickCreationOutputs(record.outputList))
-            "FAILED", "FAILURE", "ERROR" -> QuickCreateTaskStatus.Failed(taskId, "任务失败")
+            "FAILED", "FAILURE", "ERROR" -> QuickCreateTaskStatus.Failed(taskId, QuickCreateTaskIssueCode.TASK_FAILED)
+            "CANCELED", "CANCELLED" -> QuickCreateTaskStatus.Cancelled(taskId)
             "RUNNING", "PROCESSING" -> QuickCreateTaskStatus.Running(taskId, 0)
             else -> QuickCreateTaskStatus.Queuing(taskId)
         }
 
         emit(status)
-        if (status is QuickCreateTaskStatus.Success || status is QuickCreateTaskStatus.Failed) {
+        if (status.isTerminalPollingStatus()) {
             return@flow
         }
         delay(2000)
     }
-    emit(QuickCreateTaskStatus.Error("任务超时"))
+    emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.TASK_TIMEOUT))
 }
+
+/**
+ * 判断任务轮询是否应立即停止。
+ *
+ * 成功、失败和取消都属于服务端终态；收到这些状态后继续轮询只会制造无意义请求，
+ * 并可能把用户主动取消误报成客户端超时。
+ */
+private fun QuickCreateTaskStatus.isTerminalPollingStatus(): Boolean =
+    this is QuickCreateTaskStatus.Success ||
+        this is QuickCreateTaskStatus.Failed ||
+        this is QuickCreateTaskStatus.Cancelled
 
 private val ImageGenerationRequest.hasQuickCreationIdentity: Boolean
     get() = !quickCreationBindingId.isNullOrBlank() && !quickCreationSkuId.isNullOrBlank()
@@ -277,12 +339,13 @@ private val ImageGenerationRequest.hasQuickCreationIdentity: Boolean
  *
  * @param quickCreateApi 快捷创作远程 API，封装接口路径、请求头和序列化细节。
  * @param credentialStore 凭据读取边界，用于在请求前获取当前 API Key。
- * @param authRepository 可选认证仓库；当服务端返回 Token 失效时用于刷新后重试一次。
+ * @param authRepository 认证仓库；当服务端返回 Token 失效时用于刷新后重试一次。
+ * 该依赖必须由 DI 提供，避免生产运行时因缺少刷新能力而把可恢复的 401/TOKEN_INVALID 直接暴露为失败。
  */
 class QuickCreateRepositoryImpl(
     private val quickCreateApi: QuickCreateApi,
     private val credentialStore: CredentialStore,
-    private val authRepository: AuthRepository? = null,
+    private val authRepository: AuthRepository,
 ) : QuickCreationTaskHistoryRepository,
     QuickCreationFeePreviewRepository,
     QuickCreationGenerationRepository,
@@ -297,7 +360,7 @@ class QuickCreateRepositoryImpl(
         val first = request()
         if (!first.isTokenInvalid()) return first
 
-        val refreshed = authRepository?.refreshTokenIfNeeded()?.isSuccess == true
+        val refreshed = authRepository.refreshTokenIfNeeded().isSuccess
         debug("QuickCreationV2", "token refresh retry refreshed=$refreshed")
         return if (refreshed) request() else first
     }
@@ -340,7 +403,7 @@ class QuickCreateRepositoryImpl(
         if (refreshedPrepare.code != 0 || refreshedPrepare.data == null) {
             return QuickCreationEnvelopeDto(
                 code = refreshedPrepare.code,
-                msg = refreshedPrepare.msg ?: refreshedPrepare.message ?: "任务预提交失败",
+                msg = refreshedPrepare.msg ?: refreshedPrepare.message ?: QuickCreateTaskIssueCode.PREPARE_FAILED,
                 data = null,
             )
         }
@@ -364,7 +427,7 @@ class QuickCreateRepositoryImpl(
             quickCreateApi.previewQuickCreationFee(createRequest)
         }
         if (response.code != 0 || response.data == null) {
-            error(response.msg ?: response.message ?: "价格预览失败")
+            throw response.toRepositoryException(QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED)
         }
         response.data.toDomain()
     }
@@ -377,7 +440,7 @@ class QuickCreateRepositoryImpl(
             quickCreateApi.previewQuickCreationFee(createRequest)
         }
         if (response.code != 0 || response.data == null) {
-            error(response.msg ?: response.message ?: "价格预览失败")
+            throw response.toRepositoryException(QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED)
         }
         response.data.toDomain()
     }
@@ -392,12 +455,12 @@ class QuickCreateRepositoryImpl(
         }
         debug("QuickCreationV2", "image fee-preview response code=${feePreview.code}")
         if (feePreview.code != 0) {
-            emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: "价格预览失败"))
+            emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED))
             return@flow
         }
         val fee = feePreview.data
         if (fee != null && (!fee.passed || fee.insufficientType != null)) {
-            emit(QuickCreateTaskStatus.Error("余额不足或价格预览未通过"))
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED))
             return@flow
         }
 
@@ -406,7 +469,7 @@ class QuickCreateRepositoryImpl(
         }
         debug("QuickCreationV2", "image prepare response code=${prepare.code}")
         if (prepare.code != 0 || prepare.data == null) {
-            emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: "任务预提交失败"))
+            emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: QuickCreateTaskIssueCode.PREPARE_FAILED))
             return@flow
         }
 
@@ -415,7 +478,7 @@ class QuickCreateRepositoryImpl(
             prepareToken = prepare.data.prepareToken,
         )
         if (commit.code != 0 || commit.data == null) {
-            emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: "任务提交失败"))
+            emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: QuickCreateTaskIssueCode.COMMIT_FAILED))
             return@flow
         }
 
@@ -435,12 +498,12 @@ class QuickCreateRepositoryImpl(
         }
         debug("QuickCreationV2", "video fee-preview response code=${feePreview.code}")
         if (feePreview.code != 0) {
-            emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: "Fee preview failed"))
+            emit(QuickCreateTaskStatus.Error(feePreview.msg ?: feePreview.message ?: QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED))
             return@flow
         }
         val fee = feePreview.data
         if (fee != null && (!fee.passed || fee.insufficientType != null)) {
-            emit(QuickCreateTaskStatus.Error("Insufficient balance or fee preview not passed"))
+            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED))
             return@flow
         }
 
@@ -449,7 +512,7 @@ class QuickCreateRepositoryImpl(
         }
         debug("QuickCreationV2", "video prepare response code=${prepare.code}")
         if (prepare.code != 0 || prepare.data == null) {
-            emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: "Prepare failed"))
+            emit(QuickCreateTaskStatus.Error(prepare.msg ?: prepare.message ?: QuickCreateTaskIssueCode.PREPARE_FAILED))
             return@flow
         }
 
@@ -458,7 +521,7 @@ class QuickCreateRepositoryImpl(
             prepareToken = prepare.data.prepareToken,
         )
         if (commit.code != 0 || commit.data == null) {
-            emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: "Commit failed"))
+            emit(QuickCreateTaskStatus.Error(commit.msg ?: commit.message ?: QuickCreateTaskIssueCode.COMMIT_FAILED))
             return@flow
         }
 
@@ -697,8 +760,8 @@ class QuickCreateRepositoryImpl(
 
             val taskId = response.taskId
 
-            if (response.status == QuickCreateResult.STATUS_FAILED || response.errorCode?.isNotBlank() == true) {
-                emit(QuickCreateTaskStatus.Failed(taskId, response.errorMessage ?: "提交失败"))
+            if (response.status == QuickCreateResult.STATUS_FAILED || response.errorCode.isNotBlank()) {
+                emit(QuickCreateTaskStatus.Failed(taskId, response.errorMessage ?: QuickCreateTaskIssueCode.COMMIT_FAILED))
                 return@flow
             }
 
@@ -706,7 +769,7 @@ class QuickCreateRepositoryImpl(
             pollTaskStatus(quickCreateApi, taskId).collect { emit(it) }
 
         } catch (e: Exception) {
-            emit(QuickCreateTaskStatus.Error(e.message ?: "未知错误"))
+            emit(QuickCreateTaskStatus.Error(e.message ?: QuickCreateTaskIssueCode.UNKNOWN_ERROR))
         }
     }
 
@@ -1257,8 +1320,8 @@ class QuickCreateRepositoryImpl(
                 else -> ""
             }
 
-            if (response.status == QuickCreateResult.STATUS_FAILED || response.errorCode?.isNotBlank() == true) {
-                emit(QuickCreateTaskStatus.Failed(taskId, response.errorMessage ?: "提交失败"))
+            if (response.status == QuickCreateResult.STATUS_FAILED || response.errorCode.isNotBlank()) {
+                emit(QuickCreateTaskStatus.Failed(taskId, response.errorMessage ?: QuickCreateTaskIssueCode.COMMIT_FAILED))
                 return@flow
             }
 
@@ -1266,7 +1329,7 @@ class QuickCreateRepositoryImpl(
             pollTaskStatus(quickCreateApi, taskId).collect { emit(it) }
 
         } catch (e: Exception) {
-            emit(QuickCreateTaskStatus.Error(e.message ?: "未知错误"))
+            emit(QuickCreateTaskStatus.Error(e.message ?: QuickCreateTaskIssueCode.UNKNOWN_ERROR))
         }
     }
 
@@ -1286,7 +1349,7 @@ class QuickCreateRepositoryImpl(
         val apiKey = credentialStore.getApiKey()
         debug(TAG, "  apiKey found = ${!apiKey.isNullOrBlank()}")
         if (apiKey.isNullOrBlank()) {
-            throw IllegalStateException("请先登录获取 API Key")
+            throw QuickCreateRepositoryException(QuickCreateRepositoryIssueCode.API_KEY_MISSING)
         }
 
         debug(TAG, "  calling QuickCreateApi.uploadMedia...")
@@ -1296,10 +1359,10 @@ class QuickCreateRepositoryImpl(
         debug(TAG, "  response.url     = ${uploadResp.url}")
 
         if (!uploadResp.isSuccess) {
-            throw IllegalStateException("Media upload failed: [${uploadResp.code}] ${uploadResp.message}")
+            throw uploadResp.toRepositoryException(QuickCreateRepositoryIssueCode.MEDIA_UPLOAD_FAILED)
         }
 
-        uploadResp.url ?: throw IllegalStateException("Server returned empty url in media upload response")
+        uploadResp.url ?: throw QuickCreateRepositoryException(QuickCreateRepositoryIssueCode.MEDIA_UPLOAD_EMPTY_URL)
     }.onFailure { e ->
         val TAG = "QuickCreateRepo"
         debug(TAG, "uploadMedia: FAILED")
@@ -1309,7 +1372,7 @@ class QuickCreateRepositoryImpl(
     override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> = runCatching {
         val response = quickCreateApi.getQuickCreationInspirationTags()
         if (response.code != 0) {
-            throw IllegalStateException(response.msg ?: response.message ?: "灵感标签加载失败")
+            throw response.toRepositoryException(QuickCreateRepositoryIssueCode.INSPIRATION_TAGS_LOAD_FAILED)
         }
 
         response.data.orEmpty().mapNotNull { tag ->
@@ -1326,7 +1389,7 @@ class QuickCreateRepositoryImpl(
     ): Result<QuickCreateInspirationTemplatePage> = runCatching {
         val response = quickCreateApi.getQuickCreationInspirationTemplates(page, size, tagId)
         if (response.code != 0) {
-            throw IllegalStateException(response.msg ?: response.message ?: "灵感模板加载失败")
+            throw response.toRepositoryException(QuickCreateRepositoryIssueCode.INSPIRATION_TEMPLATES_LOAD_FAILED)
         }
 
         val pageDto = response.data
@@ -1345,7 +1408,7 @@ class QuickCreateRepositoryImpl(
             ?: pageDto?.page.asIntOrZero().takeIf { it > 0 }
             ?: page
         val resolvedSize = pageDto?.size.asIntOrZero().takeIf { it > 0 } ?: size
-        val total = pageDto?.total.asIntOrZero() ?: 0
+        val total = pageDto?.total.asIntOrZero()
         val pages = pageDto?.pages.asIntOrZero().takeIf { it > 0 }
             ?: if (total > 0 && resolvedSize > 0) ((total + resolvedSize - 1) / resolvedSize) else 0
         val hasNext = pageDto?.hasNext ?: (pages > 0 && resolvedPage < pages)
@@ -1366,9 +1429,11 @@ class QuickCreateRepositoryImpl(
     ): Result<QuickCreateInspirationTemplateDetail> = runCatching {
         val response = quickCreateApi.getQuickCreationInspirationTemplateDetail(templateId)
         if (response.code != 0) {
-            throw IllegalStateException(response.msg ?: response.message ?: "鐏垫劅妯℃澘璇︽儏鍔犺浇澶辫触")
+            throw response.toRepositoryException(QuickCreateRepositoryIssueCode.INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED)
         }
-        val detail = response.data ?: throw IllegalStateException("鐏垫劅妯℃澘璇︽儏涓虹┖")
+        val detail = response.data ?: throw QuickCreateRepositoryException(
+            QuickCreateRepositoryIssueCode.INSPIRATION_TEMPLATE_DETAIL_EMPTY
+        )
         val paramsObject = (detail.snapshot?.presetParams as? JsonObject)
             ?: parseJsonObjectOrNull(detail.apiRequestParamsRaw)
             ?: JsonObject(emptyMap())
@@ -1406,7 +1471,7 @@ class QuickCreateRepositoryImpl(
             val response = quickCreateApi.getQuickCreationModels(listOf(categoryId))
             debug("QuickCreationV2", "models response category=$categoryId code=${response.code}")
             if (response.code != 0) {
-                throw IllegalStateException(response.msg ?: response.message ?: "模型列表加载失败")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.MODEL_LIST_LOAD_FAILED)
             }
             QuickCreationModelMapper.flatten(categoryId, response.data?.categories?.get(categoryId).orEmpty())
         }
@@ -1418,7 +1483,7 @@ class QuickCreateRepositoryImpl(
         val response = quickCreateApi.listQuickCreationTasks(page = page, size = size)
         debug("QuickCreationV2", "history list response code=${response.code}")
         if (response.code != 0 || response.data == null) {
-            throw IllegalStateException(response.msg ?: response.message ?: "History load failed")
+            throw response.toRepositoryException(QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED)
         }
         response.data.toHistoryPage()
     }
@@ -1428,7 +1493,7 @@ class QuickCreateRepositoryImpl(
             val response = quickCreateApi.getQuickCreationTaskDetail(outputId)
             debug("QuickCreationV2", "history detail response code=${response.code}")
             if (response.code != 0 || response.data == null) {
-                throw IllegalStateException(response.msg ?: response.message ?: "History detail load failed")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.HISTORY_DETAIL_LOAD_FAILED)
             }
             response.data.toHistoryItem()
         }
@@ -1437,7 +1502,7 @@ class QuickCreateRepositoryImpl(
         runCatching {
             val response = quickCreateApi.cancelQuickCreationTask(taskId)
             if (response.code != 0) {
-                throw IllegalStateException(response.msg ?: response.message ?: "Task cancel failed")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.TASK_CANCEL_FAILED)
             }
         }
 
@@ -1448,7 +1513,7 @@ class QuickCreateRepositoryImpl(
         runCatching {
             val response = quickCreateApi.listQuickCreationProjects(page = page, size = size)
             if (response.code != 0 || response.data == null) {
-                throw IllegalStateException(response.msg ?: response.message ?: "Project list load failed")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.PROJECT_LIST_LOAD_FAILED)
             }
             response.data.toProjectPage()
         }
@@ -1465,7 +1530,7 @@ class QuickCreateRepositoryImpl(
                 size = size,
             )
             if (response.code != 0 || response.data == null) {
-                throw IllegalStateException(response.msg ?: response.message ?: "Project task list load failed")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.PROJECT_TASK_LIST_LOAD_FAILED)
             }
             response.data.toHistoryPage()
         }
@@ -1474,7 +1539,7 @@ class QuickCreateRepositoryImpl(
         runCatching {
             val response = quickCreateApi.createQuickCreationProject(name = name)
             if (response.code != 0 || response.data == null) {
-                throw IllegalStateException(response.msg ?: response.message ?: "Project create failed")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED)
             }
             response.data.toProject()
         }
@@ -1483,7 +1548,7 @@ class QuickCreateRepositoryImpl(
         runCatching {
             val response = quickCreateApi.renameQuickCreationProject(projectId = projectId, name = name)
             if (response.code != 0) {
-                throw IllegalStateException(response.msg ?: response.message ?: "Project rename failed")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.PROJECT_RENAME_FAILED)
             }
         }
 
@@ -1491,7 +1556,7 @@ class QuickCreateRepositoryImpl(
         runCatching {
             val response = quickCreateApi.deleteQuickCreationProject(projectId = projectId)
             if (response.code != 0) {
-                throw IllegalStateException(response.msg ?: response.message ?: "Project delete failed")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.PROJECT_DELETE_FAILED)
             }
         }
 
@@ -1499,7 +1564,7 @@ class QuickCreateRepositoryImpl(
         runCatching {
             val response = quickCreateApi.pinQuickCreationProject(projectId = projectId, pinned = pinned)
             if (response.code != 0) {
-                throw IllegalStateException(response.msg ?: response.message ?: "Project pin failed")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.PROJECT_PIN_FAILED)
             }
         }
 
@@ -1507,7 +1572,7 @@ class QuickCreateRepositoryImpl(
         runCatching {
             val response = quickCreateApi.getQuickCreationProjectDetail(projectId = projectId)
             if (response.code != 0 || response.data == null) {
-                throw IllegalStateException(response.msg ?: response.message ?: "Project detail load failed")
+                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.PROJECT_DETAIL_LOAD_FAILED)
             }
         response.data.toProject()
     }

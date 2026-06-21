@@ -19,7 +19,6 @@ import com.runninghub.app.ui.feature.login.LoginVoyagerScreen
 import com.runninghub.app.ui.navigation.MainVoyagerScreen
 import com.runninghub.app.ui.theme.RunningHubTheme
 import com.runninghub.feature.auth.domain.SessionManager
-import com.runninghub.feature.auth.domain.SessionState
 import org.koin.compose.KoinContext
 import org.koin.compose.koinInject
 
@@ -51,28 +50,19 @@ fun App() {
 
             Surface(modifier = Modifier.fillMaxSize()) {
                 ProvideRhWindowInfo {
-                    val startScreen = when (sessionState) {
-                        SessionState.Restoring -> null
-                        SessionState.Authenticated -> MainVoyagerScreen()
-                        SessionState.Unauthenticated,
-                        SessionState.Expired -> LoginVoyagerScreen()
-                    }
+                    val rootDecision = rootNavigationDecisionFor(sessionState)
+                    val startScreen = rootDecision.target?.toVoyagerScreen()
                     startScreen?.let { screen ->
                         Navigator(screen) { navigator ->
                             LaunchedEffect(sessionState) {
-                                when (sessionState) {
-                                    SessionState.Authenticated -> {
-                                        navigator.replaceAll(MainVoyagerScreen())
-                                    }
-                                    SessionState.Unauthenticated -> {
-                                        navigator.replaceAll(LoginVoyagerScreen())
-                                    }
-                                    SessionState.Expired -> {
-                                        // 会话失效属于全局导航事件，必须清空业务页面栈，避免返回键回到已失效页面。
-                                        navigator.replaceAll(LoginVoyagerScreen())
-                                        sessionManager.resetExpiration()
-                                    }
-                                    SessionState.Restoring -> Unit
+                                val navigationDecision = rootNavigationDecisionFor(sessionState)
+                                navigationDecision.target?.let { target ->
+                                    // 根导航必须使用 replaceAll 清空旧栈；会话失效或主动注销后不能通过返回键回到业务页面。
+                                    navigator.replaceAll(target.toVoyagerScreen())
+                                }
+                                if (navigationDecision.resetExpiredSession) {
+                                    // 失效事件只在登录页落栈后消费，避免重组期间旧 Expired 状态重复触发根导航。
+                                    sessionManager.resetExpiration()
                                 }
                             }
                             CurrentScreen()
@@ -83,3 +73,9 @@ fun App() {
         }
     }
 }
+
+private fun RootScreenTarget.toVoyagerScreen() =
+    when (this) {
+        RootScreenTarget.Main -> MainVoyagerScreen()
+        RootScreenTarget.Login -> LoginVoyagerScreen()
+    }

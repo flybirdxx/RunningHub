@@ -3,6 +3,7 @@
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.quickcreate.data.remote.api.QuickCreateApi
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
+import com.runninghub.feature.quickcreate.domain.QuickCreateTaskIssueCode
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import io.ktor.client.HttpClient
@@ -15,6 +16,7 @@ import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -82,6 +84,7 @@ class QuickCreateRepositoryImplVideoV2Test {
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
             credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
         )
 
         val statuses = repository.generateVideo(
@@ -168,6 +171,7 @@ class QuickCreateRepositoryImplVideoV2Test {
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
             credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
         )
 
         val statuses = repository.generateImage(
@@ -260,6 +264,7 @@ class QuickCreateRepositoryImplVideoV2Test {
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
             credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
         )
 
         val statuses = repository.generateImage(
@@ -311,6 +316,7 @@ class QuickCreateRepositoryImplVideoV2Test {
         val repository = QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
             credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
         )
 
         val statuses = repository.generateImage(
@@ -329,7 +335,340 @@ class QuickCreateRepositoryImplVideoV2Test {
         assertEquals(listOf(QuickCreateApi.QC_FEE_PREVIEW), paths)
         assertIs<QuickCreateTaskStatus.Submitting>(statuses[0])
         val error = assertIs<QuickCreateTaskStatus.Error>(statuses.last())
-        assertEquals("余额不足或价格预览未通过", error.message)
+        assertEquals(QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED, error.message)
+    }
+
+    @Test
+    fun `quick creation polling stops when task is cancelled`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val response = when (path) {
+                QuickCreateApi.QC_FEE_PREVIEW -> """
+                    {"code":0,"msg":"success","data":{"passed":true,"requiredCashAmount":0.76,"cashCurrency":"CNY"}}
+                """
+                QuickCreateApi.QC_PREPARE -> """
+                    {"code":0,"msg":"success","data":{"prepareToken":"image-token","ttlSeconds":120,"skuId":"image-sku"}}
+                """
+                QuickCreateApi.QC_COMMIT -> """
+                    {"code":0,"msg":"success","data":{"taskId":"image-task-1","skuId":"image-sku","taskStatus":"QUEUED","cashAmount":0.76}}
+                """
+                QuickCreateApi.QC_TASK_LIST -> """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "page": 1,
+                        "size": 10,
+                        "total": 1,
+                        "list": [
+                          {
+                            "taskId": "image-task-1",
+                            "taskStatus": "CANCELED",
+                            "outputList": []
+                          }
+                        ]
+                      }
+                    }
+                """
+                else -> """{"code":404,"msg":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "image-binding:image-sku",
+                aspectRatio = "1:1",
+                resolution = "2k",
+                quality = "medium",
+                quickCreationCategoryId = "IMAGE",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+            )
+        ).toList()
+
+        assertEquals(
+            listOf(
+                QuickCreateApi.QC_FEE_PREVIEW,
+                QuickCreateApi.QC_PREPARE,
+                QuickCreateApi.QC_COMMIT,
+                QuickCreateApi.QC_TASK_LIST,
+            ),
+            paths,
+        )
+        assertIs<QuickCreateTaskStatus.Submitting>(statuses[0])
+        assertIs<QuickCreateTaskStatus.Queuing>(statuses[1])
+        val cancelled = assertIs<QuickCreateTaskStatus.Cancelled>(statuses.last())
+        assertEquals("image-task-1", cancelled.taskId)
+    }
+
+    @Test
+    fun `quick creation polling stops when task fails`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val response = when (path) {
+                QuickCreateApi.QC_FEE_PREVIEW -> """
+                    {"code":0,"msg":"success","data":{"passed":true,"requiredCashAmount":0.76,"cashCurrency":"CNY"}}
+                """
+                QuickCreateApi.QC_PREPARE -> """
+                    {"code":0,"msg":"success","data":{"prepareToken":"image-token","ttlSeconds":120,"skuId":"image-sku"}}
+                """
+                QuickCreateApi.QC_COMMIT -> """
+                    {"code":0,"msg":"success","data":{"taskId":"image-task-1","skuId":"image-sku","taskStatus":"QUEUED","cashAmount":0.76}}
+                """
+                QuickCreateApi.QC_TASK_LIST -> """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "page": 1,
+                        "size": 10,
+                        "total": 1,
+                        "list": [
+                          {
+                            "taskId": "image-task-1",
+                            "taskStatus": "FAILED",
+                            "outputList": []
+                          }
+                        ]
+                      }
+                    }
+                """
+                else -> """{"code":404,"msg":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "image-binding:image-sku",
+                aspectRatio = "1:1",
+                resolution = "2k",
+                quality = "medium",
+                quickCreationCategoryId = "IMAGE",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+            )
+        ).toList()
+
+        // 失败属于服务端终态；只允许查询一次任务列表，避免失败后继续轮询直到客户端超时。
+        assertEquals(
+            listOf(
+                QuickCreateApi.QC_FEE_PREVIEW,
+                QuickCreateApi.QC_PREPARE,
+                QuickCreateApi.QC_COMMIT,
+                QuickCreateApi.QC_TASK_LIST,
+            ),
+            paths,
+        )
+        assertIs<QuickCreateTaskStatus.Submitting>(statuses[0])
+        assertIs<QuickCreateTaskStatus.Queuing>(statuses[1])
+        val failed = assertIs<QuickCreateTaskStatus.Failed>(statuses.last())
+        assertEquals("image-task-1", failed.taskId)
+        assertEquals(QuickCreateTaskIssueCode.TASK_FAILED, failed.errorMessage)
+    }
+
+    @Test
+    fun `quick creation polling emits timeout after max attempts without terminal record`() = runTest {
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val response = when (path) {
+                QuickCreateApi.QC_FEE_PREVIEW -> """
+                    {"code":0,"msg":"success","data":{"passed":true,"requiredCashAmount":0.76,"cashCurrency":"CNY"}}
+                """
+                QuickCreateApi.QC_PREPARE -> """
+                    {"code":0,"msg":"success","data":{"prepareToken":"image-token","ttlSeconds":120,"skuId":"image-sku"}}
+                """
+                QuickCreateApi.QC_COMMIT -> """
+                    {"code":0,"msg":"success","data":{"taskId":"image-task-1","skuId":"image-sku","taskStatus":"QUEUED","cashAmount":0.76}}
+                """
+                QuickCreateApi.QC_TASK_LIST -> """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "page": 1,
+                        "size": 10,
+                        "total": 0,
+                        "list": []
+                      }
+                    }
+                """
+                else -> """{"code":404,"msg":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "image-binding:image-sku",
+                aspectRatio = "1:1",
+                resolution = "2k",
+                quality = "medium",
+                quickCreationCategoryId = "IMAGE",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+            )
+        ).toList()
+
+        // 未返回任务记录时最多查询固定次数；超时后必须发出稳定错误码并结束 Flow。
+        assertEquals(120, paths.count { it == QuickCreateApi.QC_TASK_LIST })
+        assertEquals(
+            listOf(
+                QuickCreateApi.QC_FEE_PREVIEW,
+                QuickCreateApi.QC_PREPARE,
+                QuickCreateApi.QC_COMMIT,
+            ),
+            paths.take(3),
+        )
+        val timeout = assertIs<QuickCreateTaskStatus.Error>(statuses.last())
+        assertEquals(QuickCreateTaskIssueCode.TASK_TIMEOUT, timeout.message)
+    }
+
+    @Test
+    fun `legacy openapi polling stops when query task is cancelled`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val response = when (path) {
+                QuickCreateApi.IMAGE_X_TEXT -> """
+                    {"taskId":"legacy-task-1","status":"QUEUING"}
+                """
+                QuickCreateApi.TASK_QUERY -> """
+                    {"taskId":"legacy-task-1","status":"CANCELLED","progress":0,"results":[]}
+                """
+                else -> """{"taskId":"unexpected","status":"FAILED","errorMessage":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "all-power-image-x-official",
+                aspectRatio = "1:1",
+                resolution = "2k",
+                quality = "medium",
+            )
+        ).toList()
+
+        assertEquals(listOf(QuickCreateApi.IMAGE_X_TEXT, QuickCreateApi.TASK_QUERY), paths)
+        assertIs<QuickCreateTaskStatus.Submitting>(statuses[0])
+        assertIs<QuickCreateTaskStatus.Queuing>(statuses[1])
+        val cancelled = assertIs<QuickCreateTaskStatus.Cancelled>(statuses.last())
+        assertEquals("legacy-task-1", cancelled.taskId)
+    }
+
+    @Test
+    fun `legacy openapi polling stops when query task fails`() = runBlocking {
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val response = when (path) {
+                QuickCreateApi.IMAGE_X_TEXT -> """
+                    {"taskId":"legacy-task-1","status":"QUEUING"}
+                """
+                QuickCreateApi.TASK_QUERY -> """
+                    {"taskId":"legacy-task-1","status":"FAILED","progress":0,"errorMessage":"render failed","results":[]}
+                """
+                else -> """{"taskId":"unexpected","status":"FAILED","errorMessage":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "all-power-image-x-official",
+                aspectRatio = "1:1",
+                resolution = "2k",
+                quality = "medium",
+            )
+        ).toList()
+
+        // 旧 OpenAPI 轮询同样必须在失败终态结束，避免继续请求 queryTask 并覆盖真实失败原因。
+        assertEquals(listOf(QuickCreateApi.IMAGE_X_TEXT, QuickCreateApi.TASK_QUERY), paths)
+        assertIs<QuickCreateTaskStatus.Submitting>(statuses[0])
+        assertIs<QuickCreateTaskStatus.Queuing>(statuses[1])
+        val failed = assertIs<QuickCreateTaskStatus.Failed>(statuses.last())
+        assertEquals("legacy-task-1", failed.taskId)
+        assertEquals("render failed", failed.errorMessage)
     }
 
     private class FakeSettingsRepository : CredentialStore {

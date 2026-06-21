@@ -59,7 +59,7 @@ import com.runninghub.app.ui.theme.RhAppSelected
 import com.runninghub.app.ui.theme.RhAppSurface
 import com.runninghub.app.ui.theme.RhAppText
 import com.runninghub.app.ui.theme.StatusError
-import com.runninghub.shared.domain.model.GenerationHistoryOutput
+import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get

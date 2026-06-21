@@ -2,6 +2,8 @@
 
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.quickcreate.data.remote.api.QuickCreateApi
+import com.runninghub.feature.quickcreate.domain.QuickCreateRepositoryException
+import com.runninghub.feature.quickcreate.domain.QuickCreateRepositoryIssueCode
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -15,6 +17,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class QuickCreateRepositoryImplHistoryTest {
@@ -98,6 +101,23 @@ class QuickCreateRepositoryImplHistoryTest {
         assertEquals(2048, output.width)
         assertEquals(1152, output.height)
         assertTrue(output.isImage)
+    }
+
+    @Test
+    fun `history list failure without remote message returns stable issue code`() = runBlocking {
+        val repository = repositoryWithMock { path ->
+            when (path) {
+                QuickCreateApi.QC_TASK_LIST -> """{"code":500,"data":null}"""
+                else -> """{"code":404,"msg":"unexpected path"}"""
+            }
+        }
+
+        val error = repository.listQuickCreationHistory(page = 1, size = 10).exceptionOrNull()
+
+        val repositoryError = assertIs<QuickCreateRepositoryException>(error)
+        assertEquals(QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED, repositoryError.issueCode)
+        assertEquals(500, repositoryError.remoteStatusCode)
+        assertEquals(QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED, repositoryError.message)
     }
 
     @Test
@@ -515,6 +535,7 @@ class QuickCreateRepositoryImplHistoryTest {
         return QuickCreateRepositoryImpl(
             quickCreateApi = QuickCreateApi(client, json),
             credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
         )
     }
 

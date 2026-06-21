@@ -23,10 +23,11 @@ kotlin {
             implementation(projects.core.model)
             implementation(projects.core.storage)
             implementation(projects.feature.auth.domain)
+            implementation(projects.feature.community.domain)
             implementation(projects.feature.discovery.domain)
+            implementation(projects.feature.task.domain)
             implementation(projects.feature.quickcreate.domain)
             implementation(projects.feature.quickcreate.presentation)
-            implementation(project(":shared"))
 
             implementation(compose.runtime)
             implementation(compose.foundation)
@@ -51,8 +52,13 @@ kotlin {
         }
 
         androidMain.dependencies {
-            // Android 应用入口负责装配 QuickCreate data 模块；commonMain 只依赖领域接口，
+            // Android 应用入口负责装配迁移期 feature data 模块；commonMain 只依赖领域接口，
             // 避免 ScreenModel 或 Composable 直接引用 Data 层实现。
+            implementation(projects.core.network)
+            implementation(projects.feature.auth.data)
+            implementation(projects.feature.community.data)
+            implementation(projects.feature.discovery.data)
+            implementation(projects.feature.task.data)
             implementation(projects.feature.quickcreate.data)
             implementation(libs.koin.android)
             implementation(libs.coil.video)
@@ -62,6 +68,8 @@ kotlin {
             implementation(libs.lottie.compose)
             implementation(libs.activity.compose)
             implementation(libs.filepicker)
+            implementation(libs.datastore.preferences.core)
+            implementation(libs.ktor.client.core)
             implementation(libs.kotlinx.serialization.json)
             implementation("org.jetbrains.compose.ui:ui-tooling-preview:$composeMultiplatformVersion")
         }
@@ -89,6 +97,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            // AC-11 运行验收需要在真机上与用户已安装的正式包并存，
+            // 使用独立 applicationId 可以避免签名不同导致的无损安装失败。
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
+
         release {
             isMinifyEnabled = false
             proguardFiles(

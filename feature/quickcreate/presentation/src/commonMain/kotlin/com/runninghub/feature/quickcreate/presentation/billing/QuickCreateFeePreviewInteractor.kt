@@ -9,6 +9,7 @@ import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGen
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -30,6 +31,73 @@ private sealed interface QuickCreateFeePreviewRequest {
         val request: VideoGenerationRequest,
     ) : QuickCreateFeePreviewRequest
 }
+
+/**
+ * 计算计费预览和正式提交共用的请求指纹。
+ *
+ * 该指纹只包含会进入远端计费/提交请求的领域参数，不包含 UI 加载态、错误态或本地展示字段。
+ * Map 参数按 key 排序后拼接，避免不同遍历顺序造成同一请求被误判为不同快照。
+ */
+fun ImageGenerationRequest.quickCreateFeeRequestKey(): String =
+    listOf(
+        "image",
+        prompt,
+        model,
+        aspectRatio,
+        resolution,
+        quality,
+        referenceImageUri.orEmpty(),
+        numImages.toString(),
+        seed?.toString().orEmpty(),
+        negativePrompt.orEmpty(),
+        quickCreationCategoryId.orEmpty(),
+        quickCreationBindingId.orEmpty(),
+        quickCreationSkuId.orEmpty(),
+        quickCreationParams.stableScalarParamsKey(),
+        quickCreationListParams.stableListParamsKey(),
+    ).joinToString(separator = "\u001F")
+
+/**
+ * 计算视频计费预览和正式提交共用的请求指纹。
+ *
+ * 与图片请求保持同一规则：只比较远端请求参数，并对 Map 做稳定排序。
+ */
+fun VideoGenerationRequest.quickCreateFeeRequestKey(): String =
+    listOf(
+        "video",
+        prompt,
+        model,
+        aspectRatio,
+        duration.toString(),
+        resolution,
+        referenceImageUri.orEmpty(),
+        referenceVideoUri.orEmpty(),
+        referenceAudioUri.orEmpty(),
+        firstFrameImageUri.orEmpty(),
+        lastFrameImageUri.orEmpty(),
+        realistic.toString(),
+        generateAudio.toString(),
+        numVideos.toString(),
+        seed?.toString().orEmpty(),
+        negativePrompt.orEmpty(),
+        style,
+        promptExtend.toString(),
+        quickCreationCategoryId.orEmpty(),
+        quickCreationBindingId.orEmpty(),
+        quickCreationSkuId.orEmpty(),
+        quickCreationParams.stableScalarParamsKey(),
+        quickCreationListParams.stableListParamsKey(),
+    ).joinToString(separator = "\u001F")
+
+private fun Map<String, String>.stableScalarParamsKey(): String =
+    entries
+        .sortedBy { it.key }
+        .joinToString(separator = "\u001E") { (key, value) -> "$key=$value" }
+
+private fun Map<String, List<String>>.stableListParamsKey(): String =
+    entries
+        .sortedBy { it.key }
+        .joinToString(separator = "\u001E") { (key, values) -> "$key=${values.joinToString(separator = "\u001D")}" }
 
 /**
  * 协调快捷创作的计费预览流程。
@@ -71,13 +139,14 @@ class QuickCreateFeePreviewInteractor(
                 it.copy(
                     feePreviewLoading = false,
                     feePreviewError = null,
+                    feePreviewRequestKey = null,
                     estimatedCost = it.currentLocalEstimatedCost(),
                 )
             }
             return
         }
 
-        uiState.update { it.copy(feePreviewLoading = true, feePreviewError = null) }
+        uiState.update { it.copy(feePreviewLoading = true, feePreviewError = null, feePreviewRequestKey = null) }
         feePreviewJob = scope.launch {
             delay(FEE_PREVIEW_DEBOUNCE_MS)
             when (val request = buildFeePreviewRequest(uiState.value)) {
@@ -86,8 +155,16 @@ class QuickCreateFeePreviewInteractor(
                         clearFeePreviewState()
                     }
                 }
-                is QuickCreateFeePreviewRequest.Image -> previewImage(requestSeq, request.request)
-                is QuickCreateFeePreviewRequest.Video -> previewVideo(requestSeq, request.request)
+                is QuickCreateFeePreviewRequest.Image -> previewImage(
+                    requestSeq = requestSeq,
+                    request = request.request,
+                    requestKey = request.request.quickCreateFeeRequestKey(),
+                )
+                is QuickCreateFeePreviewRequest.Video -> previewVideo(
+                    requestSeq = requestSeq,
+                    request = request.request,
+                    requestKey = request.request.quickCreateFeeRequestKey(),
+                )
             }
         }
     }
@@ -119,11 +196,12 @@ class QuickCreateFeePreviewInteractor(
     private suspend fun previewVideo(
         requestSeq: Long,
         request: VideoGenerationRequest,
+        requestKey: String,
     ) {
         feePreviewRepository.previewVideoQuickCreationFee(request).fold(
             onSuccess = { preview ->
                 if (isCurrentFeePreviewRequest(requestSeq)) {
-                    applyFeePreview(preview)
+                    applyFeePreview(preview, requestKey)
                 }
             },
             onFailure = { error ->
@@ -137,11 +215,12 @@ class QuickCreateFeePreviewInteractor(
     private suspend fun previewImage(
         requestSeq: Long,
         request: ImageGenerationRequest,
+        requestKey: String,
     ) {
         feePreviewRepository.previewImageQuickCreationFee(request).fold(
             onSuccess = { preview ->
                 if (isCurrentFeePreviewRequest(requestSeq)) {
-                    applyFeePreview(preview)
+                    applyFeePreview(preview, requestKey)
                 }
             },
             onFailure = { error ->
@@ -180,11 +259,12 @@ class QuickCreateFeePreviewInteractor(
         }
 
     private fun clearFeePreviewState() {
-        uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null) }
+        uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null, feePreviewRequestKey = null) }
     }
 
     private fun applyFeePreview(
         preview: QuickCreationFeePreview,
+        requestKey: String,
     ) {
         val previewCost = when {
             preview.free -> 0.0
@@ -203,6 +283,7 @@ class QuickCreateFeePreviewInteractor(
                 estimatedCost = if (previewError == null) previewCost else it.currentLocalEstimatedCost(),
                 feePreviewLoading = false,
                 feePreviewError = previewError,
+                feePreviewRequestKey = if (previewError == null) requestKey else null,
             )
         }
     }
@@ -213,7 +294,8 @@ class QuickCreateFeePreviewInteractor(
             it.copy(
                 estimatedCost = it.currentLocalEstimatedCost(),
                 feePreviewLoading = false,
-                feePreviewError = error.message ?: "价格预览失败",
+                feePreviewError = error.toQuickCreateDisplayMessage("价格预览失败"),
+                feePreviewRequestKey = null,
             )
         }
     }

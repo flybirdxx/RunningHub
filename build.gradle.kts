@@ -3,15 +3,1169 @@ plugins {
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.kotlin.android) apply false
     alias(libs.plugins.kotlin.multiplatform) apply false
+    alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlinx.serialization) apply false
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.compose.multiplatform) apply false
     alias(libs.plugins.sqldelight) apply false
-    kotlin("jvm")
-}
-dependencies {
-    implementation(kotlin("stdlib-jdk8"))
 }
 kotlin {
-    jvmToolchain(8)
+    jvmToolchain(17)
+}
+
+/**
+ * 校验当前迁移阶段必须保持的模块依赖边界。
+ *
+ * 该任务故意放在根工程中，便于本地和 CI 使用同一个入口。检查范围只覆盖已经进入
+ * L1 收口的硬门禁：已迁移 Feature 不得重新依赖 shared，Domain 不得导入平台或数据层框架，
+ * Presentation 不得反向依赖 Data/网络/存储实现，composeApp commonMain 只能依赖 Domain
+ * 或 Presentation 入口，Data 实现只能由平台启动层装配；composeApp 对 shared 的遗留使用必须在
+ * docs/migration/shared-allowlist.txt 中显式登记。同时禁止 Git 索引中出现构建产物、
+ * 敏感凭据或未登记的 shared 新文件。
+ */
+tasks.register("checkArchitectureBoundaries") {
+    group = "verification"
+    description = "Checks L1 migration dependency boundaries and shared allowlist."
+
+    doLast {
+        val root = rootDir.toPath()
+        val violations = mutableListOf<String>()
+        val allowlistFile = root.resolve("docs/migration/shared-allowlist.txt").toFile()
+        val sharedBaselineFile = root.resolve("docs/migration/shared-baseline.txt").toFile()
+        val allowedSharedFiles = allowlistFile
+            .takeIf { it.exists() }
+            ?.readLines()
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() && !it.startsWith("#") }
+            ?.toSet()
+            ?: emptySet()
+        val sharedBaselineFiles = sharedBaselineFile
+            .takeIf { it.exists() }
+            ?.readLines()
+            ?.map { it.trim() }
+            ?.filter { it.isNotEmpty() && !it.startsWith("#") }
+            ?.toSet()
+            ?: emptySet()
+
+        fun java.nio.file.Path.relativePath(): String =
+            root.relativize(this).toString().replace('\\', '/')
+
+        fun java.io.File.kotlinAndGradleFiles(): Sequence<java.io.File> =
+            walkTopDown()
+                .filter { it.isFile }
+                .filter { it.extension == "kt" || it.extension == "kts" }
+
+        fun java.io.File.importLines(): Sequence<Pair<Int, String>> =
+            readLines().asSequence()
+                .mapIndexed { index, line -> index + 1 to line.trim() }
+                .filter { (_, line) -> line.startsWith("import ") }
+
+        fun commonMainKotlinFiles(moduleRoot: java.io.File): Sequence<java.io.File> =
+            if (!moduleRoot.exists()) {
+                emptySequence()
+            } else {
+                moduleRoot.walkTopDown()
+                    .filter { it.isFile && it.extension == "kt" }
+                    .filter { it.toPath().relativePath().contains("/src/commonMain/kotlin/") }
+            }
+
+        fun productionKotlinFiles(moduleRoot: java.io.File): Sequence<java.io.File> =
+            if (!moduleRoot.exists()) {
+                emptySequence()
+            } else {
+                moduleRoot.walkTopDown()
+                    .filter { it.isFile && it.extension == "kt" }
+                    .filter { file ->
+                        val relative = file.toPath().relativePath()
+                        listOf(
+                            "/src/commonMain/kotlin/",
+                            "/src/androidMain/kotlin/",
+                            "/src/iosMain/kotlin/",
+                        ).any { it in relative }
+                    }
+            }
+
+        fun java.io.File.hasSharedDependencyInCommonMain(): Boolean {
+            var inCommonMainDependencies = false
+            var braceDepth = 0
+
+            // 迁移期允许 Android Application 入口继续装配 sharedModule，但 commonMain 不能再直接依赖 shared；
+            // 这里仅扫描 commonMain.dependencies 块，避免把平台启动层的临时依赖误判为通用 UI 层回退。
+            readLines().forEach { line ->
+                if (!inCommonMainDependencies && "commonMain.dependencies" in line) {
+                    inCommonMainDependencies = true
+                    braceDepth = line.count { it == '{' } - line.count { it == '}' }
+                } else if (inCommonMainDependencies) {
+                    braceDepth += line.count { it == '{' } - line.count { it == '}' }
+                }
+
+                if (inCommonMainDependencies && ("project(\":shared\")" in line || "projects.shared" in line)) {
+                    return true
+                }
+
+                if (inCommonMainDependencies && braceDepth <= 0) {
+                    inCommonMainDependencies = false
+                }
+            }
+
+            return false
+        }
+
+        fun java.io.File.hasAnyDependencyInCommonMain(snippets: List<String>): Boolean {
+            var inCommonMainDependencies = false
+            var braceDepth = 0
+
+            // composeApp 是应用壳，commonMain 只能看到可跨平台复用的领域契约和 Presentation 入口。
+            // Data 模块涉及平台 HTTP 引擎、存储和启动装配，必须放在 androidMain/iosMain 等平台层。
+            readLines().forEach { line ->
+                if (!inCommonMainDependencies && "commonMain.dependencies" in line) {
+                    inCommonMainDependencies = true
+                    braceDepth = line.count { it == '{' } - line.count { it == '}' }
+                } else if (inCommonMainDependencies) {
+                    braceDepth += line.count { it == '{' } - line.count { it == '}' }
+                }
+
+                if (inCommonMainDependencies && snippets.any { it in line }) {
+                    return true
+                }
+
+                if (inCommonMainDependencies && braceDepth <= 0) {
+                    inCommonMainDependencies = false
+                }
+            }
+
+            return false
+        }
+
+        fun addViolation(file: java.io.File, line: Int?, message: String) {
+            val location = if (line == null) file.toPath().relativePath() else "${file.toPath().relativePath()}:$line"
+            violations += "$location $message"
+        }
+
+        // 这里同时覆盖字符串形式和类型安全 project accessor，避免不同 Gradle 写法绕过
+        // Domain/Presentation 到 Feature Data 实现层的单向依赖门禁。
+        val featureDataDependencySnippets = listOf(
+            "project(\":feature:auth:data\")",
+            "project(\":feature:community:data\")",
+            "project(\":feature:discovery:data\")",
+            "project(\":feature:task:data\")",
+            "project(\":feature:quickcreate:data\")",
+            "projects.feature.auth.data",
+            "projects.feature.community.data",
+            "projects.feature.discovery.data",
+            "projects.feature.task.data",
+            "projects.feature.quickcreate.data",
+        )
+        // import 前缀只匹配实现包，不拦截 Domain 暴露的 repository/model 契约。
+        // 这样可以保持 Presentation -> Domain 的合法依赖，同时阻止直接触达 Data 实现。
+        val featureDataImportPrefixes = listOf(
+            "com.runninghub.feature.auth.data.",
+            "com.runninghub.feature.community.data.",
+            "com.runninghub.feature.discovery.data.",
+            "com.runninghub.feature.task.data.",
+            "com.runninghub.feature.quickcreate.data.",
+        )
+
+        fun gitTrackedFiles(): List<String> {
+            val process = ProcessBuilder("git", "ls-files")
+                .directory(rootDir)
+                .redirectErrorStream(true)
+                .start()
+            val output = process.inputStream.bufferedReader().use { it.readText() }
+            val exitCode = process.waitFor()
+            if (exitCode != 0) {
+                throw GradleException("Unable to inspect tracked files with git ls-files:\n$output")
+            }
+            return output.lineSequence()
+                .map { it.trim().replace('\\', '/') }
+                .filter { it.isNotEmpty() }
+                .toList()
+        }
+
+        val trackedFiles = gitTrackedFiles()
+
+        // L1 封板要求 CI 阻止构建产物和本地配置进入 Git 索引；使用 git ls-files
+        // 可以避免本地执行 Gradle 后生成的 build/ 目录影响门禁结果。
+        val forbiddenTrackedFilePatterns = listOf(
+            Regex("""(^|/)(build|\.gradle|\.kotlin)(/|$)"""),
+            Regex("""(^|/)local\.properties$"""),
+            Regex(""".*\.(apk|aab|dex|jks|keystore)$""", RegexOption.IGNORE_CASE),
+        )
+        trackedFiles
+            .filter { file -> forbiddenTrackedFilePatterns.any { it.containsMatchIn(file) } }
+            .forEach { file -> violations += "$file must not be tracked because it is a build artifact or local secret file." }
+
+        // shared 是迁移期兼容模块，不允许在未更新基线和归属文档的情况下继续增长。
+        trackedFiles
+            .filter { it.startsWith("shared/") }
+            .filter { it !in sharedBaselineFiles }
+            .forEach { file -> violations += "$file is a new shared file. Move it to feature/core or update shared migration ownership explicitly." }
+
+        val textFileExtensions = setOf(
+            "gradle",
+            "kts",
+            "kt",
+            "java",
+            "xml",
+            "json",
+            "yaml",
+            "yml",
+            "md",
+            "txt",
+            "properties",
+            "sq",
+        )
+        val secretPatterns = listOf(
+            "OpenAI API key" to Regex("""sk-[A-Za-z0-9_-]{20,}"""),
+            "GitHub token" to Regex("""ghp_[A-Za-z0-9_]{20,}"""),
+            "Google API key" to Regex("""AIza[0-9A-Za-z_-]{20,}"""),
+            "AWS access key" to Regex("""AKIA[0-9A-Z]{16}"""),
+            "private key block" to Regex("""-----BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----"""),
+            "hardcoded bearer token" to Regex(
+                """Authorization:\s*Bearer\s+(?!YOUR_API_KEY|<token>|TOKEN)[A-Za-z0-9._-]{20,}""",
+                RegexOption.IGNORE_CASE,
+            ),
+            "hardcoded api key assignment" to Regex(
+                """\b(api[_-]?key|apiKey)\s*=\s*["'][A-Za-z0-9._-]{20,}["']""",
+                RegexOption.IGNORE_CASE,
+            ),
+        )
+        trackedFiles
+            .asSequence()
+            .filterNot { it.startsWith("docs/migration/") }
+            .filterNot { it.startsWith(".github/") }
+            // skills/ 存放本地协作技能和示例模板，包含文档化的假 token/私钥片段；
+            // L1 安全门禁只扫描本应用源码、构建配置和交付文档，避免示例材料造成误报。
+            .filterNot { it.startsWith("skills/") }
+            .filter { file -> file.substringAfterLast('.', missingDelimiterValue = "") in textFileExtensions }
+            .forEach { relative ->
+                val file = root.resolve(relative).toFile()
+                if (file.exists()) {
+                    file.readLines().forEachIndexed { index, line ->
+                        secretPatterns
+                            .firstOrNull { (_, pattern) -> pattern.containsMatchIn(line) }
+                            ?.let { (label, _) -> violations += "$relative:${index + 1} contains possible $label." }
+                    }
+                }
+            }
+
+        val settingsText = root.resolve("settings.gradle.kts").toFile().readText()
+        if ("include(\":core:designsystem\")" in settingsText) {
+            violations += "settings.gradle.kts still includes removed empty module :core:designsystem."
+        }
+
+        val commonMainRoots = listOf("composeApp", "core", "feature", "shared")
+            .map { root.resolve(it).toFile() }
+        val forbiddenCommonMainImportPrefixes = listOf(
+            "android.",
+            "java.awt.",
+            "platform.Foundation.",
+            "platform.UIKit.",
+        )
+        val forbiddenCommonMainQualifiedTypes = listOf(
+            "android.content.Context",
+            "android.net.Uri",
+            "android.app.Application",
+            "platform.Foundation.",
+            "platform.UIKit.",
+        )
+        commonMainRoots
+            .asSequence()
+            .flatMap { commonMainKotlinFiles(it) }
+            .forEach { file ->
+                // Gate I 要求 commonMain 只能使用跨平台 API；平台类型必须隔离到 androidMain/iosMain，
+                // 否则 Android/iOS 共享编译虽可能局部通过，业务模型和 Presentation 仍会被平台实现绑死。
+                file.importLines().forEach { (lineNumber, line) ->
+                    val imported = line.removePrefix("import ")
+                    if (forbiddenCommonMainImportPrefixes.any { imported.startsWith(it) }) {
+                        addViolation(file, lineNumber, "imports platform-only API from commonMain.")
+                    }
+                }
+                file.readLines().forEachIndexed { index, line ->
+                    if (forbiddenCommonMainQualifiedTypes.any { it in line }) {
+                        addViolation(file, index + 1, "references platform-only type from commonMain.")
+                    }
+                }
+            }
+
+        val productionRoots = listOf("composeApp", "core", "feature", "shared")
+            .map { root.resolve(it).toFile() }
+        productionRoots
+            .asSequence()
+            .flatMap { productionKotlinFiles(it) }
+            .forEach { file ->
+                val text = file.readText()
+                // 生产业务流程必须使用结构化协程和显式错误处理；这些模式会绕过生命周期、
+                // 阻塞线程或吞掉异常，是 L1 后继续迭代时最容易重新引入的架构债。
+                if (Regex("""\brunBlocking\s*\(""").containsMatchIn(text)) {
+                    addViolation(file, null, "uses runBlocking in production source.")
+                }
+                if (Regex("""\bGlobalScope\s*\.""").containsMatchIn(text) || "import kotlinx.coroutines.GlobalScope" in text) {
+                    addViolation(file, null, "uses GlobalScope in production source.")
+                }
+                if (Regex("""catch\s*\([^)]*\)\s*\{\s*(?://[^\r\n]*(?:\r?\n)?\s*)*\}""").containsMatchIn(text)) {
+                    addViolation(file, null, "contains an empty catch block in production source.")
+                }
+                // SessionManager 在生产 DI 中必须带恢复仓库，否则进程重启后会话恢复会退化为未登录，
+                // 重新引入登录页或根 App 之外的第二套会话事实来源。
+                if (Regex("""\bSessionManager\s*\(\s*\)""").containsMatchIn(text)) {
+                    addViolation(file, null, "constructs SessionManager without SessionRestoreRepository in production source.")
+                }
+                val relative = file.toPath().relativePath()
+                if (
+                    relative.startsWith("composeApp/src/commonMain/kotlin/") &&
+                    relative != "composeApp/src/commonMain/kotlin/com/runninghub/app/App.kt" &&
+                    Regex("""\b(MainVoyagerScreen|LoginVoyagerScreen)\s*\(""").containsMatchIn(text)
+                ) {
+                    addViolation(file, null, "constructs root Voyager screen outside App root navigation.")
+                }
+            }
+
+        val featureDir = root.resolve("feature").toFile()
+        if (featureDir.exists()) {
+            featureDir.kotlinAndGradleFiles().forEach { file ->
+                val relative = file.toPath().relativePath()
+                val text = file.readText()
+                if ("project(\":shared\")" in text || "projects.shared" in text || "com.runninghub.shared" in text) {
+                    addViolation(file, null, "must not depend on shared from migrated feature modules.")
+                }
+
+                if (
+                    relative.contains("/data/") &&
+                    (
+                        "project(\":composeApp\")" in text ||
+                            "projects.composeApp" in text ||
+                            "com.runninghub.app." in text
+                        )
+                ) {
+                    addViolation(file, null, "must not depend on composeApp from Feature Data modules.")
+                }
+
+                if (relative.contains("/domain/src/commonMain/") && file.extension == "kt") {
+                    file.importLines().forEach { (lineNumber, line) ->
+                        val forbidden = listOf(
+                            "android.",
+                            "androidx.compose.",
+                            "androidx.datastore.",
+                            "app.cash.sqldelight.",
+                            "io.ktor.",
+                            "platform.Foundation.",
+                            "platform.UIKit.",
+                        )
+                        if (forbidden.any { line.removePrefix("import ").startsWith(it) }) {
+                            addViolation(file, lineNumber, "imports platform, UI, network, or storage API in Domain commonMain.")
+                        }
+                        if (featureDataImportPrefixes.any { line.removePrefix("import ").startsWith(it) }) {
+                            addViolation(file, lineNumber, "imports Feature Data implementation in Domain commonMain.")
+                        }
+                    }
+                }
+
+                if (relative.endsWith("/domain/build.gradle.kts")) {
+                    if (featureDataDependencySnippets.any { it in text }) {
+                        addViolation(file, null, "declares Feature Data implementation dependency from Domain module.")
+                    }
+                }
+
+                if (relative.contains("/presentation/src/commonMain/") && file.extension == "kt") {
+                    file.importLines().forEach { (lineNumber, line) ->
+                        val imported = line.removePrefix("import ")
+                        val forbidden = listOf(
+                            "androidx.datastore.",
+                            "app.cash.sqldelight.",
+                            "io.ktor.",
+                            "com.runninghub.shared.data.",
+                        )
+                        if (forbidden.any { imported.startsWith(it) }) {
+                            addViolation(file, lineNumber, "imports Data, network, or storage implementation in Presentation commonMain.")
+                        }
+                        if (featureDataImportPrefixes.any { imported.startsWith(it) }) {
+                            addViolation(file, lineNumber, "imports Feature Data implementation in Presentation commonMain.")
+                        }
+                    }
+                }
+
+                if (relative.endsWith("/presentation/build.gradle.kts")) {
+                    val forbiddenPresentationDependencies = listOf(
+                        "project(\":shared\")",
+                        "projects.shared",
+                        "libs.ktor.",
+                        "libs.datastore",
+                        "libs.sqldelight",
+                    ) + featureDataDependencySnippets
+                    if (forbiddenPresentationDependencies.any { it in text }) {
+                        addViolation(file, null, "declares forbidden Presentation dependency.")
+                    }
+                }
+            }
+        }
+
+        val composeTargets = listOf(
+            root.resolve("composeApp/build.gradle.kts").toFile(),
+            root.resolve("composeApp/src").toFile(),
+        )
+        composeTargets
+            .asSequence()
+            .flatMap { target ->
+                when {
+                    target.isFile -> sequenceOf(target)
+                    target.exists() -> target.kotlinAndGradleFiles()
+                    else -> emptySequence()
+                }
+            }
+            .forEach { file ->
+                val text = file.readText()
+                val relative = file.toPath().relativePath()
+                if (relative == "composeApp/build.gradle.kts") {
+                    if (file.hasSharedDependencyInCommonMain()) {
+                        addViolation(file, null, "declares shared in commonMain.dependencies; shared may only remain in platform startup during migration.")
+                    }
+                    if (file.hasAnyDependencyInCommonMain(featureDataDependencySnippets)) {
+                        addViolation(file, null, "declares Feature Data implementation in commonMain.dependencies; platform startup source sets must assemble Data modules.")
+                    }
+                    return@forEach
+                }
+
+                val usesShared = "project(\":shared\")" in text || "projects.shared" in text || "com.runninghub.shared" in text
+                if (usesShared && relative !in allowedSharedFiles) {
+                    addViolation(file, null, "uses shared but is not listed in docs/migration/shared-allowlist.txt.")
+                }
+            }
+
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                buildString {
+                    appendLine("Architecture boundary check failed:")
+                    violations.forEach { appendLine("- $it") }
+                }
+            )
+        }
+    }
+}
+
+/**
+ * 校验 L1 GitHub Actions workflow 与本地 Gradle 门禁保持一致。
+ *
+ * Gate J 要求 CI 覆盖 Android、iOS、架构边界、测试和构建入口；仅在文档中记录 workflow
+ * 不足以防止后续误删或把 CI 命令改回空跑任务。该任务直接读取 `.github/workflows`
+ * 中的 YAML 文本，检查当前仓库约定的关键字段，作为本地和 CI 共用的轻量防线。
+ */
+tasks.register("checkL1CiWorkflows") {
+    group = "verification"
+    description = "Checks that L1 GitHub Actions workflows invoke the expected Gradle gates."
+
+    doLast {
+        val workflowChecks = listOf(
+            "Android CI" to rootDir.resolve(".github/workflows/android-ci.yml") to listOf(
+                "runs-on: ubuntu-latest",
+                "java-version: \"17\"",
+                "chmod +x gradlew",
+                "./gradlew verifyL1Android",
+            ),
+            "iOS CI" to rootDir.resolve(".github/workflows/ios-ci.yml") to listOf(
+                "runs-on: macos-latest",
+                "java-version: \"17\"",
+                "chmod +x gradlew",
+                "./gradlew verifyL1Ios",
+            ),
+        )
+        val violations = mutableListOf<String>()
+        val trackedWorkflowFiles = ProcessBuilder("git", "ls-files", ".github/workflows")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect tracked workflow files with git ls-files:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+        val dirtyWorkflowFiles = ProcessBuilder("git", "diff", "--name-only", "--", ".github/workflows")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect unstaged workflow changes with git diff:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+
+        workflowChecks.forEach { workflow ->
+            val (nameAndFile, expectedSnippets) = workflow
+            val (name, file) = nameAndFile
+            val relativePath = file.toRelativeString(rootDir).replace('\\', '/')
+            if (!file.exists()) {
+                violations += "$name workflow is missing at $relativePath."
+                return@forEach
+            }
+
+            // 远端 GitHub Actions 只会运行已进入 Git 索引并随提交推送的 workflow。
+            // 这里显式检查跟踪状态，避免本地存在 workflow 文件但远端完全没有 CI 记录。
+            if (relativePath !in trackedWorkflowFiles) {
+                violations += "$name workflow exists locally but is not tracked by Git at $relativePath."
+            }
+            if (relativePath in dirtyWorkflowFiles) {
+                violations += "$name workflow has unstaged changes at $relativePath; stage it before using it as Gate J evidence."
+            }
+
+            val text = file.readText()
+
+            // workflow 必须在 push 和 PR 都运行，避免只在本地验证通过却没有 PR 状态。
+            listOf("pull_request:", "push:").forEach { trigger ->
+                if (trigger !in text) {
+                    violations += "$name workflow must include trigger `$trigger`."
+                }
+            }
+
+            expectedSnippets.forEach { snippet ->
+                if (snippet !in text) {
+                    violations += "$name workflow must contain `$snippet`."
+                }
+            }
+        }
+
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                buildString {
+                    appendLine("L1 CI workflow check failed:")
+                    violations.forEach { appendLine("- $it") }
+                }
+            )
+        }
+    }
+}
+
+/**
+ * 校验 L1 迁移辅助脚本仍可作为可追溯验收工具使用。
+ *
+ * Gate G 的登录态 Tab 网络观察依赖 `observe-tab-network.ps1`。CI 不直接执行 adb 观察，
+ * 但应阻止脚本被误删、移除 `-SelfTest` 或重新写入会让 Windows PowerShell 解析失败的中文运行时字符串。
+ * 这里使用纯文本检查，避免给 Linux/macOS runner 增加 PowerShell 运行时前提。
+ */
+tasks.register("checkMigrationScripts") {
+    group = "verification"
+    description = "Checks migration helper scripts required by L1 evidence collection."
+
+    doLast {
+        val tabNetworkScript = rootDir.resolve("docs/migration/observe-tab-network.ps1")
+        val githubActionsScript = rootDir.resolve("docs/migration/collect-github-actions-evidence.ps1")
+        val iosMacosScript = rootDir.resolve("docs/migration/collect-ios-macos-evidence.sh")
+        val androidNetworkObserver = rootDir.resolve("composeApp/src/androidMain/kotlin/com/runninghub/app/di/AndroidNetworkActivityLogObserver.kt")
+        val violations = mutableListOf<String>()
+
+        if (!tabNetworkScript.exists()) {
+            throw GradleException("Migration script is missing: ${tabNetworkScript.toRelativeString(rootDir)}")
+        }
+        if (!githubActionsScript.exists()) {
+            throw GradleException("Migration script is missing: ${githubActionsScript.toRelativeString(rootDir)}")
+        }
+        if (!iosMacosScript.exists()) {
+            throw GradleException("Migration script is missing: ${iosMacosScript.toRelativeString(rootDir)}")
+        }
+        if (!androidNetworkObserver.exists()) {
+            throw GradleException("Android network observer is missing: ${androidNetworkObserver.toRelativeString(rootDir)}")
+        }
+
+        val tabNetworkScriptText = tabNetworkScript.readText()
+        val githubActionsScriptText = githubActionsScript.readText()
+        val iosMacosScriptText = iosMacosScript.readText()
+        val androidNetworkObserverText = androidNetworkObserver.readText()
+        val requiredTrackedFiles = listOf(
+            "doc/RunningHub-KMP-架构迁移验收标准.md",
+            "docs/migration/acceptance.md",
+            "docs/migration/collect-github-actions-evidence.ps1",
+            "docs/migration/collect-ios-macos-evidence.sh",
+            "docs/migration/current-state.yaml",
+            "docs/migration/dependency-rules.md",
+            "docs/migration/l1-external-evidence.md",
+            "docs/migration/l1-seal-audit.md",
+            "docs/migration/observe-tab-network.ps1",
+            "docs/migration/shared-allowlist.txt",
+            "docs/migration/shared-baseline.txt",
+            "docs/migration/shared-ownership.md",
+            "docs/migration/tab-lifecycle.md",
+        )
+        val trackedMigrationFiles = ProcessBuilder("git", "-c", "core.quotePath=false", "ls-files", "doc/RunningHub-KMP-架构迁移验收标准.md", "docs/migration")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect tracked migration files with git ls-files:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+        val dirtyMigrationFiles = ProcessBuilder("git", "-c", "core.quotePath=false", "diff", "--name-only", "--", "doc/RunningHub-KMP-架构迁移验收标准.md", "docs/migration")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect unstaged migration files with git diff:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+
+        // 这些文件是 AC-11 的可追溯证据和后续 CI 的输入；如果只存在于本地工作区，
+        // 远端 runner 会缺少观察脚本、shared 基线或当前 Gate 状态，从而造成“本地通过、CI 不可复现”。
+        requiredTrackedFiles
+            .filterNot { it in trackedMigrationFiles }
+            .forEach { file -> violations += "$file must be tracked by Git before it can be used as L1 evidence." }
+        dirtyMigrationFiles
+            .forEach { file -> violations += "$file has unstaged changes; stage it before using it as L1 evidence." }
+
+        val requiredTabNetworkSnippets = listOf(
+            "[string] \$OutputPath",
+            "[string] \$OperationNotes",
+            "[switch] \$SelfTest",
+            "[switch] \$ForceStopBeforeLaunch",
+            "function New-NetworkSampleFromLine",
+            "function Get-NetworkObservationSummary",
+            "function New-NetworkObservationEvidence",
+            "function Save-NetworkObservationEvidence",
+            "function Invoke-SelfTest",
+            "durationSeconds",
+            "stableWindowSeconds",
+            "stableWindowSampleCount",
+            "operationNotes",
+            "result=pass_candidate",
+            "evidencePath=",
+            "RunningHubNetwork",
+        )
+        val requiredGitHubActionsSnippets = listOf(
+            "[string] \$OutputDir",
+            "[string] \$HeadSha",
+            "[string] \$Branch",
+            "[switch] \$SelfTest",
+            "function Resolve-GitHeadSha",
+            "function Invoke-GhRunList",
+            "function Select-SuccessfulWorkflowRun",
+            "function Save-GitHubActionsEvidence",
+            "function Assert-NonBlankEvidenceField",
+            "function Assert-GitHubActionsEvidence",
+            "function Assert-MatchingWorkflowHeadSha",
+            "databaseId",
+            "headSha",
+            "targetHeadSha=",
+            "same headSha",
+            "github-actions-android.json",
+            "github-actions-ios.json",
+            "Android CI",
+            "iOS CI",
+            "conclusion -eq \"success\"",
+        )
+        val requiredIosMacosSnippets = listOf(
+            "--simulator-smoke-pass",
+            "--self-test",
+            "headSha: \$head_sha",
+            "git rev-parse HEAD",
+            "linkResult: \$link_result",
+            "simulatorSmokeResult: \$simulator_smoke_result",
+            ":composeApp:linkDebugFrameworkIosSimulatorArm64",
+            "BUILD SUCCESSFUL",
+            "Darwin",
+            "Simulator login",
+            "Simulator QuickCreate",
+        )
+        val requiredAndroidNetworkObserverSnippets = listOf(
+            "NETWORK_ACTIVITY_HEARTBEAT_MILLIS",
+            "delay(NETWORK_ACTIVITY_HEARTBEAT_MILLIS)",
+            "tracker.snapshots.value",
+            "started=\${snapshot.startedCount}",
+            "completed=\${snapshot.completedCount}",
+            "inFlight=\${snapshot.inFlightCount}",
+        )
+        requiredTabNetworkSnippets
+            .filterNot { it in tabNetworkScriptText }
+            .forEach { snippet -> violations += "observe-tab-network.ps1 must contain `$snippet`." }
+        requiredGitHubActionsSnippets
+            .filterNot { it in githubActionsScriptText }
+            .forEach { snippet -> violations += "collect-github-actions-evidence.ps1 must contain `$snippet`." }
+        requiredIosMacosSnippets
+            .filterNot { it in iosMacosScriptText }
+            .forEach { snippet -> violations += "collect-ios-macos-evidence.sh must contain `$snippet`." }
+        requiredAndroidNetworkObserverSnippets
+            .filterNot { it in androidNetworkObserverText }
+            .forEach { snippet -> violations += "AndroidNetworkActivityLogObserver.kt must contain `$snippet`." }
+
+        // 该脚本需要能被 Windows PowerShell 5 直接执行。仓库当前没有统一保存 BOM，
+        // 同时 shell 脚本需要能在 macOS runner 上直接执行；运行时字符串保持 ASCII，
+        // 中文说明放在 Markdown/YAML 文档中记录。
+        listOf(tabNetworkScript, githubActionsScript).forEach { script ->
+            script.readLines().forEachIndexed { index, line ->
+                if (line.any { it.code > 127 }) {
+                    violations += "${script.name}:${index + 1} contains non-ASCII runtime text."
+                }
+            }
+        }
+        iosMacosScript.readLines().forEachIndexed { index, line ->
+            if (line.any { it.code > 127 }) {
+                violations += "${iosMacosScript.name}:${index + 1} contains non-ASCII runtime text."
+            }
+        }
+
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                buildString {
+                    appendLine("Migration script check failed:")
+                    violations.forEach { appendLine("- $it") }
+                }
+            )
+        }
+    }
+}
+
+/**
+ * 校验 L1 封板所需的外部证据已经落盘。
+ *
+ * `verifyL1Local` 只能证明当前机器上的本地自动化门禁通过，不能替代 GitHub Actions、
+ * macOS iOS link 或登录态 Android Tab 网络观察。该任务故意不接入 `verifyL1Local`，
+ * 只在准备把 AC-11 标记为封板时手动执行，避免把缺失的外部证据伪装成本地绿灯。
+ */
+tasks.register("checkL1SealEvidence") {
+    group = "verification"
+    description = "Checks external evidence required before claiming L1 migration seal."
+
+    doLast {
+        data class EvidenceFile(
+            val label: String,
+            val relativePath: String,
+            val requiredSnippets: List<String>,
+        )
+
+        val evidenceFiles = listOf(
+            EvidenceFile(
+                label = "Android GitHub Actions",
+                relativePath = "docs/migration/evidence/github-actions-android.json",
+                requiredSnippets = listOf("workflowName", "conclusion", "success", "url", "Android CI"),
+            ),
+            EvidenceFile(
+                label = "iOS GitHub Actions",
+                relativePath = "docs/migration/evidence/github-actions-ios.json",
+                requiredSnippets = listOf("workflowName", "conclusion", "success", "url", "iOS CI"),
+            ),
+            EvidenceFile(
+                label = "Android login-state Tab network observation",
+                relativePath = "docs/migration/evidence/android-tab-network.json",
+                requiredSnippets = listOf(
+                    "\"schemaVersion\"",
+                    "\"result\"",
+                    "pass_candidate",
+                    "\"stableWindowStartedDelta\"",
+                    "\"stableWindowMaxInFlight\"",
+                    "\"stableWindowSampleCount\"",
+                ),
+            ),
+            EvidenceFile(
+                label = "macOS iOS link and Simulator smoke",
+                relativePath = "docs/migration/evidence/ios-macos-link-and-simulator.md",
+                requiredSnippets = listOf(
+                    ":composeApp:linkDebugFrameworkIosSimulatorArm64",
+                    "BUILD SUCCESSFUL",
+                    "headSha:",
+                    "linkResult: pass",
+                    "simulatorSmokeResult: pass",
+                    "Simulator login flow observed: pass",
+                    "Simulator QuickCreate flow observed: pass",
+                ),
+            ),
+        )
+
+        val trackedEvidenceFiles = ProcessBuilder("git", "ls-files", "docs/migration/evidence")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect tracked L1 evidence files with git ls-files:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+        val unstagedFiles = ProcessBuilder("git", "-c", "core.quotePath=false", "diff", "--name-only")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }
+                val exitCode = process.waitFor()
+                if (exitCode != 0) {
+                    throw GradleException("Unable to inspect unstaged files with git diff:\n$output")
+                }
+                output.lineSequence()
+                    .map { it.trim().replace('\\', '/') }
+                    .filter { it.isNotEmpty() }
+                    .toSet()
+            }
+
+        val violations = mutableListOf<String>()
+        // 外部证据必须和最终待提交索引一致；否则可能本地源码或脚本已经更新，
+        // 但远端 CI 与后续审查看到的仍是旧内容，导致 L1 封板证据和实际待交付补丁脱节。
+        unstagedFiles.forEach { file ->
+            violations += "$file has unstaged changes; stage it before using L1 seal evidence."
+        }
+
+        val evidenceSensitivePatterns = listOf(
+            "OpenAI API key" to Regex("""sk-[A-Za-z0-9_-]{20,}"""),
+            "GitHub token" to Regex("""ghp_[A-Za-z0-9_]{20,}"""),
+            "Google API key" to Regex("""AIza[0-9A-Za-z_-]{20,}"""),
+            "AWS access key" to Regex("""AKIA[0-9A-Z]{16}"""),
+            "private key block" to Regex("""-----BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY-----"""),
+            "Authorization header" to Regex(
+                """\bAuthorization\s*:\s*(Bearer|Basic)?\s*[A-Za-z0-9._~+/=-]{8,}""",
+                RegexOption.IGNORE_CASE,
+            ),
+            "Cookie header" to Regex(
+                """\b(Set-Cookie|Cookie)\s*:\s*[^;\r\n=]+=[^;\r\n]{4,}""",
+                RegexOption.IGNORE_CASE,
+            ),
+            "credential field" to Regex(
+                """"?(accessToken|refreshToken|idToken|apiKey|cookie)"?\s*[:=]\s*"[^"\r\n]{12,}"""",
+                RegexOption.IGNORE_CASE,
+            ),
+            "request body" to Regex(
+                """\b(requestBody|request_body)\s*[:=]\s*(\{|\[|").{20,}""",
+                RegexOption.IGNORE_CASE,
+            ),
+        )
+
+        fun textField(json: Map<*, *>, name: String): String =
+            json[name]?.toString()?.trim().orEmpty()
+
+        fun numberField(json: Map<*, *>, name: String): Double? =
+            when (val value = json[name]) {
+                is Number -> value.toDouble()
+                is String -> value.trim().toDoubleOrNull()
+                else -> null
+            }
+
+        fun markdownField(text: String, name: String): String =
+            text.lineSequence()
+                .firstOrNull { it.startsWith("$name:") }
+                ?.substringAfter(':')
+                ?.trim()
+                .orEmpty()
+
+        fun validateEvidenceContainsNoSensitiveData(evidence: EvidenceFile, text: String) {
+            // L1 外部证据会被加入 Git 索引并随补丁交付；即使运行验证通过，也不能把认证头、
+            // Cookie、API Key 或请求 Body 带入仓库。这里只拦截明确的凭据形态，避免普通说明文本误报。
+            text.lineSequence().forEachIndexed { index, line ->
+                evidenceSensitivePatterns
+                    .firstOrNull { (_, pattern) -> pattern.containsMatchIn(line) }
+                    ?.let { (label, _) ->
+                        violations += "${evidence.label} evidence at ${evidence.relativePath}:${index + 1} contains possible $label."
+                    }
+            }
+        }
+
+        fun parseJsonEvidence(evidence: EvidenceFile): Any? {
+            val file = rootDir.resolve(evidence.relativePath)
+            if (!file.exists()) {
+                return null
+            }
+            return try {
+                groovy.json.JsonSlurper().parse(file)
+            } catch (error: Exception) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must be valid JSON: ${error.message}"
+                null
+            }
+        }
+
+        fun jsonObjects(value: Any?): List<Map<*, *>> =
+            when (value) {
+                is Map<*, *> -> listOf(value)
+                is List<*> -> value.mapNotNull { it as? Map<*, *> }
+                else -> emptyList()
+            }
+
+        val currentHeadSha = ProcessBuilder("git", "rev-parse", "HEAD")
+            .directory(rootDir)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader().use { it.readText() }.trim()
+                val exitCode = process.waitFor()
+                if (exitCode != 0 || output.isBlank()) {
+                    throw GradleException("Unable to resolve current git HEAD for L1 evidence validation:\n$output")
+                }
+                output
+            }
+
+        fun validateGitHubActionsEvidence(evidence: EvidenceFile, workflowName: String): Map<*, *>? {
+            if (!rootDir.resolve(evidence.relativePath).exists()) {
+                return null
+            }
+            val runs = jsonObjects(parseJsonEvidence(evidence))
+            if (runs.isEmpty()) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must be a JSON object or array of workflow runs."
+                return null
+            }
+
+            val matchingRuns = runs.filter { textField(it, "workflowName") == workflowName }
+            if (matchingRuns.isEmpty()) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must include workflowName=$workflowName."
+                return null
+            }
+
+            val successfulRun = matchingRuns.firstOrNull {
+                textField(it, "status") == "completed" && textField(it, "conclusion") == "success"
+            }
+            if (successfulRun == null) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must describe a completed successful workflow run."
+                return null
+            }
+
+            listOf("databaseId", "headSha", "url").forEach { field ->
+                if (textField(successfulRun, field).isBlank()) {
+                    violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank `$field`."
+                }
+            }
+            val expectedUrlPrefix = "https://github.com/flybirdxx/RunningHub/actions/runs/"
+            if (!textField(successfulRun, "url").startsWith(expectedUrlPrefix)) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must use a RunningHub GitHub Actions run URL."
+            }
+            // 远端 CI 证据必须绑定当前待封板提交；只要求 Android/iOS headSha 一致仍可能拿到旧提交的绿灯。
+            val actualHeadSha = textField(successfulRun, "headSha")
+            if (actualHeadSha.isNotBlank() && actualHeadSha != currentHeadSha) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must use current HEAD $currentHeadSha; found $actualHeadSha."
+            }
+            return successfulRun
+        }
+
+        fun validateAndroidNetworkEvidence(evidence: EvidenceFile) {
+            if (!rootDir.resolve(evidence.relativePath).exists()) {
+                return
+            }
+            val json = parseJsonEvidence(evidence) as? Map<*, *>
+            if (json == null) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must be a JSON object."
+                return
+            }
+
+            // 运行期网络观察证据必须按字段验证，避免仅包含 pass_candidate 文本的手工 JSON 被误判为 Tab 生命周期已验收。
+            if (numberField(json, "schemaVersion") == null) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must include numeric schemaVersion."
+            }
+            if (textField(json, "packageName") != "com.runninghub.app.debug") {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must target packageName=com.runninghub.app.debug."
+            }
+            if (textField(json, "operationNotes").isBlank()) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank operationNotes describing the logged-in tab path."
+            }
+            // 登录态 Tab 观察必须覆盖完整操作和静置窗口；短窗口冷启动样本只能证明采集通道可用，
+            // 不能证明 History/QuickCreate 等不可见页面已经停止后台请求。
+            if ((numberField(json, "durationSeconds") ?: 0.0) < 120.0) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must use durationSeconds>=120."
+            }
+            if ((numberField(json, "stableWindowSeconds") ?: 0.0) < 30.0) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must use stableWindowSeconds>=30."
+            }
+            if (textField(json, "result") != "pass_candidate") {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must have result=pass_candidate."
+            }
+            if ((numberField(json, "sampleCount") ?: 0.0) <= 0.0) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must contain at least one RunningHubNetwork sample."
+            }
+            val samples = json["samples"] as? List<*>
+            val stableWindowSeconds = numberField(json, "stableWindowSeconds") ?: 0.0
+            val sampleCount = numberField(json, "sampleCount") ?: 0.0
+            val stableWindowSampleCount = numberField(json, "stableWindowSampleCount") ?: 0.0
+            if (samples == null) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must include a samples array."
+            } else if (samples.size.toDouble() != sampleCount) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must have sampleCount matching samples.size."
+            }
+            // Android debug 观察器会按秒输出心跳样本；最终证据至少要覆盖完整稳定窗口，
+            // 才能证明没有新请求，而不是只证明某一瞬间 inFlight 为 0。这里检查稳定窗口内样本数，
+            // 避免全程总样本足够但最后静置窗口采样不足时被误判为通过。
+            if (stableWindowSampleCount < stableWindowSeconds) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must contain at least stableWindowSeconds samples inside the stable window."
+            }
+            if (numberField(json, "stableWindowStartedDelta") != 0.0) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must have stableWindowStartedDelta=0."
+            }
+            if (numberField(json, "stableWindowMaxInFlight") != 0.0) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must have stableWindowMaxInFlight=0."
+            }
+        }
+
+        fun validateIosMacosEvidence(evidence: EvidenceFile) {
+            val file = rootDir.resolve(evidence.relativePath)
+            if (!file.exists()) {
+                return
+            }
+            val text = file.readText()
+            val capturedAt = markdownField(text, "capturedAt")
+            val evidenceHeadSha = markdownField(text, "headSha")
+            val host = markdownField(text, "host")
+            val linkCommand = markdownField(text, "linkCommand")
+            if (capturedAt.isBlank()) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank capturedAt."
+            }
+            if (evidenceHeadSha.isBlank()) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank headSha."
+            } else if (evidenceHeadSha != currentHeadSha) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must use current HEAD $currentHeadSha; found $evidenceHeadSha."
+            }
+            if (!host.contains("Darwin")) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must be captured on macOS with host containing Darwin."
+            }
+            val expectedLinkCommand = "./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64"
+            if (linkCommand != expectedLinkCommand) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must use linkCommand=$expectedLinkCommand."
+            }
+            // iOS 运行验收依赖人工 Simulator 冒烟说明；空说明无法证明登录、退出和 QuickCreate
+            // 的实际操作环境，不能作为 Windows 本地 SKIPPED link 的替代证据。
+            val notes = text.substringAfter("## Notes", missingDelimiterValue = "").substringBefore("## Gradle output tail")
+            if (notes.isBlank()) {
+                violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank notes for the Simulator smoke run."
+            }
+        }
+
+        evidenceFiles.forEach { evidence ->
+            val file = rootDir.resolve(evidence.relativePath)
+            if (!file.exists()) {
+                violations += "${evidence.label} evidence is missing at ${evidence.relativePath}."
+                return@forEach
+            }
+            if (evidence.relativePath !in trackedEvidenceFiles) {
+                violations += "${evidence.label} evidence exists but is not tracked by Git at ${evidence.relativePath}."
+            }
+
+            val text = file.readText()
+            validateEvidenceContainsNoSensitiveData(evidence, text)
+            evidence.requiredSnippets
+                .filterNot { it in text }
+                .forEach { snippet ->
+                    violations += "${evidence.label} evidence at ${evidence.relativePath} must contain `$snippet`."
+                }
+        }
+        val androidCiEvidence = validateGitHubActionsEvidence(evidenceFiles[0], "Android CI")
+        val iosCiEvidence = validateGitHubActionsEvidence(evidenceFiles[1], "iOS CI")
+        if (androidCiEvidence != null && iosCiEvidence != null) {
+            val androidHeadSha = textField(androidCiEvidence, "headSha")
+            val iosHeadSha = textField(iosCiEvidence, "headSha")
+            // 双端 CI 必须证明同一份待封板提交通过，不能用两个不同提交上的成功运行拼接出 L1 证据。
+            if (androidHeadSha.isNotBlank() && iosHeadSha.isNotBlank() && androidHeadSha != iosHeadSha) {
+                violations += "Android CI and iOS CI evidence must use the same headSha; found Android=$androidHeadSha and iOS=$iosHeadSha."
+            }
+        }
+        validateAndroidNetworkEvidence(evidenceFiles[2])
+        validateIosMacosEvidence(evidenceFiles[3])
+
+        if (violations.isNotEmpty()) {
+            throw GradleException(
+                buildString {
+                    appendLine("L1 seal evidence check failed:")
+                    violations.forEach { appendLine("- $it") }
+                }
+            )
+        }
+    }
+}
+
+/**
+ * 执行 L1 架构封板前所有 Gradle Test 类型任务。
+ *
+ * KMP 与 Android 子模块会生成各自的 `testDebugUnitTest` 等任务，根项目自带的 `test`
+ * 任务无法代表整仓单元测试矩阵。单独提供该聚合入口，是为了让本地验证和 GitHub Actions
+ * 都不会因为根测试任务空跑而误判 Gate J 已满足。
+ */
+tasks.register("verifyL1UnitTests") {
+    group = "verification"
+    description = "Runs all Gradle Test tasks required by the L1 migration gate."
+}
+
+/**
+ * 执行 Android 侧 L1 自动化门禁。
+ *
+ * 该任务用于 Linux CI 和本地 Android 回归，覆盖架构边界、所有可发现的 JVM/Android
+ * 单元测试、Android lint 和 debug 构建。iOS 编译和 framework link 不放在这里，
+ * 避免 Ubuntu runner 因平台能力不匹配而给出不可执行的检查项。
+ */
+tasks.register("verifyL1Android") {
+    group = "verification"
+    description = "Runs Android-side L1 migration checks for CI and local verification."
+
+    dependsOn(
+        "checkL1CiWorkflows",
+        "checkMigrationScripts",
+        "checkArchitectureBoundaries",
+        "verifyL1UnitTests",
+        ":composeApp:lintDebug",
+        ":composeApp:assembleDebug",
+    )
+}
+
+/**
+ * 执行 iOS 侧 L1 自动化门禁。
+ *
+ * 该任务用于 macOS CI 或 macOS 开发机，覆盖共享模块与应用模块的 iOS Simulator Kotlin
+ * 编译以及 Compose App debug framework link。Windows 本地可能跳过 link，不能替代
+ * macOS runner 的真实执行记录。
+ */
+tasks.register("verifyL1Ios") {
+    group = "verification"
+    description = "Runs iOS-side L1 migration checks for macOS CI."
+
+    dependsOn(
+        "checkL1CiWorkflows",
+        "checkMigrationScripts",
+        "checkArchitectureBoundaries",
+        ":shared:compileKotlinIosSimulatorArm64",
+        ":composeApp:compileKotlinIosSimulatorArm64",
+        ":composeApp:linkDebugFrameworkIosSimulatorArm64",
+    )
+}
+
+/**
+ * 执行 L1 架构封板前的本地聚合验证。
+ *
+ * AC-11 需要把本地可自动化证据收敛到稳定入口，避免后续协作者在多个文档和聊天记录中
+ * 手动拼装命令。本地入口组合 Android 与 iOS 两侧门禁；其中 iOS framework link 的真实
+ * 封板证据仍以 macOS CI 或 macOS 开发机输出为准。
+ */
+tasks.register("verifyL1Local") {
+    group = "verification"
+    description = "Runs local checks required before L1 migration seal audit."
+
+    dependsOn(
+        "verifyL1Android",
+        "verifyL1Ios",
+    )
+}
+
+gradle.projectsEvaluated {
+    tasks.named("verifyL1UnitTests").configure {
+        dependsOn(
+            allprojects.flatMap { project ->
+                project.tasks.withType(org.gradle.api.tasks.testing.Test::class.java).map { task -> task.path }
+            }
+        )
+    }
 }

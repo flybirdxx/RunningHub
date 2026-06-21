@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.result
 
 import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
+import com.runninghub.feature.quickcreate.domain.QuickCreateTaskIssueCode
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -121,6 +122,44 @@ class QuickCreateTaskPollingControllerTest {
         assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
         assertEquals(null, uiState.value.statusText)
         assertEquals("network unavailable", uiState.value.error)
+    }
+
+    @Test
+    fun `collect maps cancelled task to cancelled terminal display`() = runTest {
+        val uiState = MutableStateFlow(
+            QuickCreateUiState(
+                taskStatus = QuickCreateTaskUiStatus.RUNNING,
+                statusText = "生成中... 42%",
+                error = "previous warning",
+            )
+        )
+        val controller = QuickCreateTaskPollingController(
+            uiState = uiState,
+            onTaskQueued = {},
+            onTaskSucceeded = {},
+        )
+
+        controller.collect(flowOf(QuickCreateTaskStatus.Cancelled("task-1")))
+
+        assertEquals(QuickCreateTaskUiStatus.CANCELED, uiState.value.taskStatus)
+        assertEquals("任务已取消", uiState.value.statusText)
+        assertEquals(null, uiState.value.error)
+    }
+
+    @Test
+    fun `collect maps domain issue codes to presentation messages`() = runTest {
+        val uiState = MutableStateFlow(QuickCreateUiState())
+        val controller = QuickCreateTaskPollingController(
+            uiState = uiState,
+            onTaskQueued = {},
+            onTaskSucceeded = {},
+        )
+
+        // Data 层返回稳定错误码，Presentation 层负责生成最终中文提示。
+        controller.collect(flowOf(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED)))
+
+        assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
+        assertEquals("余额不足或价格预览未通过", uiState.value.error)
     }
 
     @Test

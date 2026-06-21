@@ -1,14 +1,17 @@
 ﻿package com.runninghub.app.ui.feature.history
 
-import com.runninghub.shared.domain.model.GenerationHistoryItem
-import com.runninghub.shared.domain.model.GenerationHistoryOutput
-import com.runninghub.shared.domain.model.GenerationHistoryPage
-import com.runninghub.shared.domain.model.GenerationHistorySource
-import com.runninghub.shared.domain.repository.GenerationHistoryRepository
+import com.runninghub.feature.task.domain.GenerationHistoryItem
+import com.runninghub.feature.task.domain.GenerationHistoryOutput
+import com.runninghub.feature.task.domain.GenerationHistoryPage
+import com.runninghub.feature.task.domain.GenerationHistoryRepository
+import com.runninghub.feature.task.domain.GenerationHistorySource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
@@ -104,6 +107,23 @@ class TaskHistoryScreenModelTest {
         assertEquals("running-task", repository.cancelledTaskId)
         assertEquals("\u5df2\u8bf7\u6c42\u53d6\u6d88\u4efb\u52a1", screenModel.uiState.value.actionMessage)
         assertEquals(2, repository.listCalls)
+    }
+
+    @Test
+    fun `onDispose cancels active polling before next refresh`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeGenerationHistoryRepository()
+        val screenModel = TaskHistoryScreenModel(repository, enablePolling = true)
+
+        screenModel.loadHistory()
+        runCurrent()
+        screenModel.onDispose()
+        advanceTimeBy(10_000)
+        runCurrent()
+
+        // 页面离开后轮询 Job 必须取消，否则不可见 History Tab 会继续拉取历史列表。
+        assertEquals(1, repository.listCalls)
     }
 
     private class FakeGenerationHistoryRepository : GenerationHistoryRepository {

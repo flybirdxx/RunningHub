@@ -1,4 +1,4 @@
-package com.runninghub.app.ui.feature.detail
+﻿package com.runninghub.app.ui.feature.detail
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.tween
@@ -101,9 +101,9 @@ import com.runninghub.core.model.AppDetail
 import com.runninghub.core.model.Author
 import com.runninghub.core.model.InputNode
 import com.runninghub.core.model.StatisticsInfo
-import com.runninghub.shared.domain.model.Permission
-import com.runninghub.shared.domain.model.TaskOutput
-import com.runninghub.shared.domain.permission.PermissionStateStore
+import com.runninghub.core.storage.Permission
+import com.runninghub.core.model.TaskOutput
+import com.runninghub.core.storage.PermissionStateStore
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
 /* ═══════════════════════════════════════════════════

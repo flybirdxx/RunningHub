@@ -102,6 +102,7 @@ import com.runninghub.core.model.CoverMediaType
 import com.runninghub.core.model.Tag
 import com.runninghub.core.model.TagSimple
 import com.runninghub.core.model.WebApp
+import com.runninghub.feature.discovery.domain.CatalogSort
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.ui.tooling.preview.Preview
 
@@ -146,7 +147,7 @@ private fun DiscoveryContent(
     onAppClick: (String) -> Unit = {},
     onModelBannerClick: (String) -> Unit = {},
     onCategorySelected: (Int) -> Unit = {},
-    onSortSelected: (SortOption) -> Unit = {},
+    onSortSelected: (CatalogSort) -> Unit = {},
     onRefresh: () -> Unit = {},
     onLoadMore: () -> Unit = {},
 ) {
@@ -860,8 +861,8 @@ private fun CategoryTag(
 
 @Composable
 private fun SortRow(
-    selectedSort: SortOption,
-    onSortSelected: (SortOption) -> Unit,
+    selectedSort: CatalogSort,
+    onSortSelected: (CatalogSort) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -893,7 +894,7 @@ private fun SortRow(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
             ) {
-                SortOption.entries.forEach { option ->
+                CatalogSort.entries.forEach { option ->
                     DropdownMenuItem(
                         text = { Text(option.label, style = MaterialTheme.typography.bodyMedium) },
                         onClick = {

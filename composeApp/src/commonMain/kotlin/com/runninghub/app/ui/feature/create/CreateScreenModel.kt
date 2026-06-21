@@ -518,6 +518,18 @@ class CreateScreenModel(
                         }
                         loadRecentHistory(showLoading = false)
                     }
+                    is QuickCreateTaskStatus.Cancelled -> {
+                        _uiState.update {
+                            // 旧 Create 页面仅作为迁移期对照保留；这里跟随 Domain 取消终态停止提交态，
+                            // 避免服务端取消被误判为仍在生成。
+                            it.copy(
+                                isSubmitting = false,
+                                submitMessage = "任务已取消",
+                                currentTaskStatus = status,
+                            )
+                        }
+                        loadRecentHistory(showLoading = false)
+                    }
                     is QuickCreateTaskStatus.Error -> {
                         _uiState.update {
                             it.copy(
@@ -618,10 +630,6 @@ class CreateScreenModel(
         _uiState.update { it.copy(feePreviewLoading = true, feePreviewError = null) }
         feePreviewRepository.previewImageQuickCreationFee(model.buildImageRequest(state.fieldValues))
             .onSuccess { preview ->
-                println(
-                    "[CreateScreenModel] fee-preview success passed=${preview.passed} " +
-                        "insufficient=${preview.insufficientType != null}"
-                )
                 _uiState.update {
                     it.copy(
                         feePreviewLoading = false,
@@ -635,7 +643,6 @@ class CreateScreenModel(
                 }
             }
             .onFailure { error ->
-                println("[CreateScreenModel] fee-preview failed: ${error.toSafeLogMessage()}")
                 _uiState.update {
                     it.copy(
                         feePreviewLoading = false,

@@ -9,6 +9,7 @@ import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
+import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,7 +26,7 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * ScreenModel 只保留公开 Action 入口，避免继续直接管理生成 Job 和任务状态转换。
  *
  * 并发与生命周期约束：
- * - 同一时间只保留一个生成 Job，新提交会取消上一轮尚未结束的收集任务。
+ * - 同一时间只允许一个生成 Job 处于活跃状态，重复提交只提示用户等待当前任务结束。
  * - 页面销毁时必须调用 [dispose]，避免任务状态流在 ScreenModel 失效后继续回写。
  *
  * @param generationRepository 快捷创作生成仓库，只负责提交图片和视频生成请求并返回任务状态流。
@@ -54,16 +55,21 @@ internal class QuickCreateGenerationInteractor(
      * 并在素材和字段都就绪后根据当前 Tab 调用图片或视频生成接口。
      */
     fun generate() {
-        if (uiState.value.feePreviewLoading) {
+        if (generationJob?.isActive == true) {
+            blockDuplicateGenerate()
+            return
+        }
+        val submitSnapshot = uiState.value
+        if (submitSnapshot.feePreviewLoading) {
             blockGenerate("价格确认中")
             return
         }
-        if (uiState.value.feePreviewError != null) {
-            blockGenerate(feePreviewInteractor.generateBlockedMessage(uiState.value.feePreviewError))
+        if (submitSnapshot.feePreviewError != null) {
+            blockGenerate(feePreviewInteractor.generateBlockedMessage(submitSnapshot.feePreviewError))
             return
         }
         when (val buildResult = generationRequestFactory.buildCurrentGenerationRequest(
-            state = uiState.value,
+            state = submitSnapshot,
             validateUploads = false,
         )) {
             is QuickCreateGenerationRequestBuildResult.Blocked -> {
@@ -75,7 +81,6 @@ internal class QuickCreateGenerationInteractor(
             is QuickCreateGenerationRequestBuildResult.VideoReady -> Unit
         }
 
-        generationJob?.cancel()
         generationJob = scope.launch {
             uiState.update {
                 it.copy(
@@ -85,19 +90,38 @@ internal class QuickCreateGenerationInteractor(
                     results = emptyList(),
                 )
             }
+            var requestSnapshot = submitSnapshot
             try {
                 // 生成提交前只等待当前请求真正会使用的素材，隐藏字段和未激活 child 字段不会阻塞生成。
-                mediaUploadCoordinator.awaitPendingUploads()
+                // 这里必须使用点击生成时捕获的快照；等待上传期间用户仍可继续编辑页面，
+                // 但本次远端任务、计费预览和上传素材应对应同一份参数，不能混入后续输入。
+                requestSnapshot = mediaUploadCoordinator.awaitPendingUploads(submitSnapshot)
             } catch (error: IllegalStateException) {
                 blockGenerate(error.message)
                 return@launch
             }
             when (val buildResult = generationRequestFactory.buildCurrentGenerationRequest(
-                state = uiState.value,
+                state = requestSnapshot,
                 validateUploads = true,
             )) {
-                is QuickCreateGenerationRequestBuildResult.ImageReady -> generateImage(buildResult.request)
-                is QuickCreateGenerationRequestBuildResult.VideoReady -> generateVideo(buildResult.request)
+                is QuickCreateGenerationRequestBuildResult.ImageReady -> {
+                    // 最终提交前必须重新按远端请求计算指纹，确保上传完成后的 URL、动态参数和 Prompt
+                    // 都已经过同一轮计费预览；否则余额不足或价格变化会被旧预览结果绕过。
+                    if (hasMatchingFeePreview(requestSnapshot, buildResult.request.quickCreateFeeRequestKey())) {
+                        generateImage(buildResult.request)
+                    } else {
+                        blockGenerate("价格待确认")
+                    }
+                }
+                is QuickCreateGenerationRequestBuildResult.VideoReady -> {
+                    // 视频请求同样需要绑定最近一次成功预览，尤其是首尾帧、参考视频和音频上传完成后
+                    // 会改变正式提交参数，不能复用上传前的价格确认状态。
+                    if (hasMatchingFeePreview(requestSnapshot, buildResult.request.quickCreateFeeRequestKey())) {
+                        generateVideo(buildResult.request)
+                    } else {
+                        blockGenerate("价格待确认")
+                    }
+                }
                 is QuickCreateGenerationRequestBuildResult.Blocked -> blockGenerate(buildResult.message)
                 QuickCreateGenerationRequestBuildResult.Unavailable -> blockGenerate(null)
             }
@@ -149,4 +173,17 @@ internal class QuickCreateGenerationInteractor(
             )
         }
     }
+
+    private fun blockDuplicateGenerate() {
+        uiState.update {
+            // 当前任务已经进入提交或轮询链路时不能取消后重新提交，否则会产生第二个远端任务且旧任务失去状态归属。
+            it.copy(error = "已有生成任务进行中，请等待当前任务结束")
+        }
+    }
+
+    private fun hasMatchingFeePreview(
+        state: QuickCreateUiState,
+        requestKey: String,
+    ): Boolean =
+        state.feePreviewRequestKey == requestKey
 }

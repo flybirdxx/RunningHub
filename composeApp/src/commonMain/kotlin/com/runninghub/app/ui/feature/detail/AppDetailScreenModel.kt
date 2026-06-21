@@ -1,4 +1,4 @@
-package com.runninghub.app.ui.feature.detail
+﻿package com.runninghub.app.ui.feature.detail
 
 import androidx.compose.ui.graphics.Color
 import cafe.adriel.voyager.core.model.ScreenModel
@@ -8,8 +8,8 @@ import com.runninghub.app.ui.component.MediaType
 import com.runninghub.core.model.AppDetail
 import com.runninghub.core.model.InputNode
 import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
-import com.runninghub.shared.domain.model.TaskOutput
-import com.runninghub.shared.domain.repository.WebAppTaskRepository
+import com.runninghub.core.model.TaskOutput
+import com.runninghub.feature.task.domain.WebAppTaskRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay

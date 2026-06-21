@@ -1,0 +1,4 @@
+# 迁移期允许继续引用 shared 的 composeApp 文件。
+# 新文件默认不得新增 shared 依赖；确需保留时必须写明归属 Gate 和删除条件。
+#
+# 当前无允许项。composeApp 已不再直接依赖 shared。

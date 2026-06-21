@@ -4,6 +4,8 @@ import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.core.model.Tag
 import com.runninghub.core.model.WebApp
+import com.runninghub.feature.discovery.domain.CatalogQuery
+import com.runninghub.feature.discovery.domain.CatalogSort
 import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,22 +15,18 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
- * 发现页列表排序选项。
+ * 发现页列表排序展示名称。
  *
- * @property label 展示给用户的中文排序名称，由 Presentation 层持有，Data 层不依赖该文案。
- * @property apiValue 传给目录接口的排序枚举值，必须与服务端约定保持一致。
- * @property days 热度统计时间窗口，单位为天；`null` 表示该排序不限制固定时间窗口。
+ * 排序本身由 Domain 层 [CatalogSort] 表达，Presentation 只负责把稳定业务排序映射为用户可见文案。
+ * 这样 UI 不再持有远端 API 排序字符串，后续接口协议变化只需要调整 Data 映射。
  */
-enum class SortOption(
-    val label: String,
-    val apiValue: String,
-    val days: Int? = null
-) {
-    RECOMMEND("推荐", "RECOMMEND"),
-    REPUTATION("口碑", "REPUTATION", days = 3),
-    HOTTEST("最热", "HOTTEST"),
-    NEWEST("最新", "NEWEST"),
-}
+internal val CatalogSort.label: String
+    get() = when (this) {
+        CatalogSort.RECOMMEND -> "推荐"
+        CatalogSort.REPUTATION -> "口碑"
+        CatalogSort.HOTTEST -> "最热"
+        CatalogSort.NEWEST -> "最新"
+    }
 
 /**
  * 发现页的完整可渲染状态。
@@ -45,7 +43,8 @@ enum class SortOption(
  * @property categories 一级标签列表，来源于 [WebAppCatalogRepository.getTagTree]。
  * 列表顺序保留服务端返回顺序，空列表表示当前没有可筛选分类。
  * @property selectedCategoryIndex 当前选中的一级分类下标。
- * `0` 表示选中第一个分类；当 [categories] 为空时该值不应被用于索引访问。
+ * `0` 表示“全部”；`1` 表示 [categories] 的第一个分类。该约定与 UI 中固定的“全部”标签一致，
+ * 因此访问真实分类时必须使用 `index - 1`。
  * @property selectedSort 当前列表排序选项，默认使用推荐排序。
  * 修改该字段后必须重新加载第一页，避免不同排序结果混合在同一列表。
  * @property apps 当前发现列表的 WebApp 数据。
@@ -81,7 +80,7 @@ data class DiscoveryUiState(
     val banners: List<WebApp> = emptyList(),
     val categories: List<Tag> = emptyList(),
     val selectedCategoryIndex: Int = 0,
-    val selectedSort: SortOption = SortOption.RECOMMEND,
+    val selectedSort: CatalogSort = CatalogSort.RECOMMEND,
     val apps: List<WebApp> = emptyList(),
     val isLoadingApps: Boolean = false,
     val currentPage: Int = 1,
@@ -116,6 +115,20 @@ class DiscoveryScreenModel(
     val uiState: StateFlow<DiscoveryUiState> = _uiState.asStateFlow()
 
     private var loadMoreJob: Job? = null
+    // 主列表和搜索分别使用递增版本号隔离旧响应。Repository 请求通常无法保证取消后服务端不再返回，
+    // 因此状态写入前必须确认响应仍属于用户最后一次选择的分类、排序或关键词。
+    private var appListRequestVersion: Long = 0
+    private var searchRequestVersion: Long = 0
+
+    private fun nextAppListRequestVersion(): Long {
+        appListRequestVersion += 1
+        return appListRequestVersion
+    }
+
+    private fun nextSearchRequestVersion(): Long {
+        searchRequestVersion += 1
+        return searchRequestVersion
+    }
 
     /**
      * 加载发现页首屏数据。
@@ -125,12 +138,13 @@ class DiscoveryScreenModel(
      */
     fun loadInitialData() {
         screenModelScope.launch {
+            val requestVersion = nextAppListRequestVersion()
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 val categoriesDeferred = launch { loadCategories() }
                 categoriesDeferred.join()
 
-                val appsDeferred = launch { loadApps(page = 1, reset = true) }
+                val appsDeferred = launch { loadApps(page = 1, reset = true, requestVersion = requestVersion) }
 
                 appsDeferred.join()
             } finally {
@@ -149,21 +163,27 @@ class DiscoveryScreenModel(
 
     private suspend fun loadApps(
         page: Int,
-        reset: Boolean
+        reset: Boolean,
+        requestVersion: Long,
     ) {
         val state = _uiState.value
-        val sort = state.selectedSort
         val tags = selectedTags()
         webAppRepository.getAppList(
-            pageNum = page,
-            pageSize = PAGE_SIZE,
-            tags = tags,
-            sort = sort.apiValue,
-            days = sort.days
+            CatalogQuery(
+                pageNum = page,
+                pageSize = PAGE_SIZE,
+                tagIds = tags,
+                sort = state.selectedSort,
+            )
         ).onSuccess { pageData ->
+            if (requestVersion != appListRequestVersion) return@onSuccess
             _uiState.update {
                 it.copy(
-                    apps = if (reset) pageData.records else it.apps + pageData.records,
+                    apps = if (reset) {
+                        pageData.records
+                    } else {
+                        (it.apps + pageData.records).distinctBy { app -> app.id }
+                    },
                     currentPage = page,
                     hasMore = pageData.hasNext,
                     isLoadingApps = false,
@@ -171,10 +191,11 @@ class DiscoveryScreenModel(
                 )
             }
         }.onFailure { e ->
+            if (requestVersion != appListRequestVersion) return@onFailure
             _uiState.update {
                 it.copy(
                     isLoadingApps = false,
-                    error = if (reset) e.message ?: "加载失败" else it.error
+                    error = if (reset) e.toCatalogErrorMessage("加载失败") else it.error
                 )
             }
         }
@@ -186,7 +207,8 @@ class DiscoveryScreenModel(
      * 切换分类会取消正在进行的加载更多任务，并清空旧列表后重新加载第一页，
      * 避免不同分类的分页结果混合展示。
      *
-     * @param index [categories] 中的分类下标；与当前下标相同会被忽略。
+     * @param index UI 分类下标；`0` 表示“全部”，`1` 才对应 [categories] 中的第一个真实分类。
+     * 与当前下标相同会被忽略。
      */
     fun selectCategory(index: Int) {
         val state = _uiState.value
@@ -194,6 +216,7 @@ class DiscoveryScreenModel(
 
         loadMoreJob?.cancel()
         loadMoreJob = null
+        val requestVersion = nextAppListRequestVersion()
 
         _uiState.update {
             it.copy(
@@ -202,13 +225,16 @@ class DiscoveryScreenModel(
                 isLoadingApps = true,
                 currentPage = 1,
                 hasMore = true,
+                isLoadingMore = false,
                 error = null
             )
         }
 
         screenModelScope.launch {
-            loadApps(page = 1, reset = true)
-            _uiState.update { it.copy(isLoadingApps = false) }
+            loadApps(page = 1, reset = true, requestVersion = requestVersion)
+            if (requestVersion == appListRequestVersion) {
+                _uiState.update { it.copy(isLoadingApps = false) }
+            }
         }
     }
 
@@ -219,12 +245,13 @@ class DiscoveryScreenModel(
      *
      * @param sort 用户选择的排序选项。
      */
-    fun selectSort(sort: SortOption) {
+    fun selectSort(sort: CatalogSort) {
         val state = _uiState.value
         if (sort == state.selectedSort) return
 
         loadMoreJob?.cancel()
         loadMoreJob = null
+        val requestVersion = nextAppListRequestVersion()
 
         _uiState.update {
             it.copy(
@@ -232,13 +259,16 @@ class DiscoveryScreenModel(
                 isLoadingApps = true,
                 currentPage = 1,
                 hasMore = true,
+                isLoadingMore = false,
                 error = null
             )
         }
 
         screenModelScope.launch {
-            loadApps(page = 1, reset = true)
-            _uiState.update { it.copy(isLoadingApps = false) }
+            loadApps(page = 1, reset = true, requestVersion = requestVersion)
+            if (requestVersion == appListRequestVersion) {
+                _uiState.update { it.copy(isLoadingApps = false) }
+            }
         }
     }
 
@@ -250,6 +280,7 @@ class DiscoveryScreenModel(
     fun refresh() {
         loadMoreJob?.cancel()
         loadMoreJob = null
+        val requestVersion = nextAppListRequestVersion()
 
         screenModelScope.launch {
             _uiState.update {
@@ -257,9 +288,11 @@ class DiscoveryScreenModel(
             }
             try {
                 loadCategories()
-                loadApps(page = 1, reset = true)
+                loadApps(page = 1, reset = true, requestVersion = requestVersion)
             } finally {
-                _uiState.update { it.copy(isRefreshing = false) }
+                if (requestVersion == appListRequestVersion) {
+                    _uiState.update { it.copy(isRefreshing = false) }
+                }
             }
         }
     }
@@ -274,11 +307,14 @@ class DiscoveryScreenModel(
         if (state.isLoadingMore || state.isLoadingApps || !state.hasMore || state.isLoading || state.isRefreshing) return
 
         val nextPage = state.currentPage + 1
+        val requestVersion = appListRequestVersion
         _uiState.update { it.copy(isLoadingMore = true) }
 
         loadMoreJob = screenModelScope.launch {
-            loadApps(page = nextPage, reset = false)
-            _uiState.update { it.copy(isLoadingMore = false) }
+            loadApps(page = nextPage, reset = false, requestVersion = requestVersion)
+            if (requestVersion == appListRequestVersion) {
+                _uiState.update { it.copy(isLoadingMore = false) }
+            }
         }
     }
 
@@ -297,6 +333,7 @@ class DiscoveryScreenModel(
      * 收起时保留主发现列表，清空搜索关键词、结果和搜索错误，避免旧搜索结果影响常规浏览。
      */
     fun collapseSearch() {
+        nextSearchRequestVersion()
         _uiState.update {
             it.copy(
                 isSearchExpanded = false,
@@ -304,6 +341,7 @@ class DiscoveryScreenModel(
                 searchResults = emptyList(),
                 searchPage = 1,
                 searchHasMore = false,
+                isSearching = false,
                 searchError = null,
             )
         }
@@ -330,18 +368,21 @@ class DiscoveryScreenModel(
     fun searchSubmit(query: String = _uiState.value.searchQuery) {
         val trimmed = query.trim()
         if (trimmed.isEmpty()) {
+            nextSearchRequestVersion()
             _uiState.update {
                 it.copy(
                     searchQuery = "",
                     searchResults = emptyList(),
                     searchPage = 1,
                     searchHasMore = false,
+                    isSearching = false,
                     searchError = null,
                 )
             }
             return
         }
 
+        val requestVersion = nextSearchRequestVersion()
         screenModelScope.launch {
             _uiState.update {
                 it.copy(
@@ -356,6 +397,7 @@ class DiscoveryScreenModel(
                 pageNum = 1,
                 pageSize = PAGE_SIZE,
             ).onSuccess { pageData ->
+                if (requestVersion != searchRequestVersion) return@onSuccess
                 _uiState.update {
                     it.copy(
                         isSearching = false,
@@ -365,12 +407,13 @@ class DiscoveryScreenModel(
                     )
                 }
             }.onFailure { e ->
+                if (requestVersion != searchRequestVersion) return@onFailure
                 _uiState.update {
                     it.copy(
                         isSearching = false,
                         searchResults = emptyList(),
                         searchHasMore = false,
-                        searchError = e.message ?: "搜索失败",
+                        searchError = e.toCatalogErrorMessage("搜索失败"),
                     )
                 }
             }
@@ -387,6 +430,7 @@ class DiscoveryScreenModel(
         if (state.isSearching || !state.searchHasMore || state.searchQuery.isBlank()) return
 
         val nextPage = state.searchPage + 1
+        val requestVersion = searchRequestVersion
         screenModelScope.launch {
             _uiState.update { it.copy(isSearching = true, searchError = null) }
             webAppRepository.searchApps(
@@ -394,19 +438,21 @@ class DiscoveryScreenModel(
                 pageNum = nextPage,
                 pageSize = PAGE_SIZE,
             ).onSuccess { pageData ->
+                if (requestVersion != searchRequestVersion) return@onSuccess
                 _uiState.update {
                     it.copy(
                         isSearching = false,
-                        searchResults = it.searchResults + pageData.records,
+                        searchResults = (it.searchResults + pageData.records).distinctBy { app -> app.id },
                         searchPage = nextPage,
                         searchHasMore = pageData.hasNext,
                     )
                 }
             }.onFailure { e ->
+                if (requestVersion != searchRequestVersion) return@onFailure
                 _uiState.update {
                     it.copy(
                         isSearching = false,
-                        searchError = e.message ?: "搜索失败",
+                        searchError = e.toCatalogErrorMessage("搜索失败"),
                     )
                 }
             }

@@ -45,8 +45,8 @@ import com.runninghub.app.ui.feature.quickcreate.presentation.result.QuickCreate
 import com.runninghub.app.ui.theme.*
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.fields.quickCreationServiceFieldUiItems
-import com.runninghub.shared.domain.model.Permission
-import com.runninghub.shared.domain.permission.PermissionStateStore
+import com.runninghub.core.storage.Permission
+import com.runninghub.core.storage.PermissionStateStore
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import org.jetbrains.compose.ui.tooling.preview.Preview

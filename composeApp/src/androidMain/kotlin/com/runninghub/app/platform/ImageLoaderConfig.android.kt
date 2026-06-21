@@ -1,16 +1,24 @@
 package com.runninghub.app.platform
 
+import android.os.Build
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.disk.DiskCache
 import coil3.disk.directory
 import coil3.gif.AnimatedImageDecoder
+import coil3.gif.GifDecoder
 import coil3.memory.MemoryCache
 import coil3.video.VideoFrameDecoder
 
 internal actual fun ImageLoader.Builder.addPlatformImageDecoders(): ImageLoader.Builder =
     components {
-        add(AnimatedImageDecoder.Factory())
+        // AnimatedImageDecoder 依赖 Android P 的 ImageDecoder；minSdk 仍为 26，
+        // 因此旧系统必须降级到 GifDecoder，避免 lint 通过后在 Android 8.x 运行时崩溃。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            add(AnimatedImageDecoder.Factory())
+        } else {
+            add(GifDecoder.Factory())
+        }
         add(VideoFrameDecoder.Factory())
     }
 

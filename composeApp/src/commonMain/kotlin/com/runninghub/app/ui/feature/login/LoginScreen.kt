@@ -55,25 +55,22 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
 import cafe.adriel.voyager.koin.koinScreenModel
-import cafe.adriel.voyager.navigator.LocalNavigator
-import cafe.adriel.voyager.navigator.currentOrThrow
-import com.runninghub.app.ui.navigation.MainVoyagerScreen
 
+/**
+ * 登录页在 Voyager 导航中的入口。
+ *
+ * 本页面只负责收集登录输入和展示认证错误，不再直接替换根导航栈。
+ * 登录成功由 AuthRepository 实现写入 SessionManager，根 App 观察会话状态后统一切换到主页面。
+ * 这样可以避免登录页和 App 根入口同时拥有根导航权。
+ */
 class LoginVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
 
     @Composable
     override fun Content() {
         val screenModel = koinScreenModel<LoginScreenModel>()
-        val navigator = LocalNavigator.currentOrThrow
         val uiState by screenModel.uiState.collectAsState()
         val snackbarHostState = remember { SnackbarHostState() }
-
-        LaunchedEffect(uiState.loginSuccess) {
-            if (uiState.loginSuccess) {
-                navigator.replaceAll(MainVoyagerScreen())
-            }
-        }
 
         LaunchedEffect(uiState.errorMessage) {
             uiState.errorMessage?.let {
@@ -97,7 +94,6 @@ class LoginVoyagerScreen : Screen {
                     else screenModel.pwdLogin()
                 },
                 onToggleMode = screenModel::toggleMode,
-                onSkipClick = { navigator.replaceAll(MainVoyagerScreen()) },
                 countdownHasStarted = screenModel.uiState.value.countdownSeconds > 0,
             )
         }
@@ -113,7 +109,6 @@ private fun LoginContent(
     onSendCodeClick: () -> Unit,
     onLoginClick: () -> Unit,
     onToggleMode: () -> Unit,
-    onSkipClick: () -> Unit,
     countdownHasStarted: Boolean = false,
 ) {
     val focusManager = LocalFocusManager.current
@@ -340,16 +335,6 @@ private fun LoginContent(
                     text = if (uiState.isSmsMode) "使用密码登录" else "使用验证码登录",
                     color = MaterialTheme.colorScheme.primary,
                     style = MaterialTheme.typography.bodySmall,
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-
-            TextButton(onClick = onSkipClick) {
-                Text(
-                    text = "暂不登录，直接浏览",
-                    color = MaterialTheme.colorScheme.outline,
-                    style = MaterialTheme.typography.bodyMedium,
                 )
             }
 

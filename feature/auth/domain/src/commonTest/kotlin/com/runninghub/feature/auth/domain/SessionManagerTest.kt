@@ -83,6 +83,18 @@ class SessionManagerTest {
         assertFalse(manager.isExpired.value)
     }
 
+    @Test
+    fun `expire after logout keeps session unauthenticated`() {
+        val manager = SessionManager()
+        manager.markAuthenticated()
+        manager.logout()
+
+        manager.expire()
+
+        assertEquals(SessionState.Unauthenticated, manager.state.value)
+        assertFalse(manager.isExpired.value)
+    }
+
     private class FakeSessionRestoreRepository(
         private val hasSession: Boolean,
     ) : SessionRestoreRepository {

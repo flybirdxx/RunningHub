@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.result
 
 import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
+import com.runninghub.feature.quickcreate.domain.QuickCreateTaskIssueCode
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.update
  * - 本类不创建协程，也不持有 Job；调用方必须在页面生命周期作用域内调用 [collect]。
  * - 每次收到 `Queuing` 都会触发 [onTaskQueued]，保持与旧行为一致，用于清理已成功提交的本地草稿。
  * - 收到 `Success` 后先写入结果状态，再触发 [onTaskSucceeded]，确保历史刷新发生时页面已经展示成功结果。
+ * - 任务继续推进时会清理上游生成拦截产生的临时错误，避免重复点击提示在成功或进度更新后残留。
  *
  * @param uiState 页面状态流；本类只更新任务状态、状态文案、错误和生成结果。
  * @param onTaskQueued 任务被服务端接收进入排队后的回调，通常用于清理草稿。
@@ -67,14 +69,17 @@ class QuickCreateTaskPollingController(
                 is QuickCreateTaskStatus.Submitting -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
                     statusText = "正在提交...",
+                    error = null,
                 )
                 is QuickCreateTaskStatus.Queuing -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.QUEUING,
                     statusText = "排队中...",
+                    error = null,
                 )
                 is QuickCreateTaskStatus.Running -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.RUNNING,
                     statusText = "生成中... ${status.progress}%",
+                    error = null,
                 )
                 is QuickCreateTaskStatus.Success -> {
                     val results = status.results.map { item ->
@@ -92,18 +97,27 @@ class QuickCreateTaskPollingController(
                     it.copy(
                         taskStatus = QuickCreateTaskUiStatus.SUCCESS,
                         statusText = "生成完成",
+                        error = null,
                         results = results,
                     )
                 }
-                is QuickCreateTaskStatus.Failed -> it.copy(
-                    taskStatus = QuickCreateTaskUiStatus.FAILED,
-                    statusText = status.errorMessage,
-                    error = status.errorMessage,
+                is QuickCreateTaskStatus.Failed -> {
+                    val errorMessage = status.errorMessage.toQuickCreateTaskDisplayMessage()
+                    it.copy(
+                        taskStatus = QuickCreateTaskUiStatus.FAILED,
+                        statusText = errorMessage,
+                        error = errorMessage,
+                    )
+                }
+                is QuickCreateTaskStatus.Cancelled -> it.copy(
+                    taskStatus = QuickCreateTaskUiStatus.CANCELED,
+                    statusText = "任务已取消",
+                    error = null,
                 )
                 is QuickCreateTaskStatus.Error -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
                     statusText = null,
-                    error = status.message,
+                    error = status.message.toQuickCreateTaskDisplayMessage(),
                 )
             }
         }
@@ -133,3 +147,22 @@ private fun QuickCreateResultItem.toQuickCreateResultMediaType(): QuickCreateRes
         QuickCreateResultMediaType.IMAGE
     }
 }
+
+/**
+ * 将 Domain/Data 返回的稳定任务错误码映射为页面可展示文案。
+ *
+ * Data 层只负责返回远端错误摘要或 [QuickCreateTaskIssueCode]，不再生成最终中文 UI 文案。
+ * 未识别的非空字符串按服务端摘要保留，便于用户看到运营侧配置的具体失败原因；空字符串统一降级为通用失败提示。
+ */
+private fun String.toQuickCreateTaskDisplayMessage(): String =
+    when (this) {
+        QuickCreateTaskIssueCode.TASK_FAILED -> "任务失败"
+        QuickCreateTaskIssueCode.TASK_TIMEOUT -> "任务超时"
+        QuickCreateTaskIssueCode.TASK_QUERY_FAILED -> "任务查询失败"
+        QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED -> "价格预览失败"
+        QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED -> "余额不足或价格预览未通过"
+        QuickCreateTaskIssueCode.PREPARE_FAILED -> "任务预提交失败"
+        QuickCreateTaskIssueCode.COMMIT_FAILED -> "任务提交失败"
+        QuickCreateTaskIssueCode.UNKNOWN_ERROR -> "生成失败，请稍后重试"
+        else -> takeIf { it.isNotBlank() } ?: "生成失败，请稍后重试"
+    }

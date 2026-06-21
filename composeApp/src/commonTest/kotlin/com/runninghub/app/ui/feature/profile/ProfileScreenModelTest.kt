@@ -72,13 +72,32 @@ class ProfileScreenModelTest {
         assertFalse(screenModel.uiState.value.isLoading)
     }
 
+    @Test
+    fun `logout delegates session cleanup and clears profile state`() = runTest {
+        val authRepository = FakeAuthRepository()
+        val screenModel = createScreenModel(
+            profileCredentialRepository = FakeProfileCredentialRepository(),
+            authRepository = authRepository,
+        )
+        advanceUntilIdle()
+
+        screenModel.logout()
+        advanceUntilIdle()
+
+        assertEquals(1, authRepository.logoutCount)
+        assertFalse(screenModel.uiState.value.isLoading)
+        assertFalse(screenModel.uiState.value.isLoggedIn)
+        assertEquals(null, screenModel.uiState.value.user)
+    }
+
     private fun createScreenModel(
         profileCredentialRepository: FakeProfileCredentialRepository,
+        authRepository: FakeAuthRepository = FakeAuthRepository(),
     ): ProfileScreenModel =
         ProfileScreenModel(
             userRepository = FakeUserRepository(),
             profileCredentialRepository = profileCredentialRepository,
-            authRepository = FakeAuthRepository(),
+            authRepository = authRepository,
         )
 
     private class FakeProfileCredentialRepository : ProfileCredentialRepository {
@@ -103,6 +122,9 @@ class ProfileScreenModelTest {
     }
 
     private class FakeAuthRepository : AuthRepository {
+        var logoutCount: Int = 0
+            private set
+
         override suspend fun login(phone: String, password: String): Result<User> =
             Result.failure(NotImplementedError())
 
@@ -112,7 +134,9 @@ class ProfileScreenModelTest {
         override suspend fun smsLogin(phone: String, code: String): Result<User> =
             Result.failure(NotImplementedError())
 
-        override suspend fun logout() = Unit
+        override suspend fun logout() {
+            logoutCount += 1
+        }
 
         override suspend fun isLoggedIn(): Boolean = false
 

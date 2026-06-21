@@ -1,6 +1,8 @@
 package com.runninghub.app.platform
 
+import android.content.Context
 import android.content.Intent
+import android.content.ContextWrapper
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -15,11 +17,11 @@ import com.nareshchocha.filepickerlibrary.models.FilePickerResult
 import com.nareshchocha.filepickerlibrary.models.PickMediaConfig
 import com.nareshchocha.filepickerlibrary.models.PickMediaType
 import com.runninghub.app.ui.component.MediaType
-import com.runninghub.shared.domain.model.Permission
-import com.runninghub.shared.domain.model.PermissionStatus
-import com.runninghub.shared.domain.model.androidManifestPermission
-import com.runninghub.shared.domain.model.fromAndroidManifestPermission
-import com.runninghub.shared.domain.permission.PermissionStateStore
+import com.runninghub.core.storage.Permission
+import com.runninghub.core.storage.PermissionStatus
+import com.runninghub.core.storage.PermissionStateStore
+import com.runninghub.core.storage.androidManifestPermission
+import com.runninghub.core.storage.fromAndroidManifestPermission
 import kotlinx.coroutines.launch
 
 /**
@@ -107,7 +109,8 @@ private class PermissionControllerImpl(
                         uri,
                         Intent.FLAG_GRANT_READ_URI_PERMISSION
                     )
-                } catch (_: SecurityException) {
+                } catch (error: SecurityException) {
+                    ignorePersistableGrantFailure(error)
                 }
                 pendingMediaCallback?.invoke(uri.toString())
                 return
@@ -117,7 +120,9 @@ private class PermissionControllerImpl(
             if (!path.isNullOrBlank()) {
                 pendingMediaCallback?.invoke(path)
             }
-        } catch (_: Exception) {
+        } catch (error: Exception) {
+            handleMediaPickerFailure(error)
+            pendingMediaDeniedCallback?.invoke()
         } finally {
             pendingMediaCallback = null
             pendingMediaDeniedCallback = null
@@ -183,6 +188,18 @@ private class PermissionControllerImpl(
         }
     }
 
+    private fun ignorePersistableGrantFailure(error: SecurityException) {
+        // 部分系统相册不会授予可持久化 URI 权限，但当前选择回调仍带有临时读权限。
+        // 保留无日志降级，避免把本地媒体 URI 或系统异常细节写入生产日志。
+        error.message
+    }
+
+    private fun handleMediaPickerFailure(error: Exception) {
+        // 文件选择器可能返回无法解析的结果对象。此时不能静默吞掉异常，
+        // 调用方会通过 denied 回调恢复按钮和错误状态；这里不记录异常，避免泄露本地 URI 或文件路径。
+        error.message
+    }
+
     override fun checkAndRequest(
         permission: Permission,
         onGranted: () -> Unit,
@@ -221,8 +238,24 @@ private class PermissionControllerImpl(
 actual fun rememberPermissionController(
     permissionStateStore: PermissionStateStore,
 ): PermissionController {
-    val activity = LocalContext.current as ComponentActivity
+    // ActivityResultRegistry 只能从真实 ComponentActivity 获取；Compose 可能提供被主题包装过的
+    // Context，因此需要逐层展开 ContextWrapper，而不是直接把 LocalContext 强转为 Activity。
+    val activity = LocalContext.current.findComponentActivity()
+        ?: error("PermissionController requires a ComponentActivity host.")
     return remember(permissionStateStore, activity) {
         PermissionControllerImpl(permissionStateStore, activity)
     }
 }
+
+/**
+ * 从 Compose 提供的 Android Context 中查找宿主 ComponentActivity。
+ *
+ * Android 页面通常会经过 ContextThemeWrapper 包装；递归展开可以保留 Preview 和测试环境的
+ * 明确失败路径，同时避免对 LocalContext 执行不安全强转。
+ */
+private tailrec fun Context.findComponentActivity(): ComponentActivity? =
+    when (this) {
+        is ComponentActivity -> this
+        is ContextWrapper -> baseContext.findComponentActivity()
+        else -> null
+    }

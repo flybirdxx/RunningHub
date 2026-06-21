@@ -2,6 +2,7 @@ package com.runninghub.app.ui.feature.search
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
+import com.runninghub.app.ui.feature.discovery.toCatalogErrorMessage
 import com.runninghub.core.model.Tag
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
@@ -186,7 +187,7 @@ class SearchScreenModel(
             _uiState.update {
                 it.copy(
                     isSearching = false,
-                    error = e.message ?: "搜索失败",
+                    error = e.toCatalogErrorMessage("搜索失败"),
                 )
             }
         }

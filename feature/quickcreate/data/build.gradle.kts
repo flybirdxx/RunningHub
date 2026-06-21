@@ -17,7 +17,6 @@ kotlin {
             implementation(projects.core.storage)
             implementation(projects.feature.auth.domain)
             implementation(projects.feature.quickcreate.domain)
-            implementation(project(":shared"))
 
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
@@ -28,6 +27,7 @@ kotlin {
         commonTest.dependencies {
             implementation(kotlin("test"))
             implementation(projects.core.model)
+            implementation(libs.kotlinx.coroutines.test)
             implementation(libs.ktor.client.mock)
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.json)

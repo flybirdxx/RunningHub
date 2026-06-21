@@ -3,10 +3,14 @@ package com.runninghub.core.network.auth
 import com.runninghub.core.network.RunningHubApiEnvironment
 import com.runninghub.core.storage.CredentialStore
 import io.ktor.client.HttpClient
+import io.ktor.client.plugins.HttpSend
+import io.ktor.client.plugins.plugin
+import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.client.request.HttpRequestPipeline
-import io.ktor.client.statement.HttpResponsePipeline
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * 为 RunningHub 主业务 HttpClient 安装认证相关拦截器。
@@ -32,6 +36,28 @@ fun HttpClient.installRunningHubAuthInterceptors(
     onSessionExpired: suspend () -> Unit,
 ) {
     val authHeaderProvider = AuthHeaderProvider(credentialStore)
+    val sessionExpirationMutex = Mutex()
+    var sessionExpirationNotified = false
+
+    suspend fun notifySessionExpiredOnce() {
+        sessionExpirationMutex.withLock {
+            if (!sessionExpirationNotified) {
+                sessionExpirationNotified = true
+                onSessionExpired()
+            }
+        }
+    }
+
+    suspend fun HttpRequestBuilder.applyLatestStoredAuthHeaders() {
+        headers.remove(HttpHeaders.Authorization)
+        headers.remove(HttpHeaders.Cookie)
+        val authHeaders = authHeaderProvider.provideForRunningHubRequest(
+            hasAuthorizationHeader = false,
+            hasCookieHeader = false,
+        )
+        authHeaders.authorization?.let { headers.append(HttpHeaders.Authorization, it) }
+        authHeaders.cookie?.let { headers.append(HttpHeaders.Cookie, it) }
+    }
 
     requestPipeline.intercept(HttpRequestPipeline.State) {
         val url = context.url.buildString()
@@ -45,15 +71,38 @@ fun HttpClient.installRunningHubAuthInterceptors(
         }
     }
 
-    responsePipeline.intercept(HttpResponsePipeline.State) {
-        val response = context.response
-        if (response.status == HttpStatusCode.Unauthorized) {
-            // 锁外读取旧 token，TokenRefresher 会在锁内再次读取并判断是否已有其他协程完成刷新。
-            val tokenBeforeLock = credentialStore.getAuthToken()
-            val refreshed = tokenRefresher.refreshAfterUnauthorized(tokenBeforeLock)
-            if (!refreshed) {
-                onSessionExpired()
+    plugin(HttpSend).intercept { request ->
+        val call = execute(request)
+        val isRunningHubRequest = call.request.url.host.contains(RunningHubApiEnvironment.HOST_MARKER)
+        if (!isRunningHubRequest || call.response.status != HttpStatusCode.Unauthorized) {
+            return@intercept call
+        }
+
+        val tokenBeforeUnauthorized = request.headers[HttpHeaders.Authorization]
+            ?.removePrefix("Bearer ")
+            ?.takeIf { it.isNotBlank() }
+
+        // 第一阶段：只在收到 RunningHub 401 后刷新一次 token。TokenRefresher 内部用 Mutex
+        // 合并并发 401，避免多请求同时命中 refresh endpoint。
+        val refreshed = tokenRefresher.refreshAfterUnauthorized(tokenBeforeUnauthorized)
+        if (!refreshed) {
+            notifySessionExpiredOnce()
+            return@intercept call
+        }
+
+        // 第二阶段：原请求 builder 在首次发送后仍携带旧 Authorization/Cookie。
+        // HttpSend 重试不会重新经过 requestPipeline.State，因此这里必须手动替换为最新凭据。
+        request.applyLatestStoredAuthHeaders()
+        val retryCall = execute(request)
+        if (retryCall.response.status == HttpStatusCode.Unauthorized) {
+            // 第三阶段：刷新后最多只重试一次。若服务端仍返回 401，直接通知会话失效，
+            // 防止在拦截器内部形成无限 refresh/retry 循环。
+            notifySessionExpiredOnce()
+        } else {
+            sessionExpirationMutex.withLock {
+                sessionExpirationNotified = false
             }
         }
+        retryCall
     }
 }

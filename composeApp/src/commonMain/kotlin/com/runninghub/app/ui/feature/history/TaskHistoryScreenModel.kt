@@ -2,9 +2,9 @@ package com.runninghub.app.ui.feature.history
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import com.runninghub.shared.domain.model.GenerationHistoryItem
-import com.runninghub.shared.domain.model.GenerationHistoryOutput
-import com.runninghub.shared.domain.repository.GenerationHistoryRepository
+import com.runninghub.feature.task.domain.GenerationHistoryItem
+import com.runninghub.feature.task.domain.GenerationHistoryOutput
+import com.runninghub.feature.task.domain.GenerationHistoryRepository
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow

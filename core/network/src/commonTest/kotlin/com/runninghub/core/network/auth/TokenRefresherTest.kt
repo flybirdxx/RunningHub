@@ -83,9 +83,33 @@ class TokenRefresherTest {
         assertEquals(0, networkCalls)
     }
 
+    @Test
+    fun `refreshAfterUnauthorized does not rewrite credentials cleared during logout`() = runBlocking {
+        val store = FakeCredentialStore(
+            authToken = "old-access",
+            refreshToken = "old-refresh",
+        )
+        val refresher = refresherWithMock(store) {
+            // 模拟用户主动 logout 与 401 refresh 并发：远端响应回来前，本地凭据已经被清空。
+            store.clearAll()
+            """
+                {
+                  "access_token": "new-access",
+                  "refresh_token": "new-refresh"
+                }
+            """.trimIndent()
+        }
+
+        val refreshed = refresher.refreshAfterUnauthorized(tokenBeforeLock = "old-access")
+
+        assertFalse(refreshed)
+        assertEquals(null, store.authToken)
+        assertEquals(null, store.refreshToken)
+    }
+
     private fun refresherWithMock(
         store: FakeCredentialStore,
-        responseBody: (authorizationHeader: String?) -> String,
+        responseBody: suspend (authorizationHeader: String?) -> String,
     ): TokenRefresher {
         val engine = MockEngine { request ->
             respond(

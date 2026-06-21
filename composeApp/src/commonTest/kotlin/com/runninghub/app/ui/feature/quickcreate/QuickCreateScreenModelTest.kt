@@ -40,8 +40,10 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -78,6 +80,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
 import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QuickCreateScreenModelTest {
@@ -140,7 +143,15 @@ class QuickCreateScreenModelTest {
         var uploadDelayMillis: Long = 0L
         var lastImageRequest: com.runninghub.feature.quickcreate.domain.ImageGenerationRequest? = null
         var lastVideoRequest: com.runninghub.feature.quickcreate.domain.VideoGenerationRequest? = null
+        var imageGenerateCalls: Int = 0
+        var videoGenerateCalls: Int = 0
         var imageTaskStatuses: List<QuickCreateTaskStatus> = listOf(QuickCreateTaskStatus.Queuing("task-1"))
+        var imageTaskFlowFactory:
+            ((com.runninghub.feature.quickcreate.domain.ImageGenerationRequest) -> Flow<QuickCreateTaskStatus>)? =
+            null
+        var videoTaskFlowFactory:
+            ((com.runninghub.feature.quickcreate.domain.VideoGenerationRequest) -> Flow<QuickCreateTaskStatus>)? =
+            null
         var feePreviewResult: Result<QuickCreationFeePreview> = Result.success(
             QuickCreationFeePreview(
                 passed = true,
@@ -169,6 +180,7 @@ class QuickCreateScreenModelTest {
         var videoFeePreviewHandler:
             (suspend (com.runninghub.feature.quickcreate.domain.VideoGenerationRequest) -> Result<QuickCreationFeePreview>)? =
             null
+        var uploadMediaHandler: (suspend (ByteArray, String, String) -> Result<String>)? = null
         var lastHistoryDetailOutputId: String? = null
         val cancelledTaskIds = mutableListOf<String>()
         val requestedHistoryPages = mutableListOf<Int>()
@@ -396,11 +408,15 @@ class QuickCreateScreenModelTest {
             )
         )
         override fun generateImage(request: com.runninghub.feature.quickcreate.domain.ImageGenerationRequest): Flow<QuickCreateTaskStatus> {
+            imageGenerateCalls += 1
             lastImageRequest = request
+            imageTaskFlowFactory?.let { factory -> return factory(request) }
             return flowOf(*imageTaskStatuses.toTypedArray())
         }
         override fun generateVideo(request: com.runninghub.feature.quickcreate.domain.VideoGenerationRequest): Flow<QuickCreateTaskStatus> {
+            videoGenerateCalls += 1
             lastVideoRequest = request
+            videoTaskFlowFactory?.let { factory -> return factory(request) }
             return flowOf(QuickCreateTaskStatus.Queuing("video-task-1"))
         }
         override suspend fun previewImageQuickCreationFee(
@@ -418,6 +434,7 @@ class QuickCreateScreenModelTest {
             return videoFeePreviewResult
         }
         override suspend fun uploadMedia(fileBytes: ByteArray, fileName: String, mimeType: String): Result<String> {
+            uploadMediaHandler?.let { handler -> return handler(fileBytes, fileName, mimeType) }
             if (uploadDelayMillis > 0L) {
                 delay(uploadDelayMillis)
             }
@@ -3463,6 +3480,11 @@ class QuickCreateScreenModelTest {
             listOf("https://example.com/file.jpg"),
             repository.lastImageRequest?.quickCreationListParams?.get("referenceImages"),
         )
+        assertEquals(
+            repository.feePreviewRequests.last().quickCreationListParams,
+            repository.lastImageRequest?.quickCreationListParams,
+        )
+        assertEquals(repository.feePreviewRequests.last().prompt, repository.lastImageRequest?.prompt)
     }
 
     @Test
@@ -3487,6 +3509,33 @@ class QuickCreateScreenModelTest {
             listOf("https://example.com/file.jpg"),
             repository.lastImageRequest?.quickCreationListParams?.get("referenceImages"),
         )
+    }
+
+    @Test
+    fun `generate image is blocked when upload completes without matching fee preview snapshot`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            uploadDelayMillis = 1_000L
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("snapshot prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.pickImageReference("content://image/slow")
+        runCurrent()
+        model.generate()
+        runCurrent()
+        model.updateImagePrompt("changed while upload pending")
+        runCurrent()
+        advanceTimeBy(1_000)
+        runCurrent()
+
+        assertEquals(null, repository.lastImageRequest)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, model.uiState.value.taskStatus)
+        assertEquals("价格待确认", model.uiState.value.error)
     }
 
     @Test
@@ -4042,6 +4091,60 @@ class QuickCreateScreenModelTest {
                 model.uiState.value.videoConfig.mediaReferences.mapNotNull { it.remoteUrl },
             )
         }
+    }
+
+    @Test
+    fun `apply inspiration video template refreshes fee preview with applied model params and media`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            templateDetail = templateDetail.copy(
+                params = templateDetail.params + mapOf(
+                    "style" to "cinematic",
+                    "duration" to "8",
+                ),
+                listParams = mapOf(
+                    "referenceVideo" to listOf("https://example.com/template-video.mp4"),
+                    "referenceAudio" to listOf("https://example.com/template-audio.mp3"),
+                ),
+            )
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.switchMode(QuickCreateMode.INSPIRATION)
+        model.applyInspirationTemplate("tpl-video")
+        runCurrent()
+        advanceTimeBy(500)
+        runCurrent()
+
+        val state = model.uiState.value
+        val previewRequest = repository.videoFeePreviewRequests.single()
+        // 模板应用成功后，编辑状态和计费预览必须使用同一份模板快照，
+        // 否则用户看到的模型、动态字段或模板素材会和价格预览不一致。
+        assertEquals(QuickCreateMode.CREATION, state.currentMode)
+        assertEquals(QuickCreateTab.VIDEO, state.currentTab)
+        assertEquals("薯片人偶踢足球", state.videoConfig.prompt)
+        assertEquals("video-binding-1", state.selectedVideoServiceModel?.bindingId)
+        assertEquals("video-sku-1", state.selectedVideoServiceModel?.skuId)
+        assertEquals("cinematic", state.videoServiceParams["style"])
+        assertEquals(
+            listOf("https://example.com/template-video.mp4", "https://example.com/template-audio.mp3"),
+            state.videoConfig.mediaReferences.mapNotNull { it.remoteUrl },
+        )
+        assertEquals("薯片人偶踢足球", previewRequest.prompt)
+        assertEquals("VIDEO", previewRequest.quickCreationCategoryId)
+        assertEquals("video-binding-1", previewRequest.quickCreationBindingId)
+        assertEquals("video-sku-1", previewRequest.quickCreationSkuId)
+        assertEquals("cinematic", previewRequest.quickCreationParams["style"])
+        assertEquals(
+            listOf("https://example.com/template-video.mp4"),
+            previewRequest.quickCreationListParams["referenceVideos"],
+        )
+        assertEquals(
+            listOf("https://example.com/template-audio.mp3"),
+            previewRequest.quickCreationListParams["referenceAudios"],
+        )
     }
 
     @Test
@@ -4810,6 +4913,39 @@ class QuickCreateScreenModelTest {
     }
 
     @Test
+    fun `dispose cancels active media upload`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        var uploadStarted = false
+        var uploadCancelled = false
+        val repository = FakeQuickCreateRepository().apply {
+            uploadMediaHandler = { _, _, _ ->
+                uploadStarted = true
+                try {
+                    awaitCancellation()
+                } finally {
+                    uploadCancelled = true
+                }
+            }
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo(), ioDispatcher = dispatcher)
+        runCurrent()
+
+        model.pickImageReference("content://media/image-1")
+        runCurrent()
+        assertEquals(true, uploadStarted)
+        assertEquals(UploadStatus.UPLOADING, model.uiState.value.imageConfig.mediaReferences.single().uploadStatus)
+
+        model.onDispose()
+        runCurrent()
+
+        // Gate F/G：页面销毁必须停止仍在进行的媒体上传，避免不可见 QuickCreate 继续上传并触发后续计费刷新。
+        assertEquals(true, uploadCancelled)
+        assertEquals(UploadStatus.UPLOADING, model.uiState.value.imageConfig.mediaReferences.single().uploadStatus)
+        assertEquals(emptyList(), repository.feePreviewRequests)
+    }
+
+    @Test
     fun `successful submit clears in memory draft entry`() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         Dispatchers.setMain(dispatcher)
@@ -4918,6 +5054,110 @@ class QuickCreateScreenModelTest {
         assertEquals(QuickCreateTaskUiStatus.RUNNING, model.uiState.value.taskStatus)
         assertEquals("生成中... 42%", model.uiState.value.statusText)
         assertEquals(emptyList(), model.uiState.value.results)
+    }
+
+    @Test
+    fun `second image generation is blocked while current task is active`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskFlowFactory = {
+                flow {
+                    emit(QuickCreateTaskStatus.Running("task-1", progress = 42))
+                    awaitCancellation()
+                }
+            }
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+        model.generate()
+        runCurrent()
+
+        assertEquals(1, repository.imageGenerateCalls)
+        assertEquals(QuickCreateTaskUiStatus.RUNNING, model.uiState.value.taskStatus)
+        assertEquals("生成中... 42%", model.uiState.value.statusText)
+        assertEquals("已有生成任务进行中，请等待当前任务结束", model.uiState.value.error)
+    }
+
+    @Test
+    fun `dispose cancels active image generation polling`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        var pollingCancelled = false
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskFlowFactory = {
+                flow {
+                    try {
+                        emit(QuickCreateTaskStatus.Running("task-1", progress = 42))
+                        awaitCancellation()
+                    } finally {
+                        pollingCancelled = true
+                    }
+                }
+            }
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+        assertEquals(QuickCreateTaskUiStatus.RUNNING, model.uiState.value.taskStatus)
+
+        model.onDispose()
+        runCurrent()
+
+        // Gate F/G：页面离开后必须取消正在收集的生成状态流，避免不可见 QuickCreate 继续轮询远端任务。
+        assertEquals(true, pollingCancelled)
+    }
+
+    @Test
+    fun `duplicate generation warning is cleared when active image task succeeds`() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        Dispatchers.setMain(dispatcher)
+        val repository = FakeQuickCreateRepository().apply {
+            imageTaskFlowFactory = {
+                flow {
+                    emit(QuickCreateTaskStatus.Running("task-1", progress = 42))
+                    delay(1)
+                    emit(
+                        QuickCreateTaskStatus.Success(
+                            taskId = "task-1",
+                            results = listOf(
+                                QuickCreateResultItem(
+                                    url = "https://example.com/result.png",
+                                    type = "png",
+                                )
+                            ),
+                        )
+                    )
+                }
+            }
+        }
+        val model = createModel(repository, FakeMediaResolver(), FakeSettingsRepo())
+        runCurrent()
+
+        model.updateImagePrompt("prompt")
+        advanceTimeBy(500)
+        runCurrent()
+        model.generate()
+        runCurrent()
+        model.generate()
+        runCurrent()
+        advanceTimeBy(1)
+        runCurrent()
+
+        assertEquals(1, repository.imageGenerateCalls)
+        assertEquals(QuickCreateTaskUiStatus.SUCCESS, model.uiState.value.taskStatus)
+        assertEquals(null, model.uiState.value.error)
     }
 
     @Test

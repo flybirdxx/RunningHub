@@ -55,6 +55,7 @@ enum class UploadStatus {
  * @property uploadStatus 当前上传生命周期状态。
  * @property uploadProgress 上传进度，范围通常为 0.0 到 1.0；失败时保留最后进度用于 UI 反馈。
  * @property remoteUrl 远端可访问地址；只有 [UploadStatus.DONE] 且非空时才应参与生成请求。
+ * @property errorMessage 上传失败或本地媒体读取失败后的展示文案；`null` 表示当前素材没有失败原因。
  */
 data class MediaReference(
     val id: String,
@@ -67,6 +68,7 @@ data class MediaReference(
     val uploadStatus: UploadStatus = UploadStatus.UPLOADING,
     val uploadProgress: Float = 0f,
     val remoteUrl: String? = null,
+    val errorMessage: String? = null,
 )
 
 /**

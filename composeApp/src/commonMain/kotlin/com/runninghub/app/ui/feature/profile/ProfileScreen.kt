@@ -62,15 +62,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
-import cafe.adriel.voyager.navigator.LocalNavigator
-import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.previewProfileUiState
 import com.runninghub.app.ui.component.LoadingIndicator
-import com.runninghub.app.ui.feature.login.LoginVoyagerScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
 import com.runninghub.app.util.formatOneDecimal
@@ -85,7 +82,6 @@ class ProfileVoyagerScreen : Screen {
     override fun Content() {
         val screenModel = koinScreenModel<ProfileScreenModel>()
         val uiState by screenModel.uiState.collectAsState()
-        val navigator = LocalNavigator.currentOrThrow
 
         // Voyager rule: no suspend in ScreenModel.init{} - load here.
         LaunchedEffect(Unit) {
@@ -95,11 +91,8 @@ class ProfileVoyagerScreen : Screen {
         ProfileScreenContent(
             uiState = uiState,
             onRefresh = screenModel::refreshUserData,
-            onLogout = {
-                screenModel.logout {
-                    navigator.replaceAll(LoginVoyagerScreen())
-                }
-            },
+            // 注销只更新 SessionManager 背后的会话事实来源；根 App 统一观察会话状态并清空业务页面栈。
+            onLogout = { screenModel.logout() },
         )
     }
 }

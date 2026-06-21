@@ -395,16 +395,74 @@ sealed class QuickCreateTaskStatus {
      * 远端任务以业务失败状态结束。
      *
      * @property taskId 服务端任务稳定标识。
-     * @property errorMessage Data 层从远端业务错误中提取的失败说明，Presentation 可再映射为用户提示。
+     * @property errorMessage Data 层从远端业务错误中提取的失败说明，或 [QuickCreateTaskIssueCode] 中的稳定错误码。
+     * Presentation 必须在展示前再次映射，避免 Data 层生成最终 UI 文案。
      */
     data class Failed(val taskId: String, val errorMessage: String) : QuickCreateTaskStatus()
 
     /**
+     * 远端任务已被取消。
+     *
+     * @property taskId 服务端任务稳定标识。取消属于业务终态，Data 层收到该状态后必须停止继续轮询，
+     * Presentation 层可据此展示独立的取消提示，而不是把它降级成失败或继续排队。
+     */
+    data class Cancelled(val taskId: String) : QuickCreateTaskStatus()
+
+    /**
      * 提交、轮询或响应解析过程中发生不可继续的异常。
      *
-     * @property message 可供 Presentation 展示或记录的错误摘要，不应包含 Token、Cookie 或完整请求头。
+     * @property message Data 层返回的稳定错误码或远端错误摘要，不应包含 Token、Cookie 或完整请求头。
+     * Presentation 必须在展示前再次映射，避免把内部诊断信息直接暴露给用户。
      */
     data class Error(val message: String) : QuickCreateTaskStatus()
+}
+
+/**
+ * 快捷创作任务状态流使用的稳定错误码。
+ *
+ * 这些常量属于 Domain 层错误语义，不携带最终 UI 文案。Data 层在缺少服务端错误摘要时返回这些
+ * 错误码，Presentation 层再根据页面场景映射为本地化文案，从而避免 Repository 直接生成中文提示。
+ */
+object QuickCreateTaskIssueCode {
+    /**
+     * 远端任务以失败状态结束，但服务端没有提供可用失败摘要。
+     */
+    const val TASK_FAILED = "TASK_FAILED"
+
+    /**
+     * 任务轮询超过客户端允许的最大次数。
+     */
+    const val TASK_TIMEOUT = "TASK_TIMEOUT"
+
+    /**
+     * 查询快捷创作任务列表或任务状态失败。
+     */
+    const val TASK_QUERY_FAILED = "TASK_QUERY_FAILED"
+
+    /**
+     * 计费预览接口失败或响应缺少必要数据。
+     */
+    const val FEE_PREVIEW_FAILED = "FEE_PREVIEW_FAILED"
+
+    /**
+     * 计费预览明确表示余额不足或业务条件不允许提交。
+     */
+    const val FEE_PREVIEW_BLOCKED = "FEE_PREVIEW_BLOCKED"
+
+    /**
+     * 任务预提交失败，无法获取后续 commit 所需 prepare token。
+     */
+    const val PREPARE_FAILED = "PREPARE_FAILED"
+
+    /**
+     * 任务提交失败，远端没有返回有效任务 ID。
+     */
+    const val COMMIT_FAILED = "COMMIT_FAILED"
+
+    /**
+     * 本地捕获到异常但无法归入更具体的任务错误。
+     */
+    const val UNKNOWN_ERROR = "UNKNOWN_ERROR"
 }
 
 /**

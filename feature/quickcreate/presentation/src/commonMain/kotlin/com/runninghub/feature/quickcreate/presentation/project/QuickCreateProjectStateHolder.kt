@@ -2,6 +2,7 @@ package com.runninghub.feature.quickcreate.presentation.project
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -87,7 +88,7 @@ class QuickCreateProjectStateHolder(
                     uiState.update { current ->
                         current.copy(
                             projectsLoadingMore = false,
-                            error = error.message ?: "项目加载失败",
+                            error = error.toQuickCreateDisplayMessage("项目加载失败"),
                         )
                     }
                 },
@@ -129,7 +130,7 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectPinningIds = state.projectPinningIds - projectId,
-                            error = error.message ?: "项目置顶失败",
+                            error = error.toQuickCreateDisplayMessage("项目置顶失败"),
                         )
                     }
                 },
@@ -168,7 +169,7 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectMutatingIds = state.projectMutatingIds - mutationId,
-                            error = error.message ?: "项目创建失败",
+                            error = error.toQuickCreateDisplayMessage("项目创建失败"),
                         )
                     }
                 },
@@ -213,7 +214,7 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectMutatingIds = state.projectMutatingIds - projectId,
-                            error = error.message ?: "项目重命名失败",
+                            error = error.toQuickCreateDisplayMessage("项目重命名失败"),
                         )
                     }
                 },
@@ -259,7 +260,7 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectMutatingIds = state.projectMutatingIds - projectId,
-                            error = error.message ?: "项目删除失败",
+                            error = error.toQuickCreateDisplayMessage("项目删除失败"),
                         )
                     }
                 },
@@ -297,7 +298,7 @@ class QuickCreateProjectStateHolder(
                     uiState.update {
                         it.copy(
                             projectDetailLoading = false,
-                            error = error.message ?: "项目详情加载失败",
+                            error = error.toQuickCreateDisplayMessage("项目详情加载失败"),
                         )
                     }
                 },

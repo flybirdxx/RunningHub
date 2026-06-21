@@ -16,6 +16,7 @@ local.properties
 *.pyc
 __pycache__/
 *.json
+!docs/migration/evidence/*.json
 *.log
 
 # Agent skills & configs

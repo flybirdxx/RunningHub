@@ -65,6 +65,8 @@ object QuickCreateResult {
     const val STATUS_RUNNING = "RUNNING"
     const val STATUS_SUCCESS = "SUCCESS"
     const val STATUS_FAILED = "FAILED"
+    const val STATUS_CANCELED = "CANCELED"
+    const val STATUS_CANCELLED = "CANCELLED"
 }
 
 // ── 图片创作 ──────────────────────────────────────────

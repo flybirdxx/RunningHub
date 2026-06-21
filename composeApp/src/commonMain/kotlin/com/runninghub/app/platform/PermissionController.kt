@@ -2,8 +2,8 @@ package com.runninghub.app.platform
 
 import androidx.compose.runtime.Composable
 import com.runninghub.app.ui.component.MediaType
-import com.runninghub.shared.domain.model.Permission
-import com.runninghub.shared.domain.permission.PermissionStateStore
+import com.runninghub.core.storage.Permission
+import com.runninghub.core.storage.PermissionStateStore
 
 /**
  * 平台权限与媒体选择能力的 Presentation 边界。
