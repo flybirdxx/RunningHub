@@ -58,11 +58,70 @@ import com.runninghub.app.ui.theme.RhAppMuted
 import com.runninghub.app.ui.theme.RhAppSelected
 import com.runninghub.app.ui.theme.RhAppSurface
 import com.runninghub.app.ui.theme.RhAppText
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.task_history_action_cancel
+import runninghub.composeapp.generated.resources.task_history_action_retry
+import runninghub.composeapp.generated.resources.task_history_action_reuse
+import runninghub.composeapp.generated.resources.task_history_action_view
+import runninghub.composeapp.generated.resources.task_history_chevron
+import runninghub.composeapp.generated.resources.task_history_current_project
+import runninghub.composeapp.generated.resources.task_history_default_completed_duration
+import runninghub.composeapp.generated.resources.task_history_default_failed_duration
+import runninghub.composeapp.generated.resources.task_history_default_project
+import runninghub.composeapp.generated.resources.task_history_default_running_duration
+import runninghub.composeapp.generated.resources.task_history_dropdown_symbol
+import runninghub.composeapp.generated.resources.task_history_empty_filter
+import runninghub.composeapp.generated.resources.task_history_empty_history
+import runninghub.composeapp.generated.resources.task_history_error_auth_sync
+import runninghub.composeapp.generated.resources.task_history_error_load_failed
+import runninghub.composeapp.generated.resources.task_history_filter_all
+import runninghub.composeapp.generated.resources.task_history_filter_completed
+import runninghub.composeapp.generated.resources.task_history_filter_failed
+import runninghub.composeapp.generated.resources.task_history_filter_in_progress
+import runninghub.composeapp.generated.resources.task_history_notice_cloud_output
+import runninghub.composeapp.generated.resources.task_history_notice_guest
+import runninghub.composeapp.generated.resources.task_history_notice_icon
+import runninghub.composeapp.generated.resources.task_history_output_count_completed
+import runninghub.composeapp.generated.resources.task_history_output_count_failed
+import runninghub.composeapp.generated.resources.task_history_output_count_running
+import runninghub.composeapp.generated.resources.task_history_output_count_video
+import runninghub.composeapp.generated.resources.task_history_output_detail_title
+import runninghub.composeapp.generated.resources.task_history_pin_project_action
+import runninghub.composeapp.generated.resources.task_history_pinned_projects
+import runninghub.composeapp.generated.resources.task_history_reference_date
+import runninghub.composeapp.generated.resources.task_history_reference_project_character_concept
+import runninghub.composeapp.generated.resources.task_history_reference_project_marketing_video
+import runninghub.composeapp.generated.resources.task_history_reference_title_3d_model
+import runninghub.composeapp.generated.resources.task_history_reference_title_character_setting
+import runninghub.composeapp.generated.resources.task_history_reference_title_concept_image
+import runninghub.composeapp.generated.resources.task_history_reference_title_marketing_video
+import runninghub.composeapp.generated.resources.task_history_reference_title_portrait_master
+import runninghub.composeapp.generated.resources.task_history_reference_title_video_turbo
+import runninghub.composeapp.generated.resources.task_history_refresh_content_description
+import runninghub.composeapp.generated.resources.task_history_remaining_days_format
+import runninghub.composeapp.generated.resources.task_history_reusable_param_format
+import runninghub.composeapp.generated.resources.task_history_reusable_params_title
+import runninghub.composeapp.generated.resources.task_history_search_content_description
+import runninghub.composeapp.generated.resources.task_history_source_api_model
+import runninghub.composeapp.generated.resources.task_history_source_quick_create
+import runninghub.composeapp.generated.resources.task_history_source_webapp
+import runninghub.composeapp.generated.resources.task_history_status_failed
+import runninghub.composeapp.generated.resources.task_history_status_in_progress
+import runninghub.composeapp.generated.resources.task_history_status_in_progress_percent
+import runninghub.composeapp.generated.resources.task_history_status_success
+import runninghub.composeapp.generated.resources.task_history_task_id_format
+import runninghub.composeapp.generated.resources.task_history_timeline_completed_format
+import runninghub.composeapp.generated.resources.task_history_timeline_failed_format
+import runninghub.composeapp.generated.resources.task_history_timeline_running_format
+import runninghub.composeapp.generated.resources.task_history_title
+import runninghub.composeapp.generated.resources.task_history_today
+import runninghub.composeapp.generated.resources.task_history_total_count_format
 import com.runninghub.app.ui.theme.StatusError
 import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import com.runninghub.feature.task.presentation.TaskHistoryEntry
 import com.runninghub.feature.task.presentation.TaskHistoryFilter
 import com.runninghub.feature.task.presentation.TaskHistoryUiState
+import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
@@ -144,8 +203,12 @@ internal fun TaskHistoryContent(
                 !useReferenceFallback && errorMessage != null && timelineEntries.isEmpty() -> item {
                     TaskHistoryErrorState(message = errorMessage.toDisplayHistoryError(), onRetry = onRetry)
                 }
-                timelineEntries.isEmpty() -> item { TaskHistoryEmptyState(message = "\u6682\u65e0\u751f\u6210\u5386\u53f2") }
-                filteredItems.isEmpty() -> item { TaskHistoryEmptyState(message = "\u5f53\u524d\u7b5b\u9009\u4e0b\u6ca1\u6709\u4efb\u52a1") }
+                timelineEntries.isEmpty() -> item {
+                    TaskHistoryEmptyState(message = stringResource(Res.string.task_history_empty_history))
+                }
+                filteredItems.isEmpty() -> item {
+                    TaskHistoryEmptyState(message = stringResource(Res.string.task_history_empty_filter))
+                }
                 else -> {
                     item { DateGroupHeader(total = filteredItems.size) }
                     items(items = filteredItems, key = { item -> item.taskId }) { item ->
@@ -168,7 +231,7 @@ private fun HistoryTopBar(onRetry: () -> Unit) {
     ) {
         Spacer(Modifier.width(44.dp))
         Text(
-            text = "\u751f\u6210\u5386\u53f2",
+            text = stringResource(Res.string.task_history_title),
             color = RhText,
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.Bold,
@@ -177,10 +240,20 @@ private fun HistoryTopBar(onRetry: () -> Unit) {
             maxLines = 1,
         )
         IconButton(onClick = {}, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Default.Search, contentDescription = "Search", tint = RhText, modifier = Modifier.size(28.dp))
+            Icon(
+                Icons.Default.Search,
+                contentDescription = stringResource(Res.string.task_history_search_content_description),
+                tint = RhText,
+                modifier = Modifier.size(28.dp),
+            )
         }
         IconButton(onClick = onRetry, modifier = Modifier.size(44.dp)) {
-            Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = RhText, modifier = Modifier.size(28.dp))
+            Icon(
+                Icons.Default.Refresh,
+                contentDescription = stringResource(Res.string.task_history_refresh_content_description),
+                tint = RhText,
+                modifier = Modifier.size(28.dp),
+            )
         }
     }
 }
@@ -198,7 +271,12 @@ private fun CurrentProjectCard() {
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("\u5f53\u524d\u9879\u76ee", color = RhMuted, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.width(76.dp))
+        Text(
+            stringResource(Res.string.task_history_current_project),
+            color = RhMuted,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.width(76.dp),
+        )
         Row(
             modifier = Modifier
                 .weight(1f)
@@ -211,8 +289,14 @@ private fun CurrentProjectCard() {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             FolderGlyph()
-            Text("\u9ed8\u8ba4\u9879\u76ee", color = RhText, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text("\u2304", color = RhMuted, style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(Res.string.task_history_default_project),
+                color = RhText,
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(stringResource(Res.string.task_history_dropdown_symbol), color = RhMuted, style = MaterialTheme.typography.titleMedium)
         }
     }
 }
@@ -228,15 +312,15 @@ private fun PinnedProjectStrip() {
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("\u7f6e\u9876\u9879\u76ee", color = RhMuted, style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(Res.string.task_history_pinned_projects), color = RhMuted, style = MaterialTheme.typography.bodyMedium)
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            ProjectChip("+ \u7f6e\u9876\u9879\u76ee", selected = false, dashed = true)
-            ProjectChip("\u9ed8\u8ba4\u9879\u76ee", selected = true)
-            ProjectChip("\u4ea7\u54c1\u5ba3\u4f20\u7247", selected = false)
-            ProjectChip("\u89d2\u8272\u6982\u5ff5\u8bbe\u8ba1", selected = false)
+            ProjectChip(stringResource(Res.string.task_history_pin_project_action), selected = false, dashed = true)
+            ProjectChip(stringResource(Res.string.task_history_default_project), selected = true)
+            ProjectChip(stringResource(Res.string.task_history_reference_project_marketing_video), selected = false)
+            ProjectChip(stringResource(Res.string.task_history_reference_project_character_concept), selected = false)
         }
     }
 }
@@ -275,10 +359,10 @@ private fun TaskHistoryFilterRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         listOf(
-            TaskHistoryFilter.ALL to "\u5168\u90e8",
-            TaskHistoryFilter.IN_PROGRESS to "\u8fdb\u884c\u4e2d",
-            TaskHistoryFilter.COMPLETED to "\u6210\u529f",
-            TaskHistoryFilter.FAILED to "\u5931\u8d25",
+            TaskHistoryFilter.ALL to stringResource(Res.string.task_history_filter_all),
+            TaskHistoryFilter.IN_PROGRESS to stringResource(Res.string.task_history_filter_in_progress),
+            TaskHistoryFilter.COMPLETED to stringResource(Res.string.task_history_filter_completed),
+            TaskHistoryFilter.FAILED to stringResource(Res.string.task_history_filter_failed),
         ).forEach { (filter, label) ->
             StatusTab(
                 label = label,
@@ -332,17 +416,26 @@ private fun NoticeBar(useReferenceFallback: Boolean) {
                 .border(1.dp, RhMuted, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text("i", color = RhMuted, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+            Text(
+                stringResource(Res.string.task_history_notice_icon),
+                color = RhMuted,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+            )
         }
         Text(
-            text = if (useReferenceFallback) "\u8bbf\u5ba2\u6a21\u5f0f\u5c55\u793a\u53c2\u8003\u4efb\u52a1\uff0c\u767b\u5f55\u540e\u540c\u6b65\u771f\u5b9e\u751f\u6210\u5386\u53f2\u3002" else "\u4e91\u7aef\u8f93\u51fa\u94fe\u63a5\u53ef\u80fd\u5b58\u5728\u6709\u6548\u671f\uff0c\u8bf7\u53ca\u65f6\u4fdd\u5b58\u5230\u672c\u5730\u3002",
+            text = if (useReferenceFallback) {
+                stringResource(Res.string.task_history_notice_guest)
+            } else {
+                stringResource(Res.string.task_history_notice_cloud_output)
+            },
             color = RhMuted,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Text("\u203a", color = RhMuted, style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.task_history_chevron), color = RhMuted, style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -375,14 +468,14 @@ private fun HistoryActionPanel(
         selectedOutput?.let { output ->
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "\u8f93\u51fa\u8be6\u60c5",
+                    text = stringResource(Res.string.task_history_output_detail_title),
                     color = RhText,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                 )
                 Text(
-                    text = listOfNotNull(output.type.uppercase(), output.sizeLabel(), output.expireLabel()).joinToString(" / "),
+                    text = listOfNotNull(output.type.uppercase(), output.sizeLabel(), output.expireLabelText()).joinToString(" / "),
                     color = RhMuted,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
@@ -400,7 +493,7 @@ private fun HistoryActionPanel(
         if (reuseParams.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
-                    text = "\u53ef\u590d\u7528\u53c2\u6570",
+                    text = stringResource(Res.string.task_history_reusable_params_title),
                     color = RhText,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
@@ -408,7 +501,7 @@ private fun HistoryActionPanel(
                 )
                 reuseParams.entries.take(3).forEach { (key, value) ->
                     Text(
-                        text = "$key: $value",
+                        text = stringResource(Res.string.task_history_reusable_param_format, key, value),
                         color = RhMuted,
                         style = MaterialTheme.typography.labelSmall,
                         maxLines = 1,
@@ -429,11 +522,11 @@ private fun DateGroupHeader(total: Int) {
             .height(34.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text("\u4eca\u5929", color = RhText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.task_history_today), color = RhText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.width(12.dp))
-        Text("2026-06-19", color = RhMuted, style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(Res.string.task_history_reference_date), color = RhMuted, style = MaterialTheme.typography.bodyMedium)
         Spacer(Modifier.weight(1f))
-        Text("\u5171 $total \u6761", color = RhMuted, style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(Res.string.task_history_total_count_format, total), color = RhMuted, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -446,6 +539,10 @@ private fun TaskTimelineRow(
     onCancelTask: (String) -> Unit,
 ) {
     val failed = item.status.equals("failed", ignoreCase = true)
+    val viewAction = stringResource(Res.string.task_history_action_view)
+    val reuseAction = stringResource(Res.string.task_history_action_reuse)
+    val retryAction = stringResource(Res.string.task_history_action_retry)
+    val cancelAction = stringResource(Res.string.task_history_action_cancel)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -472,9 +569,9 @@ private fun TaskTimelineRow(
                     modifier = Modifier.weight(1f),
                 )
             }
-            Text("\u4efb\u52a1ID\uff1a${item.taskId}", color = RhMuted, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+            Text(stringResource(Res.string.task_history_task_id_format, item.taskId), color = RhMuted, style = MaterialTheme.typography.labelMedium, maxLines = 1)
             ProgressLine(item)
-            Text(item.timelineMeta(), color = RhMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(item.timelineMetaText(), color = RhMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Column(
             modifier = Modifier.width(104.dp),
@@ -483,15 +580,15 @@ private fun TaskTimelineRow(
         ) {
             TaskStatusPill(status = item.status)
             Text(item.costLabel(), color = RhText, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-            Text(item.outputCountLabel(), color = RhMuted, style = MaterialTheme.typography.labelMedium)
+            Text(item.outputCountLabelText(), color = RhMuted, style = MaterialTheme.typography.labelMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                SmallAction("\u67e5\u770b", highlighted = false, onClick = { item.outputId?.let(onViewOutput) })
+                SmallAction(viewAction, highlighted = false, onClick = { item.outputId?.let(onViewOutput) })
                 if (item.status.isCompletedStatus()) {
-                    SmallAction("\u590d\u7528", highlighted = true, onClick = { onReuseParams(item.taskId) })
+                    SmallAction(reuseAction, highlighted = true, onClick = { onReuseParams(item.taskId) })
                 } else if (failed) {
-                    SmallAction("\u91cd\u8bd5", highlighted = true, onClick = { onRetryTask(item.taskId) })
+                    SmallAction(retryAction, highlighted = true, onClick = { onRetryTask(item.taskId) })
                 } else {
-                    SmallAction("\u53d6\u6d88", highlighted = true, onClick = { onCancelTask(item.taskId) })
+                    SmallAction(cancelAction, highlighted = true, onClick = { onCancelTask(item.taskId) })
                 }
             }
         }
@@ -526,7 +623,7 @@ private fun SourceBadge(source: String) {
             .background(color.copy(alpha = 0.18f))
             .padding(horizontal = 6.dp, vertical = 3.dp),
     ) {
-        Text(sourceLabel(source), color = color, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(sourceLabelText(source), color = color, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
@@ -540,7 +637,7 @@ private fun ProgressLine(item: TaskHistoryEntry) {
         else -> BrandLime
     }
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
-        Text(item.statusDisplay(), color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
+        Text(item.statusDisplayText(), color = color, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold)
         if (running) {
             Box(
                 modifier = Modifier
@@ -575,7 +672,7 @@ private fun TaskStatusPill(status: String) {
             .padding(horizontal = 10.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(status.statusPillLabel(), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(statusPillLabelText(status), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
@@ -623,7 +720,7 @@ private fun TaskHistoryErrorState(message: String, onRetry: () -> Unit) {
     ) {
         Text(message, color = StatusError, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
         Spacer(Modifier.height(12.dp))
-        SmallAction("\u91cd\u8bd5", highlighted = true, onClick = onRetry)
+        SmallAction(stringResource(Res.string.task_history_action_retry), highlighted = true, onClick = onRetry)
     }
 }
 
@@ -643,8 +740,9 @@ private fun TaskHistoryEmptyState(message: String) {
 private fun GenerationHistoryOutput.sizeLabel(): String? =
     width?.let { w -> height?.let { h -> "${w}x$h" } }
 
-private fun GenerationHistoryOutput.expireLabel(): String? =
-    expireDays?.takeIf { it.isNotBlank() }?.let { "\u5269\u4f59 $it \u5929" }
+@Composable
+private fun GenerationHistoryOutput.expireLabelText(): String? =
+    expireDays?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.task_history_remaining_days_format, it) }
         ?: expireTime?.takeIf { it.isNotBlank() }
 
 private fun List<TaskHistoryEntry>.filteredBy(filter: TaskHistoryFilter): List<TaskHistoryEntry> = when (filter) {
@@ -657,24 +755,36 @@ private fun List<TaskHistoryEntry>.filteredBy(filter: TaskHistoryFilter): List<T
 private fun String.isCompletedStatus(): Boolean = lowercase() in listOf("success", "completed", "done")
 
 
-private fun String.statusPillLabel(): String = when {
-    isCompletedStatus() -> "\u6210\u529f"
-    equals("failed", ignoreCase = true) -> "\u5931\u8d25"
-    else -> "\u8fdb\u884c\u4e2d"
+@Composable
+private fun statusPillLabelText(status: String): String = when {
+    status.isCompletedStatus() -> stringResource(Res.string.task_history_status_success)
+    status.equals("failed", ignoreCase = true) -> stringResource(Res.string.task_history_status_failed)
+    else -> stringResource(Res.string.task_history_status_in_progress)
 }
 
 
-private fun TaskHistoryEntry.statusDisplay(): String = when {
-    status.isCompletedStatus() -> "\u6210\u529f"
-    status.equals("failed", ignoreCase = true) -> "\u5931\u8d25"
-    else -> "\u8fdb\u884c\u4e2d 65%"
+@Composable
+private fun TaskHistoryEntry.statusDisplayText(): String = when {
+    status.isCompletedStatus() -> stringResource(Res.string.task_history_status_success)
+    status.equals("failed", ignoreCase = true) -> stringResource(Res.string.task_history_status_failed)
+    else -> stringResource(Res.string.task_history_status_in_progress_percent)
 }
 
 
-private fun TaskHistoryEntry.timelineMeta(): String = when {
-    status.isCompletedStatus() -> "\u5b8c\u6210 13:58    \u8017\u65f6 ${costTime ?: "00:42"}"
-    status.equals("failed", ignoreCase = true) -> "\u5931\u8d25 12:31    \u8017\u65f6 ${costTime ?: "01:15"}"
-    else -> "\u5f00\u59cb 14:32    \u9884\u8ba1\u5269\u4f59 ${costTime ?: "02:18"}"
+@Composable
+private fun TaskHistoryEntry.timelineMetaText(): String = when {
+    status.isCompletedStatus() -> stringResource(
+        Res.string.task_history_timeline_completed_format,
+        costTime ?: stringResource(Res.string.task_history_default_completed_duration),
+    )
+    status.equals("failed", ignoreCase = true) -> stringResource(
+        Res.string.task_history_timeline_failed_format,
+        costTime ?: stringResource(Res.string.task_history_default_failed_duration),
+    )
+    else -> stringResource(
+        Res.string.task_history_timeline_running_format,
+        costTime ?: stringResource(Res.string.task_history_default_running_duration),
+    )
 }
 
 
@@ -686,37 +796,41 @@ private fun TaskHistoryEntry.costLabel(): String = when {
 }
 
 
-private fun TaskHistoryEntry.outputCountLabel(): String = when {
-    status.equals("failed", ignoreCase = true) -> "0 / 1 \u4e2a"
-    !status.isCompletedStatus() -> "2 / 4 \u4e2a"
-    title.contains("\u89c6\u9891") -> "1 \u4e2a\u89c6\u9891"
-    else -> "4 \u4e2a"
+@Composable
+private fun TaskHistoryEntry.outputCountLabelText(): String = when {
+    status.equals("failed", ignoreCase = true) -> stringResource(Res.string.task_history_output_count_failed)
+    !status.isCompletedStatus() -> stringResource(Res.string.task_history_output_count_running)
+    title.contains("\u89c6\u9891") -> stringResource(Res.string.task_history_output_count_video)
+    else -> stringResource(Res.string.task_history_output_count_completed)
 }
 
 
-private fun sourceLabel(source: String): String = when {
-    source.contains("api", ignoreCase = true) || source.contains("model", ignoreCase = true) -> "API \u6a21\u578b"
-    source.contains("web", ignoreCase = true) -> "WebApp"
-    else -> "\u5feb\u901f\u521b\u4f5c"
+@Composable
+private fun sourceLabelText(source: String): String = when {
+    source.contains("api", ignoreCase = true) || source.contains("model", ignoreCase = true) -> stringResource(Res.string.task_history_source_api_model)
+    source.contains("web", ignoreCase = true) -> stringResource(Res.string.task_history_source_webapp)
+    else -> stringResource(Res.string.task_history_source_quick_create)
 }
 
 private fun String?.isAuthError(): Boolean = this?.contains("TOKEN", ignoreCase = true) == true || this?.contains("401") == true
 
 
+@Composable
 private fun String.toDisplayHistoryError(): String = if (isAuthError()) {
-    "\u767b\u5f55\u540e\u53ef\u540c\u6b65\u4e91\u7aef\u751f\u6210\u5386\u53f2"
+    stringResource(Res.string.task_history_error_auth_sync)
 } else {
-    this.ifBlank { "\u5386\u53f2\u52a0\u8f7d\u5931\u8d25" }
+    this.ifBlank { stringResource(Res.string.task_history_error_load_failed) }
 }
 
 
+@Composable
 private fun referenceHistoryEntries(): List<TaskHistoryEntry> = listOf(
-    TaskHistoryEntry("a1b2c3d4", "\u6982\u5ff5\u56fe XL Pro", "running", "02:18", "quick_creation"),
-    TaskHistoryEntry("e5f6g7h8", "PortraitMaster v2", "completed", "00:42", "api_model"),
-    TaskHistoryEntry("i9j0k1l2", "3D \u6a21\u578b\u6e32\u67d3", "failed", "01:15", "webapp"),
-    TaskHistoryEntry("m3n4o5p6", "\u751f\u6210\u89c6\u9891 Turbo", "completed", "02:36", "quick_creation"),
-    TaskHistoryEntry("q7r8s9t0", "\u89d2\u8272\u8bbe\u5b9a XL", "completed", "00:58", "api_model"),
-    TaskHistoryEntry("u1v2w3x4", "\u4ea7\u54c1\u5ba3\u4f20\u7247", "running", "03:42", "webapp"),
+    TaskHistoryEntry("a1b2c3d4", stringResource(Res.string.task_history_reference_title_concept_image), "running", "02:18", "quick_creation"),
+    TaskHistoryEntry("e5f6g7h8", stringResource(Res.string.task_history_reference_title_portrait_master), "completed", "00:42", "api_model"),
+    TaskHistoryEntry("i9j0k1l2", stringResource(Res.string.task_history_reference_title_3d_model), "failed", "01:15", "webapp"),
+    TaskHistoryEntry("m3n4o5p6", stringResource(Res.string.task_history_reference_title_video_turbo), "completed", "02:36", "quick_creation"),
+    TaskHistoryEntry("q7r8s9t0", stringResource(Res.string.task_history_reference_title_character_setting), "completed", "00:58", "api_model"),
+    TaskHistoryEntry("u1v2w3x4", stringResource(Res.string.task_history_reference_title_marketing_video), "running", "03:42", "webapp"),
 )
 
 @Composable
