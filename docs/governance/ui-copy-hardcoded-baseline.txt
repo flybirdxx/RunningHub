@@ -17,7 +17,7 @@ composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/TaskHisto
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/login/LoginScreen.kt|8|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/plaza/PlazaScreen.kt|5|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/ProfileScreen.kt|0|Profile screen copy moved to Compose Resources
-composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/SettingsDialog.kt|14|legacy hardcoded UI copy baseline
+composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/profile/SettingsDialog.kt|0|Settings dialog copy moved to Compose Resources
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/AdaptivePromptTextField.kt|1|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateGenerationInteractor.kt|1|legacy hardcoded UI copy baseline
 composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateMediaUploadCoordinator.kt|1|legacy hardcoded UI copy baseline

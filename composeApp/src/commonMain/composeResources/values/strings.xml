@@ -91,4 +91,17 @@
     <string name="profile_not_logged_in_title">未登录</string>
     <string name="profile_not_logged_in_subtitle">登录后查看个人信息和资产</string>
     <string name="profile_unbound_mobile">未绑定手机号</string>
+    <string name="settings_dialog_api_key_title">绑定 API Key</string>
+    <string name="settings_dialog_api_key_description">请输入您的 RunningHub API Key 以访问个人中心和运行 AI 应用。</string>
+    <string name="settings_dialog_api_key_label">API Key</string>
+    <string name="settings_dialog_api_key_placeholder">输入 API Key</string>
+    <string name="settings_dialog_api_key_help">获取方式：登录 RunningHub → 个人中心 → API Key</string>
+    <string name="settings_dialog_api_key_confirm">确认绑定</string>
+    <string name="settings_dialog_cookie_title">Cookie 登录</string>
+    <string name="settings_dialog_cookie_description">请输入浏览器登录后的 Cookie 信息，包含 Rh-AccessToken 或 userid 字段。</string>
+    <string name="settings_dialog_cookie_label">Cookie</string>
+    <string name="settings_dialog_cookie_placeholder">粘贴浏览器 Cookie</string>
+    <string name="settings_dialog_cookie_help">获取方式：浏览器 F12 → Application → Cookies</string>
+    <string name="settings_dialog_cookie_confirm">确认登录</string>
+    <string name="settings_dialog_cancel_action">取消</string>
 </resources>

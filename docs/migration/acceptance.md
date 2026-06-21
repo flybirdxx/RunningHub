@@ -54,7 +54,9 @@ CreatorProfileScreen 的标题兜底、返回无障碍描述、作品区标题�
 ProfileScreen 的个人中心默认用户名、设置/头像/会员/菜单/未登录空态等静态标签和无障碍描述，
 以及会员剩余单位/到期格式也已迁入 commonMain Compose Resources，硬编码 UI 文案基线从 2 下调为 0；
 ProfileScreen 仍是迁移期留在 composeApp 的 UI 壳，体量基线同步记录本次资源导入增长，
-SettingsDialog 和 ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
+SettingsDialog 的 API Key/Cookie 绑定弹窗标题、说明、输入标签、占位、帮助、确认和取消文案也已迁入
+commonMain Compose Resources，硬编码 UI 文案基线从 14 下调为 0；真实 API Key/Cookie 输入仍只作为运行时敏感数据通过回调传递。
+ProfileStateHolder 文案留给后续独立切片。本轮不补 CI、Release 或 L1 封板证据。
 
 ## AC 收口顺序
 
