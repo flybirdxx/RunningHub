@@ -52,7 +52,7 @@ class CreateScreenModelTest {
 
     private fun createScreenModel(
         repository: FakeQuickCreateRepository,
-        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
     ): CreateScreenModel =
         CreateScreenModel(
             historyRepository = repository,

@@ -2356,7 +2356,7 @@ class QuickCreateScreenModelTest {
 
         model.pickVideoReferenceForField("content://video/active-child", "childVideos")
         advanceUntilIdle()
-        withContext(Dispatchers.IO) {
+        withContext(Dispatchers.Default) {
             delay(10)
         }
         runCurrent()
