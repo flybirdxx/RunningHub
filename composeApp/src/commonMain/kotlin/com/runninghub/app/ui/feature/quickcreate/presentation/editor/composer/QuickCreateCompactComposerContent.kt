@@ -63,6 +63,17 @@ import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateS
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.quickCreateCompactServiceModelLabel
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_compact_add_media_content_description
+import runninghub.composeapp.generated.resources.quick_create_compact_char_count_format
+import runninghub.composeapp.generated.resources.quick_create_compact_generate_content_description
+import runninghub.composeapp.generated.resources.quick_create_compact_image_prompt_placeholder
+import runninghub.composeapp.generated.resources.quick_create_compact_image_tab
+import runninghub.composeapp.generated.resources.quick_create_compact_media_count_format
+import runninghub.composeapp.generated.resources.quick_create_compact_video_params_summary
+import runninghub.composeapp.generated.resources.quick_create_compact_video_prompt_placeholder
+import runninghub.composeapp.generated.resources.quick_create_compact_video_tab
 
 /**
  * 渲染快捷创作当前默认启用的紧凑底部输入条。
@@ -134,12 +145,16 @@ internal fun QuickCreateCompactComposer(
                 CompactPromptField(
                     prompt = prompt,
                     onPromptChange = onPromptChange,
-                    placeholder = if (isImage) "描述你的图片..." else "描述你想生成的视频...",
+                    placeholder = if (isImage) {
+                        stringResource(Res.string.quick_create_compact_image_prompt_placeholder)
+                    } else {
+                        stringResource(Res.string.quick_create_compact_video_prompt_placeholder)
+                    },
                     modifier = Modifier.weight(1f),
                 )
                 CompactIconAction(
                     icon = if (isImage) Icons.Default.AddPhotoAlternate else Icons.Default.Image,
-                    contentDescription = "添加素材",
+                    contentDescription = stringResource(Res.string.quick_create_compact_add_media_content_description),
                     highlighted = mediaReferences.isNotEmpty(),
                     enabled = !isTaskActive,
                     onClick = onLaunchImagePicker,
@@ -162,7 +177,11 @@ internal fun QuickCreateCompactComposer(
                 horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
             ) {
                 CompactControlPill(
-                    text = if (isImage) "图片" else "视频",
+                    text = if (isImage) {
+                        stringResource(Res.string.quick_create_compact_image_tab)
+                    } else {
+                        stringResource(Res.string.quick_create_compact_video_tab)
+                    },
                     icon = if (isImage) Icons.Default.Image else Icons.Default.Videocam,
                     selected = true,
                     onClick = {
@@ -187,7 +206,7 @@ internal fun QuickCreateCompactComposer(
                 )
                 if (mediaReferences.isNotEmpty()) {
                     CompactControlPill(
-                        text = "素材 ${mediaReferences.size}",
+                        text = stringResource(Res.string.quick_create_compact_media_count_format, mediaReferences.size),
                         icon = Icons.Default.AttachFile,
                         selected = true,
                         onClick = {
@@ -197,7 +216,11 @@ internal fun QuickCreateCompactComposer(
                 }
                 if (nearLimit || overLimit) {
                     Text(
-                        text = "$charCount/$MAX_PROMPT_CHARS",
+                        text = stringResource(
+                            Res.string.quick_create_compact_char_count_format,
+                            charCount,
+                            MAX_PROMPT_CHARS,
+                        ),
                         color = if (overLimit) ErrorDark else WarningDark,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium,
@@ -306,7 +329,7 @@ private fun CompactGenerateButton(
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
-                    contentDescription = "生成",
+                    contentDescription = stringResource(Res.string.quick_create_compact_generate_content_description),
                     modifier = Modifier.size(17.dp),
                     tint = if (enabled) Color.White else Neutral500,
                 )
@@ -371,9 +394,10 @@ private fun CompactControlPill(
     }
 }
 
+@Composable
 private fun compactParamsSummary(uiState: QuickCreateUiState, isImage: Boolean): String =
     if (isImage) {
         uiState.imageConfig.aspectRatio.displayName
     } else {
-        "视频生成"
+        stringResource(Res.string.quick_create_compact_video_params_summary)
     }
