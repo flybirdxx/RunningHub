@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.UIKitView
 import androidx.compose.ui.window.Dialog
+import com.runninghub.core.network.RunningHubApiEnvironment
 import kotlinx.cinterop.ExperimentalForeignApi
 import platform.CoreGraphics.CGRectMake
 import platform.Foundation.NSURL
@@ -80,7 +81,7 @@ actual fun SmsCaptchaDialog(
                     tokenCallbackExpression = "window.location.href = '$CAPTCHA_CALLBACK_SCHEME://token?value=' + encodeURIComponent(token || '')",
                     closeCallbackExpression = "window.location.href = '$CAPTCHA_CALLBACK_SCHEME://close'",
                 ),
-                baseURL = NSURL.URLWithString(CAPTCHA_BASE_URL),
+                baseURL = NSURL.URLWithString(smsCaptchaBaseUrl()),
             )
         }
     }
@@ -123,6 +124,15 @@ actual fun SmsCaptchaDialog(
         }
     }
 }
+
+/**
+ * 返回 iOS WKWebView 加载验证码 HTML 时使用的同源根地址。
+ *
+ * 地址来自平台启动层注入的 [RunningHubApiEnvironment]。验证码 HTML 依赖 `/tac` 和 `/uc`
+ * 相对路径，若这里固定生产域名，staging 登录流程会拿到错误环境的短信 `validToken`。
+ */
+internal actual fun smsCaptchaBaseUrl(): String =
+    RunningHubApiEnvironment.WEB_BASE_URL
 
 /**
  * WKWebView 自定义 scheme 导航兜底。

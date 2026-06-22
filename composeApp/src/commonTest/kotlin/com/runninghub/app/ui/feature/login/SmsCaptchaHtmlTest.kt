@@ -29,8 +29,11 @@ class SmsCaptchaHtmlTest {
 
         assertTrue(html.contains("requestCaptchaDataUrl: '/uc/genCaptcha?type=ROTATE'"))
         assertTrue(html.contains("validCaptchaUrl: '/uc/checkCaptcha'"))
+        assertTrue(html.contains("<link rel=\"stylesheet\" href=\"/tac/css/tac.css\">"))
+        assertTrue(html.contains("script.src = '/tac/js/tac.min.js'"))
         assertTrue(html.contains("new window.TAC(config, style).init()"))
         assertTrue(html.contains("btnUrl: '/tac/images/huakuai.png'"))
+        assertFalse(html.contains("https://www.runninghub.cn"))
         assertFalse(html.contains("config.requestCaptchaData = function"))
     }
 

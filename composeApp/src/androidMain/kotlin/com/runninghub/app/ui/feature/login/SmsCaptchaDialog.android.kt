@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import com.runninghub.core.network.RunningHubApiEnvironment
 
 /**
  * Android 平台的短信图形验证码弹窗。
@@ -53,11 +54,11 @@ actual fun SmsCaptchaDialog(
             settings.loadWithOverviewMode = true
             settings.useWideViewPort = true
             webViewClient = SmsCaptchaWebViewClient(bridge)
-            // 使用 runninghub.cn 作为 baseUrl，使 TAC 脚本内的相对接口保持与网页端同源。
+            // 使用当前运行环境作为 baseUrl，使 TAC 脚本内的相对接口和短信发送接口保持同源。
             // Android 侧不注册 addJavascriptInterface，避免把原生对象暴露给网页；
             // token 和关闭事件统一走自定义 scheme，由 WebViewClient 在原生层拦截。
             loadDataWithBaseURL(
-                CAPTCHA_BASE_URL,
+                smsCaptchaBaseUrl(),
                 smsCaptchaHtml(
                     tokenCallbackExpression = "window.location.href = '$CAPTCHA_CALLBACK_SCHEME://token?value=' + encodeURIComponent(token || '')",
                     closeCallbackExpression = "window.location.href = '$CAPTCHA_CALLBACK_SCHEME://close'",
@@ -104,6 +105,15 @@ actual fun SmsCaptchaDialog(
         }
     }
 }
+
+/**
+ * 返回 Android WebView 加载验证码 HTML 时使用的同源根地址。
+ *
+ * 地址来自平台启动层注入的 [RunningHubApiEnvironment]，而不是固定生产域名；
+ * debug/staging 环境下验证码 token 必须由同一个用户中心环境签发，才能被后续发送短信接口接受。
+ */
+internal actual fun smsCaptchaBaseUrl(): String =
+    RunningHubApiEnvironment.WEB_BASE_URL
 
 /**
  * WebView 验证码回调适配器。

@@ -286,29 +286,33 @@ gate_status:
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 与 retired shared 模块均已删除，当前事实源和长期治理门禁已禁止重新引用旧增长控制文件或 shared 编译入口；下一步优先处理验证码 baseUrl 跟随 ApiEnvironment，或把 QuickCreateMediaUploadCoordinator 迁入 feature:quickcreate:presentation；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 与 retired shared 模块均已删除，验证码 Web 容器 baseUrl 已跟随 RunningHubApiEnvironment，当前事实源和长期治理门禁已禁止重新引用旧增长控制文件、shared 编译入口或固定生产验证码源；下一步优先把 QuickCreateMediaUploadCoordinator 迁入 feature:quickcreate:presentation，或继续收缩 QuickCreate 运行时文案端口；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   current_slice:
-    id: "MID-02-P7-retired-shared-doc-guard"
+    id: "MID-02-P0-4-sms-captcha-environment-base-url"
     result: "passed"
     modified_files:
       - "build-logic/src/main/kotlin/com/runninghub/buildlogic/LongTermGovernancePlugin.kt"
-      - "build.gradle.kts"
-      - "doc/RunningHub-KMP-架构迁移验收标准.md"
+      - "composeApp/src/androidMain/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaDialog.android.kt"
+      - "composeApp/src/androidUnitTest/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaEnvironmentTest.kt"
+      - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaHtml.kt"
+      - "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaHtmlTest.kt"
+      - "composeApp/src/iosMain/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaDialog.ios.kt"
+      - "docs/governance/feature-presentation-thresholds.txt"
       - "docs/migration/acceptance.md"
       - "docs/migration/current-state.yaml"
     commands:
-      - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after adding retired shared current-doc guard because current facts still referenced removed shared growth files and compile entrypoints"
-      - "retired shared current-doc keyword scan on acceptance sources and root build script # no matches"
-      - "current-state first 360 line retired shared token scan # no matches"
-      - "./gradlew.bat --console=plain checkLongTermGovernance"
+      - "./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.login.SmsCaptchaEnvironmentTest\" # RED: failed with unresolved reference smsCaptchaBaseUrl before production implementation"
+      - "./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.login.SmsCaptchaEnvironmentTest\" --tests \"com.runninghub.app.ui.feature.login.SmsCaptchaHtmlTest\""
+      - "./gradlew.bat --console=plain :composeApp:compileKotlinIosSimulatorArm64"
       - "./gradlew.bat --console=plain checkArchitectureBoundaries checkLongTermGovernance"
       - "git diff --check"
     notes:
-      - "新增 checkRetiredSharedCurrentDocsGuard，防止当前事实源重新出现已删除的 shared 增长控制文件、shared 编译入口或 L1 已封板结论。"
-      - "主验收标准改为 retired shared 当前模块图口径，Android/iOS 验证命令不再包含 shared。"
-      - "acceptance 和 current-state 移除旧 HEAD、暂存补丁、shared growth 文件和 shared 编译入口的当前态描述；历史归档流水保留。"
-      - "子代理审计建议的后续代码切片：验证码 baseUrl 跟随 ApiEnvironment；QuickCreateMediaUploadCoordinator 迁入 feature:quickcreate:presentation。"
+      - "SmsCaptchaHtml commonMain 只保留相对 /tac 和 /uc 路径，通过 expect fun smsCaptchaBaseUrl() 由平台边界提供 Web 根地址。"
+      - "Android WebView 和 iOS WKWebView 的 baseURL 均来自 RunningHubApiEnvironment.WEB_BASE_URL，避免 debug/staging 登录请求仍加载生产验证码源。"
+      - "checkLongTermGovernance 新增验证码环境 baseURL 防回归片段，阻止回退为固定 production 域名或删除环境测试。"
+      - "Login UI 行数基线从 856 调整到 866，仅覆盖验证码环境边界和必要 KDoc 增量；Login 状态机职责仍由 feature:auth:presentation 持有。"
+      - "本轮只验证 Android 单测和 iOS Kotlin 编译；真实 WKWebView 加载、ATS/Cookie/同源行为仍需 macOS/iOS 运行证据。"
   modified_files:
     - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt"
     - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiTextTest.kt"
@@ -1355,6 +1359,7 @@ last_verification:
     - "2026-06-22 P8 QuickCreate 紧凑模型加载标签继续收口：quickCreateCompactServiceModelLabel 返回 QuickCreateCompactServiceModelLabel 稳定语义，composeApp 紧凑输入条使用 Compose Resources 映射加载态；服务端模型名和本地 fallback 模型名仍作为运行时数据展示，QuickCreateServiceModelUiModel 基线从 7 下调为 6。"
     - "2026-06-22 Gate H/P7 shared 模块整体退役：settings.gradle.kts 移除 include(\":shared\")，删除 shared 最后 8 个跟踪文件和过时的 shared allowlist/baseline；verifyL1Ios 不再显式编译 shared，checkArchitectureBoundaries 改为直接拒绝 shared include、依赖和跟踪文件回流。"
     - "P0-4 图形验证码本轮继续补强：TAC 脚本加载失败和超时会显示可重试降级状态，并由 SmsCaptchaHtmlTest 锁定；真实 WKWebView 加载、ATS/Cookie/同源行为仍需 macOS/iOS 运行证据。"
+    - "P0-4 图形验证码本轮继续修正环境边界：SmsCaptchaDialog Android/iOS 平台 baseURL 改为读取 RunningHubApiEnvironment.WEB_BASE_URL，commonMain HTML 保持 /tac 与 /uc 相对路径；SmsCaptchaEnvironmentTest 先 RED 暴露 smsCaptchaBaseUrl 缺失，随后 GREEN 证明 debug/staging 可随平台启动层环境切换，checkLongTermGovernance 已纳入防回归检查。"
     - "网络 JSON 本轮按复核建议补强：TokenRefresher 不再用正则截取刷新响应，改用 kotlinx.serialization DTO 解码，新增测试覆盖 JSON unicode escape token。"
     - "安全存储本轮按复核建议前置修复：生产 CredentialStore 已切换到 Android Keystore backed 密文存储和 iOS Keychain，MigratingCredentialStore 负责把旧 Preferences DataStore 凭据逐项迁移并清理；架构门禁会阻止 Android/iOS RuntimeModule 退回普通 Preferences 绑定。"
     - "composeApp iOS debug framework link 在 Windows 本地为 SKIPPED；macOS link/xcodebuild/Simulator 当前以 skipped 风险证据留存，真实 pass 证据需 macOS runner 或 macOS 开发机后续补验。"

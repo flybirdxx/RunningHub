@@ -1128,8 +1128,11 @@ class LongTermGovernancePlugin : Plugin<Project> {
         val callbackTest = rootDir.resolve(
             "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaCallbackTest.kt"
         )
+        val environmentTest = rootDir.resolve(
+            "composeApp/src/androidUnitTest/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaEnvironmentTest.kt"
+        )
 
-        val requiredFiles = listOf(commonHtml, callbackParser, androidDialog, iosDialog, htmlTest, callbackTest)
+        val requiredFiles = listOf(commonHtml, callbackParser, androidDialog, iosDialog, htmlTest, callbackTest, environmentTest)
         requiredFiles
             .filterNot { it.isFile }
             .forEach { file -> violations += "SMS captcha guard source is missing: ${file.relativeTo(rootDir).invariantSeparatorsPath}." }
@@ -1151,6 +1154,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 "function extractValidToken(res)",
                 "图形验证脚本加载失败，请点击重试",
                 "图形验证图片加载失败，请点击重试",
+                "internal expect fun smsCaptchaBaseUrl(): String",
             ),
             violations = violations,
         )
@@ -1171,6 +1175,8 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 "webViewClient = SmsCaptchaWebViewClient(bridge)",
                 "webView.destroy()",
                 "handleSmsCaptchaCallbackUrl",
+                "RunningHubApiEnvironment.WEB_BASE_URL",
+                "smsCaptchaBaseUrl()",
             ),
             violations = violations,
         )
@@ -1194,6 +1200,8 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 "WKNavigationActionPolicy.WKNavigationActionPolicyCancel",
                 "dispatch_async(dispatch_get_main_queue())",
                 "message.startsWith(\"token:\")",
+                "RunningHubApiEnvironment.WEB_BASE_URL",
+                "smsCaptchaBaseUrl()",
             ),
             violations = violations,
         )
@@ -1214,6 +1222,15 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 "token callback url maps blank value to null token",
                 "close callback url maps to close event",
                 "unknown callback url is ignored",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = environmentTest,
+            snippets = listOf(
+                "captcha base url follows configured web environment",
+                "RunningHubApiEnvironment.configure",
+                "smsCaptchaBaseUrl()",
             ),
             violations = violations,
         )

@@ -214,6 +214,16 @@ internal fun smsCaptchaHtml(
     </html>
     """.trimIndent()
 
-internal const val CAPTCHA_BASE_URL = "https://www.runninghub.cn/"
+/**
+ * 返回短信图形验证码 Web 容器使用的同源根地址。
+ *
+ * HTML 内部使用 `/tac/...` 和 `/uc/...` 相对路径，因此 base URL 必须与平台启动层配置的
+ * RunningHub Web 环境一致。这样 debug/staging 登录请求不会因为验证码仍访问生产站点而得到
+ * 不同环境生成的 `validToken`。
+ *
+ * @return 带末尾斜杠的 RunningHub Web 根地址。
+ */
+internal expect fun smsCaptchaBaseUrl(): String
+
 internal const val CAPTCHA_BRIDGE_NAME = "RunningHubSmsCaptcha"
 internal const val CAPTCHA_CALLBACK_SCHEME = "runninghub-sms-captcha"
