@@ -80,13 +80,6 @@ class PlazaScreenModel(
     }
 
     /**
-     * 加载短片分类和第一页短片。
-     */
-    fun loadShorts() {
-        stateHolder.loadShorts()
-    }
-
-    /**
      * 切换短片分类筛选。
      *
      * @param categoryCode 服务端短片分类编码；`null` 表示全部短片。

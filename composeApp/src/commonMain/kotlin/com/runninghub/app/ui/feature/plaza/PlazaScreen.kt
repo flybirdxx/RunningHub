@@ -67,6 +67,7 @@ import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
 import com.runninghub.feature.community.domain.PlazaTag
 import com.runninghub.feature.community.presentation.PlazaMode
+import com.runninghub.feature.community.presentation.PlazaPresentationError
 import com.runninghub.feature.community.presentation.PlazaUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
@@ -75,6 +76,8 @@ import runninghub.composeapp.generated.resources.plaza_default_creation_owner
 import runninghub.composeapp.generated.resources.plaza_default_short_owner
 import runninghub.composeapp.generated.resources.plaza_empty_creations
 import runninghub.composeapp.generated.resources.plaza_empty_shorts
+import runninghub.composeapp.generated.resources.plaza_error_creations_load_failed
+import runninghub.composeapp.generated.resources.plaza_error_shorts_load_failed
 import runninghub.composeapp.generated.resources.plaza_fallback_tag_api
 import runninghub.composeapp.generated.resources.plaza_fallback_tag_avatar
 import runninghub.composeapp.generated.resources.plaza_fallback_tag_photo
@@ -165,7 +168,7 @@ fun PlazaScreenContent(
             }
 
             val showingShorts = uiState.mode == PlazaMode.SHORTS
-            val errorMessage = uiState.error
+            val errorMessage = uiState.error?.let { plazaPresentationErrorMessage(it) }
             when {
                 showingShorts && uiState.isShortsLoading && uiState.shorts.isEmpty() -> LoadingPanel()
                 !showingShorts && uiState.isLoading && uiState.creations.isEmpty() -> LoadingPanel()
@@ -672,6 +675,13 @@ private fun PlazaFallbackVisual(card: PlazaCreationCard) {
         )
     }
 }
+
+@Composable
+private fun plazaPresentationErrorMessage(error: PlazaPresentationError): String =
+    when (error) {
+        PlazaPresentationError.CreationsLoadFailed -> stringResource(Res.string.plaza_error_creations_load_failed)
+        PlazaPresentationError.ShortsLoadFailed -> stringResource(Res.string.plaza_error_shorts_load_failed)
+    }
 
 @Composable
 private fun LoadingPanel() {

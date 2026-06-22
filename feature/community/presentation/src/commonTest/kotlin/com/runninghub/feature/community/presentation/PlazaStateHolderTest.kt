@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlazaStateHolderTest {
@@ -116,6 +117,35 @@ class PlazaStateHolderTest {
         assertEquals(listOf("short-hot"), state.shorts.map { it.id })
     }
 
+    @Test
+    fun `creation failure exposes stable presentation error without throwable message`() = runTest {
+        val repository = FakePlazaRepository()
+        repository.creationFailure = IllegalStateException("remote plaza msg should not reach ui")
+        val stateHolder = PlazaStateHolder(repository, this)
+
+        stateHolder.loadInitialData()
+        advanceUntilIdle()
+
+        val state = stateHolder.uiState.value
+        assertEquals(PlazaPresentationError.CreationsLoadFailed, state.error)
+        assertTrue(state.creations.isNotEmpty())
+        assertEquals("fallback-image-v2", state.creations.first().id)
+    }
+
+    @Test
+    fun `short failure exposes stable presentation error without throwable message`() = runTest {
+        val repository = FakePlazaRepository()
+        repository.shortFailure = IllegalStateException("remote short msg should not reach ui")
+        val stateHolder = PlazaStateHolder(repository, this)
+
+        stateHolder.loadShorts()
+        advanceUntilIdle()
+
+        val state = stateHolder.uiState.value
+        assertEquals(PlazaPresentationError.ShortsLoadFailed, state.error)
+        assertEquals(emptyList(), state.shorts)
+    }
+
     private class FakePlazaRepository : PlazaRepository {
         var lastSort: String? = null
         var lastTags: List<String> = emptyList()
@@ -126,6 +156,8 @@ class PlazaStateHolderTest {
         var shortCategories: List<PlazaShortCategory> = emptyList()
         var shortPages: Map<Int, List<PlazaShortCard>> = emptyMap()
         var lastShortCategoryCode: String? = null
+        var creationFailure: Throwable? = null
+        var shortFailure: Throwable? = null
 
         override suspend fun getTags(): Result<List<PlazaTag>> =
             Result.success(listOf(PlazaTag(id = "tag-1", name = "Images", level = 1)))
@@ -139,6 +171,7 @@ class PlazaStateHolderTest {
             lastSort = sort
             lastTags = tags
             requestedPages += page
+            creationFailure?.let { return Result.failure(it) }
             val items = pages[page].orEmpty()
             return Result.success(
                 PlazaCreationPage(
@@ -154,6 +187,7 @@ class PlazaStateHolderTest {
 
         override suspend fun listShorts(page: Int, size: Int, categoryCode: String?): Result<List<PlazaShortCard>> {
             lastShortCategoryCode = categoryCode
+            shortFailure?.let { return Result.failure(it) }
             return Result.success(shortPages[page].orEmpty())
         }
     }

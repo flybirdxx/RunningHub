@@ -36,6 +36,28 @@ enum class PlazaMode {
 }
 
 /**
+ * 社区广场页面可展示的稳定错误语义。
+ *
+ * 该枚举属于 Community Presentation 层，只描述 UI 可以理解的失败类别，不携带服务端 `msg`、
+ * Data 层异常消息或本地诊断字符串。最终用户可见文案由应用壳通过 Compose Resources 映射。
+ */
+enum class PlazaPresentationError {
+    /**
+     * 灵感创作列表加载失败。
+     *
+     * 首屏失败时页面可能展示本地 fallback 内容；分页或刷新失败时页面可保留旧数据并允许用户重试。
+     */
+    CreationsLoadFailed,
+
+    /**
+     * 短片列表加载失败。
+     *
+     * 该错误只影响短片模式，不代表灵感创作列表或标签加载失败。
+     */
+    ShortsLoadFailed,
+}
+
+/**
  * 社区广场页面的完整可渲染状态。
  *
  * 状态由 [PlazaStateHolder] 维护，只承载页面展示、筛选和分页状态；网络请求、
@@ -70,8 +92,10 @@ enum class PlazaMode {
  * @property shortPage 已加载的短片页码，从 1 开始；0 表示尚未成功加载任何短片页。
  * @property isShortsLoading 短片分类或短片页是否正在加载。`true` 时短片加载入口应避免重复点击；
  * `false` 表示当前没有短片请求。
- * @property error 当前等待页面展示的错误摘要。`null` 表示没有错误；非空时由 UI 展示在当前列表区域。
- * fallback 内容可与错误同时存在，用于提示当前展示的是降级数据。
+ * @property error 当前等待页面展示的稳定错误语义。
+ * `null` 表示没有错误；非空时由 UI 按当前列表区域映射最终文案。
+ * 该字段不得保存服务端 `msg` 或 [Throwable.message]；fallback 内容可与错误同时存在，
+ * 用于提示当前展示的是降级数据。
  */
 data class PlazaUiState(
     val isLoading: Boolean = true,
@@ -90,7 +114,7 @@ data class PlazaUiState(
     val shorts: List<PlazaShortCard> = emptyList(),
     val shortPage: Int = 0,
     val isShortsLoading: Boolean = false,
-    val error: String? = null,
+    val error: PlazaPresentationError? = null,
 )
 
 /**
@@ -273,16 +297,16 @@ class PlazaStateHolder(
                     )
                 }
             }
-            .onFailure { error ->
+            .onFailure { _ ->
                 if (fallbackOnFailure && _uiState.value.creations.isEmpty()) {
-                    applyFallbackContent(error.message ?: "Plaza load failed")
+                    applyFallbackContent(PlazaPresentationError.CreationsLoadFailed)
                 } else {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
                             isRefreshing = false,
                             isLoadingMore = false,
-                            error = error.message ?: "Plaza load failed",
+                            error = PlazaPresentationError.CreationsLoadFailed,
                         )
                     }
                 }
@@ -306,17 +330,17 @@ class PlazaStateHolder(
                     )
                 }
             }
-            .onFailure { error ->
+            .onFailure { _ ->
                 _uiState.update {
                     it.copy(
                         isShortsLoading = false,
-                        error = error.message ?: "Short list load failed",
+                        error = PlazaPresentationError.ShortsLoadFailed,
                     )
                 }
             }
     }
 
-    private fun applyFallbackContent(message: String) {
+    private fun applyFallbackContent(error: PlazaPresentationError) {
         val state = _uiState.value
         val cards = PlazaFallbackCatalog.creations(state.selectedTagId, state.sort)
         _uiState.update {
@@ -329,7 +353,7 @@ class PlazaStateHolder(
                 currentPage = 1,
                 total = cards.size,
                 hasMore = false,
-                error = message,
+                error = error,
             )
         }
     }

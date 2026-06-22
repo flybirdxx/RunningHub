@@ -32,6 +32,8 @@
     <string name="plaza_filter_label">筛选</string>
     <string name="plaza_empty_shorts">暂无短片</string>
     <string name="plaza_empty_creations">暂无广场内容</string>
+    <string name="plaza_error_creations_load_failed">广场内容加载失败，请稍后重试</string>
+    <string name="plaza_error_shorts_load_failed">短片加载失败，请稍后重试</string>
     <string name="plaza_load_more">加载更多</string>
     <string name="plaza_loading_more">加载中</string>
     <string name="plaza_featured_badge">精选</string>
