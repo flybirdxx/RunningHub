@@ -13,7 +13,8 @@
 | `shared/domain/model` | 旧 UI 和旧仓库共享的业务模型；权限模型、WebApp 任务模型、统一生成历史模型、Plaza 模型、Audio 模型、标准模型目录/调用模型，以及 `User`、`WebApp`、`Tag`、`PageData`、`AppDetail` 的旧 typealias 兼容层均已迁出或删除。 | `core:model`、`core:storage` 或对应 Feature Domain。 | shared domain 不再承载业务模型。 |
 | `shared/domain/repository` | 旧仓库接口；统一生成历史仓库契约、WebApp 任务执行仓库契约和 WebApp 任务历史仓库契约已迁出到 `feature:task:domain`，Plaza 仓库契约已迁出到 `feature:community:domain`，Audio 仓库契约已迁出到 `feature:audio:domain`，标准模型目录和调用仓库契约已迁出到 `feature:model:domain`。 | 对应 Feature Domain。 | shared domain 不再承载仓库契约。 |
 | `shared/data/local` | 旧设置存储实现、权限状态临时实现、DataStore 平台工厂均已迁到 `core:storage`；当前不再承担生产启动图的本地存储职责。 | `core:storage` 或平台 source set。 | 删除 shared 中已无人使用的 local 包；敏感凭据迁移到安全存储属于 L2。 |
-| `shared/di` | 旧 Koin 组合入口；Auth、Community、Discovery、Task、Audio 和标准模型 Data 绑定均已迁到对应 Feature Data 模块，Android/iOS 生产启动层直接装配平台 runtime module 和 Feature Data 模块，不再装配 `sharedModule`。 | `composeApp/di` 只做装配，具体实现进入 Feature/Core。 | 删除或继续瘦身未接入生产启动图的 shared 旧兼容模块。 |
+| `shared/di` | 旧 Koin 组合入口已删除；Auth、Community、Discovery、Task、Audio 和标准模型 Data 绑定均已迁到对应 Feature Data 模块，Android/iOS 生产启动层直接装配平台 runtime module 和 Feature Data 模块，不再装配 `sharedModule`。 | `composeApp/di` 只做装配，具体实现进入 Feature/Core。 | 已完成。 |
+| `shared/platform`、`shared/util` | 仅保留历史 Platform expect/actual 与旧 MD5 兼容函数，当前生产启动图和 Feature/Core 模块不依赖它们。 | 后续若无外部二进制兼容需求，可连同 `:shared` 模块整体删除；删除前需先调整仍显式编译 `:shared` 的验证入口。 | `verifyL1Ios`、CI 或发布流程不再显式要求 `:shared:compileKotlinIosSimulatorArm64`，且静态搜索确认没有生产引用。 |
 
 ## 自动门禁
 

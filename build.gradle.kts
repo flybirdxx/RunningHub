@@ -89,8 +89,8 @@ tasks.register("checkArchitectureBoundaries") {
             var inCommonMainDependencies = false
             var braceDepth = 0
 
-            // 迁移期允许 Android Application 入口继续装配 sharedModule，但 commonMain 不能再直接依赖 shared；
-            // 这里仅扫描 commonMain.dependencies 块，避免把平台启动层的临时依赖误判为通用 UI 层回退。
+            // shared 已退到 Platform/MD5 兼容文件；这里继续只扫描 commonMain.dependencies，
+            // 让门禁专注阻止通用 UI 层重新声明 shared 依赖。
             readLines().forEach { line ->
                 if (!inCommonMainDependencies && "commonMain.dependencies" in line) {
                     inCommonMainDependencies = true

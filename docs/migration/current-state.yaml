@@ -265,7 +265,7 @@ gate_status:
       - "2026-06-22 P5 Feature Presentation 阈值基线清账：移除 stale 的 create 与 discovery 条目；create 当前没有遗留 Kotlin UI 文件，discovery 已有 feature:discovery:presentation，不再需要无 Presentation 模块的大体量 UI 例外。LongTermGovernancePlugin 的文档片段检查同步收窄到仍有效的 history、login、plaza、profile 基线。"
       - "2026-06-22 P7 数据库契约基线清账：确认 RunningHubDatabase/DiscoveryCache 仅剩 shared 构建和治理基线引用，无生产调用点；删除未使用的 DiscoveryCache.sq，移除 shared SQLDelight 插件与驱动依赖，清理 Version Catalog/根插件声明中的 SQLDelight 条目，并把 checkDatabaseContractBaseline 改为不再允许 legacy-debt。当前仓库没有生产 SQLDelight schema，后续新增 .sq/.sqm 必须登记真实数据库契约或 migration 测试。"
       - "2026-06-22 P8 Discovery 排序标签资源化继续收缩：发现页排序下拉的推荐/口碑/最热/最新固定标签从 feature:discovery:presentation 的 CatalogSort.label 扩展迁入 composeApp commonMain Compose Resources；DiscoveryStateHolder 不再持有排序展示文案。目录错误状态后续已收口为 CatalogPresentationError，由 composeApp Compose Resources 映射可见文案。"
-      - "2026-06-22 Gate H/P7 shared 依赖继续瘦身：确认 shared 当前源码只保留平台信息、MD5 兼容工具和 sharedModule 组合入口；移除 shared 对 core:model、feature:community:domain、feature:discovery:domain 和 kotlinx-datetime 的直接依赖，保留 core:network、core:storage、feature:auth:domain、Ktor、Koin、serialization 和 DataStore 这些仍由 sharedModule 或公开 storage API 需要的依赖。"
+      - "2026-06-22 Gate H/P7 shared 依赖继续瘦身：确认 shared 当前源码只保留平台信息、MD5 兼容工具和 sharedModule 组合入口；移除 shared 对 core:model、feature:community:domain、feature:discovery:domain 和 kotlinx-datetime 的直接依赖。后续切片已删除 sharedModule，并移除它独占的 core/network/storage/auth、Ktor、Koin、serialization 和 DataStore 依赖。"
       - "2026-06-22 Gate H/P7 shared 构建脚本继续瘦身：shared 自身不再声明 kotlinx.serialization 编译插件、Ktor content-negotiation/logging/auth/serialization、kotlinx-coroutines-android、koin-android、koin-test 或 ktor-client-mock；这些能力要么已由 core:network 封装并声明，要么在 shared 当前空测试集和 common Koin DSL 中无直接使用。shared 仍保留平台 Ktor engine 依赖，避免 HttpClient 默认 engine 运行期缺失。"
       - "2026-06-22 P8 UI 文案基线继续清账：PlazaScreen 和 QuickCreateClassicComposerContent 当前硬编码文案匹配数已为 0，删除对应 0/0 legacy baseline；后续若这两个文件重新引入硬编码中文 UI 文案，将作为未登记新增文件触发 checkLongTermGovernance 失败。"
       - "2026-06-22 P2 根构建脚本基线继续收紧：build.gradle.kts 当前实际行数为 1789，build-script-baseline 从 1800 下调到 1789，并同步 LongTermGovernancePlugin 文档片段检查，防止中期开发继续把新验收逻辑堆回根脚本。"
@@ -277,7 +277,7 @@ gate_status:
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；下一步优先处理 shared 空壳瘦身；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 已删除，下一步优先评估 :shared 模块整体退役条件或继续收缩 QuickCreate Presentation 文案端口；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
     - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt"
@@ -299,6 +299,12 @@ last_verification:
     - "docs/migration/l1-seal-audit.md"
     - "docs/migration/shared-baseline.txt"
     - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
+    - "build.gradle.kts"
+    - "shared/build.gradle.kts"
+    - "shared/src/commonMain/kotlin/com/runninghub/shared/di/SharedModule.kt"
+    - "docs/migration/shared-ownership.md"
     - "docs/migration/acceptance.md"
     - "docs/migration/current-state.yaml"
     - "composeApp/src/commonMain/composeResources/values/strings.xml"
@@ -900,6 +906,8 @@ last_verification:
     - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\" # RED: failed before CommunityTool exposed titleKey/descriptionKey"
     - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\""
     - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\" :feature:community:presentation:compileDebugKotlinAndroid :feature:community:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :shared:compileDebugKotlinAndroid :shared:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
+    - "$matches = rg 'com\\.runninghub\\.shared\\.di|sharedModule|projects\\.core\\.network|projects\\.core\\.storage|projects\\.feature\\.auth\\.domain|libs\\.ktor|libs\\.koin|libs\\.datastore|libs\\.kotlinx\\.serialization' shared -g '*.kt' -g '*.kts'; if ($LASTEXITCODE -eq 1) { 'shared module has no sharedModule or removed dependency refs' } else { $matches; exit $LASTEXITCODE }"
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest --tests \"com.runninghub.feature.auth.presentation.creator.CreatorProfileStateHolderTest\" # RED: failed before CreatorProfileStateHolder existed"
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest --tests \"com.runninghub.feature.auth.presentation.creator.CreatorProfileStateHolderTest\""
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest :feature:auth:presentation:compileDebugKotlinAndroid :feature:auth:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
@@ -1281,6 +1289,7 @@ last_verification:
     - "2026-06-22 下一步中期候选更新：Community 工具页状态已迁出，后续可优先评估 composeApp 大体量 UI 壳体基线是否仍需保留，或选择 UI 文案资源化中可独立收缩的文件。"
     - "2026-06-22 P8 Community 工具目录文案继续收口：CommunityTool 的 title/description 改为稳定 titleKey/descriptionKey，CommunityScreen 通过 composeApp Compose Resources 映射 6 个工具标题和说明；ui-copy baseline 移除 CommunityStateHolder 的 12 个工具目录文案匹配。"
     - "2026-06-22 下一步中期候选更新：Community 工具目录文案已资源化，Bohr 只读复核建议下一刀优先删除未接入生产启动图的 sharedModule，并先保留 :shared 模块本身和 Platform/MD5 兼容文件。"
+    - "2026-06-22 Gate H/P7 shared 空壳继续瘦身：删除未接入 Android/iOS 生产启动图的 sharedModule，并从 shared/build.gradle.kts 移除仅由该组合入口需要的 core/network、core/storage、feature:auth:domain、Ktor、Koin、serialization 和 DataStore 依赖；:shared 仍暂时保留 Platform 与 MD5 expect/actual，避免触碰仍显式编译 shared framework 的验证入口。"
     - "P0-4 图形验证码本轮继续补强：TAC 脚本加载失败和超时会显示可重试降级状态，并由 SmsCaptchaHtmlTest 锁定；真实 WKWebView 加载、ATS/Cookie/同源行为仍需 macOS/iOS 运行证据。"
     - "网络 JSON 本轮按复核建议补强：TokenRefresher 不再用正则截取刷新响应，改用 kotlinx.serialization DTO 解码，新增测试覆盖 JSON unicode escape token。"
     - "安全存储本轮按复核建议前置修复：生产 CredentialStore 已切换到 Android Keystore backed 密文存储和 iOS Keychain，MigratingCredentialStore 负责把旧 Preferences DataStore 凭据逐项迁移并清理；架构门禁会阻止 Android/iOS RuntimeModule 退回普通 Preferences 绑定。"
