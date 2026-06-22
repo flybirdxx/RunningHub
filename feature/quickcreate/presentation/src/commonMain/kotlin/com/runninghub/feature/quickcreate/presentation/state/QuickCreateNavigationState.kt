@@ -4,15 +4,13 @@ package com.runninghub.feature.quickcreate.presentation.state
  * 快捷创作页面的顶层创作类型。
  *
  * 该枚举属于 Presentation 状态边界，用于区分当前编辑的是图片还是视频任务。
- *
- * @property displayName 页面 Tab 展示文案。
  */
-enum class QuickCreateTab(val displayName: String) {
+enum class QuickCreateTab {
     /** 图片创作 Tab，使用图片模型、图片参数和图片上传字段。 */
-    IMAGE("图片"),
+    IMAGE,
 
     /** 视频创作 Tab，使用视频模型、视频参数和视频上传字段。 */
-    VIDEO("视频"),
+    VIDEO,
 }
 
 /**
@@ -20,16 +18,56 @@ enum class QuickCreateTab(val displayName: String) {
  *
  * 创作模式展示编辑器、结果和历史；灵感模式展示模板列表。模式状态放在 Presentation
  * 模块中，避免 composeApp 继续承载具体业务页面的状态枚举。
- *
- * @property displayName 模式切换控件展示文案。
  */
-enum class QuickCreateMode(val displayName: String) {
+enum class QuickCreateMode {
     /** 正常创作模式，用户可以编辑参数并提交生成。 */
-    CREATION("创作"),
+    CREATION,
 
     /** 灵感模板模式，用户可以浏览模板并一键应用到创作参数。 */
-    INSPIRATION("灵感"),
+    INSPIRATION,
 }
+
+/**
+ * 快捷创作导航控件的稳定文案键。
+ *
+ * Presentation 只暴露页面状态与文案语义，不直接保存中文字符串或 Compose Resource。
+ * composeApp 根据这些稳定键映射最终展示文案，避免独立 Presentation 模块承担本地化职责。
+ */
+sealed interface QuickCreateNavigationLabel {
+    /** 图片创作 Tab 的展示语义。 */
+    data object ImageTab : QuickCreateNavigationLabel
+
+    /** 视频创作 Tab 的展示语义。 */
+    data object VideoTab : QuickCreateNavigationLabel
+
+    /** 正常创作模式的展示语义。 */
+    data object CreationMode : QuickCreateNavigationLabel
+
+    /** 灵感模板模式的展示语义。 */
+    data object InspirationMode : QuickCreateNavigationLabel
+}
+
+/**
+ * 当前创作 Tab 对应的稳定文案键。
+ *
+ * @return 图片或视频 Tab 的文案语义，由 composeApp 负责映射为最终本地化文案。
+ */
+val QuickCreateTab.navigationLabel: QuickCreateNavigationLabel
+    get() = when (this) {
+        QuickCreateTab.IMAGE -> QuickCreateNavigationLabel.ImageTab
+        QuickCreateTab.VIDEO -> QuickCreateNavigationLabel.VideoTab
+    }
+
+/**
+ * 当前页面模式对应的稳定文案键。
+ *
+ * @return 创作或灵感模式的文案语义，由 composeApp 负责映射为最终本地化文案。
+ */
+val QuickCreateMode.navigationLabel: QuickCreateNavigationLabel
+    get() = when (this) {
+        QuickCreateMode.CREATION -> QuickCreateNavigationLabel.CreationMode
+        QuickCreateMode.INSPIRATION -> QuickCreateNavigationLabel.InspirationMode
+    }
 
 /**
  * 快捷创作编辑器中可打开的底部面板。

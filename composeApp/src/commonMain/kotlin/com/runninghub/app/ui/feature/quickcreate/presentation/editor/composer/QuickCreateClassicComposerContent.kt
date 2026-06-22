@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.feature.quickcreate.AdaptivePromptTextField
+import com.runninghub.app.ui.feature.quickcreate.quickCreateNavigationText
 import com.runninghub.feature.quickcreate.presentation.draft.DraftData
 import com.runninghub.feature.quickcreate.presentation.draft.QuickCreateDraftResumeSummary
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
@@ -58,6 +59,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.state.navigationLabel
 import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
@@ -435,7 +437,7 @@ private fun TabPillRow(
                         tint = if (selected) Primary300 else Neutral500,
                     )
                     Text(
-                        tab.displayName,
+                        quickCreateNavigationText(tab.navigationLabel),
                         fontSize = 12.sp,
                         color = if (selected) Color.White else Neutral500,
                         fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,

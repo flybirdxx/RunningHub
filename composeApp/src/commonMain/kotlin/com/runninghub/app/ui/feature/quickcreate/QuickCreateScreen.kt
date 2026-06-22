@@ -53,6 +53,7 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
+import com.runninghub.feature.quickcreate.presentation.state.navigationLabel
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 
@@ -394,7 +395,7 @@ private fun ModeSwitch(
                 contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
             ) {
                 Text(
-                    mode.displayName,
+                    quickCreateNavigationText(mode.navigationLabel),
                     color = if (mode == selectedMode) Primary300 else Color.White.copy(alpha = 0.56f),
                     fontWeight = if (mode == selectedMode) FontWeight.Bold else FontWeight.Medium,
                     fontSize = 18.sp,
