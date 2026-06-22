@@ -255,6 +255,8 @@ refresh preserves selected filter
 ### 已有结构必须保留
 
 - `QuickCreateScreenModel` 只作为生命周期和 UI Action 门面。
+- `QuickCreateScreenModel` 不直接依赖 `app.platform.MediaResolver`；
+  平台媒体读取只能在 composeApp 组合根适配为 `QuickCreateMediaResolver` 后注入。
 - `QuickCreateCoordinator` 负责页面级编排。
 - 草稿、模型、上传、计费、生成、轮询、历史、项目、灵感分别由局部组件承担。
 - 所有长任务绑定页面作用域并支持 dispose。
@@ -462,7 +464,7 @@ feature:quickcreate:data
   - API 异常映射
 
 composeApp
-  - ScreenModel 集成状态转换
+  - Voyager ScreenModel 门面、组合根适配和根会话导航集成
   - 根会话导航
   - Tab 生命周期
 ```

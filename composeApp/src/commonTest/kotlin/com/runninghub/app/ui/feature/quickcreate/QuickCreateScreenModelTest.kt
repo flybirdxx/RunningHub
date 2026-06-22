@@ -4,7 +4,6 @@ import com.runninghub.feature.quickcreate.presentation.draft.DraftData
 import com.runninghub.feature.quickcreate.presentation.draft.QuickCreateDraftResumeSummary
 import com.runninghub.feature.quickcreate.presentation.draft.resumeSummary
 
-import com.runninghub.app.platform.MediaResolver
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftSnapshot
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
@@ -38,6 +37,7 @@ import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistor
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationBadgeTone
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPlaceholderMediaType
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPreviewUi
+import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -104,7 +104,7 @@ class QuickCreateScreenModelTest {
 
     private fun createModel(
         historyRepository: QuickCreationTaskHistoryRepository,
-        mediaResolver: MediaResolver,
+        mediaResolver: QuickCreateMediaResolver,
         draftRepository: QuickCreateDraftRepository,
         ioDispatcher: CoroutineDispatcher = Dispatchers.Main,
         modelCatalogRepository: QuickCreationModelCatalogRepository =
@@ -535,7 +535,7 @@ class QuickCreateScreenModelTest {
             }
     }
 
-    class FakeMediaResolver : MediaResolver {
+    class FakeMediaResolver : QuickCreateMediaResolver {
         override fun readBytes(uri: String): ByteArray = ByteArray(0)
         override fun getDisplayName(uri: String): String? = "test.jpg"
         override fun getFileSizeBytes(uri: String): Long = 1024L

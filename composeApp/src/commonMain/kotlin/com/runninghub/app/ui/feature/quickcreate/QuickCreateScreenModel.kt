@@ -5,7 +5,6 @@ import com.runninghub.feature.quickcreate.presentation.draft.DraftData
 
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
-import com.runninghub.app.platform.MediaResolver
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
@@ -50,7 +49,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
  * @param inspirationRepository 快捷创作灵感仓库，只用于加载模板标签、模板分页和模板详情。
  * @param mediaUploadRepository 快捷创作媒体上传仓库，只用于把本地媒体上传为远端 URL。
  * @param projectRepository 快捷创作项目仓库，只用于项目列表、详情和项目变更操作。
- * @param mediaResolver 跨平台媒体读取能力，用于把本地 URI 转交给上传协调器处理。
+ * @param mediaResolver 快捷创作媒体读取端口，由 app 组合根把平台媒体能力适配后注入。
  * @param draftRepository 快捷创作草稿领域仓库，只保存和清理可恢复编辑草稿快照。
  * @param ioDispatcher 媒体字节读取使用的调度器；commonMain 默认使用跨平台可用的 Default，
  * Android/iOS 如需专用 IO 调度器可在组合根或测试中显式注入。
@@ -63,7 +62,7 @@ class QuickCreateScreenModel(
     private val inspirationRepository: QuickCreationInspirationRepository,
     private val mediaUploadRepository: QuickCreationMediaUploadRepository,
     private val projectRepository: QuickCreationProjectRepository,
-    private val mediaResolver: MediaResolver,
+    private val mediaResolver: QuickCreateMediaResolver,
     private val draftRepository: QuickCreateDraftRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ScreenModel {
@@ -80,7 +79,7 @@ class QuickCreateScreenModel(
 
     private val coordinator = QuickCreateCoordinator(
         historyRepository = historyRepository,
-        mediaResolver = MediaResolverQuickCreateMediaResolver(mediaResolver),
+        mediaResolver = mediaResolver,
         draftRepository = draftRepository,
         scope = screenModelScope,
         uiState = _uiState,
@@ -552,23 +551,4 @@ class QuickCreateScreenModel(
     fun generate() {
         coordinator.generate()
     }
-}
-
-/**
- * 把 composeApp 平台媒体读取能力适配为 QuickCreate Presentation 模块的上传端口。
- *
- * Android/iOS 的 URI 权限、文件选择器和安全作用域读取仍由应用平台层负责；
- * feature presentation 只接收平台无关的字节、展示名和文件大小，避免迁移后的
- * [QuickCreateCoordinator] 反向依赖 composeApp。
- *
- * @param mediaResolver 应用壳提供的平台媒体解析器，负责处理本地 URI 权限和实际字节读取。
- */
-private class MediaResolverQuickCreateMediaResolver(
-    private val mediaResolver: MediaResolver,
-) : QuickCreateMediaResolver {
-    override fun readBytes(uri: String): ByteArray = mediaResolver.readBytes(uri)
-
-    override fun getDisplayName(uri: String): String? = mediaResolver.getDisplayName(uri)
-
-    override fun getFileSizeBytes(uri: String): Long = mediaResolver.getFileSizeBytes(uri)
 }
