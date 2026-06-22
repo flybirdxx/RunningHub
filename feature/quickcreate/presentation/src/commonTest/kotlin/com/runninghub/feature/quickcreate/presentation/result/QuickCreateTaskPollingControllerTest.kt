@@ -40,7 +40,7 @@ class QuickCreateTaskPollingControllerTest {
 
         assertEquals(1, queuedCallbacks)
         assertEquals(QuickCreateTaskUiStatus.FAILED, uiState.value.taskStatus)
-        assertEquals("任务失败", uiState.value.statusText)
+        assertEquals(QuickCreateTaskStatusText.Custom("任务失败"), uiState.value.statusText)
         assertEquals("任务失败", uiState.value.error)
         assertEquals(emptyList(), uiState.value.results)
     }
@@ -90,7 +90,7 @@ class QuickCreateTaskPollingControllerTest {
         assertEquals(1, successCallbacks)
         assertEquals(QuickCreateTaskUiStatus.SUCCESS, statusSeenByCallback)
         assertEquals(QuickCreateTaskUiStatus.SUCCESS, uiState.value.taskStatus)
-        assertEquals("生成完成", uiState.value.statusText)
+        assertEquals(QuickCreateTaskStatusText.Success, uiState.value.statusText)
         assertEquals(3, results.size)
         assertEquals(QuickCreateResultMediaType.IMAGE, results[0].mediaType)
         assertEquals("https://example.com/thumb.png", results[0].thumbnailUrl)
@@ -108,7 +108,7 @@ class QuickCreateTaskPollingControllerTest {
         val uiState = MutableStateFlow(
             QuickCreateUiState(
                 taskStatus = QuickCreateTaskUiStatus.RUNNING,
-                statusText = "生成中... 42%",
+                statusText = QuickCreateTaskStatusText.Running(progressPercent = 42),
             )
         )
         val controller = QuickCreateTaskPollingController(
@@ -129,7 +129,7 @@ class QuickCreateTaskPollingControllerTest {
         val uiState = MutableStateFlow(
             QuickCreateUiState(
                 taskStatus = QuickCreateTaskUiStatus.RUNNING,
-                statusText = "生成中... 42%",
+                statusText = QuickCreateTaskStatusText.Running(progressPercent = 42),
                 error = "previous warning",
             )
         )
@@ -142,7 +142,7 @@ class QuickCreateTaskPollingControllerTest {
         controller.collect(flowOf(QuickCreateTaskStatus.Cancelled("task-1")))
 
         assertEquals(QuickCreateTaskUiStatus.CANCELED, uiState.value.taskStatus)
-        assertEquals("任务已取消", uiState.value.statusText)
+        assertEquals(QuickCreateTaskStatusText.Canceled, uiState.value.statusText)
         assertEquals(null, uiState.value.error)
     }
 
@@ -167,7 +167,7 @@ class QuickCreateTaskPollingControllerTest {
         val uiState = MutableStateFlow(
             QuickCreateUiState(
                 taskStatus = QuickCreateTaskUiStatus.SUCCESS,
-                statusText = "生成完成",
+                statusText = QuickCreateTaskStatusText.Success,
                 error = "previous warning",
                 results = listOf(
                     QuickCreateResultUi(

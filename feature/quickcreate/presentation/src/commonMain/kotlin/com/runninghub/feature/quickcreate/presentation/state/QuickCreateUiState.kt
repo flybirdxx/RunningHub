@@ -12,6 +12,7 @@ import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateS
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailUiItem
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectUiItem
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultUi
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 
 /**
@@ -37,8 +38,9 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * 默认对象表示用户尚未输入视频创作内容；其中时长、分辨率和开关会参与计费预览与生成请求。
  * @property taskStatus 当前页面主生成任务状态。
  * [QuickCreateTaskUiStatus.IDLE] 表示没有提交中的任务；非空闲状态由生成和轮询流程回写。
- * @property statusText 生成、上传或轮询阶段展示的辅助状态文案。
- * `null` 表示当前没有需要固定展示的阶段说明，非空值由 UI 直接展示。
+ * @property statusText 生成、上传或轮询阶段展示的辅助状态文案语义。
+ * `null` 表示当前没有需要固定展示的阶段说明；非空值由 composeApp 映射为本地化资源或受控运行时说明，
+ * 本字段不得保存 Token、Cookie、API Key、密码等敏感数据，也不得作为持久任务状态来源。
  * @property results 最近一次成功生成或轮询得到的输出结果。
  * 顺序来自生成流程或服务端输出顺序；空集合表示当前没有可展示结果。
  * @property error 等待页面展示的一次性错误提示。
@@ -137,7 +139,7 @@ data class QuickCreateUiState(
     val imageConfig: ImageConfig = ImageConfig(),
     val videoConfig: VideoConfig = VideoConfig(),
     val taskStatus: QuickCreateTaskUiStatus = QuickCreateTaskUiStatus.IDLE,
-    val statusText: String? = null,
+    val statusText: QuickCreateTaskStatusText? = null,
     val results: List<QuickCreateResultUi> = emptyList(),
     val error: String? = null,
     val estimatedCost: Double = 0.0,

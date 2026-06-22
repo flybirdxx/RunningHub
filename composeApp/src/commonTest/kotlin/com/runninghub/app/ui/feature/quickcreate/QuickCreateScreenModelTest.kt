@@ -78,6 +78,7 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.MAX_PROMPT_CHARS
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultMediaType
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
@@ -5026,7 +5027,7 @@ class QuickCreateScreenModelTest {
 
         assertEquals(QuickCreateTaskUiStatus.FAILED, model.uiState.value.taskStatus)
         assertEquals("任务失败", model.uiState.value.error)
-        assertEquals("任务失败", model.uiState.value.statusText)
+        assertEquals(QuickCreateTaskStatusText.Custom("任务失败"), model.uiState.value.statusText)
     }
 
     @Test
@@ -5070,7 +5071,7 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         assertEquals(QuickCreateTaskUiStatus.QUEUING, model.uiState.value.taskStatus)
-        assertEquals("排队中...", model.uiState.value.statusText)
+        assertEquals(QuickCreateTaskStatusText.Queuing, model.uiState.value.statusText)
         assertEquals(emptyList(), model.uiState.value.results)
     }
 
@@ -5091,7 +5092,7 @@ class QuickCreateScreenModelTest {
         runCurrent()
 
         assertEquals(QuickCreateTaskUiStatus.RUNNING, model.uiState.value.taskStatus)
-        assertEquals("生成中... 42%", model.uiState.value.statusText)
+        assertEquals(QuickCreateTaskStatusText.Running(progressPercent = 42), model.uiState.value.statusText)
         assertEquals(emptyList(), model.uiState.value.results)
     }
 
@@ -5120,7 +5121,7 @@ class QuickCreateScreenModelTest {
 
         assertEquals(1, repository.imageGenerateCalls)
         assertEquals(QuickCreateTaskUiStatus.RUNNING, model.uiState.value.taskStatus)
-        assertEquals("生成中... 42%", model.uiState.value.statusText)
+        assertEquals(QuickCreateTaskStatusText.Running(progressPercent = 42), model.uiState.value.statusText)
         assertEquals("已有生成任务进行中，请等待当前任务结束", model.uiState.value.error)
     }
 
@@ -5231,7 +5232,7 @@ class QuickCreateScreenModelTest {
 
         val result = model.uiState.value.results.single()
         assertEquals(QuickCreateTaskUiStatus.SUCCESS, model.uiState.value.taskStatus)
-        assertEquals("生成完成", model.uiState.value.statusText)
+        assertEquals(QuickCreateTaskStatusText.Success, model.uiState.value.statusText)
         assertEquals("https://example.com/result.png", result.url)
         assertEquals("png", result.type)
         assertEquals(QuickCreateResultMediaType.IMAGE, result.mediaType)

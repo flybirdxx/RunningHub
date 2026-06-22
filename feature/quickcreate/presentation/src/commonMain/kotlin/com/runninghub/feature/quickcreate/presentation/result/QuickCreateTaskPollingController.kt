@@ -68,17 +68,17 @@ class QuickCreateTaskPollingController(
             when (status) {
                 is QuickCreateTaskStatus.Submitting -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
-                    statusText = "正在提交...",
+                    statusText = QuickCreateTaskStatusText.SubmittingTask,
                     error = null,
                 )
                 is QuickCreateTaskStatus.Queuing -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.QUEUING,
-                    statusText = "排队中...",
+                    statusText = QuickCreateTaskStatusText.Queuing,
                     error = null,
                 )
                 is QuickCreateTaskStatus.Running -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.RUNNING,
-                    statusText = "生成中... ${status.progress}%",
+                    statusText = QuickCreateTaskStatusText.Running(status.progress),
                     error = null,
                 )
                 is QuickCreateTaskStatus.Success -> {
@@ -96,7 +96,7 @@ class QuickCreateTaskPollingController(
                     refreshHistory = true
                     it.copy(
                         taskStatus = QuickCreateTaskUiStatus.SUCCESS,
-                        statusText = "生成完成",
+                        statusText = QuickCreateTaskStatusText.Success,
                         error = null,
                         results = results,
                     )
@@ -105,13 +105,13 @@ class QuickCreateTaskPollingController(
                     val errorMessage = status.errorMessage.toQuickCreateTaskDisplayMessage()
                     it.copy(
                         taskStatus = QuickCreateTaskUiStatus.FAILED,
-                        statusText = errorMessage,
+                        statusText = QuickCreateTaskStatusText.Custom(errorMessage),
                         error = errorMessage,
                     )
                 }
                 is QuickCreateTaskStatus.Cancelled -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.CANCELED,
-                    statusText = "任务已取消",
+                    statusText = QuickCreateTaskStatusText.Canceled,
                     error = null,
                 )
                 is QuickCreateTaskStatus.Error -> it.copy(

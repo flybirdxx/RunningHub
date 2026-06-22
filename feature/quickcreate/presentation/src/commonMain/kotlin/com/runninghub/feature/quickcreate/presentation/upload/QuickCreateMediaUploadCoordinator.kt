@@ -6,6 +6,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
@@ -196,7 +197,7 @@ class QuickCreateMediaUploadCoordinator(
         val pending = mediaRefs.filter { it.isUploadPending() }
         if (pending.isEmpty()) return stateSnapshot
 
-        uiState.update { it.copy(statusText = QuickCreateRuntimeUiText.uploadingMedia(pending.size)) }
+        uiState.update { it.copy(statusText = QuickCreateTaskStatusText.UploadingMedia(pending.size)) }
 
         val pendingIds = pending.map { it.id }.toSet()
         var waited = 0

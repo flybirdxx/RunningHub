@@ -50,8 +50,8 @@ enum class QuickCreateTaskIndicator {
 /**
  * 快捷创作任务状态区域的稳定文案来源。
  *
- * 该模型只描述状态区域应该使用哪类文案，不保存默认中文文案。默认文案由 composeApp
- * 映射到 Compose Resources；[Custom] 仅承载轮询控制器或服务端状态流传入的运行时说明。
+ * 该模型只描述状态区域应该使用哪类文案，不保存默认中文文案。固定状态文案由 composeApp
+ * 映射到 Compose Resources；[Custom] 仅承载错误映射或服务端状态流传入的非结构化说明。
  */
 sealed interface QuickCreateTaskStatusText {
     /**
@@ -63,6 +63,32 @@ sealed interface QuickCreateTaskStatusText {
      */
     data class Custom(
         val value: String,
+    ) : QuickCreateTaskStatusText
+
+    /** 提交请求已通过本地校验、正在等待远端任务创建的文案键，由 composeApp 映射为本地化资源。 */
+    data object SubmittingTask : QuickCreateTaskStatusText
+
+    /** 服务端已接收任务但尚未开始执行的文案键，由 composeApp 映射为本地化资源。 */
+    data object Queuing : QuickCreateTaskStatusText
+
+    /**
+     * 服务端正在执行生成流程的进度文案。
+     *
+     * @property progressPercent 当前远端任务进度百分比，单位为 `%`；通常位于 `0..100`，
+     * 异常服务端值会原样保留，便于排查远端状态协议问题。
+     */
+    data class Running(
+        val progressPercent: Int,
+    ) : QuickCreateTaskStatusText
+
+    /**
+     * 生成前正在等待素材上传完成的文案。
+     *
+     * @property pendingCount 当前提交快照仍需等待的素材数量，单位为个；正常路径应大于 `0`，
+     * 若调用方传入 `0` 或负数，资源映射仍原样展示以暴露上游计数异常。
+     */
+    data class UploadingMedia(
+        val pendingCount: Int,
     ) : QuickCreateTaskStatusText
 
     /** 缺省失败文案，由 composeApp 映射为本地化资源。 */
@@ -97,31 +123,31 @@ data class QuickCreateTaskStatusDisplay(
  * 是为了让轮询控制器传入更具体的服务端进度或失败原因；缺失时再使用稳定默认文案。
  *
  * @param status 当前任务 UI 阶段，来源于任务提交或轮询流程。
- * @param statusText 服务端状态流或本地提交流程生成的补充文案；`null` 表示使用默认文案。
+ * @param statusText 服务端状态流或本地提交流程生成的补充文案语义；`null` 表示使用默认文案。
  * @return 结果区域可直接消费的文案与视觉指示模型。
  */
 fun quickCreateTaskStatusDisplay(
     status: QuickCreateTaskPresentationStatus,
-    statusText: String?,
+    statusText: QuickCreateTaskStatusText?,
 ): QuickCreateTaskStatusDisplay =
     when (status) {
         QuickCreateTaskPresentationStatus.FAILED -> QuickCreateTaskStatusDisplay(
-            text = statusText?.let(QuickCreateTaskStatusText::Custom) ?: QuickCreateTaskStatusText.Failed,
+            text = statusText ?: QuickCreateTaskStatusText.Failed,
             indicator = QuickCreateTaskIndicator.Error,
         )
         QuickCreateTaskPresentationStatus.SUCCESS -> QuickCreateTaskStatusDisplay(
-            text = statusText?.let(QuickCreateTaskStatusText::Custom) ?: QuickCreateTaskStatusText.Success,
+            text = statusText ?: QuickCreateTaskStatusText.Success,
             indicator = QuickCreateTaskIndicator.Success,
         )
         QuickCreateTaskPresentationStatus.CANCELED -> QuickCreateTaskStatusDisplay(
-            text = statusText?.let(QuickCreateTaskStatusText::Custom) ?: QuickCreateTaskStatusText.Canceled,
+            text = statusText ?: QuickCreateTaskStatusText.Canceled,
             indicator = QuickCreateTaskIndicator.Error,
         )
         QuickCreateTaskPresentationStatus.IDLE,
         QuickCreateTaskPresentationStatus.SUBMITTING,
         QuickCreateTaskPresentationStatus.QUEUING,
         QuickCreateTaskPresentationStatus.RUNNING -> QuickCreateTaskStatusDisplay(
-            text = statusText?.let(QuickCreateTaskStatusText::Custom) ?: QuickCreateTaskStatusText.Processing,
+            text = statusText ?: QuickCreateTaskStatusText.Processing,
             indicator = QuickCreateTaskIndicator.Progress,
         )
     }

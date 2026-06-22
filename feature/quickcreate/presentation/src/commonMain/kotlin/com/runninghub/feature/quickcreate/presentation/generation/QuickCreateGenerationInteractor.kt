@@ -7,6 +7,7 @@ import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadCoordinator
@@ -83,7 +84,7 @@ class QuickCreateGenerationInteractor(
             uiState.update {
                 it.copy(
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
-                    statusText = QuickCreateRuntimeUiText.submittingTask,
+                    statusText = QuickCreateTaskStatusText.SubmittingTask,
                     error = null,
                     results = emptyList(),
                 )

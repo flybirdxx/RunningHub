@@ -53,7 +53,11 @@ import runninghub.composeapp.generated.resources.quick_create_result_section_tit
 import runninghub.composeapp.generated.resources.quick_create_task_status_canceled
 import runninghub.composeapp.generated.resources.quick_create_task_status_failed
 import runninghub.composeapp.generated.resources.quick_create_task_status_processing
+import runninghub.composeapp.generated.resources.quick_create_task_status_queuing
+import runninghub.composeapp.generated.resources.quick_create_task_status_running_format
+import runninghub.composeapp.generated.resources.quick_create_task_status_submitting_task
 import runninghub.composeapp.generated.resources.quick_create_task_status_success
+import runninghub.composeapp.generated.resources.quick_create_task_status_uploading_media_format
 
 /**
  * 展示快捷创作任务的当前执行状态。
@@ -62,10 +66,10 @@ import runninghub.composeapp.generated.resources.quick_create_task_status_succes
  * 不读取仓库，也不修改页面状态。任务状态到文案的映射统一复用 [quickCreateTaskStatusDisplay]。
  *
  * @param status 当前任务 UI 状态，来源于 Coordinator 下游的任务轮询控制器。
- * @param statusText 后端状态流或本地提交流程生成的补充文案；为 `null` 时使用状态默认文案。
+ * @param statusText 后端状态流或本地提交流程生成的补充文案语义；为 `null` 时使用状态默认文案。
  */
 @Composable
-internal fun QuickCreateTaskStatusArea(status: QuickCreateTaskUiStatus, statusText: String?) {
+internal fun QuickCreateTaskStatusArea(status: QuickCreateTaskUiStatus, statusText: QuickCreateTaskStatusText?) {
     // 迁移期 composeApp 仍持有旧 UiState 枚举；结果展示规则已经下沉到 feature presentation，
     // 这里只保留无业务分支的薄转换，避免 Composable 继续维护任务文案映射。
     val display = quickCreateTaskStatusDisplay(status.toPresentationStatus(), statusText)
@@ -116,7 +120,19 @@ private fun quickCreateTaskStatusText(text: QuickCreateTaskStatusText): String =
         is QuickCreateTaskStatusText.Custom -> text.value
         QuickCreateTaskStatusText.Failed -> stringResource(Res.string.quick_create_task_status_failed)
         QuickCreateTaskStatusText.Processing -> stringResource(Res.string.quick_create_task_status_processing)
+        QuickCreateTaskStatusText.Queuing -> stringResource(Res.string.quick_create_task_status_queuing)
+        is QuickCreateTaskStatusText.Running -> stringResource(
+            Res.string.quick_create_task_status_running_format,
+            text.progressPercent,
+        )
+        QuickCreateTaskStatusText.SubmittingTask -> stringResource(
+            Res.string.quick_create_task_status_submitting_task,
+        )
         QuickCreateTaskStatusText.Success -> stringResource(Res.string.quick_create_task_status_success)
+        is QuickCreateTaskStatusText.UploadingMedia -> stringResource(
+            Res.string.quick_create_task_status_uploading_media_format,
+            text.pendingCount,
+        )
     }
 
 private fun QuickCreateTaskUiStatus.toPresentationStatus(): QuickCreateTaskPresentationStatus =
