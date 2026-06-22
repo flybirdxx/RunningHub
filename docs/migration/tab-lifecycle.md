@@ -9,7 +9,7 @@
 - 每个 Tab 的 Voyager Screen 实例由 `MainTabScreenRegistry` 统一持有，避免重组或 Tab 切换返回时重复创建导航对象。
 - `SaveableStateHolder` 按 Tab 名称保存可保存 UI 状态，例如滚动位置、输入框这类 `rememberSaveable` 状态。
 - 不可见 Tab 会离开 Composition，其 `LaunchedEffect`、Voyager ScreenModel scope 和页面 Job 会随生命周期释放。
-- QuickCreate 的草稿、上传、计费、生成轮询和历史刷新仍由 `QuickCreateCoordinator.dispose()` 统一取消。
+- QuickCreate 的草稿、上传、计费、生成轮询和历史刷新仍由 `feature:quickcreate:presentation/coordinator` 的 `QuickCreateCoordinator.dispose()` 统一取消，composeApp 的 ScreenModel 只负责在 Voyager 生命周期结束时转发释放动作。
 - `QuickCreateScreenModelTest.dispose cancels active image generation polling` 覆盖页面销毁时取消活跃生成状态流。
 - `QuickCreateScreenModelTest.dispose cancels active media upload` 覆盖页面销毁时取消仍在进行的媒体上传，
   并验证取消不会把素材推进到上传完成态或触发计费预览请求。

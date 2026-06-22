@@ -15,6 +15,8 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogReposi
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
+import com.runninghub.feature.quickcreate.presentation.coordinator.QuickCreateCoordinator
+import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,7 +80,7 @@ class QuickCreateScreenModel(
 
     private val coordinator = QuickCreateCoordinator(
         historyRepository = historyRepository,
-        mediaResolver = mediaResolver,
+        mediaResolver = MediaResolverQuickCreateMediaResolver(mediaResolver),
         draftRepository = draftRepository,
         scope = screenModelScope,
         uiState = _uiState,
@@ -550,4 +552,23 @@ class QuickCreateScreenModel(
     fun generate() {
         coordinator.generate()
     }
+}
+
+/**
+ * 把 composeApp 平台媒体读取能力适配为 QuickCreate Presentation 模块的上传端口。
+ *
+ * Android/iOS 的 URI 权限、文件选择器和安全作用域读取仍由应用平台层负责；
+ * feature presentation 只接收平台无关的字节、展示名和文件大小，避免迁移后的
+ * [QuickCreateCoordinator] 反向依赖 composeApp。
+ *
+ * @param mediaResolver 应用壳提供的平台媒体解析器，负责处理本地 URI 权限和实际字节读取。
+ */
+private class MediaResolverQuickCreateMediaResolver(
+    private val mediaResolver: MediaResolver,
+) : QuickCreateMediaResolver {
+    override fun readBytes(uri: String): ByteArray = mediaResolver.readBytes(uri)
+
+    override fun getDisplayName(uri: String): String? = mediaResolver.getDisplayName(uri)
+
+    override fun getFileSizeBytes(uri: String): Long = mediaResolver.getFileSizeBytes(uri)
 }

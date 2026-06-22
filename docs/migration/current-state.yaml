@@ -95,7 +95,7 @@ gate_status:
     status: "completed"
     completed:
       - "创作 Tab 已统一到 QuickCreateVoyagerScreen，旧 Create 页面和旧创作 ScreenModel 已从 composeApp 删除。"
-      - "QuickCreateScreenModel 保持生命周期和 UI Action 门面，页面编排继续由 QuickCreateCoordinator、StateHolder 和 Interactor 承担。"
+      - "QuickCreateScreenModel 保持生命周期和 UI Action 门面，页面编排继续由 feature:quickcreate:presentation 的 QuickCreateCoordinator、StateHolder 和 Interactor 承担。"
       - "feature:quickcreate:data 已移除对 shared 的 Gradle 依赖。"
       - "通用历史 shared 适配器已迁移到 composeApp 组合层，QuickCreate Data 不再直接引用 shared 历史仓库。"
       - "QuickCreate Data 层裸 println 已移除，feature/quickcreate/data/src/commonMain 静态搜索无 println。"
@@ -279,7 +279,7 @@ gate_status:
       - "2026-06-22 P8 QuickCreate 草稿恢复摘要继续收口：QuickCreateDraftUiModel 不再返回中文恢复摘要，改为稳定 QuickCreateDraftResumeSummary；QuickCreateClassicComposerContent 通过 composeApp Compose Resources 映射草稿格式、图片和视频标签，ui-copy baseline 移除该文件 2 个匹配。"
       - "2026-06-22 P8 QuickCreate 导航标签继续收口：QuickCreateNavigationState 不再在 QuickCreateTab/QuickCreateMode 中保存图片、视频、创作和灵感中文文案，改为稳定 QuickCreateNavigationLabel；QuickCreateScreen 和 QuickCreateClassicComposerContent 通过 composeApp Compose Resources 映射最终文案，ui-copy baseline 移除该文件 4 个匹配。"
       - "2026-06-22 P8 QuickCreate 生成阻塞原因继续收口：QuickCreateGenerationRequestFactory 不再返回 Prompt 中文阻塞文案，改为稳定 QuickCreateGenerationBlockReason；QuickCreateGenerationInteractor 通过 QuickCreateRuntimeUiText 临时映射最终文案，RequestFactory 硬编码 UI 文案基线移除，RuntimeUiText 中期文案端口基线从 8 调整为 10。"
-      - "2026-06-22 QuickCreate 生成提交编排继续迁移：QuickCreateGenerationInteractor 已从 composeApp 迁入 feature:quickcreate:presentation/generation；composeApp 的 QuickCreateCoordinator 只保留页面级组装和平台能力适配，feature presentation 新增 Interactor 单测覆盖计费预览进行中时不得提交远端生成请求。"
+      - "2026-06-22 QuickCreate 页面级编排继续迁移：QuickCreateGenerationInteractor 已从 composeApp 迁入 feature:quickcreate:presentation/generation，QuickCreateCoordinator 本轮继续迁入 feature:quickcreate:presentation/coordinator；composeApp 只保留 Voyager ScreenModel 门面和 MediaResolver 到 QuickCreateMediaResolver 的平台能力适配。feature presentation 新增 Coordinator 初始化单测覆盖草稿检查、模型目录、最近历史和项目列表四个编排入口。"
       - "2026-06-22 P8 QuickCreate 灵感错误文案继续收口：QuickCreateInspirationStateHolder 不再保存灵感标签、模板分页和模板详情失败的本地中文 fallback，改为引用 QuickCreateErrorFallbackText；测试覆盖未知异常不透传到页面状态，Inspiration StateHolder 硬编码 UI 文案基线移除。"
       - "2026-06-22 P8 QuickCreate 计费预览文案继续收口：QuickCreateFeePreviewInteractor 不再保存余额不足、价格待确认和预览失败中文文案，改为引用 QuickCreateRuntimeUiText 与 QuickCreateErrorFallbackText；计费防抖、旧响应隔离和请求指纹行为不变，FeePreviewInteractor 硬编码 UI 文案基线移除。"
       - "2026-06-22 P8 QuickCreate 紧凑模型加载文案继续收口：quickCreateCompactServiceModelLabel 不再返回加载态中文 String，改为稳定 QuickCreateCompactServiceModelLabel；QuickCreateCompactComposerContent 通过 composeApp Compose Resources 映射加载态，服务端模型名和本地 fallback 模型名仍作为运行时数据展示，QuickCreateServiceModelUiModel 硬编码 UI 文案基线从 7 下调到 6。"
@@ -287,29 +287,29 @@ gate_status:
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 与 retired shared 模块均已删除，验证码 Web 容器 baseUrl 已跟随 RunningHubApiEnvironment，QuickCreateMediaUploadCoordinator 已迁入 feature:quickcreate:presentation/upload，QuickCreateGenerationInteractor 已迁入 feature:quickcreate:presentation/generation，当前事实源和长期治理门禁已禁止重新引用旧增长控制文件、shared 编译入口、固定生产验证码源或上传错误泄露本地媒体名；下一步优先评估 QuickCreateCoordinator 剩余页面级编排边界，或继续收缩 QuickCreate 运行时文案端口；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 与 retired shared 模块均已删除，验证码 Web 容器 baseUrl 已跟随 RunningHubApiEnvironment，QuickCreateMediaUploadCoordinator 已迁入 feature:quickcreate:presentation/upload，QuickCreateGenerationInteractor 已迁入 feature:quickcreate:presentation/generation，QuickCreateCoordinator 已迁入 feature:quickcreate:presentation/coordinator，当前事实源和长期治理门禁已禁止重新引用旧增长控制文件、shared 编译入口、固定生产验证码源或上传错误泄露本地媒体名；下一步优先评估 QuickCreateScreenModel 剩余壳层边界，或继续收缩 QuickCreate 运行时文案端口；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   current_slice:
-    id: "MID-02-F6-quickcreate-generation-presentation"
+    id: "MID-02-F7-quickcreate-coordinator-presentation"
     result: "passed"
     modified_files:
-      - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateCoordinator.kt"
-      - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/generation/QuickCreateGenerationInteractor.kt"
-      - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/generation/QuickCreateGenerationInteractorTest.kt"
+      - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt"
+      - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/coordinator/QuickCreateCoordinator.kt"
+      - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/coordinator/QuickCreateCoordinatorTest.kt"
       - "docs/migration/acceptance.md"
       - "docs/migration/current-state.yaml"
+      - "docs/migration/tab-lifecycle.md"
     commands:
-      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationInteractorTest\" # RED: failed with unresolved QuickCreateGenerationInteractor before migration"
-      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationInteractorTest\""
+      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.coordinator.QuickCreateCoordinatorTest\" # RED: failed with unresolved QuickCreateCoordinator before migration"
+      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.coordinator.QuickCreateCoordinatorTest\""
       - "./gradlew.bat --console=plain :feature:quickcreate:presentation:allTests"
-      - "./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked while fee preview is loading\" --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.second image generation is blocked while current task is active\" --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.generate image is blocked when upload completes without matching fee preview snapshot\" --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.running image task exposes progress status text\""
+      - "./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest\""
       - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
-      - "./gradlew.bat --console=plain checkLongTermGovernance"
       - "git diff --check"
     notes:
-      - "QuickCreateGenerationInteractor 已迁入 feature:quickcreate:presentation/generation；feature 模块不依赖 composeApp、平台 API、Compose 或 Voyager。"
-      - "composeApp 的 QuickCreateCoordinator 继续负责页面级组装，并通过 feature presentation 的 Interactor 提交生成流程。"
-      - "新增 QuickCreateGenerationInteractorTest 覆盖计费预览进行中时同步拦截生成提交，防止迁移后远端生成仓库被误调用。"
+      - "QuickCreateCoordinator 已迁入 feature:quickcreate:presentation/coordinator；feature 模块不依赖 composeApp、平台 API、Compose 或 Voyager。"
+      - "composeApp 的 QuickCreateScreenModel 继续负责 Voyager 生命周期和 UI Action 门面，并在 app 层把 MediaResolver 适配为 QuickCreateMediaResolver。"
+      - "新增 QuickCreateCoordinatorTest 覆盖 initialize 对草稿、服务模型、最近历史和项目列表的页面级编排，防止迁移后初始化入口丢失。"
       - "本轮只做中期架构整理验证；真实 Android/iOS 运行回归和 L1 封板证据仍按用户要求留待后续。"
   modified_files:
     - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt"

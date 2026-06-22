@@ -1,6 +1,5 @@
-package com.runninghub.app.ui.feature.quickcreate
+package com.runninghub.feature.quickcreate.presentation.coordinator
 
-import com.runninghub.app.platform.MediaResolver
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
@@ -44,7 +43,7 @@ import kotlinx.coroutines.flow.update
  *
  * 本类位于 Presentation 层，负责把草稿、模型目录、媒体上传、计费预览、任务提交、历史、
  * 项目和灵感模板这些局部组件织成一个页面级单向数据流。它不直接渲染 UI，也不实现网络、
- * 数据库或平台媒体读取细节；这些能力仍通过 Repository、DraftRepository 和 MediaResolver 注入。
+ * 数据库或平台媒体读取细节；这些能力仍通过 Repository、DraftRepository 和 QuickCreateMediaResolver 注入。
  *
  * 并发与生命周期约束：
  * - 所有异步任务都使用调用方传入的 [scope]，随 ScreenModel 生命周期结束而取消。
@@ -58,15 +57,15 @@ import kotlinx.coroutines.flow.update
  * @param inspirationRepository 快捷创作灵感仓库；单独注入以避免模板区域依赖历史、项目或生成能力。
  * @param mediaUploadRepository 快捷创作媒体上传仓库；单独注入以避免上传流程依赖生成、计费或历史能力。
  * @param projectRepository 快捷创作项目仓库；单独注入以避免项目列表和变更动作依赖历史或生成能力。
- * @param mediaResolver 平台媒体读取边界，用于上传前读取用户选择的本地 URI。
+ * @param mediaResolver feature presentation 的平台无关媒体读取端口，由应用壳把 Android/iOS 媒体能力适配后传入。
  * @param draftRepository 快捷创作草稿领域仓库，只保存可恢复编辑草稿快照。
  * @param scope 页面生命周期协程作用域，所有局部组件的 Job 都绑定到该作用域。
  * @param uiState 页面唯一状态容器，由各局部组件按职责更新。
  * @param ioDispatcher 媒体字节读取使用的调度器；生产环境传 IO，测试环境可传测试调度器。
  */
-internal class QuickCreateCoordinator(
+class QuickCreateCoordinator(
     private val historyRepository: QuickCreationTaskHistoryRepository,
-    private val mediaResolver: MediaResolver,
+    private val mediaResolver: QuickCreateMediaResolver,
     private val draftRepository: QuickCreateDraftRepository,
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<QuickCreateUiState>,
@@ -99,7 +98,7 @@ internal class QuickCreateCoordinator(
     )
     private val mediaUploadCoordinator = QuickCreateMediaUploadCoordinator(
         mediaUploadRepository = mediaUploadRepository,
-        mediaResolver = MediaResolverQuickCreateMediaResolver(mediaResolver),
+        mediaResolver = mediaResolver,
         generationRequestFactory = generationRequestFactory,
         scope = scope,
         uiState = uiState,
@@ -717,19 +716,4 @@ internal class QuickCreateCoordinator(
         feePreviewInteractor.schedule()
     }
 
-    /**
-     * 把 composeApp 平台媒体读取能力适配为 QuickCreate Presentation 模块的上传端口。
-     *
-     * Android/iOS 的 URI 权限、文件选择器和安全作用域读取仍由应用平台层负责；
-     * feature presentation 只接收平台无关的字节、展示名和文件大小，避免反向依赖 composeApp。
-     */
-    private class MediaResolverQuickCreateMediaResolver(
-        private val mediaResolver: MediaResolver,
-    ) : QuickCreateMediaResolver {
-        override fun readBytes(uri: String): ByteArray = mediaResolver.readBytes(uri)
-
-        override fun getDisplayName(uri: String): String? = mediaResolver.getDisplayName(uri)
-
-        override fun getFileSizeBytes(uri: String): Long = mediaResolver.getFileSizeBytes(uri)
-    }
 }
