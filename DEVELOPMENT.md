@@ -36,6 +36,18 @@
 启动 AI 协作任务时，优先使用 `docs/governance/ai-task-template.md` 明确任务 ID、唯一目标、
 允许/禁止修改目录、验收命令、最大重试次数和完成后更新的文档。
 
+## CI 口径
+
+当前阶段 CI 按中期开发可用性配置，不作为 L1/L2 发布封板结论：
+
+- `Android CI` 在 PR 和 `main`/`feature/kmp-refactoring` push 上自动执行 `verifyL1Android`。
+- `iOS CI` 只保留 `workflow_dispatch`，用于需要 macOS runner 时人工采集 iOS link、Xcode build
+  和 Simulator 冒烟证据。
+- `Dependency Submission` 只在 `main` push 或人工触发时写入 GitHub Dependency Graph，避免开发分支
+  每次提交都申请 `contents: write` 并消耗 Actions 额度。
+- 如果线上 job 在开始前失败，先查看 check-run annotation；`Billing & plans`、付款失败或 spending
+  limit 属于 GitHub 账号/组织配置问题，仓库补丁无法恢复 runner 额度。
+
 PR 必须说明：
 
 - 变更目标、影响模块和影响平台。

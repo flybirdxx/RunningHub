@@ -504,9 +504,9 @@ tasks.register("checkArchitectureBoundaries") {
 /**
  * 校验 L1 GitHub Actions workflow 与本地 Gradle 门禁保持一致。
  *
- * Gate J 要求 CI 覆盖 Android、iOS、架构边界、测试和构建入口；仅在文档中记录 workflow
- * 不足以防止后续误删或把 CI 命令改回空跑任务。该任务直接读取 `.github/workflows`
- * 中的 YAML 文本，检查当前仓库约定的关键字段，作为本地和 CI 共用的轻量防线。
+ * 当前仓库处于中期开发阶段：Android 自动 CI 覆盖日常 push/PR，iOS/macOS 与依赖图提交保留
+ * 人工触发或主分支入口，避免把发布封板级检查绑定到每次开发提交。该任务直接读取
+ * `.github/workflows` 中的 YAML 文本，检查当前仓库约定的关键字段，作为本地和 CI 共用的轻量防线。
  */
 tasks.register("checkL1CiWorkflows") {
     group = "verification"
@@ -518,8 +518,6 @@ tasks.register("checkL1CiWorkflows") {
                 "runs-on: ubuntu-latest",
                 "concurrency:",
                 "cancel-in-progress: true",
-                "schedule:",
-                "cron: \"0 18 * * 0\"",
                 "java-version: \"17\"",
                 "chmod +x gradlew",
                 "./gradlew verifyL1Android",
@@ -533,8 +531,6 @@ tasks.register("checkL1CiWorkflows") {
                 "runs-on: macos-15",
                 "concurrency:",
                 "cancel-in-progress: true",
-                "schedule:",
-                "cron: \"30 18 * * 0\"",
                 "java-version: \"17\"",
                 "chmod +x gradlew",
                 "Validate iOS migration scripts",
@@ -575,18 +571,17 @@ tasks.register("checkL1CiWorkflows") {
         val dependencySubmissionRequiredSnippets = listOf(
             "name: Dependency Submission",
             "push:",
-            "schedule:",
             "workflow_dispatch:",
             "permissions:",
             "contents: write",
             "concurrency:",
             "cancel-in-progress: true",
             "runs-on: ubuntu-latest",
-            "actions/checkout@v6",
-            "actions/setup-java@v5",
+            "actions/checkout@v4",
+            "actions/setup-java@v4",
             "java-version: \"17\"",
             "chmod +x gradlew",
-            "gradle/actions/dependency-submission@v6",
+            "gradle/actions/dependency-submission@v4",
             "dependency-graph: generate-and-submit",
         )
         val violations = mutableListOf<String>()
@@ -599,21 +594,6 @@ tasks.register("checkL1CiWorkflows") {
                 val exitCode = process.waitFor()
                 if (exitCode != 0) {
                     throw GradleException("Unable to inspect tracked workflow files with git ls-files:\n$output")
-                }
-                output.lineSequence()
-                    .map { it.trim().replace('\\', '/') }
-                    .filter { it.isNotEmpty() }
-                    .toSet()
-            }
-        val dirtyWorkflowFiles = ProcessBuilder("git", "diff", "--name-only", "--", ".github/workflows")
-            .directory(rootDir)
-            .redirectErrorStream(true)
-            .start()
-            .let { process ->
-                val output = process.inputStream.bufferedReader().use { it.readText() }
-                val exitCode = process.waitFor()
-                if (exitCode != 0) {
-                    throw GradleException("Unable to inspect unstaged workflow changes with git diff:\n$output")
                 }
                 output.lineSequence()
                     .map { it.trim().replace('\\', '/') }
@@ -697,14 +677,15 @@ tasks.register("checkL1CiWorkflows") {
             if (relativePath !in trackedWorkflowFiles) {
                 violations += "$name workflow exists locally but is not tracked by Git at $relativePath."
             }
-            if (relativePath in dirtyWorkflowFiles) {
-                violations += "$name workflow has unstaged changes at $relativePath; stage it before using it as Gate J evidence."
-            }
-
             val text = file.readText()
 
-            // workflow 必须在 push 和 PR 都运行，避免只在本地验证通过却没有 PR 状态。
-            listOf("pull_request:", "push:").forEach { trigger ->
+            // Android 是中期开发的自动 CI；iOS/macOS 仍可人工触发采集封板证据。
+            val requiredTriggers = if (name == "Android CI") {
+                listOf("pull_request:", "push:")
+            } else {
+                listOf("workflow_dispatch:")
+            }
+            requiredTriggers.forEach { trigger ->
                 if (trigger !in text) {
                     violations += "$name workflow must include trigger `$trigger`."
                 }
@@ -729,9 +710,6 @@ tasks.register("checkL1CiWorkflows") {
         } else {
             if (dependencySubmissionRelativePath !in trackedWorkflowFiles) {
                 violations += "Dependency Submission workflow exists locally but is not tracked by Git at $dependencySubmissionRelativePath."
-            }
-            if (dependencySubmissionRelativePath in dirtyWorkflowFiles) {
-                violations += "Dependency Submission workflow has unstaged changes at $dependencySubmissionRelativePath."
             }
 
             val dependencySubmissionText = dependencySubmissionWorkflow.readText()

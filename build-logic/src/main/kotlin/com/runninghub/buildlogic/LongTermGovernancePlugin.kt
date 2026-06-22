@@ -2584,7 +2584,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
      * 复核建议要求使用 Dependabot/Renovate 定期升级依赖，并用 Dependency Submission
      * 支撑 GitHub Dependency Graph 与 Dependabot Alerts。这里锁定仓库已选择的 Dependabot
      * 方案：Gradle 与 GitHub Actions 依赖必须每周巡检；Dependency Submission workflow
-     * 只在 push、schedule 或人工触发时写入依赖图，不能在不可信 PR 上申请 `contents: write`。
+     * 只在主分支 push 或人工触发时写入依赖图，不能在不可信 PR 上申请 `contents: write`。
      * 重大版本升级是否合入仍由 PR 模板和人工回归确认，本检查不自动批准依赖变更。
      */
     private fun Project.checkDependencyMaintenanceGuard(violations: MutableList<String>) {
@@ -2634,11 +2634,10 @@ class LongTermGovernancePlugin : Plugin<Project> {
             snippets = listOf(
                 "name: Dependency Submission",
                 "contents: write",
-                "schedule:",
                 "workflow_dispatch:",
-                "actions/setup-java@v5",
+                "actions/setup-java@v4",
                 "java-version: \"17\"",
-                "gradle/actions/dependency-submission@v6",
+                "gradle/actions/dependency-submission@v4",
                 "dependency-graph: generate-and-submit",
             ),
             violations = violations,

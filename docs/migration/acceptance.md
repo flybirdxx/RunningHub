@@ -33,6 +33,8 @@
 
 Gate J 补证脚本说明：`docs/migration/collect-github-actions-evidence.ps1` 默认只选择已完成且成功的目标 run 并快速失败；需要等待目标 `HEAD` 的远端 Android/iOS workflow 时，必须显式传入 `-Wait`，可配合 `-WaitTimeoutSeconds` 和 `-PollSeconds` 控制等待边界。当前中期任务不执行封板补证；未来恢复 L1 封板时，需按目标提交重新采集 Android/iOS CI 证据，并重新生成或明确留存 macOS iOS link/xcodebuild/Simulator 证据。
 
+2026-06-22 CI 运行口径：线上最新失败发生在 job 启动前，GitHub check-run annotation 指向账号付款失败或 spending limit，不是 Gradle 或业务代码失败。当前阶段 Android CI 继续在 PR 与开发分支 push 上自动执行；iOS/macOS workflow 改为 `workflow_dispatch`，Dependency Submission 改为 `main` push 或人工触发，避免中期开发提交持续消耗 macOS runner 与写权限 workflow 额度。该调整不代表 L1/L2 发布封板通过；恢复封板时仍需重新采集目标 HEAD 的远端 CI 与 macOS/iOS 运行证据。
+
 Gate J 长期治理补充：`checkLongTermGovernance` 已继续纳入 Android Keystore、iOS Keychain、
 `MigratingCredentialStore` 和双端 runtime module 凭据绑定检查，防止 `CredentialStore`
 退回普通 Preferences；旧凭据只能按字段懒迁移，不能误删余额缓存或快捷创作草稿。

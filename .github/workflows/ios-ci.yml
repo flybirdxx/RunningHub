@@ -1,13 +1,6 @@
 name: iOS CI
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
-      - feature/kmp-refactoring
-  schedule:
-    - cron: "30 18 * * 0"
   workflow_dispatch:
     inputs:
       simulator_smoke_pass:
