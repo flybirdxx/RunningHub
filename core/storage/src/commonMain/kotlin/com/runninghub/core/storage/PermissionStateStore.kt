@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.Flow
  *
  * Presentation 层只需要知道权限是否已授权、已拒绝或永久拒绝，不应依赖底层
  * DataStore、平台存储或具体持久化实现。本接口位于 core:storage，用于隔离
- * Compose 页面、平台权限控制器与临时 shared DataStore 实现。
+ * Compose 页面、平台权限控制器与当前 DataStore-backed 平台实现。
  *
  * 并发约束：
  * - 所有写入函数必须保证同一权限 key 在三类集合中互斥。

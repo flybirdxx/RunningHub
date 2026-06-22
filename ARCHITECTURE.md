@@ -20,7 +20,10 @@ Presentation -> Domain <- Data
 - `feature:*:data` 实现对应 Domain Repository，并负责 DTO/Entity/Domain 映射。
 - `feature:quickcreate:presentation` 承载快捷创作的 Coordinator、StateHolder、Interactor、ScreenModel 门面和 UI 状态。
 - `composeApp` 是应用壳、根导航、DI 组装、平台入口和仍待拆分页面的落点，不应继续成为新的 UI 单体。
-- `shared` 只保留迁移期兼容能力，不作为新业务默认落点。
+
+历史 `shared` 模块已经从当前 Gradle 模块图退役。生产源码、测试和构建脚本不得重新
+include `:shared`、依赖 `projects.shared` 或导入 `com.runninghub.shared.*`；
+如确需恢复兼容层，必须先新增独立迁移任务并同步更新架构门禁。
 
 ## 运行期装配
 

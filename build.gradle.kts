@@ -19,9 +19,8 @@ kotlin {
  * 该任务故意放在根工程中，便于本地和 CI 使用同一个入口。检查范围只覆盖已经进入
  * L1 收口的硬门禁：已迁移 Feature 不得重新依赖 shared，Domain 不得导入平台或数据层框架，
  * Presentation 不得反向依赖 Data/网络/存储实现，composeApp commonMain 只能依赖 Domain
- * 或 Presentation 入口，Data 实现只能由平台启动层装配；composeApp 对 shared 的遗留使用必须在
- * docs/migration/shared-allowlist.txt 中显式登记。同时禁止 Git 索引中出现构建产物、
- * 敏感凭据或未登记的 shared 新文件。
+ * 或 Presentation 入口，Data 实现只能由平台启动层装配；已退役的 shared 模块不得重新进入
+ * settings、源码、Gradle 依赖或 Git 跟踪文件。同时禁止 Git 索引中出现构建产物或敏感凭据。
  */
 tasks.register("checkArchitectureBoundaries") {
     group = "verification"
@@ -30,23 +29,6 @@ tasks.register("checkArchitectureBoundaries") {
     doLast {
         val root = rootDir.toPath()
         val violations = mutableListOf<String>()
-        val allowlistFile = root.resolve("docs/migration/shared-allowlist.txt").toFile()
-        val sharedBaselineFile = root.resolve("docs/migration/shared-baseline.txt").toFile()
-        val allowedSharedFiles = allowlistFile
-            .takeIf { it.exists() }
-            ?.readLines()
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() && !it.startsWith("#") }
-            ?.toSet()
-            ?: emptySet()
-        val sharedBaselineFiles = sharedBaselineFile
-            .takeIf { it.exists() }
-            ?.readLines()
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() && !it.startsWith("#") }
-            ?.toSet()
-            ?: emptySet()
-
         fun java.nio.file.Path.relativePath(): String =
             root.relativize(this).toString().replace('\\', '/')
 
@@ -89,8 +71,8 @@ tasks.register("checkArchitectureBoundaries") {
             var inCommonMainDependencies = false
             var braceDepth = 0
 
-            // shared 已退到 Platform/MD5 兼容文件；这里继续只扫描 commonMain.dependencies，
-            // 让门禁专注阻止通用 UI 层重新声明 shared 依赖。
+            // shared 已整体退役；这里继续扫描 commonMain.dependencies，
+            // 让门禁在 Gradle 解析源码前给出更明确的依赖方向错误。
             readLines().forEach { line ->
                 if (!inCommonMainDependencies && "commonMain.dependencies" in line) {
                     inCommonMainDependencies = true
@@ -109,6 +91,16 @@ tasks.register("checkArchitectureBoundaries") {
             }
 
             return false
+        }
+
+        val settingsFile = root.resolve("settings.gradle.kts").toFile()
+        if (!settingsFile.isFile) {
+            violations += "settings.gradle.kts is missing, cannot verify current module graph."
+        } else {
+            val settingsText = settingsFile.readText()
+            if ("include(\":shared\")" in settingsText || "include(\":shared\"" in settingsText) {
+                violations += "settings.gradle.kts still includes retired :shared module."
+            }
         }
 
         fun java.io.File.hasAnyDependencyInCommonMain(snippets: List<String>): Boolean {
@@ -195,11 +187,10 @@ tasks.register("checkArchitectureBoundaries") {
             .filter { file -> forbiddenTrackedFilePatterns.any { it.containsMatchIn(file) } }
             .forEach { file -> violations += "$file must not be tracked because it is a build artifact or local secret file." }
 
-        // shared 是迁移期兼容模块，不允许在未更新基线和归属文档的情况下继续增长。
+        // shared 模块已经整体退役；任何 Git 跟踪文件都表示模块或兼容层被重新引入。
         trackedFiles
             .filter { it.startsWith("shared/") }
-            .filter { it !in sharedBaselineFiles }
-            .forEach { file -> violations += "$file is a new shared file. Move it to feature/core or update shared migration ownership explicitly." }
+            .forEach { file -> violations += "$file belongs to retired shared module. Move it to feature/core or keep it out of the current module graph." }
 
         val textFileExtensions = setOf(
             "gradle",
@@ -485,7 +476,7 @@ tasks.register("checkArchitectureBoundaries") {
                 val relative = file.toPath().relativePath()
                 if (relative == "composeApp/build.gradle.kts") {
                     if (file.hasSharedDependencyInCommonMain()) {
-                        addViolation(file, null, "declares shared in commonMain.dependencies; shared may only remain in platform startup during migration.")
+                        addViolation(file, null, "declares retired shared module in commonMain.dependencies.")
                     }
                     if (file.hasAnyDependencyInCommonMain(featureDataDependencySnippets)) {
                         addViolation(file, null, "declares Feature Data implementation in commonMain.dependencies; platform startup source sets must assemble Data modules.")
@@ -494,8 +485,8 @@ tasks.register("checkArchitectureBoundaries") {
                 }
 
                 val usesShared = "project(\":shared\")" in text || "projects.shared" in text || "com.runninghub.shared" in text
-                if (usesShared && relative !in allowedSharedFiles) {
-                    addViolation(file, null, "uses shared but is not listed in docs/migration/shared-allowlist.txt.")
+                if (usesShared) {
+                    addViolation(file, null, "uses retired shared module or package.")
                 }
             }
 
@@ -911,8 +902,6 @@ tasks.register("checkMigrationScripts") {
             "docs/migration/observe-tab-network.ps1",
             "docs/migration/request-ios-macos-evidence.ps1",
             "docs/migration/run-ios-simulator-smoke.sh",
-            "docs/migration/shared-allowlist.txt",
-            "docs/migration/shared-baseline.txt",
             "docs/migration/shared-ownership.md",
             "docs/migration/tab-lifecycle.md",
             "iosApp/README.md",
@@ -1742,7 +1731,7 @@ tasks.register("verifyL1Android") {
 /**
  * 执行 iOS 侧 L1 自动化门禁。
  *
- * 该任务用于 macOS CI 或 macOS 开发机，覆盖共享模块与应用模块的 iOS Simulator Kotlin
+ * 该任务用于 macOS CI 或 macOS 开发机，覆盖应用模块的 iOS Simulator Kotlin
  * 编译以及 Compose App debug framework link。Windows 本地可能跳过 link，不能替代
  * macOS runner 的真实执行记录。
  */
@@ -1755,7 +1744,6 @@ tasks.register("verifyL1Ios") {
         "checkMigrationScripts",
         "checkLongTermGovernance",
         "checkArchitectureBoundaries",
-        ":shared:compileKotlinIosSimulatorArm64",
         ":composeApp:compileKotlinIosSimulatorArm64",
         ":composeApp:linkDebugFrameworkIosSimulatorArm64",
     )

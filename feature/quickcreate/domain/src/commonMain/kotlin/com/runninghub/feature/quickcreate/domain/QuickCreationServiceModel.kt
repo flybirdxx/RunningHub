@@ -19,7 +19,7 @@ enum class QuickCreationServiceKind {
  *
  * 该类型位于 quickcreate Domain 层，用于表达用户可选择的图片或视频生成服务。
  * 它只保存 Presentation 和业务规则需要的稳定字段；远端 DTO、接口路径、原始 JSON 和认证信息
- * 均由 shared Data 实现处理。
+ * 均由 quickcreate Data 实现处理。
  *
  * @property categoryId 服务所属的业务类别 ID，来源于服务端目录或 Data 层兜底分类。
  * 空字符串不应进入 Domain；该值可用于后续请求映射，但不直接作为 UI 文案。

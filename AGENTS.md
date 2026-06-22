@@ -34,8 +34,8 @@ UI 使用 Compose Multiplatform。
 - `:feature:*:data`：API、DTO、Mapper、Repository 实现和 Data DI。
 - `:feature:quickcreate:presentation`：快捷创作 Coordinator、StateHolder、
   Interactor、ScreenModel 门面和 UI 状态。
-- `:shared`：迁移期兼容模块，不作为新业务代码默认落点。
 - `:composeApp`：应用壳、根导航、DI 组装、平台入口和仍待拆分页面。
+历史 `:shared` 模块已退役，不得重新 include、依赖 `projects.shared` 或导入 `com.runninghub.shared.*`。
 
 ## Sources of Truth
 

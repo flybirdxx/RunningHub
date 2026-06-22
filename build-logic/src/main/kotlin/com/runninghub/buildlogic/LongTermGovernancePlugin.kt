@@ -147,7 +147,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     )
                     requireDocumentSnippets(
                         relativePath = "docs/governance/build-script-baseline.txt",
-                        snippets = listOf("filePath|maxLines|reason", "build.gradle.kts|1789"),
+                        snippets = listOf("filePath|maxLines|reason", "build.gradle.kts|1777"),
                         violations = violations,
                     )
                     requireDocumentSnippets(

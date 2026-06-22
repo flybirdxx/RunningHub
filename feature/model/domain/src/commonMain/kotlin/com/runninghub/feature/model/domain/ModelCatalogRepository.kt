@@ -3,8 +3,8 @@ package com.runninghub.feature.model.domain
 /**
  * 标准模型和 LLM 模型目录的领域仓库契约。
  *
- * 接口位于 Model Domain，隔离 Presentation 与 RunningHub 目录 API、DTO 和 endpoint 缓存。
- * 当前实现仍暂存在 `shared` 兼容 Data 层，后续迁移到 `feature:model:data` 时调用方契约保持不变。
+ * 接口位于 Model Domain，隔离 Presentation 与 RunningHub 目录 API、DTO 和 endpoint 缓存；
+ * 当前实现由 `feature:model:data` 提供，调用方只依赖本契约。
  */
 interface ModelCatalogRepository {
     /**
