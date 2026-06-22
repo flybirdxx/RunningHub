@@ -13,7 +13,7 @@ import kotlin.test.assertEquals
 @OptIn(ExperimentalCoroutinesApi::class)
 class LoginStateHolderTest {
     @Test
-    fun `wrong sms code clears input and maps presentation message`() = runTest {
+    fun `wrong sms code clears input and maps stable error`() = runTest {
         val stateHolder = LoginStateHolder(
             authRepository = FakeAuthRepository(smsLoginResult = Result.failure(SmsError.WrongCode())),
             coroutineScope = this,
@@ -25,7 +25,7 @@ class LoginStateHolderTest {
         advanceUntilIdle()
 
         assertEquals("", stateHolder.uiState.value.smsCode)
-        assertEquals("验证码错误，请重新输入", stateHolder.uiState.value.errorMessage)
+        assertEquals(LoginErrorText.WrongSmsCode, stateHolder.uiState.value.error)
     }
 
     @Test
@@ -41,11 +41,11 @@ class LoginStateHolderTest {
         advanceUntilIdle()
 
         assertEquals("1234", stateHolder.uiState.value.smsCode)
-        assertEquals("网络连接失败，请检查网络后重试", stateHolder.uiState.value.errorMessage)
+        assertEquals(LoginErrorText.Network, stateHolder.uiState.value.error)
     }
 
     @Test
-    fun `network password login failure maps presentation message`() = runTest {
+    fun `network password login failure maps stable error`() = runTest {
         val stateHolder = LoginStateHolder(
             authRepository = FakeAuthRepository(passwordLoginResult = Result.failure(AuthError.Network())),
             coroutineScope = this,
@@ -56,7 +56,36 @@ class LoginStateHolderTest {
         stateHolder.pwdLogin()
         advanceUntilIdle()
 
-        assertEquals("网络连接失败，请检查网络后重试", stateHolder.uiState.value.errorMessage)
+        assertEquals(LoginErrorText.Network, stateHolder.uiState.value.error)
+    }
+
+    @Test
+    fun `unknown throwable never exposes throwable message`() = runTest {
+        val stateHolder = LoginStateHolder(
+            authRepository = FakeAuthRepository(
+                passwordLoginResult = Result.failure(IllegalStateException("REMOTE_MSG_SHOULD_NOT_APPEAR")),
+            ),
+            coroutineScope = this,
+        )
+
+        stateHolder.onPhoneChanged("13800138000")
+        stateHolder.onPasswordChanged("password")
+        stateHolder.pwdLogin()
+        advanceUntilIdle()
+
+        assertEquals(LoginErrorText.LoginFailed, stateHolder.uiState.value.error)
+    }
+
+    @Test
+    fun `empty phone maps stable local validation error`() = runTest {
+        val stateHolder = LoginStateHolder(
+            authRepository = FakeAuthRepository(),
+            coroutineScope = this,
+        )
+
+        stateHolder.sendSmsCode()
+
+        assertEquals(LoginErrorText.PhoneRequired, stateHolder.uiState.value.error)
     }
 
     @Test
@@ -71,7 +100,7 @@ class LoginStateHolderTest {
         advanceUntilIdle()
 
         assertEquals(true, stateHolder.uiState.value.requiresSmsCaptcha)
-        assertEquals("请先完成图形验证后再获取验证码", stateHolder.uiState.value.errorMessage)
+        assertEquals(LoginErrorText.CaptchaRequired, stateHolder.uiState.value.error)
     }
 
     @Test
@@ -95,6 +124,18 @@ class LoginStateHolderTest {
         advanceUntilIdle()
 
         assertEquals("captcha-token", repository.lastCaptchaToken)
+    }
+
+    @Test
+    fun `blank captcha token keeps dialog open and maps stable error`() = runTest {
+        val stateHolder = LoginStateHolder(
+            authRepository = FakeAuthRepository(),
+            coroutineScope = this,
+        )
+
+        stateHolder.onSmsCaptchaVerified("")
+
+        assertEquals(LoginErrorText.CaptchaInvalid, stateHolder.uiState.value.error)
     }
 
     private class FakeAuthRepository(

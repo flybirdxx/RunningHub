@@ -55,12 +55,27 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
 import cafe.adriel.voyager.koin.koinScreenModel
+import com.runninghub.feature.auth.presentation.login.LoginErrorText
 import com.runninghub.feature.auth.presentation.login.LoginUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.login_agreement_notice
 import runninghub.composeapp.generated.resources.login_brand_initial
 import runninghub.composeapp.generated.resources.login_brand_name
+import runninghub.composeapp.generated.resources.login_error_account_not_found
+import runninghub.composeapp.generated.resources.login_error_captcha_invalid
+import runninghub.composeapp.generated.resources.login_error_captcha_required
+import runninghub.composeapp.generated.resources.login_error_invalid_phone
+import runninghub.composeapp.generated.resources.login_error_login_failed
+import runninghub.composeapp.generated.resources.login_error_network
+import runninghub.composeapp.generated.resources.login_error_password_required
+import runninghub.composeapp.generated.resources.login_error_phone_required
+import runninghub.composeapp.generated.resources.login_error_sms_code_expired
+import runninghub.composeapp.generated.resources.login_error_sms_code_incomplete
+import runninghub.composeapp.generated.resources.login_error_sms_code_required
+import runninghub.composeapp.generated.resources.login_error_sms_daily_limit
+import runninghub.composeapp.generated.resources.login_error_sms_rate_limited
+import runninghub.composeapp.generated.resources.login_error_wrong_sms_code
 import runninghub.composeapp.generated.resources.login_password_label
 import runninghub.composeapp.generated.resources.login_phone_country_code
 import runninghub.composeapp.generated.resources.login_phone_label
@@ -87,9 +102,10 @@ class LoginVoyagerScreen : Screen {
         val screenModel = koinScreenModel<LoginScreenModel>()
         val uiState by screenModel.uiState.collectAsState()
         val snackbarHostState = remember { SnackbarHostState() }
+        val currentErrorMessage = uiState.error?.let { loginErrorMessage(it) }
 
-        LaunchedEffect(uiState.errorMessage) {
-            uiState.errorMessage?.let {
+        LaunchedEffect(currentErrorMessage) {
+            currentErrorMessage?.let {
                 snackbarHostState.showSnackbar(it)
                 screenModel.clearError()
             }
@@ -124,6 +140,25 @@ class LoginVoyagerScreen : Screen {
         }
     }
 }
+
+@Composable
+private fun loginErrorMessage(error: LoginErrorText): String =
+    when (error) {
+        LoginErrorText.PhoneRequired -> stringResource(Res.string.login_error_phone_required)
+        LoginErrorText.InvalidPhone -> stringResource(Res.string.login_error_invalid_phone)
+        LoginErrorText.SmsCodeRequired -> stringResource(Res.string.login_error_sms_code_required)
+        LoginErrorText.SmsCodeIncomplete -> stringResource(Res.string.login_error_sms_code_incomplete)
+        LoginErrorText.PasswordRequired -> stringResource(Res.string.login_error_password_required)
+        LoginErrorText.CaptchaInvalid -> stringResource(Res.string.login_error_captcha_invalid)
+        LoginErrorText.WrongSmsCode -> stringResource(Res.string.login_error_wrong_sms_code)
+        LoginErrorText.SmsCodeExpired -> stringResource(Res.string.login_error_sms_code_expired)
+        LoginErrorText.AccountNotFound -> stringResource(Res.string.login_error_account_not_found)
+        LoginErrorText.SmsRateLimited -> stringResource(Res.string.login_error_sms_rate_limited)
+        LoginErrorText.SmsDailyLimit -> stringResource(Res.string.login_error_sms_daily_limit)
+        LoginErrorText.CaptchaRequired -> stringResource(Res.string.login_error_captcha_required)
+        LoginErrorText.Network -> stringResource(Res.string.login_error_network)
+        LoginErrorText.LoginFailed -> stringResource(Res.string.login_error_login_failed)
+    }
 
 @Composable
 private fun LoginContent(

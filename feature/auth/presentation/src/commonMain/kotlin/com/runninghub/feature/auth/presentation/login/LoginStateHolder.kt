@@ -32,8 +32,9 @@ import kotlinx.coroutines.launch
  * 请求成功或失败后恢复为 `false`。
  * @property countdownSeconds 再次发送验证码前的剩余等待秒数，单位为秒。
  * `0` 表示允许重新发送；大于 `0` 时发送按钮保持禁用，不允许出现负数。
- * @property errorMessage 等待页面展示的一次性中文错误提示。
- * `null` 表示当前没有待展示错误；非空时由页面展示并在用户处理后清理。
+ * @property error 等待页面展示的一次性稳定错误原因。
+ * `null` 表示当前没有待展示错误；非空时由 composeApp 映射最终文案，
+ * 并在用户处理后调用 [LoginStateHolder.clearError] 清理。
  * @property requiresSmsCaptcha 是否需要展示短信发送前的图形验证码。
  * `true` 表示用户中心拒绝了无 token 的短信发送请求，页面应打开 TAC 验证容器；
  * `false` 表示当前可以直接展示普通登录表单。该状态只控制 UI，不保存验证码 token。
@@ -48,10 +49,61 @@ data class LoginUiState(
     val isLoading: Boolean = false,
     val isSendingCode: Boolean = false,
     val countdownSeconds: Int = 0,
-    val errorMessage: String? = null,
+    val error: LoginErrorText? = null,
     val requiresSmsCaptcha: Boolean = false,
     val user: User? = null,
 )
+
+/**
+ * 登录页错误提示的稳定语义。
+ *
+ * Auth Presentation 层只保存错误原因，不直接生成最终中文文案；
+ * composeApp 负责将这些原因映射到 Compose Resources。这样可以避免远端 `msg`、
+ * 底层异常 `message` 或本地调试文本进入页面状态和 Snackbar。
+ */
+enum class LoginErrorText {
+    /** 手机号为空，用户尚未输入登录手机号。 */
+    PhoneRequired,
+
+    /** 手机号不满足当前大陆手机号长度和数字校验规则。 */
+    InvalidPhone,
+
+    /** 短信验证码为空，用户尚未输入验证码。 */
+    SmsCodeRequired,
+
+    /** 短信验证码长度不足，暂不允许提交短信登录请求。 */
+    SmsCodeIncomplete,
+
+    /** 密码为空，用户尚未输入密码登录凭据。 */
+    PasswordRequired,
+
+    /** 图形验证码回调缺少有效 token，需要用户重新完成验证。 */
+    CaptchaInvalid,
+
+    /** 服务端判定短信验证码错误，页面会同步清空验证码输入。 */
+    WrongSmsCode,
+
+    /** 服务端判定短信验证码已过期，页面会同步重置发送倒计时。 */
+    SmsCodeExpired,
+
+    /** 服务端判定手机号未注册 RunningHub 账号。 */
+    AccountNotFound,
+
+    /** 服务端判定短信发送过于频繁，需要用户稍后重试。 */
+    SmsRateLimited,
+
+    /** 服务端判定当天短信发送次数已达上限。 */
+    SmsDailyLimit,
+
+    /** 服务端要求先完成图形验证码后才能继续发送短信。 */
+    CaptchaRequired,
+
+    /** 网络连接失败或请求无法到达服务端。 */
+    Network,
+
+    /** 未知认证失败兜底，不暴露远端消息或底层异常详情。 */
+    LoginFailed,
+}
 
 /**
  * 持有登录页状态并协调短信验证码、短信登录和密码登录流程。
@@ -83,13 +135,13 @@ class LoginStateHolder(
 
     /** 更新手机号输入，并清理旧错误，避免用户修正输入后仍看到过期提示。 */
     fun onPhoneChanged(phone: String) {
-        _uiState.update { it.copy(phone = phone, errorMessage = null) }
+        _uiState.update { it.copy(phone = phone, error = null) }
     }
 
     /** 更新短信验证码输入，仅保留数字并限制长度，避免无效字符进入登录请求。 */
     fun onSmsCodeChanged(code: String) {
         val filtered = code.filter { it.isDigit() }.take(6)
-        _uiState.update { it.copy(smsCode = filtered, errorMessage = null) }
+        _uiState.update { it.copy(smsCode = filtered, error = null) }
     }
 
     /**
@@ -102,11 +154,11 @@ class LoginStateHolder(
     fun sendSmsCode(captchaToken: String? = null) {
         val phone = _uiState.value.phone
         if (phone.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "请输入手机号") }
+            _uiState.update { it.copy(error = LoginErrorText.PhoneRequired) }
             return
         }
         if (!isValidPhone(phone)) {
-            _uiState.update { it.copy(errorMessage = "请输入正确的手机号") }
+            _uiState.update { it.copy(error = LoginErrorText.InvalidPhone) }
             return
         }
         if (_uiState.value.countdownSeconds > 0) return
@@ -115,7 +167,7 @@ class LoginStateHolder(
             _uiState.update {
                 it.copy(
                     isSendingCode = true,
-                    errorMessage = null,
+                    error = null,
                     requiresSmsCaptcha = false,
                 )
             }
@@ -129,7 +181,7 @@ class LoginStateHolder(
                     _uiState.update {
                         it.copy(
                             isSendingCode = false,
-                            errorMessage = e.toLoginErrorMessage(),
+                            error = e.toLoginErrorText(),
                             // 用户中心当前要求先完成 TAC 图形验证，页面拿到 token 后会重试本次发送。
                             requiresSmsCaptcha = captchaRequired,
                         )
@@ -150,10 +202,10 @@ class LoginStateHolder(
      */
     fun onSmsCaptchaVerified(token: String?) {
         if (token.isNullOrBlank()) {
-            _uiState.update { it.copy(errorMessage = "图形验证失败，请重试") }
+            _uiState.update { it.copy(error = LoginErrorText.CaptchaInvalid) }
             return
         }
-        _uiState.update { it.copy(requiresSmsCaptcha = false, errorMessage = null) }
+        _uiState.update { it.copy(requiresSmsCaptcha = false, error = null) }
         sendSmsCode(captchaToken = token)
     }
 
@@ -170,24 +222,24 @@ class LoginStateHolder(
     fun smsLogin() {
         val state = _uiState.value
         if (state.phone.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "请输入手机号") }
+            _uiState.update { it.copy(error = LoginErrorText.PhoneRequired) }
             return
         }
         if (!isValidPhone(state.phone)) {
-            _uiState.update { it.copy(errorMessage = "请输入正确的手机号") }
+            _uiState.update { it.copy(error = LoginErrorText.InvalidPhone) }
             return
         }
         if (state.smsCode.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "请输入验证码") }
+            _uiState.update { it.copy(error = LoginErrorText.SmsCodeRequired) }
             return
         }
         if (state.smsCode.length < 4) {
-            _uiState.update { it.copy(errorMessage = "请输入完整验证码") }
+            _uiState.update { it.copy(error = LoginErrorText.SmsCodeIncomplete) }
             return
         }
 
         coroutineScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = true, error = null) }
             authRepository.smsLogin(state.phone, state.smsCode)
                 .onSuccess { user ->
                     _uiState.update {
@@ -200,7 +252,7 @@ class LoginStateHolder(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.toLoginErrorMessage(),
+                            error = e.toLoginErrorText(),
                             // 错码清空输入，过期和网络失败保留输入，减少用户重复输入成本。
                             smsCode = if (wrongCode) "" else it.smsCode,
                             countdownSeconds = if (codeExpired) 0 else it.countdownSeconds,
@@ -212,12 +264,12 @@ class LoginStateHolder(
 
     /** 更新密码输入，并清理旧错误提示。 */
     fun onPasswordChanged(password: String) {
-        _uiState.update { it.copy(password = password, errorMessage = null) }
+        _uiState.update { it.copy(password = password, error = null) }
     }
 
     /** 切换短信/密码登录模式，模式切换不清空输入，避免误删用户已填写内容。 */
     fun toggleMode() {
-        _uiState.update { it.copy(isSmsMode = !it.isSmsMode, errorMessage = null) }
+        _uiState.update { it.copy(isSmsMode = !it.isSmsMode, error = null) }
     }
 
     /**
@@ -229,20 +281,20 @@ class LoginStateHolder(
     fun pwdLogin() {
         val state = _uiState.value
         if (state.phone.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "请输入手机号") }
+            _uiState.update { it.copy(error = LoginErrorText.PhoneRequired) }
             return
         }
         if (!isValidPhone(state.phone)) {
-            _uiState.update { it.copy(errorMessage = "请输入正确的手机号") }
+            _uiState.update { it.copy(error = LoginErrorText.InvalidPhone) }
             return
         }
         if (state.password.isBlank()) {
-            _uiState.update { it.copy(errorMessage = "请输入密码") }
+            _uiState.update { it.copy(error = LoginErrorText.PasswordRequired) }
             return
         }
 
         coroutineScope.launch {
-            _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+            _uiState.update { it.copy(isLoading = true, error = null) }
             authRepository.login(state.phone, state.password)
                 .onSuccess { user ->
                     _uiState.update {
@@ -253,7 +305,7 @@ class LoginStateHolder(
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            errorMessage = e.toLoginErrorMessage(),
+                            error = e.toLoginErrorText(),
                         )
                     }
                 }
@@ -262,7 +314,7 @@ class LoginStateHolder(
 
     /** 清理当前错误提示，用于用户关闭提示或重新编辑输入后的状态恢复。 */
     fun clearError() {
-        _uiState.update { it.copy(errorMessage = null) }
+        _uiState.update { it.copy(error = null) }
     }
 
     private fun startCountdown() {
@@ -279,19 +331,20 @@ class LoginStateHolder(
         return phone.length >= 11 && phone.all { it.isDigit() }
     }
 
-    private fun Throwable.toLoginErrorMessage(): String {
+    private fun Throwable.toLoginErrorText(): LoginErrorText {
         return when (this) {
-            is SmsError.WrongCode -> "验证码错误，请重新输入"
-            is SmsError.CodeExpired -> "验证码已过期，请重新获取"
-            is SmsError.AccountNotFound -> "该手机号未注册 RunningHub 账号，请先注册"
-            is SmsError.RateLimited -> "发送过于频繁，请稍后再试"
-            is SmsError.DailyLimit -> "今日发送次数已达上限，请明日再试"
-            is SmsError.CaptchaRequired -> "请先完成图形验证后再获取验证码"
-            is SmsError.Network -> "网络连接失败，请检查网络后重试"
-            is SmsError.Unknown -> "登录失败，请稍后重试"
-            is AuthError.Network -> "网络连接失败，请检查网络后重试"
-            is AuthError.Unknown -> "登录失败，请稍后重试"
-            else -> message ?: "登录失败，请稍后重试"
+            is SmsError.WrongCode -> LoginErrorText.WrongSmsCode
+            is SmsError.CodeExpired -> LoginErrorText.SmsCodeExpired
+            is SmsError.AccountNotFound -> LoginErrorText.AccountNotFound
+            is SmsError.RateLimited -> LoginErrorText.SmsRateLimited
+            is SmsError.DailyLimit -> LoginErrorText.SmsDailyLimit
+            is SmsError.CaptchaRequired -> LoginErrorText.CaptchaRequired
+            is SmsError.Network -> LoginErrorText.Network
+            is SmsError.Unknown -> LoginErrorText.LoginFailed
+            is AuthError.Network -> LoginErrorText.Network
+            is AuthError.Unknown -> LoginErrorText.LoginFailed
+            // 未知异常可能来自远端 msg、HTTP 诊断或底层 SDK 文本，不能进入 Snackbar。
+            else -> LoginErrorText.LoginFailed
         }
     }
 }

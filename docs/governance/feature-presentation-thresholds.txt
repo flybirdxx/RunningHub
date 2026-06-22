@@ -5,5 +5,5 @@
 # quickcreate、discovery 已有 feature:<name>:presentation，因此不需要在此登记。
 # create 当前没有遗留 Kotlin UI 文件，因此不需要保留历史行数基线。
 history|1116|History UI/Voyager adapter remains in composeApp; state machine, polling, detail loading, cancellation and tests are now owned by feature:task:presentation. 2026-06-22 increase is limited to TaskHistoryScreen Compose Resources migration; no new state-machine responsibility was added.
-login|866|Login UI shell and platform captcha dialog remain in composeApp; state machine, error text and tests are now owned by feature:auth:presentation. 2026-06-22 increase is limited to LoginScreen Compose Resources migration and captcha environment base URL guard/KDoc; no new state-machine responsibility was added.
+login|901|Login UI shell and platform captcha dialog remain in composeApp; state machine, stable error semantics and tests are now owned by feature:auth:presentation. 2026-06-22 increase is limited to mapping LoginErrorText through Compose Resources; no new state-machine responsibility was added.
 profile|926|Profile UI shell remains in composeApp; state holder, credential operations and tests are now owned by feature:auth:presentation. P8 copy resourceization temporarily increases imports while keeping ProfileScreen and SettingsDialog hardcoded UI copy at zero.
