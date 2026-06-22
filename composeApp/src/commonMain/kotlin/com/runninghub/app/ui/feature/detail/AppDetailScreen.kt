@@ -104,6 +104,7 @@ import com.runninghub.core.model.StatisticsInfo
 import com.runninghub.core.storage.Permission
 import com.runninghub.core.model.TaskOutput
 import com.runninghub.core.storage.PermissionStateStore
+import com.runninghub.feature.detail.presentation.AppDetailErrorText
 import com.runninghub.feature.detail.presentation.AppDetailMediaType
 import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.detail.presentation.AppDetailUiState
@@ -115,6 +116,10 @@ import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_detail_back_content_description
 import runninghub.composeapp.generated.resources.app_detail_default_app_name
 import runninghub.composeapp.generated.resources.app_detail_description_title
+import runninghub.composeapp.generated.resources.app_detail_error_load_failed
+import runninghub.composeapp.generated.resources.app_detail_error_task_failed
+import runninghub.composeapp.generated.resources.app_detail_error_task_submit_failed
+import runninghub.composeapp.generated.resources.app_detail_error_task_timeout
 import runninghub.composeapp.generated.resources.app_detail_fans_count_format
 import runninghub.composeapp.generated.resources.app_detail_float_placeholder
 import runninghub.composeapp.generated.resources.app_detail_int_placeholder
@@ -201,7 +206,7 @@ data class AppDetailScreen(val appId: String) : Screen {
             when {
                 uiState.isLoading -> LoadingIndicator()
                 uiState.error != null -> ErrorState(
-                    message = uiState.error!!,
+                    message = appDetailErrorMessage(uiState.error!!),
                     onRetry = { currentScreenModel.loadDetail(appId) }
                 )
                 uiState.detail != null -> DetailContent(
@@ -238,7 +243,7 @@ private fun DetailContent(
 ) {
     val detail = uiState.detail ?: return
     val windowInfo = LocalRhWindowInfo.current
-    val taskError = uiState.taskError
+    val taskError = uiState.taskError?.let { appDetailErrorMessage(it) }
 
     Box(
         modifier = Modifier
@@ -929,6 +934,15 @@ private fun AppDetailMediaType.toComponentMediaType(): MediaType = when (this) {
     AppDetailMediaType.VIDEO -> MediaType.VIDEO
     AppDetailMediaType.AUDIO -> MediaType.AUDIO
 }
+
+@Composable
+private fun appDetailErrorMessage(error: AppDetailErrorText): String =
+    when (error) {
+        AppDetailErrorText.DetailLoadFailed -> stringResource(Res.string.app_detail_error_load_failed)
+        AppDetailErrorText.TaskSubmitFailed -> stringResource(Res.string.app_detail_error_task_submit_failed)
+        AppDetailErrorText.TaskFailed -> stringResource(Res.string.app_detail_error_task_failed)
+        AppDetailErrorText.TaskTimeout -> stringResource(Res.string.app_detail_error_task_timeout)
+    }
 
 private fun AppDetailTaskStep.toComponentTaskStep(): TaskStep = when (this) {
     AppDetailTaskStep.IDLE -> TaskStep.IDLE

@@ -83,6 +83,24 @@ class AppDetailStateHolderTest {
     }
 
     @Test
+    fun `loadDetail stores stable error when both detail sources fail`() = runTest {
+        val stateHolder = createStateHolder(
+            catalogRepository = FakeWebAppCatalogRepository(
+                appDetailResult = Result.failure(IllegalStateException("raw public failure")),
+            ),
+            taskRepository = FakeWebAppTaskRepository(
+                apiCallDemoResult = Result.failure(IllegalStateException("raw demo failure")),
+            ),
+        )
+
+        stateHolder.loadDetail("404")
+        advanceUntilIdle()
+
+        assertFalse(stateHolder.uiState.value.isLoading)
+        assertEquals(AppDetailErrorText.DetailLoadFailed, stateHolder.uiState.value.error)
+    }
+
+    @Test
     fun `loadDetail skips duplicate app request after detail is loaded`() = runTest {
         val catalogRepository = FakeWebAppCatalogRepository(
             appDetailResult = Result.success(appDetail(id = "300")),
@@ -235,7 +253,55 @@ class AppDetailStateHolderTest {
 
         assertEquals(false, stateHolder.uiState.value.isRunningTask)
         assertEquals(AppDetailTaskStep.FAILED, stateHolder.uiState.value.taskStep)
-        assertEquals("任务失败，请稍后重试", stateHolder.uiState.value.taskError)
+        assertEquals(AppDetailErrorText.TaskFailed, stateHolder.uiState.value.taskError)
+    }
+
+    @Test
+    fun `runTask stores stable task submit failure error`() = runTest {
+        val stateHolder = createStateHolder(
+            catalogRepository = FakeWebAppCatalogRepository(appDetailResult = Result.success(appDetail(id = "402"))),
+            taskRepository = FakeWebAppTaskRepository(
+                runTaskResult = Result.failure(IllegalStateException("raw submit failure")),
+            ),
+        )
+
+        stateHolder.loadDetail("402")
+        advanceUntilIdle()
+        stateHolder.runTask()
+        advanceUntilIdle()
+
+        assertEquals(false, stateHolder.uiState.value.isRunningTask)
+        assertEquals(AppDetailTaskStep.FAILED, stateHolder.uiState.value.taskStep)
+        assertEquals(AppDetailErrorText.TaskSubmitFailed, stateHolder.uiState.value.taskError)
+    }
+
+    @Test
+    fun `task polling timeout stores stable timeout error`() = runTest {
+        val stateHolder = createStateHolder(
+            catalogRepository = FakeWebAppCatalogRepository(appDetailResult = Result.success(appDetail(id = "403"))),
+            taskRepository = FakeWebAppTaskRepository(
+                runTaskResult = Result.success(
+                    TaskResult(
+                        netWssUrl = null,
+                        taskId = 9003L,
+                        clientId = null,
+                        status = TaskExecutionStatus.Submitted,
+                        promptTips = null,
+                    ),
+                ),
+                taskOutputs = emptyList(),
+            ),
+        )
+
+        stateHolder.loadDetail("403")
+        advanceUntilIdle()
+        stateHolder.runTask()
+        advanceTimeBy(5_000L * 120)
+        advanceUntilIdle()
+
+        assertEquals(false, stateHolder.uiState.value.isRunningTask)
+        assertEquals(AppDetailTaskStep.FAILED, stateHolder.uiState.value.taskStep)
+        assertEquals(AppDetailErrorText.TaskTimeout, stateHolder.uiState.value.taskError)
     }
 
     private fun TestScope.createStateHolder(

@@ -18,6 +18,7 @@ import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogQuery
 import com.runninghub.feature.discovery.domain.CatalogTagRange
 import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
+import com.runninghub.feature.detail.presentation.AppDetailErrorText
 import com.runninghub.feature.detail.presentation.AppDetailMediaType
 import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.task.domain.WebAppTaskRepository
@@ -255,7 +256,7 @@ class AppDetailScreenModelTest {
 
         assertEquals(false, screenModel.uiState.value.isRunningTask)
         assertEquals(AppDetailTaskStep.FAILED, screenModel.uiState.value.taskStep)
-        assertEquals("任务失败，请稍后重试", screenModel.uiState.value.taskError)
+        assertEquals(AppDetailErrorText.TaskFailed, screenModel.uiState.value.taskError)
     }
 
     private fun createScreenModel(

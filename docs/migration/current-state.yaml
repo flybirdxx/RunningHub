@@ -287,28 +287,30 @@ gate_status:
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 与 retired shared 模块均已删除，验证码 Web 容器 baseUrl 已跟随 RunningHubApiEnvironment，QuickCreateMediaUploadCoordinator 已迁入 feature:quickcreate:presentation/upload，QuickCreateGenerationInteractor 已迁入 feature:quickcreate:presentation/generation，QuickCreateCoordinator 已迁入 feature:quickcreate:presentation/coordinator，QuickCreateScreenModel 已改为依赖 feature presentation 的 QuickCreateMediaResolver 端口且平台 MediaResolver 适配收口到 AppModule 组合根，当前事实源和长期治理门禁已禁止重新引用旧增长控制文件、shared 编译入口、固定生产验证码源或上传错误泄露本地媒体名；下一步优先评估 QuickCreate 运行时文案端口收缩，或继续审查 QuickCreateScreenModel 是否还有非壳层职责；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza、Detail 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 与 retired shared 模块均已删除，验证码 Web 容器 baseUrl 已跟随 RunningHubApiEnvironment，QuickCreateMediaUploadCoordinator 已迁入 feature:quickcreate:presentation/upload，QuickCreateGenerationInteractor 已迁入 feature:quickcreate:presentation/generation，QuickCreateCoordinator 已迁入 feature:quickcreate:presentation/coordinator，QuickCreateScreenModel 已改为依赖 feature presentation 的 QuickCreateMediaResolver 端口且平台 MediaResolver 适配收口到 AppModule 组合根，当前事实源和长期治理门禁已禁止重新引用旧增长控制文件、shared 编译入口、固定生产验证码源、Detail Presentation 硬编码错误文案或上传错误泄露本地媒体名；下一步优先评估 QuickCreate 运行时文案端口收缩，或继续审查 QuickCreateScreenModel 是否还有非壳层职责；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   current_slice:
-    id: "MID-02-F8-quickcreate-screenmodel-media-port"
+    id: "MID-02-F9-appdetail-error-resources"
     result: "passed"
     modified_files:
-      - "composeApp/src/commonMain/kotlin/com/runninghub/app/di/AppModule.kt"
-      - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt"
-      - "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModelTest.kt"
-      - "doc/RunningHub-KMP-架构迁移验收标准.md"
+      - "composeApp/src/commonMain/composeResources/values/strings.xml"
+      - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/detail/AppDetailScreen.kt"
+      - "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/detail/AppDetailScreenModelTest.kt"
+      - "feature/detail/presentation/src/commonMain/kotlin/com/runninghub/feature/detail/presentation/AppDetailStateHolder.kt"
+      - "feature/detail/presentation/src/commonTest/kotlin/com/runninghub/feature/detail/presentation/AppDetailStateHolderTest.kt"
+      - "docs/governance/ui-copy-hardcoded-baseline.txt"
       - "docs/migration/acceptance.md"
       - "docs/migration/current-state.yaml"
     commands:
-      - "./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.initialization loads quick creation history\" # RED: failed with QuickCreateMediaResolver test fake while production still expected app MediaResolver"
-      - "./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.initialization loads quick creation history\""
-      - "./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest\""
-      - "./gradlew.bat --console=plain :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
+      - "./gradlew.bat --console=plain :feature:detail:presentation:testDebugUnitTest --tests \"com.runninghub.feature.detail.presentation.AppDetailStateHolderTest\" # RED: failed with unresolved AppDetailErrorText before production state adopted stable error reasons"
+      - "./gradlew.bat --console=plain :feature:detail:presentation:testDebugUnitTest --tests \"com.runninghub.feature.detail.presentation.AppDetailStateHolderTest\""
+      - "./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.detail.AppDetailScreenModelTest\""
+      - "./gradlew.bat --console=plain :composeApp:assembleDebug :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
       - "git diff --check"
     notes:
-      - "QuickCreateScreenModel 构造参数从 app.platform.MediaResolver 改为 feature presentation 的 QuickCreateMediaResolver，继续只承担 Voyager 生命周期和 UI Action 门面。"
-      - "AppModule 组合根保留平台 MediaResolver，并负责适配为 QuickCreateMediaResolver；AppDetailScreenModel 仍可直接使用平台媒体能力。"
-      - "QuickCreateScreenModelTest 使用 feature 媒体端口 fake 锁定边界，防止 ScreenModel 再次直接依赖 app.platform 类型。"
+      - "AppDetailUiState.error/taskError 从中文 String 改为稳定 AppDetailErrorText，覆盖详情加载失败、任务提交失败、任务失败和轮询超时。"
+      - "AppDetailScreen 负责把 AppDetailErrorText 映射到 Compose Resources，Feature Presentation 不再生成最终中文 UI 文案。"
+      - "ui-copy-hardcoded-baseline 已移除 AppDetailStateHolder 登记项，checkLongTermGovernance 会阻止该文件重新增加未登记硬编码中文 UI 文案。"
       - "本轮只做中期架构整理验证；真实 Android/iOS 运行回归和 L1 封板证据仍按用户要求留待后续。"
   modified_files:
     - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt"
@@ -1359,6 +1361,7 @@ last_verification:
     - "P0-4 图形验证码本轮继续修正环境边界：SmsCaptchaDialog Android/iOS 平台 baseURL 改为读取 RunningHubApiEnvironment.WEB_BASE_URL，commonMain HTML 保持 /tac 与 /uc 相对路径；SmsCaptchaEnvironmentTest 先 RED 暴露 smsCaptchaBaseUrl 缺失，随后 GREEN 证明 debug/staging 可随平台启动层环境切换，checkLongTermGovernance 已纳入防回归检查。"
     - "2026-06-22 QuickCreate 上传协调器中期拆分继续推进：QuickCreateMediaUploadCoordinator 和 QuickCreateMediaResolver 已迁入 feature:quickcreate:presentation/upload；composeApp 只保留 MediaResolver 平台能力和适配器，旧 composeApp 上传协调器文件与 app 层 Coordinator 单测已删除。"
     - "2026-06-22 QuickCreate ScreenModel 壳层边界继续收口：QuickCreateScreenModel 构造参数从 app.platform.MediaResolver 改为 feature presentation 的 QuickCreateMediaResolver；AppModule 组合根保留平台 MediaResolver 并负责适配，ScreenModel 不再直接依赖 app.platform 类型。"
+    - "2026-06-22 P8 AppDetail 错误文案继续收口：AppDetailUiState.error/taskError 不再保存详情加载失败、提交失败、任务失败和任务超时中文 String，改为稳定 AppDetailErrorText；AppDetailScreen 通过 composeApp Compose Resources 映射最终文案，AppDetailStateHolder 硬编码 UI 文案基线移除。"
     - "网络 JSON 本轮按复核建议补强：TokenRefresher 不再用正则截取刷新响应，改用 kotlinx.serialization DTO 解码，新增测试覆盖 JSON unicode escape token。"
     - "安全存储本轮按复核建议前置修复：生产 CredentialStore 已切换到 Android Keystore backed 密文存储和 iOS Keychain，MigratingCredentialStore 负责把旧 Preferences DataStore 凭据逐项迁移并清理；架构门禁会阻止 Android/iOS RuntimeModule 退回普通 Preferences 绑定。"
     - "composeApp iOS debug framework link 在 Windows 本地为 SKIPPED；macOS link/xcodebuild/Simulator 当前以 skipped 风险证据留存，真实 pass 证据需 macOS runner 或 macOS 开发机后续补验。"

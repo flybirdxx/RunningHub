@@ -48,6 +48,42 @@ enum class AppDetailTaskStep {
 }
 
 /**
+ * AppDetail 页面错误的稳定展示语义。
+ *
+ * Presentation 状态只保存错误原因，不直接保存最终中文文案。composeApp 负责把这些原因映射到
+ * Compose Resources，避免 Feature Presentation 模块继续扩大硬编码 UI 文案基线。
+ */
+enum class AppDetailErrorText {
+    /**
+     * 公开详情和 API demo fallback 均加载失败。
+     *
+     * UI 可展示重试入口；该错误不包含服务端 `msg` 或底层异常摘要。
+     */
+    DetailLoadFailed,
+
+    /**
+     * 任务提交请求失败。
+     *
+     * 表示远端任务尚未成功创建，用户可以稍后重新提交当前参数。
+     */
+    TaskSubmitFailed,
+
+    /**
+     * 任务输出轮询返回失败输出。
+     *
+     * 表示任务已进入终态失败，具体服务端失败原因不进入页面状态。
+     */
+    TaskFailed,
+
+    /**
+     * 任务输出在最大轮询次数内仍未产生可展示结果。
+     *
+     * 表示客户端停止等待；远端任务是否最终完成需要用户稍后通过历史记录查看。
+     */
+    TaskTimeout,
+}
+
+/**
  * AppDetail 媒体读取端口。
  *
  * StateHolder 只通过该接口读取本地 URI 的显示名和字节内容；Android/iOS 的真实权限、
@@ -92,16 +128,16 @@ interface AppDetailMediaReader {
  * `0` 表示尚未开始或刚刚重置；不允许出现负数。
  * @property taskOutputs 已完成任务的输出文件列表，来源于任务输出轮询接口。
  * 空列表表示尚未完成、任务失败或服务端没有返回可展示输出；列表顺序保留服务端返回顺序。
- * @property taskError 任务提交或轮询失败时的用户可见中文错误。
- * `null` 表示没有任务错误；非空时页面负责展示，调用 [resetTask] 后清空。
+ * @property taskError 任务提交或轮询失败时的稳定错误原因。
+ * `null` 表示没有任务错误；非空时由 composeApp 映射最终文案并展示，调用 [resetTask] 后清空。
  * @property uploadingNodes 正在上传或上传失败的输入节点状态。
  * Key 为节点 ID；节点上传成功后会从 Map 移除，失败时保留 [AppDetailUploadingState.isError] 供 UI 展示重试状态。
  * @property localUris 用户选择的本地媒体 URI。
  * Key 为节点 ID；只在用户通过平台选择器选中文件时写入，直接调用 [uploadFile] 不会自动写入该 Map。
  * @property pendingMediaPick 等待平台媒体选择器回填的节点信息。
  * `null` 表示当前没有挂起选择请求；非空时 composeApp 应启动平台选择器并在回调后清空。
- * @property error 详情加载失败时的页面级中文错误。
- * `null` 表示没有页面级错误；非空时页面可展示重试入口。
+ * @property error 详情加载失败时的页面级稳定错误原因。
+ * `null` 表示没有页面级错误；非空时由 composeApp 映射最终文案并展示重试入口。
  */
 data class AppDetailUiState(
     val isLoading: Boolean = true,
@@ -111,11 +147,11 @@ data class AppDetailUiState(
     val taskStep: AppDetailTaskStep = AppDetailTaskStep.IDLE,
     val taskElapsedSeconds: Int = 0,
     val taskOutputs: List<TaskOutput> = emptyList(),
-    val taskError: String? = null,
+    val taskError: AppDetailErrorText? = null,
     val uploadingNodes: Map<String, AppDetailUploadingState> = emptyMap(),
     val localUris: Map<String, String> = emptyMap(),
     val pendingMediaPick: AppDetailPendingMediaPick? = null,
-    val error: String? = null,
+    val error: AppDetailErrorText? = null,
 )
 
 /**
@@ -210,7 +246,7 @@ class AppDetailStateHolder(
                 }
             } else {
                 _uiState.update {
-                    it.copy(isLoading = false, error = "加载失败，请检查网络后重试")
+                    it.copy(isLoading = false, error = AppDetailErrorText.DetailLoadFailed)
                 }
             }
         }
@@ -409,8 +445,9 @@ class AppDetailStateHolder(
                     it.copy(
                         isRunningTask = false,
                         taskStep = AppDetailTaskStep.FAILED,
-                        // 任务提交失败可能包含远端 msg、状态码或底层异常摘要；详情页只展示可操作文案。
-                        taskError = "提交失败，请稍后重试",
+                        // 任务提交失败可能包含远端 msg、状态码或底层异常摘要；页面状态只保存稳定原因，
+                        // 最终文案由 composeApp 资源映射，避免 Presentation 继续直接产出中文 UI 文案。
+                        taskError = AppDetailErrorText.TaskSubmitFailed,
                     )
                 }
             }
@@ -476,8 +513,8 @@ class AppDetailStateHolder(
                                     isRunningTask = false,
                                     taskStep = AppDetailTaskStep.FAILED,
                                     // failedReason 来自任务输出协议，可能携带服务端内部失败原因；
-                                    // UI 保持稳定文案，排错应依赖仓库日志和领域状态码。
-                                    taskError = "任务失败，请稍后重试",
+                                    // 页面状态只保留稳定错误原因，排错应依赖仓库日志和领域状态码。
+                                    taskError = AppDetailErrorText.TaskFailed,
                                 )
                             }
                             return@launch
@@ -504,7 +541,7 @@ class AppDetailStateHolder(
                 it.copy(
                     isRunningTask = false,
                     taskStep = AppDetailTaskStep.FAILED,
-                    taskError = "任务超时，请稍后重试",
+                    taskError = AppDetailErrorText.TaskTimeout,
                 )
             }
         }
