@@ -42,6 +42,7 @@ import com.runninghub.app.ui.theme.Neutral100
 import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.app.ui.feature.quickcreate.presentation.asServiceModelText
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
@@ -137,10 +138,10 @@ internal fun QuickCreateModelSheet(
                             // 保留服务端分组顺序，避免客户端重排导致运营配置的模型优先级失效。
                             models
                                 .groupBy { it.groupTitle }
-                                .forEach { (groupName, groupModels) ->
+                                .forEach { (groupTitle, groupModels) ->
                                     item {
                                         Text(
-                                            text = groupName,
+                                            text = groupTitle.asServiceModelText(),
                                             fontSize = 12.sp,
                                             fontWeight = FontWeight.SemiBold,
                                             color = Primary300,
@@ -233,15 +234,16 @@ private fun ServiceModelListRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = model.displayName,
+                    text = model.displayName.asServiceModelText(),
                     fontSize = 13.sp,
                     fontWeight = FontWeight.SemiBold,
                     color = if (selected) Primary300 else Neutral100,
                     maxLines = 1,
                 )
-                model.subtitle.takeIf { it.isNotBlank() }?.let { subtitle ->
+                val subtitle = model.subtitle.asServiceModelText()
+                subtitle.takeIf { it.isNotBlank() }?.let {
                     Text(
-                        text = subtitle,
+                        text = it,
                         fontSize = 11.sp,
                         color = Neutral500,
                         maxLines = 1,

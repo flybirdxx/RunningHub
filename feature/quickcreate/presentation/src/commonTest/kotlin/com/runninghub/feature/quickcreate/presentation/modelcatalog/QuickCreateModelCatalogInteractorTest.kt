@@ -34,7 +34,10 @@ class QuickCreateModelCatalogInteractorTest {
         assertEquals("全能图片G-2.0-官方版", state.value.selectedImageServiceModel?.name)
         assertEquals("binding-1", state.value.selectedImageServiceModel?.bindingId)
         assertEquals("G-2.0", state.value.selectedImageServiceModelUi?.compactName)
-        assertEquals("全能图片 · 2 个参数", state.value.selectedImageServiceModelUi?.subtitle)
+        assertEquals(
+            QuickCreateServiceModelSubtitle.GroupAndParameterCount("全能图片", 2),
+            state.value.selectedImageServiceModelUi?.subtitle,
+        )
         assertEquals(mapOf("style" to "photoreal", "aspectRatio" to "1:1"), state.value.imageServiceParams)
         assertEquals("video-binding-1", state.value.selectedVideoServiceModel?.bindingId)
         assertEquals(1, feePreviewRequests)
@@ -62,7 +65,10 @@ class QuickCreateModelCatalogInteractorTest {
 
         assertEquals("binding-key", state.value.selectedImageServiceModel?.bindingId)
         assertEquals("binding-key|sku-key", state.value.selectedImageServiceModelUi?.identityKey)
-        assertEquals("身份键图片模型", state.value.selectedImageServiceModelUi?.displayName)
+        assertEquals(
+            QuickCreateServiceModelDisplayName.ServerText("身份键图片模型"),
+            state.value.selectedImageServiceModelUi?.displayName,
+        )
         assertEquals(mapOf("style" to "sketch"), state.value.imageServiceParams)
         assertEquals(listOf(false, true), state.value.serviceImageModelItems.map { it.selected })
         assertEquals(2, feePreviewRequests)
@@ -100,7 +106,10 @@ class QuickCreateModelCatalogInteractorTest {
         runCurrent()
 
         assertEquals("Updated image model", state.value.selectedImageServiceModel?.name)
-        assertEquals("Updated image model", state.value.selectedImageServiceModelUi?.displayName)
+        assertEquals(
+            QuickCreateServiceModelDisplayName.ServerText("Updated image model"),
+            state.value.selectedImageServiceModelUi?.displayName,
+        )
         assertTrue(state.value.serviceImageModelItems.single().selected)
         assertEquals(mapOf("style" to "photoreal", "aspectRatio" to "1:1"), state.value.imageServiceParams)
     }
@@ -126,7 +135,10 @@ class QuickCreateModelCatalogInteractorTest {
         runCurrent()
 
         assertEquals("binding-new", state.value.selectedImageServiceModel?.bindingId)
-        assertEquals("新默认图片模型", state.value.selectedImageServiceModelUi?.displayName)
+        assertEquals(
+            QuickCreateServiceModelDisplayName.ServerText("新默认图片模型"),
+            state.value.selectedImageServiceModelUi?.displayName,
+        )
         assertTrue(state.value.serviceImageModelItems.single().selected)
         assertEquals(mapOf("style" to "line-art"), state.value.imageServiceParams)
     }

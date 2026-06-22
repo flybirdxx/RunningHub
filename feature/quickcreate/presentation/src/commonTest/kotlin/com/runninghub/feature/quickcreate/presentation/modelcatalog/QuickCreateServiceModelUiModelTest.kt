@@ -22,6 +22,19 @@ class QuickCreateServiceModelUiModelTest {
     }
 
     @Test
+    fun `service model ui uses stable text semantics for local fallback copy`() {
+        val model = serviceModel(
+            name = "",
+            groupName = null,
+            fields = listOf(serviceField("prompt"), serviceField("style")),
+        ).toQuickCreateServiceModelUi()
+
+        assertEquals(QuickCreateServiceModelDisplayName.Unnamed, model.displayName)
+        assertEquals(QuickCreateServiceModelGroupTitle.Other, model.groupTitle)
+        assertEquals(QuickCreateServiceModelSubtitle.ParameterCount(2), model.subtitle)
+    }
+
+    @Test
     fun `compact label prefers loading then service model then fallback`() {
         val model = serviceModel(name = "示例模型").toQuickCreateServiceModelUi()
 
@@ -53,6 +66,7 @@ private fun serviceModel(
     skuId: String = "sku",
     name: String = "模型",
     groupName: String? = null,
+    fields: List<com.runninghub.feature.quickcreate.domain.QuickCreationServiceField> = emptyList(),
 ): QuickCreationServiceModel =
     QuickCreationServiceModel(
         categoryId = "IMAGE",
@@ -61,5 +75,15 @@ private fun serviceModel(
         skuId = skuId,
         name = name,
         description = null,
-        fields = emptyList(),
+        fields = fields,
+    )
+
+private fun serviceField(paramKey: String): com.runninghub.feature.quickcreate.domain.QuickCreationServiceField =
+    com.runninghub.feature.quickcreate.domain.QuickCreationServiceField(
+        fieldKey = paramKey,
+        paramKey = paramKey,
+        fieldType = "TEXT",
+        required = false,
+        defaultValue = null,
+        options = emptyList(),
     )

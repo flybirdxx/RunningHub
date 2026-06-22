@@ -94,6 +94,10 @@
     <string name="quick_create_model_selector_close_content_description">关闭</string>
     <string name="quick_create_model_selector_loading">正在加载模型</string>
     <string name="quick_create_model_selector_empty">暂未获取到服务端模型，将继续使用本地兼容参数。</string>
+    <string name="quick_create_service_model_unnamed">未命名模型</string>
+    <string name="quick_create_service_model_other_group">其他模型</string>
+    <string name="quick_create_service_model_parameter_count_format">%1$d 个参数</string>
+    <string name="quick_create_service_model_subtitle_separator"> · </string>
     <string name="quick_create_tab_image">图片</string>
     <string name="quick_create_tab_video">视频</string>
     <string name="quick_create_mode_creation">创作</string>

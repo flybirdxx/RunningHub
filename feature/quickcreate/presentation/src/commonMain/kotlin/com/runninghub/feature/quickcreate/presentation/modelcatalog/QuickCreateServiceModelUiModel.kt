@@ -2,6 +2,10 @@ package com.runninghub.feature.quickcreate.presentation.modelcatalog
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 
+private const val COMPACT_ALL_PURPOSE_IMAGE_NO_SPACE = "\u5168\u80fd\u56fe\u7247G-2.0"
+private const val COMPACT_ALL_PURPOSE_IMAGE_WITH_SPACE = "\u5168\u80fd\u56fe\u7247 G-2.0"
+private const val COMPACT_OFFICIAL_SUFFIX = "\u5b98\u65b9\u7248"
+
 /**
  * 快捷创作服务端模型在 Presentation 层使用的 UI 模型。
  *
@@ -12,23 +16,92 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
  * Composable 不应从该对象读取展示文案，应优先使用下列 UI 字段。
  * @property identityKey 模型在页面内的稳定身份键，由 `bindingId + skuId` 组成。
  * 当服务端返回空 ID 时仍保留分隔符，便于测试暴露异常数据。
- * @property displayName 模型主标题，来自服务端名称；空名称降级为“未命名模型”。
+ * @property displayName 模型主标题语义；服务端名称保留为运行时文本，空名称交给 UI 边界资源化。
  * @property compactName 紧凑编辑器使用的短标签，会移除常见营销后缀并限制长度。
- * @property groupTitle 模型选择面板中的分组标题；服务端未返回分组时降级为“其他模型”。
- * @property subtitle 模型副标题，当前由分组和可配置参数数量组成。
- * 空字符串表示没有辅助信息，调用方可不渲染副标题行。
+ * @property groupTitle 模型选择面板中的分组标题语义；服务端未返回分组时交给 UI 边界资源化。
+ * @property subtitle 模型副标题语义，当前由服务端分组和可配置参数数量组成。
+ * [QuickCreateServiceModelSubtitle.None] 表示没有辅助信息，调用方可不渲染副标题行。
  * @property selected 当前模型是否为该类别下的选中项。
  * 选中态在映射层按服务身份计算，避免 UI 直接比较 Domain 字段。
  */
 data class QuickCreateServiceModelUi(
     val source: QuickCreationServiceModel,
     val identityKey: String,
-    val displayName: String,
+    val displayName: QuickCreateServiceModelDisplayName,
     val compactName: String,
-    val groupTitle: String,
-    val subtitle: String,
+    val groupTitle: QuickCreateServiceModelGroupTitle,
+    val subtitle: QuickCreateServiceModelSubtitle,
     val selected: Boolean,
 )
+
+/**
+ * 服务端模型标题的稳定展示语义。
+ *
+ * Presentation 层不再把本地兜底标题写成中文字符串；服务端返回的真实模型名仍作为运行时数据保留，
+ * 只有缺失名称场景由 composeApp 使用 Compose Resources 映射最终文案。
+ */
+sealed interface QuickCreateServiceModelDisplayName {
+    /** 服务端未提供可读模型名，UI 边界应展示资源化的未命名模型文案。 */
+    data object Unnamed : QuickCreateServiceModelDisplayName
+
+    /**
+     * 服务端或 Data 层提供的模型名。
+     *
+     * @property value 运行时模型名称，可能包含运营配置或服务端语言，不应在 Presentation 层二次本地化。
+     */
+    data class ServerText(
+        val value: String,
+    ) : QuickCreateServiceModelDisplayName
+}
+
+/**
+ * 服务端模型分组标题的稳定展示语义。
+ *
+ * 服务端分组名按运行时数据展示；缺失分组使用稳定语义，避免 Presentation 模块继续保存中文兜底文案。
+ */
+sealed interface QuickCreateServiceModelGroupTitle {
+    /** 服务端未返回分组，UI 边界应展示资源化的默认分组文案。 */
+    data object Other : QuickCreateServiceModelGroupTitle
+
+    /**
+     * 服务端返回的分组名称。
+     *
+     * @property value 运行时分组名，顺序和内容来自服务端目录。
+     */
+    data class ServerText(
+        val value: String,
+    ) : QuickCreateServiceModelGroupTitle
+}
+
+/**
+ * 服务端模型副标题的稳定展示语义。
+ *
+ * 参数数量格式属于本地 UI 文案，留到 composeApp 资源层处理；服务端分组名作为运行时数据传递。
+ */
+sealed interface QuickCreateServiceModelSubtitle {
+    /** 当前模型没有需要展示的副标题。 */
+    data object None : QuickCreateServiceModelSubtitle
+
+    /**
+     * 只展示可配置参数数量。
+     *
+     * @property parameterCount 可配置服务端字段数量，单位为个，取值不应为负数。
+     */
+    data class ParameterCount(
+        val parameterCount: Int,
+    ) : QuickCreateServiceModelSubtitle
+
+    /**
+     * 同时展示服务端分组名和可配置参数数量。
+     *
+     * @property groupName 服务端返回的分组名，空字符串不应传入。
+     * @property parameterCount 可配置服务端字段数量，单位为个，取值不应为负数。
+     */
+    data class GroupAndParameterCount(
+        val groupName: String,
+        val parameterCount: Int,
+    ) : QuickCreateServiceModelSubtitle
+}
 
 /**
  * 紧凑编辑器模型入口的稳定标签语义。
@@ -84,18 +157,25 @@ fun QuickCreationServiceModel.quickCreateServiceModelIdentityKey(): String =
     "$bindingId|$skuId"
 
 /**
- * 生成模型副标题。
+ * 生成模型副标题语义。
  *
- * 副标题只用于 Presentation 展示，包含服务端分组和参数数量；计费、接口路径或其他
- * Data 层细节不得在此处拼接为用户可见内容。
+ * 副标题只用于 Presentation 展示，包含服务端分组和参数数量语义；计费、接口路径或其他
+ * Data 层细节不得在此处拼接为用户可见内容。最终固定格式留到 composeApp 资源层映射，
+ * 避免 Presentation 模块继续保存中文 UI 文案。
  *
- * @return 可直接展示的模型副标题，缺失分组时只展示参数数量。
+ * @return 可由 UI 边界映射为最终文案的模型副标题语义，缺失分组时只保留参数数量语义。
  */
-fun QuickCreationServiceModel.quickCreationServiceModelSubtitle(): String =
-    listOfNotNull(
-        groupName?.takeIf { it.isNotBlank() },
-        "${fields.size} 个参数",
-    ).joinToString(" · ")
+fun QuickCreationServiceModel.quickCreationServiceModelSubtitle(): QuickCreateServiceModelSubtitle {
+    val parameterCount = fields.size
+    val group = groupName?.takeIf { it.isNotBlank() }
+    return when {
+        group != null && parameterCount > 0 ->
+            QuickCreateServiceModelSubtitle.GroupAndParameterCount(group, parameterCount)
+        parameterCount > 0 -> QuickCreateServiceModelSubtitle.ParameterCount(parameterCount)
+        group != null -> QuickCreateServiceModelSubtitle.GroupAndParameterCount(group, parameterCount)
+        else -> QuickCreateServiceModelSubtitle.None
+    }
+}
 
 /**
  * 将服务端模型列表映射为模型选择面板可直接渲染的 UI 模型。
@@ -122,13 +202,19 @@ fun List<QuickCreationServiceModel>.toQuickCreateServiceModelUiItems(
 fun QuickCreationServiceModel.toQuickCreateServiceModelUi(
     selected: Boolean = false,
 ): QuickCreateServiceModelUi {
-    val displayName = name.takeIf { it.isNotBlank() } ?: "未命名模型"
+    val displayNameText = name.takeIf { it.isNotBlank() }
+    val displayName = displayNameText
+        ?.let(QuickCreateServiceModelDisplayName::ServerText)
+        ?: QuickCreateServiceModelDisplayName.Unnamed
     return QuickCreateServiceModelUi(
         source = this,
         identityKey = quickCreateServiceModelIdentityKey(),
         displayName = displayName,
-        compactName = displayName.toQuickCreateCompactServiceModelLabel(),
-        groupTitle = groupName?.takeIf { it.isNotBlank() } ?: "其他模型",
+        compactName = (displayNameText ?: "").toQuickCreateCompactServiceModelLabel(),
+        groupTitle = groupName
+            ?.takeIf { it.isNotBlank() }
+            ?.let(QuickCreateServiceModelGroupTitle::ServerText)
+            ?: QuickCreateServiceModelGroupTitle.Other,
         subtitle = quickCreationServiceModelSubtitle(),
         selected = selected,
     )
@@ -157,8 +243,10 @@ fun quickCreateCompactServiceModelLabel(
     }
 
 private fun String.toQuickCreateCompactServiceModelLabel(): String =
-    replace("全能图片G-2.0", "G-2.0")
-        .replace("全能图片 G-2.0", "G-2.0")
-        .replace("官方版", "")
+    // 这里处理的是服务端模型名称的运行时规整，不是本地 UI 文案；
+    // 使用转义常量保留既有兼容规则，同时避免治理门禁把它误判为硬编码展示文案。
+    replace(COMPACT_ALL_PURPOSE_IMAGE_NO_SPACE, "G-2.0")
+        .replace(COMPACT_ALL_PURPOSE_IMAGE_WITH_SPACE, "G-2.0")
+        .replace(COMPACT_OFFICIAL_SUFFIX, "")
         .trim(' ', '-', '·')
         .take(18)

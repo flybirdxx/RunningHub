@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.feature.quickcreate.AdaptivePromptTextField
 import com.runninghub.app.ui.feature.quickcreate.quickCreateNavigationText
+import com.runninghub.app.ui.feature.quickcreate.presentation.asServiceModelText
 import com.runninghub.feature.quickcreate.presentation.draft.DraftData
 import com.runninghub.feature.quickcreate.presentation.draft.QuickCreateDraftResumeSummary
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
@@ -485,7 +486,7 @@ private fun ServiceModelSummaryRow(
                 Text(
                     text = when {
                         loading -> stringResource(Res.string.quick_create_classic_model_loading)
-                        model != null -> model.displayName
+                        model != null -> model.displayName.asServiceModelText()
                         else -> stringResource(Res.string.quick_create_classic_default_model)
                     },
                     fontSize = 12.sp,
@@ -495,7 +496,7 @@ private fun ServiceModelSummaryRow(
                 )
                 val subtitle = when {
                     loading -> stringResource(Res.string.quick_create_classic_model_loading_subtitle)
-                    model != null -> model.subtitle
+                    model != null -> model.subtitle.asServiceModelText()
                     else -> stringResource(Res.string.quick_create_classic_default_model_subtitle)
                 }
                 if (subtitle.isNotBlank()) {
