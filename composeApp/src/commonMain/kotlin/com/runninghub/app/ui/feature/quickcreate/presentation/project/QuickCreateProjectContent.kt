@@ -54,7 +54,13 @@ import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.ErrorDark
 import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDeleteConfirmationText
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailUiItem
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailRowLabel
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailRowValue
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectPinContentDescription
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectPinStatusText
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectTaskCountText
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectUiItem
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
@@ -63,10 +69,15 @@ import runninghub.composeapp.generated.resources.quick_create_project_create_con
 import runninghub.composeapp.generated.resources.quick_create_project_create_content_description
 import runninghub.composeapp.generated.resources.quick_create_project_create_title
 import runninghub.composeapp.generated.resources.quick_create_project_delete_action
+import runninghub.composeapp.generated.resources.quick_create_project_delete_confirmation_format
 import runninghub.composeapp.generated.resources.quick_create_project_delete_title
 import runninghub.composeapp.generated.resources.quick_create_project_detail_close
 import runninghub.composeapp.generated.resources.quick_create_project_detail_loading_body
 import runninghub.composeapp.generated.resources.quick_create_project_detail_loading_title
+import runninghub.composeapp.generated.resources.quick_create_project_detail_row_created_at
+import runninghub.composeapp.generated.resources.quick_create_project_detail_row_pin_status
+import runninghub.composeapp.generated.resources.quick_create_project_detail_row_task_count
+import runninghub.composeapp.generated.resources.quick_create_project_detail_row_updated_at
 import runninghub.composeapp.generated.resources.quick_create_project_detail_title
 import runninghub.composeapp.generated.resources.quick_create_project_load_more
 import runninghub.composeapp.generated.resources.quick_create_project_loading_more
@@ -74,10 +85,15 @@ import runninghub.composeapp.generated.resources.quick_create_project_menu_conte
 import runninghub.composeapp.generated.resources.quick_create_project_menu_detail
 import runninghub.composeapp.generated.resources.quick_create_project_menu_rename
 import runninghub.composeapp.generated.resources.quick_create_project_name_label
+import runninghub.composeapp.generated.resources.quick_create_project_not_pinned_status
+import runninghub.composeapp.generated.resources.quick_create_project_pin_content_description
+import runninghub.composeapp.generated.resources.quick_create_project_pinned_status
 import runninghub.composeapp.generated.resources.quick_create_project_recent
 import runninghub.composeapp.generated.resources.quick_create_project_rename_confirm
 import runninghub.composeapp.generated.resources.quick_create_project_rename_title
 import runninghub.composeapp.generated.resources.quick_create_project_section_title
+import runninghub.composeapp.generated.resources.quick_create_project_task_count_format
+import runninghub.composeapp.generated.resources.quick_create_project_unpin_content_description
 
 /**
  * 展示快捷创作默认页顶部的项目筛选与项目操作入口。
@@ -293,7 +309,10 @@ internal fun QuickCreateProjectDetailDialog(
                         fontWeight = FontWeight.SemiBold,
                     )
                     project.rows.forEach { row ->
-                        ProjectDetailRow(label = row.label, value = row.value)
+                        ProjectDetailRow(
+                            label = quickCreateProjectDetailRowLabel(row.label),
+                            value = quickCreateProjectDetailRowValue(row.value),
+                        )
                     }
                 }
             }
@@ -427,7 +446,7 @@ private fun ProjectChip(
                 } else {
                     Icon(
                         Icons.Default.PushPin,
-                        contentDescription = project.pinContentDescription,
+                        contentDescription = quickCreateProjectPinContentDescription(project.pinContentDescription),
                         tint = if (project.isPinned) Primary300 else Neutral400,
                         modifier = Modifier.size(14.dp),
                     )
@@ -446,7 +465,7 @@ private fun ProjectChip(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    project.taskCountText,
+                    quickCreateProjectTaskCountText(project.taskCountText),
                     color = Neutral400,
                     fontSize = 11.sp,
                 )
@@ -567,7 +586,7 @@ private fun ProjectDeleteDialog(
             Text(stringResource(Res.string.quick_create_project_delete_title), fontWeight = FontWeight.SemiBold)
         },
         text = {
-            Text(project.deleteConfirmationText)
+            Text(quickCreateProjectDeleteConfirmationText(project.deleteConfirmationText))
         },
         confirmButton = {
             TextButton(onClick = onConfirm) {
@@ -581,6 +600,55 @@ private fun ProjectDeleteDialog(
         },
     )
 }
+
+@Composable
+private fun quickCreateProjectTaskCountText(text: QuickCreateProjectTaskCountText): String =
+    stringResource(Res.string.quick_create_project_task_count_format, text.count)
+
+@Composable
+private fun quickCreateProjectPinContentDescription(
+    description: QuickCreateProjectPinContentDescription,
+): String =
+    when (description) {
+        QuickCreateProjectPinContentDescription.PinProject ->
+            stringResource(Res.string.quick_create_project_pin_content_description)
+        QuickCreateProjectPinContentDescription.UnpinProject ->
+            stringResource(Res.string.quick_create_project_unpin_content_description)
+    }
+
+@Composable
+private fun quickCreateProjectPinStatusText(status: QuickCreateProjectPinStatusText): String =
+    when (status) {
+        QuickCreateProjectPinStatusText.Pinned -> stringResource(Res.string.quick_create_project_pinned_status)
+        QuickCreateProjectPinStatusText.NotPinned -> stringResource(Res.string.quick_create_project_not_pinned_status)
+    }
+
+@Composable
+private fun quickCreateProjectDeleteConfirmationText(
+    text: QuickCreateProjectDeleteConfirmationText,
+): String =
+    stringResource(Res.string.quick_create_project_delete_confirmation_format, text.projectName)
+
+@Composable
+private fun quickCreateProjectDetailRowLabel(label: QuickCreateProjectDetailRowLabel): String =
+    when (label) {
+        QuickCreateProjectDetailRowLabel.TaskCount ->
+            stringResource(Res.string.quick_create_project_detail_row_task_count)
+        QuickCreateProjectDetailRowLabel.PinStatus ->
+            stringResource(Res.string.quick_create_project_detail_row_pin_status)
+        QuickCreateProjectDetailRowLabel.CreatedAt ->
+            stringResource(Res.string.quick_create_project_detail_row_created_at)
+        QuickCreateProjectDetailRowLabel.UpdatedAt ->
+            stringResource(Res.string.quick_create_project_detail_row_updated_at)
+    }
+
+@Composable
+private fun quickCreateProjectDetailRowValue(value: QuickCreateProjectDetailRowValue): String =
+    when (value) {
+        is QuickCreateProjectDetailRowValue.TaskCount -> value.count.toString()
+        is QuickCreateProjectDetailRowValue.PinStatus -> quickCreateProjectPinStatusText(value.status)
+        is QuickCreateProjectDetailRowValue.Timestamp -> value.value
+    }
 
 @Composable
 private fun ProjectDetailRow(

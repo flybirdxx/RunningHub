@@ -31,8 +31,11 @@ class QuickCreateProjectStateHolderTest {
         assertEquals("project-1", state.value.projects.single().projectId)
         assertEquals("世界杯广告", state.value.projects.single().name)
         assertEquals(true, state.value.projects.single().isPinned)
-        assertEquals("取消置顶项目", state.value.projects.single().pinContentDescription)
-        assertEquals("3 个任务", state.value.projects.single().taskCountText)
+        assertEquals(
+            QuickCreateProjectPinContentDescription.UnpinProject,
+            state.value.projects.single().pinContentDescription,
+        )
+        assertEquals(QuickCreateProjectTaskCountText(3), state.value.projects.single().taskCountText)
         assertEquals("https://example.com/project.png", state.value.projects.single().coverUrl)
         assertFalse(state.value.projectsHasMore)
     }
@@ -86,8 +89,11 @@ class QuickCreateProjectStateHolderTest {
 
         assertEquals(listOf("project-1" to false), repository.pinRequests)
         assertEquals(false, state.value.projects.single().isPinned)
-        assertEquals("置顶项目", state.value.projects.single().pinContentDescription)
-        assertEquals("未置顶", state.value.projects.single().pinStatusText)
+        assertEquals(
+            QuickCreateProjectPinContentDescription.PinProject,
+            state.value.projects.single().pinContentDescription,
+        )
+        assertEquals(QuickCreateProjectPinStatusText.NotPinned, state.value.projects.single().pinStatusText)
         assertEquals(emptySet(), state.value.projectPinningIds)
     }
 
@@ -105,7 +111,7 @@ class QuickCreateProjectStateHolderTest {
         assertEquals(listOf("新项目"), repository.createdNames)
         assertEquals("project-new", state.value.projects.first().projectId)
         assertEquals("新项目", state.value.projects.first().name)
-        assertEquals("0 个任务", state.value.projects.first().taskCountText)
+        assertEquals(QuickCreateProjectTaskCountText(0), state.value.projects.first().taskCountText)
         assertEquals(emptySet(), state.value.projectMutatingIds)
     }
 
@@ -170,8 +176,17 @@ class QuickCreateProjectStateHolderTest {
         assertEquals("项目详情", state.value.selectedProjectDetail?.name)
         assertEquals("https://example.com/project-detail.png", state.value.selectedProjectDetail?.coverUrl)
         assertEquals(
-            listOf("任务数量" to "9", "置顶状态" to "已置顶"),
-            state.value.selectedProjectDetail?.rows?.map { it.label to it.value },
+            listOf(
+                QuickCreateProjectDetailRowUi(
+                    label = QuickCreateProjectDetailRowLabel.TaskCount,
+                    value = QuickCreateProjectDetailRowValue.TaskCount(9),
+                ),
+                QuickCreateProjectDetailRowUi(
+                    label = QuickCreateProjectDetailRowLabel.PinStatus,
+                    value = QuickCreateProjectDetailRowValue.PinStatus(QuickCreateProjectPinStatusText.Pinned),
+                ),
+            ),
+            state.value.selectedProjectDetail?.rows,
         )
     }
 

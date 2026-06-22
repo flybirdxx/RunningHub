@@ -37,6 +37,13 @@ import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistor
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationBadgeTone
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPlaceholderMediaType
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationPreviewUi
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDeleteConfirmationText
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailRowLabel
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailRowUi
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailRowValue
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectPinContentDescription
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectPinStatusText
+import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectTaskCountText
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -636,10 +643,16 @@ class QuickCreateScreenModelTest {
         assertEquals("project-1", model.uiState.value.projects.single().projectId)
         assertEquals("世界杯广告", model.uiState.value.projects.single().name)
         assertEquals(true, model.uiState.value.projects.single().isPinned)
-        assertEquals("取消置顶项目", model.uiState.value.projects.single().pinContentDescription)
-        assertEquals("3 个任务", model.uiState.value.projects.single().taskCountText)
+        assertEquals(
+            QuickCreateProjectPinContentDescription.UnpinProject,
+            model.uiState.value.projects.single().pinContentDescription,
+        )
+        assertEquals(QuickCreateProjectTaskCountText(3), model.uiState.value.projects.single().taskCountText)
         assertEquals("https://example.com/project.png", model.uiState.value.projects.single().coverUrl)
-        assertEquals("删除「世界杯广告」后，项目入口会从当前列表移除。", model.uiState.value.projects.single().deleteConfirmationText)
+        assertEquals(
+            QuickCreateProjectDeleteConfirmationText("世界杯广告"),
+            model.uiState.value.projects.single().deleteConfirmationText,
+        )
         assertEquals(false, model.uiState.value.projectsHasMore)
     }
 
@@ -754,8 +767,11 @@ class QuickCreateScreenModelTest {
 
         assertEquals(listOf("project-1" to false), repository.pinnedProjectRequests)
         assertEquals(false, model.uiState.value.projects.single().isPinned)
-        assertEquals("置顶项目", model.uiState.value.projects.single().pinContentDescription)
-        assertEquals("未置顶", model.uiState.value.projects.single().pinStatusText)
+        assertEquals(
+            QuickCreateProjectPinContentDescription.PinProject,
+            model.uiState.value.projects.single().pinContentDescription,
+        )
+        assertEquals(QuickCreateProjectPinStatusText.NotPinned, model.uiState.value.projects.single().pinStatusText)
         assertEquals(emptySet(), model.uiState.value.projectPinningIds)
     }
 
@@ -769,7 +785,7 @@ class QuickCreateScreenModelTest {
         assertEquals(listOf("新项目"), repository.createdProjectNames)
         assertEquals("project-new", model.uiState.value.projects.first().projectId)
         assertEquals("新项目", model.uiState.value.projects.first().name)
-        assertEquals("0 个任务", model.uiState.value.projects.first().taskCountText)
+        assertEquals(QuickCreateProjectTaskCountText(0), model.uiState.value.projects.first().taskCountText)
         assertEquals(emptySet(), model.uiState.value.projectMutatingIds)
     }
 
@@ -812,8 +828,17 @@ class QuickCreateScreenModelTest {
         assertEquals("项目详情", model.uiState.value.selectedProjectDetail?.name)
         assertEquals("https://example.com/project-detail.png", model.uiState.value.selectedProjectDetail?.coverUrl)
         assertEquals(
-            listOf("任务数量" to "9", "置顶状态" to "已置顶"),
-            model.uiState.value.selectedProjectDetail?.rows?.map { it.label to it.value },
+            listOf(
+                QuickCreateProjectDetailRowUi(
+                    label = QuickCreateProjectDetailRowLabel.TaskCount,
+                    value = QuickCreateProjectDetailRowValue.TaskCount(9),
+                ),
+                QuickCreateProjectDetailRowUi(
+                    label = QuickCreateProjectDetailRowLabel.PinStatus,
+                    value = QuickCreateProjectDetailRowValue.PinStatus(QuickCreateProjectPinStatusText.Pinned),
+                ),
+            ),
+            model.uiState.value.selectedProjectDetail?.rows,
         )
     }
 

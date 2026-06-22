@@ -220,6 +220,16 @@
     <string name="quick_create_project_name_label">项目名称</string>
     <string name="quick_create_project_cancel_action">取消</string>
     <string name="quick_create_project_delete_title">删除项目</string>
+    <string name="quick_create_project_task_count_format">%1$d 个任务</string>
+    <string name="quick_create_project_pin_content_description">置顶项目</string>
+    <string name="quick_create_project_unpin_content_description">取消置顶项目</string>
+    <string name="quick_create_project_pinned_status">已置顶</string>
+    <string name="quick_create_project_not_pinned_status">未置顶</string>
+    <string name="quick_create_project_delete_confirmation_format">删除「%1$s」后，项目入口会从当前列表移除。</string>
+    <string name="quick_create_project_detail_row_task_count">任务数量</string>
+    <string name="quick_create_project_detail_row_pin_status">置顶状态</string>
+    <string name="quick_create_project_detail_row_created_at">创建时间</string>
+    <string name="quick_create_project_detail_row_updated_at">更新时间</string>
     <string name="quick_create_history_recent_title">最近创作</string>
     <string name="quick_create_history_load_more">加载更多</string>
     <string name="quick_create_history_detail_close">关闭</string>

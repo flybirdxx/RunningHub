@@ -8,6 +8,5 @@ feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/qu
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/history/QuickCreateHistoryStateHolder.kt|5|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/modelcatalog/QuickCreateServiceModelUiModel.kt|6|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/project/QuickCreateProjectStateHolder.kt|6|presentation hardcoded UI copy baseline
-feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/project/QuickCreateProjectUiModel.kt|8|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/result/QuickCreateTaskPollingController.kt|14|presentation hardcoded UI copy baseline
 feature/task/presentation/src/commonMain/kotlin/com/runninghub/feature/task/presentation/TaskHistoryStateHolder.kt|10|presentation hardcoded UI copy baseline; move to Compose Resources or a text provider after History UI leaves composeApp

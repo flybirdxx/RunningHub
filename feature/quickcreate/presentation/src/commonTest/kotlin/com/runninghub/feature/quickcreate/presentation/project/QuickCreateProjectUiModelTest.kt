@@ -22,10 +22,10 @@ class QuickCreateProjectUiModelTest {
         assertEquals("project_1", item.projectId)
         assertEquals("作品集", item.name)
         assertNull(item.coverUrl)
-        assertEquals("3 个任务", item.taskCountText)
-        assertEquals("取消置顶项目", item.pinContentDescription)
-        assertEquals("已置顶", item.pinStatusText)
-        assertEquals("删除「作品集」后，项目入口会从当前列表移除。", item.deleteConfirmationText)
+        assertEquals(QuickCreateProjectTaskCountText(3), item.taskCountText)
+        assertEquals(QuickCreateProjectPinContentDescription.UnpinProject, item.pinContentDescription)
+        assertEquals(QuickCreateProjectPinStatusText.Pinned, item.pinStatusText)
+        assertEquals(QuickCreateProjectDeleteConfirmationText("作品集"), item.deleteConfirmationText)
     }
 
     @Test
@@ -45,11 +45,20 @@ class QuickCreateProjectUiModelTest {
         assertEquals("https://example.com/cover.png", detail.coverUrl)
         assertEquals(
             listOf(
-                "任务数量" to "0",
-                "置顶状态" to "未置顶",
-                "创建时间" to "bad-time",
+                QuickCreateProjectDetailRowUi(
+                    label = QuickCreateProjectDetailRowLabel.TaskCount,
+                    value = QuickCreateProjectDetailRowValue.TaskCount(0),
+                ),
+                QuickCreateProjectDetailRowUi(
+                    label = QuickCreateProjectDetailRowLabel.PinStatus,
+                    value = QuickCreateProjectDetailRowValue.PinStatus(QuickCreateProjectPinStatusText.NotPinned),
+                ),
+                QuickCreateProjectDetailRowUi(
+                    label = QuickCreateProjectDetailRowLabel.CreatedAt,
+                    value = QuickCreateProjectDetailRowValue.Timestamp("bad-time"),
+                ),
             ),
-            detail.rows.map { it.label to it.value },
+            detail.rows,
         )
     }
 }
