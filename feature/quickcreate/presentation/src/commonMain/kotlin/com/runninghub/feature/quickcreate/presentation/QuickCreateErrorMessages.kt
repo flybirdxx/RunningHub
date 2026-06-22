@@ -23,6 +23,24 @@ fun Throwable.toQuickCreateDisplayMessage(fallbackMessage: String): String =
     }
 
 /**
+ * QuickCreate Presentation 层仍需要保留的本地错误兜底文案。
+ *
+ * 这些值作为 `toQuickCreateDisplayMessage` 的 fallback 传入，确保未知异常、
+ * 服务端原始摘要或调试信息不会直接写入页面状态。后续当 QuickCreate UI 壳整体迁出
+ * composeApp 或接入注入式 TextProvider 时，可把这些稳定场景继续改为资源 key。
+ */
+internal object QuickCreateErrorFallbackText {
+    /** 灵感标签请求失败时的页面兜底文案，覆盖标签列表初始化流程。 */
+    const val INSPIRATION_TAGS_LOAD_FAILED: String = "灵感标签加载失败"
+
+    /** 灵感模板第一页或下一页请求失败时的页面兜底文案，覆盖模板分页流程。 */
+    const val INSPIRATION_TEMPLATES_LOAD_FAILED: String = "灵感模板加载失败"
+
+    /** 灵感模板详情请求失败时的页面兜底文案，覆盖模板应用前的详情加载流程。 */
+    const val INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED: String = "模板详情加载失败"
+}
+
+/**
  * 将稳定错误码映射为 QuickCreate 页面文案。
  *
  * 本函数只处理客户端定义的错误码；未识别字符串统一交给调用方兜底，
@@ -41,9 +59,12 @@ private fun String.toQuickCreateIssueMessageOrNull(): String? =
         QuickCreateRepositoryIssueCode.API_KEY_MISSING -> "请先登录后再上传素材"
         QuickCreateRepositoryIssueCode.MEDIA_UPLOAD_FAILED -> "素材上传失败"
         QuickCreateRepositoryIssueCode.MEDIA_UPLOAD_EMPTY_URL -> "素材上传成功但缺少远端地址"
-        QuickCreateRepositoryIssueCode.INSPIRATION_TAGS_LOAD_FAILED -> "灵感标签加载失败"
-        QuickCreateRepositoryIssueCode.INSPIRATION_TEMPLATES_LOAD_FAILED -> "灵感模板加载失败"
-        QuickCreateRepositoryIssueCode.INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED -> "模板详情加载失败"
+        QuickCreateRepositoryIssueCode.INSPIRATION_TAGS_LOAD_FAILED ->
+            QuickCreateErrorFallbackText.INSPIRATION_TAGS_LOAD_FAILED
+        QuickCreateRepositoryIssueCode.INSPIRATION_TEMPLATES_LOAD_FAILED ->
+            QuickCreateErrorFallbackText.INSPIRATION_TEMPLATES_LOAD_FAILED
+        QuickCreateRepositoryIssueCode.INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED ->
+            QuickCreateErrorFallbackText.INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED
         QuickCreateRepositoryIssueCode.INSPIRATION_TEMPLATE_DETAIL_EMPTY -> "模板详情为空"
         QuickCreateRepositoryIssueCode.MODEL_LIST_LOAD_FAILED -> "模型列表加载失败"
         QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED -> "历史加载失败"

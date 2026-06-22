@@ -46,6 +46,38 @@ class QuickCreateInspirationStateHolderTest {
     }
 
     @Test
+    fun `load inspiration uses fallback message when tags fail`() = runTest {
+        val repository = FakeInspirationRepository().apply {
+            tagsResult = Result.failure(IllegalStateException("backend tags exploded"))
+        }
+        val state = MutableStateFlow(QuickCreateUiState())
+        val holder = createHolder(repository, state, this)
+
+        holder.loadInspiration()
+        runCurrent()
+
+        assertEquals(emptyList(), state.value.inspirationTags)
+        assertEquals(listOf("tpl-1", "tpl-2"), state.value.inspirationTemplates.map { it.id })
+        assertEquals("灵感标签加载失败", state.value.error)
+    }
+
+    @Test
+    fun `load inspiration uses fallback message when first template page fails`() = runTest {
+        val repository = FakeInspirationRepository().apply {
+            templatePageResults[1] = Result.failure(IllegalStateException("backend templates exploded"))
+        }
+        val state = MutableStateFlow(QuickCreateUiState())
+        val holder = createHolder(repository, state, this)
+
+        holder.loadInspiration()
+        runCurrent()
+
+        assertEquals(listOf("热门", "新品"), state.value.inspirationTags.map { it.label })
+        assertEquals(emptyList(), state.value.inspirationTemplates)
+        assertEquals("灵感模板加载失败", state.value.error)
+    }
+
+    @Test
     fun `load more templates enters loading synchronously and ignores duplicate trigger`() = runTest {
         val repository = FakeInspirationRepository().apply {
             templatePages = mapOf(
@@ -82,6 +114,29 @@ class QuickCreateInspirationStateHolderTest {
         assertEquals(2, state.value.inspirationTemplatesPage)
         assertFalse(state.value.inspirationTemplatesHasMore)
         assertFalse(state.value.inspirationTemplatesLoadingMore)
+    }
+
+    @Test
+    fun `load more templates uses fallback message when next page fails`() = runTest {
+        val repository = FakeInspirationRepository().apply {
+            templatePageResults[2] = Result.failure(IllegalStateException("backend next page exploded"))
+        }
+        val state = MutableStateFlow(
+            QuickCreateUiState(
+                inspirationTemplates = listOf(inspirationTemplate("tpl-1"))
+                    .map { it.toQuickCreateInspirationTemplateUi() },
+                inspirationTemplatesPage = 1,
+                inspirationTemplatesHasMore = true,
+            )
+        )
+        val holder = createHolder(repository, state, this)
+
+        holder.loadMoreTemplates()
+        runCurrent()
+
+        assertEquals(listOf("tpl-1"), state.value.inspirationTemplates.map { it.id })
+        assertFalse(state.value.inspirationTemplatesLoadingMore)
+        assertEquals("灵感模板加载失败", state.value.error)
     }
 
     @Test
@@ -135,7 +190,7 @@ class QuickCreateInspirationStateHolderTest {
     fun `apply template failure keeps editor state and does not invoke callback`() = runTest {
         var templateAppliedCount = 0
         val repository = FakeInspirationRepository().apply {
-            templateDetailResult = Result.failure(IllegalStateException("模板不存在"))
+            templateDetailResult = Result.failure(IllegalStateException("backend detail exploded"))
         }
         val state = MutableStateFlow(
             QuickCreateUiState(
@@ -184,6 +239,7 @@ class QuickCreateInspirationStateHolderTest {
                 QuickCreateInspirationTag(id = "new", name = "新品"),
             )
         )
+        val templatePageResults = mutableMapOf<Int, Result<QuickCreateInspirationTemplatePage>>()
         var templatePages: Map<Int, QuickCreateInspirationTemplatePage>? = null
         var templateDetail = inspirationTemplateDetail()
         var templateDetailResult: Result<QuickCreateInspirationTemplateDetail>? = null
@@ -204,7 +260,8 @@ class QuickCreateInspirationStateHolderTest {
             tagId: String?,
         ): Result<QuickCreateInspirationTemplatePage> {
             requestedTemplatePages += page to size
-            return Result.success(templatePages?.get(page) ?: defaultTemplatePage(page = page, size = size))
+            return templatePageResults[page]
+                ?: Result.success(templatePages?.get(page) ?: defaultTemplatePage(page = page, size = size))
         }
 
         /**

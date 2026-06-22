@@ -6,6 +6,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceUploadFieldAlias
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationUploadMediaKind
+import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
 import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
@@ -68,8 +69,11 @@ class QuickCreateInspirationStateHolder(
                 val tags = tagsResult.getOrElse { emptyList() }.toQuickCreateInspirationTagUiItems()
                 val templatePage = templatesResult.getOrNull()
                 val templates = templatePage?.items.orEmpty().map { it.toQuickCreateInspirationTemplateUi() }
-                val error = tagsResult.exceptionOrNull()?.toQuickCreateDisplayMessage("灵感标签加载失败")
-                    ?: templatesResult.exceptionOrNull()?.toQuickCreateDisplayMessage("灵感模板加载失败")
+                val error = tagsResult.exceptionOrNull()?.toQuickCreateDisplayMessage(
+                    QuickCreateErrorFallbackText.INSPIRATION_TAGS_LOAD_FAILED,
+                ) ?: templatesResult.exceptionOrNull()?.toQuickCreateDisplayMessage(
+                    QuickCreateErrorFallbackText.INSPIRATION_TEMPLATES_LOAD_FAILED,
+                )
 
                 state.copy(
                     inspirationLoading = false,
@@ -123,7 +127,9 @@ class QuickCreateInspirationStateHolder(
                     onFailure = { error ->
                         state.copy(
                             inspirationTemplatesLoadingMore = false,
-                            error = error.toQuickCreateDisplayMessage("灵感模板加载失败"),
+                            error = error.toQuickCreateDisplayMessage(
+                                QuickCreateErrorFallbackText.INSPIRATION_TEMPLATES_LOAD_FAILED,
+                            ),
                         )
                     },
                 )
@@ -153,7 +159,9 @@ class QuickCreateInspirationStateHolder(
                     uiState.update {
                         it.copy(
                             inspirationLoading = false,
-                            error = error.toQuickCreateDisplayMessage("模板详情加载失败"),
+                            error = error.toQuickCreateDisplayMessage(
+                                QuickCreateErrorFallbackText.INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED,
+                            ),
                         )
                     }
                 },

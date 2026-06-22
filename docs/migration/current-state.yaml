@@ -280,32 +280,31 @@ gate_status:
       - "2026-06-22 P8 QuickCreate 草稿恢复摘要继续收口：QuickCreateDraftUiModel 不再返回中文恢复摘要，改为稳定 QuickCreateDraftResumeSummary；QuickCreateClassicComposerContent 通过 composeApp Compose Resources 映射草稿格式、图片和视频标签，ui-copy baseline 移除该文件 2 个匹配。"
       - "2026-06-22 P8 QuickCreate 导航标签继续收口：QuickCreateNavigationState 不再在 QuickCreateTab/QuickCreateMode 中保存图片、视频、创作和灵感中文文案，改为稳定 QuickCreateNavigationLabel；QuickCreateScreen 和 QuickCreateClassicComposerContent 通过 composeApp Compose Resources 映射最终文案，ui-copy baseline 移除该文件 4 个匹配。"
       - "2026-06-22 P8 QuickCreate 生成阻塞原因继续收口：QuickCreateGenerationRequestFactory 不再返回 Prompt 中文阻塞文案，改为稳定 QuickCreateGenerationBlockReason；QuickCreateGenerationInteractor 通过 QuickCreateRuntimeUiText 临时映射最终文案，RequestFactory 硬编码 UI 文案基线移除，RuntimeUiText 中期文案端口基线从 8 调整为 10。"
+      - "2026-06-22 P8 QuickCreate 灵感错误文案继续收口：QuickCreateInspirationStateHolder 不再保存灵感标签、模板分页和模板详情失败的本地中文 fallback，改为引用 QuickCreateErrorFallbackText；测试覆盖未知异常不透传到页面状态，Inspiration StateHolder 硬编码 UI 文案基线移除。"
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 已删除，QuickCreate billing、任务状态缺省文案、动态上传字段提示、草稿恢复摘要、导航标签和生成 Prompt 阻塞原因已改为稳定展示状态；下一步优先评估 :shared 模块整体退役条件或继续收缩 QuickCreate Runtime/Error/轮询状态文案端口；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 已删除，QuickCreate billing、任务状态缺省文案、动态上传字段提示、草稿恢复摘要、导航标签、生成 Prompt 阻塞原因和灵感错误 fallback 已改为稳定展示状态；下一步优先评估 :shared 模块整体退役条件或继续收缩 QuickCreate Runtime/Error/轮询状态文案端口；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   current_slice:
-    id: "MID-02-P8-quickcreate-generation-block-reasons"
+    id: "MID-02-P8-quickcreate-inspiration-error-fallbacks"
     result: "passed"
     modified_files:
-      - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/generation/QuickCreateGenerationRequestFactory.kt"
-      - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/generation/QuickCreateGenerationRequestFactoryTest.kt"
-      - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt"
-      - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateGenerationInteractor.kt"
-      - "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateGenerationRequestFactoryTest.kt"
+      - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateErrorMessages.kt"
+      - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/inspiration/QuickCreateInspirationStateHolder.kt"
+      - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/inspiration/QuickCreateInspirationStateHolderTest.kt"
       - "docs/governance/ui-copy-hardcoded-baseline.txt"
       - "docs/migration/acceptance.md"
       - "docs/migration/current-state.yaml"
     commands:
-      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactoryTest\" # RED: failed before QuickCreateGenerationBlockReason/reason API existed"
-      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactoryTest\" :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateGenerationRequestFactoryTest\" --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest\""
-      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactoryTest\" :composeApp:testDebugUnitTest --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateGenerationRequestFactoryTest\" --tests \"com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest\" :feature:quickcreate:presentation:compileDebugKotlinAndroid :feature:quickcreate:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
+      - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed because QuickCreateInspirationStateHolder still had 4 hardcoded UI copy matches after lowering baseline to 0"
+      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationStateHolderTest\" checkLongTermGovernance"
+      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationStateHolderTest\" :feature:quickcreate:presentation:compileDebugKotlinAndroid :feature:quickcreate:presentation:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
       - "git diff --check"
     notes:
-      - "RED 阶段先新增 QuickCreateGenerationRequestFactoryTest，并确认失败于 QuickCreateGenerationBlockReason 与 Blocked.reason API 缺失。"
-      - "QuickCreateGenerationRequestFactory 现在只返回稳定阻塞原因；PromptRequired/PromptTooLong 由 QuickCreateGenerationInteractor 映射到 QuickCreateRuntimeUiText。"
-      - "本轮只处理生成前 Prompt 阻塞原因；动态服务字段校验仍通过 CustomMessage 兼容 schema 生成的展示消息，后续应作为独立文案端口继续收口。"
+      - "RED 阶段先把 Inspiration StateHolder UI copy baseline 从 4 降到 0，并确认治理检查失败。"
+      - "QuickCreateInspirationStateHolder 现在引用 QuickCreateErrorFallbackText，不再直接保存灵感标签、模板分页或模板详情失败文案。"
+      - "本轮只处理灵感 fallback 文案，未触碰生成、计费、历史轮询、Data/Domain Repository 或 composeApp UI。"
   modified_files:
     - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt"
     - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiTextTest.kt"
@@ -1347,6 +1346,7 @@ last_verification:
     - "2026-06-22 P8 QuickCreate 草稿恢复摘要继续收口：DraftData.resumeSummary 不再返回中文 String，改为 QuickCreateDraftResumeSummary(tab, promptLength) 稳定结构；QuickCreateClassicComposerContent 通过 composeApp Compose Resources 映射草稿摘要格式与图片/视频标签，QuickCreateDraftUiModel 的 2 个硬编码 UI 文案基线已移除。"
     - "2026-06-22 P8 QuickCreate 导航标签继续收口：QuickCreateTab/QuickCreateMode 不再携带中文 displayName，改为 QuickCreateNavigationLabel 稳定文案键；QuickCreateScreen 与 QuickCreateClassicComposerContent 使用 composeApp Compose Resources 映射图片、视频、创作和灵感标签，QuickCreateNavigationState 的 4 个硬编码 UI 文案基线已移除。"
     - "2026-06-22 P8 QuickCreate 生成阻塞原因继续收口：QuickCreateGenerationRequestFactory 的 Prompt 校验结果从中文 String 改为 QuickCreateGenerationBlockReason 稳定原因；QuickCreateGenerationInteractor 通过 QuickCreateRuntimeUiText 临时映射最终文案，QuickCreateGenerationRequestFactory 的 2 个硬编码 UI 文案基线已移除，QuickCreateRuntimeUiText 中期端口基线从 8 更新为 10。"
+    - "2026-06-22 P8 QuickCreate 灵感错误 fallback 继续收口：QuickCreateInspirationStateHolder 不再直接保存灵感标签、模板分页和模板详情失败文案，统一引用 QuickCreateErrorFallbackText；QuickCreateInspirationStateHolderTest 覆盖未知异常不会透传到页面状态，ui-copy baseline 移除该文件 4 个匹配。"
     - "P0-4 图形验证码本轮继续补强：TAC 脚本加载失败和超时会显示可重试降级状态，并由 SmsCaptchaHtmlTest 锁定；真实 WKWebView 加载、ATS/Cookie/同源行为仍需 macOS/iOS 运行证据。"
     - "网络 JSON 本轮按复核建议补强：TokenRefresher 不再用正则截取刷新响应，改用 kotlinx.serialization DTO 解码，新增测试覆盖 JSON unicode escape token。"
     - "安全存储本轮按复核建议前置修复：生产 CredentialStore 已切换到 Android Keystore backed 密文存储和 iOS Keychain，MigratingCredentialStore 负责把旧 Preferences DataStore 凭据逐项迁移并清理；架构门禁会阻止 Android/iOS RuntimeModule 退回普通 Preferences 绑定。"
