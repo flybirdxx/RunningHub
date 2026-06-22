@@ -1,4 +1,4 @@
-package com.runninghub.app.ui.feature.quickcreate
+package com.runninghub.feature.quickcreate.presentation.generation
 
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
@@ -6,9 +6,6 @@ import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
-import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationBlockReason
-import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
-import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
@@ -38,7 +35,7 @@ import kotlinx.coroutines.launch
  * @param scope 页面生命周期作用域，生成 Job 挂在该作用域下。
  * @param uiState 页面状态流，Interactor 只读取编辑状态并更新提交前的阻塞、上传和错误状态。
  */
-internal class QuickCreateGenerationInteractor(
+class QuickCreateGenerationInteractor(
     private val generationRepository: QuickCreationGenerationRepository,
     private val generationRequestFactory: QuickCreateGenerationRequestFactory,
     private val feePreviewInteractor: QuickCreateFeePreviewInteractor,

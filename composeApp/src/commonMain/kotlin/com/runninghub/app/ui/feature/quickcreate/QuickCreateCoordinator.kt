@@ -22,6 +22,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationInteractor
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryStateHolder
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationStateHolder
