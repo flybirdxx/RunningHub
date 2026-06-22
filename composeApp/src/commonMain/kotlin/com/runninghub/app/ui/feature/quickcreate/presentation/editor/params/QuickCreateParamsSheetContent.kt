@@ -58,6 +58,7 @@ import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldControlType
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldUi
+import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceUploadHint
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceUploadMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
@@ -70,6 +71,10 @@ import runninghub.composeapp.generated.resources.quick_create_params_seed_label
 import runninghub.composeapp.generated.resources.quick_create_params_seed_random_placeholder
 import runninghub.composeapp.generated.resources.quick_create_params_service_params_title
 import runninghub.composeapp.generated.resources.quick_create_params_sheet_title
+import runninghub.composeapp.generated.resources.quick_create_params_upload_formats_format
+import runninghub.composeapp.generated.resources.quick_create_params_upload_hint_separator
+import runninghub.composeapp.generated.resources.quick_create_params_upload_max_count_format
+import runninghub.composeapp.generated.resources.quick_create_params_upload_max_size_format
 
 /**
  * 展示当前快捷创作入口使用的“更多参数”底部面板。
@@ -389,7 +394,7 @@ private fun ServiceFieldInput(
                 // 动态字段模型已迁入 feature presentation；composeApp 迁移期只把稳定媒体枚举
                 // 转换为当前上传组件仍在使用的页面状态枚举，避免新模块反向依赖应用层类型。
                 mediaType = field.uploadMediaType.toAppMediaType(),
-                hint = field.uploadHint,
+                hint = quickCreateServiceUploadHintText(field.uploadHint),
                 mediaReferences = mediaReferences,
                 onUploadFieldClick = onUploadFieldClick,
                 onRemoveMedia = onRemoveMedia,
@@ -405,6 +410,29 @@ private fun ServiceFieldInput(
             )
         }
     }
+}
+
+@Composable
+private fun quickCreateServiceUploadHintText(hint: QuickCreationServiceUploadHint): String {
+    if (!hint.hasConstraints()) return ""
+
+    val parts = buildList {
+        if (hint.acceptFormats.isNotEmpty()) {
+            add(
+                stringResource(
+                    Res.string.quick_create_params_upload_formats_format,
+                    hint.acceptFormats.joinToString("/"),
+                )
+            )
+        }
+        hint.maxUploadCount?.let { maxCount ->
+            add(stringResource(Res.string.quick_create_params_upload_max_count_format, maxCount))
+        }
+        hint.maxUploadSizeMegabytes?.let { maxSize ->
+            add(stringResource(Res.string.quick_create_params_upload_max_size_format, maxSize))
+        }
+    }
+    return parts.joinToString(stringResource(Res.string.quick_create_params_upload_hint_separator))
 }
 
 private fun QuickCreationServiceUploadMediaType?.toAppMediaType(): QuickCreateMediaType? =

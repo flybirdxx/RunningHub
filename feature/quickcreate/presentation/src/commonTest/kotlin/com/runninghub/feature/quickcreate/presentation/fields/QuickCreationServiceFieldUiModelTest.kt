@@ -103,6 +103,13 @@ class QuickCreationServiceFieldUiModelTest {
         assertEquals(1, fields[2].childFields.single().indentLevel)
         assertEquals(QuickCreationServiceFieldControlType.UPLOAD, fields[3].controlType)
         assertEquals(QuickCreationServiceUploadMediaType.IMAGE, fields[3].uploadMediaType)
-        assertEquals("PNG · 最多 2 个文件 · 单文件 10MB", fields[3].uploadHint)
+        assertEquals(
+            QuickCreationServiceUploadHint(
+                acceptFormats = listOf("PNG"),
+                maxUploadCount = 2,
+                maxUploadSizeMegabytes = 10,
+            ),
+            fields[3].uploadHint,
+        )
     }
 }

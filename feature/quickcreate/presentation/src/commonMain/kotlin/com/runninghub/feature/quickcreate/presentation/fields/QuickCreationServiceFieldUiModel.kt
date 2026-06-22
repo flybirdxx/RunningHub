@@ -41,6 +41,33 @@ enum class QuickCreationServiceUploadMediaType {
 }
 
 /**
+ * 动态字段上传控件的结构化约束提示。
+ *
+ * 该模型位于 QuickCreate Presentation 层，只保存服务端约束的稳定数据，
+ * 不拼接最终中文提示。composeApp 根据本模型使用 Compose Resources 生成用户可见文案。
+ *
+ * @property acceptFormats 服务端允许的文件格式列表，顺序保留服务端配置；
+ * 空集合表示服务端未声明格式限制。元素通常为扩展名或 MIME 简写，不在本层大小写归一。
+ * @property maxUploadCount 单次最多可选文件数量，来源于服务端 `maxInputCount`；
+ * `null` 表示未声明数量上限，`0` 或负数保留原值用于暴露异常配置，不在本层静默修正。
+ * @property maxUploadSizeMegabytes 单文件大小上限，单位为 MB，由服务端字节数向下换算；
+ * `null` 表示未声明大小上限，`0` 表示服务端返回小于 1MB 的限制或异常配置。
+ */
+data class QuickCreationServiceUploadHint(
+    val acceptFormats: List<String> = emptyList(),
+    val maxUploadCount: Int? = null,
+    val maxUploadSizeMegabytes: Long? = null,
+) {
+    /**
+     * 上传控件是否存在任何可展示约束。
+     *
+     * @return `true` 表示至少有格式、数量或大小约束；`false` 表示 UI 可省略辅助提示。
+     */
+    fun hasConstraints(): Boolean =
+        acceptFormats.isNotEmpty() || maxUploadCount != null || maxUploadSizeMegabytes != null
+}
+
+/**
  * 服务端动态字段选项的 UI 模型。
  *
  * @property label 选项展示文案，来自服务端 label；空字符串表示服务端未提供可读标题。
@@ -70,7 +97,7 @@ data class QuickCreationServiceFieldOptionUi(
  * @property maxLength 文本最大长度；`null` 表示不限制，负数会在输入约束中视为不限制。
  * @property textLimitCounter 文本长度计数文案；`null` 表示不展示计数。
  * @property uploadMediaType 上传控件允许的媒体类型；`null` 表示使用通用上传入口。
- * @property uploadHint 上传控件辅助说明；空字符串表示没有提示。
+ * @property uploadHint 上传控件辅助约束；无约束时 [QuickCreationServiceUploadHint.hasConstraints] 为 `false`。
  * @property childFields 当前已激活的子字段列表，顺序来自服务端配置，不允许重复渲染同一对象。
  * @property indentLevel 字段缩进层级，父字段为 0，子字段逐层递增。
  */
@@ -85,7 +112,7 @@ data class QuickCreationServiceFieldUi(
     val maxLength: Int?,
     val textLimitCounter: String?,
     val uploadMediaType: QuickCreationServiceUploadMediaType?,
-    val uploadHint: String,
+    val uploadHint: QuickCreationServiceUploadHint,
     val childFields: List<QuickCreationServiceFieldUi>,
     val indentLevel: Int,
 ) {
@@ -136,7 +163,11 @@ private fun QuickCreationResolvedServiceField.toQuickCreationServiceFieldUi(
         maxLength = maxLength,
         textLimitCounter = maxLength?.let { "${currentValue.length.coerceAtMost(it)}/$it" },
         uploadMediaType = uploadMediaKind?.toQuickCreationServiceUploadMediaType(),
-        uploadHint = uploadHintParts().joinToString(" · "),
+        uploadHint = QuickCreationServiceUploadHint(
+            acceptFormats = acceptFormats,
+            maxUploadCount = maxUploadCount,
+            maxUploadSizeMegabytes = maxUploadSizeBytes?.let { it / 1024 / 1024 },
+        ),
         childFields = childFields.map { child -> child.toQuickCreationServiceFieldUi(indentLevel = indentLevel + 1) },
         indentLevel = indentLevel,
     )
@@ -148,13 +179,6 @@ private fun QuickCreationResolvedFieldKind.toQuickCreationServiceFieldControlTyp
         this == QuickCreationResolvedFieldKind.TEXT -> QuickCreationServiceFieldControlType.TEXT
         else -> QuickCreationServiceFieldControlType.UPLOAD
     }
-
-private fun QuickCreationResolvedServiceField.uploadHintParts(): List<String> =
-    listOfNotNull(
-        acceptFormats.takeIf { it.isNotEmpty() }?.joinToString("/"),
-        maxUploadCount?.let { "最多 $it 个文件" },
-        maxUploadSizeBytes?.let { "单文件 ${it / 1024 / 1024}MB" },
-    )
 
 private fun QuickCreationUploadMediaKind.toQuickCreationServiceUploadMediaType(): QuickCreationServiceUploadMediaType =
     when (this) {

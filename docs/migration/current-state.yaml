@@ -276,10 +276,11 @@ gate_status:
       - "2026-06-22 P8 Plaza Presentation 错误语义继续收口：PlazaUiState.error 从字符串改为 PlazaPresentationError，灵感创作和短片加载失败不再把 Throwable.message 写入 UI 状态；PlazaScreen 通过 composeApp Compose Resources 映射最终文案，并移除未使用的 PlazaScreenModel.loadShorts 转发以保持 Plaza UI 聚合行数在 800 行阈值内。"
       - "2026-06-22 P8 QuickCreate billing 文案继续收口：QuickCreateBillingUiText 不再返回中文按钮文案，改为稳定 QuickCreateSendButtonLabel；compact/classic 生成按钮通过 composeApp Compose Resources 映射价格确认、待确认、金额和普通生成文案，ui-copy baseline 移除该文件 3 个匹配。"
       - "2026-06-22 P8 QuickCreate 任务状态缺省文案继续收口：QuickCreateTaskStatusUi 不再保存生成失败、生成完成、任务已取消和处理中缺省中文文案，改为稳定 QuickCreateTaskStatusText；QuickCreateResultContent 通过 composeApp Compose Resources 映射最终文案，ui-copy baseline 移除该文件 4 个匹配。"
+      - "2026-06-22 P8 QuickCreate 动态上传字段提示继续收口：QuickCreationServiceFieldUiModel 不再拼接格式、数量和大小中文提示，改为稳定 QuickCreationServiceUploadHint；QuickCreateParamsSheetContent 通过 composeApp Compose Resources 映射最终提示，ui-copy baseline 移除该文件 2 个匹配。"
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 已删除，QuickCreate billing 与任务状态缺省文案端口已改为稳定展示状态；下一步优先评估 :shared 模块整体退役条件或继续收缩 QuickCreate Runtime/Error/轮询状态文案端口；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；sharedModule 已删除，QuickCreate billing、任务状态缺省文案和动态上传字段提示已改为稳定展示状态；下一步优先评估 :shared 模块整体退役条件或继续收缩 QuickCreate Runtime/Error/轮询状态文案端口；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
     - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt"
@@ -311,6 +312,9 @@ last_verification:
     - "docs/migration/current-state.yaml"
     - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/billing/QuickCreateBillingUiText.kt"
     - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/billing/QuickCreateBillingUiTextTest.kt"
+    - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/fields/QuickCreationServiceFieldUiModel.kt"
+    - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/fields/QuickCreationServiceFieldUiModelTest.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/params/QuickCreateParamsSheetContent.kt"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateCompactComposerContent.kt"
     - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateClassicComposerContent.kt"
     - "composeApp/src/commonMain/composeResources/values/strings.xml"
@@ -927,6 +931,10 @@ last_verification:
     - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusUiTest\" :composeApp:compileDebugKotlinAndroid"
     - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusUiTest\" :feature:quickcreate:presentation:compileDebugKotlinAndroid :feature:quickcreate:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
     - "$matches = Select-String -LiteralPath @('feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/result/QuickCreateTaskStatusUi.kt','docs/governance/ui-copy-hardcoded-baseline.txt') -Pattern '\\\"[^\\\"]*[一-龥][^\\\"]*\\\"'; if ($matches) { $matches; exit 1 } else { 'task status presentation has no Chinese string literals or baseline entry' }"
+    - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldUiModelTest\" # RED: failed before QuickCreationServiceUploadHint existed"
+    - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldUiModelTest\" :composeApp:compileDebugKotlinAndroid"
+    - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldUiModelTest\" :feature:quickcreate:presentation:compileDebugKotlinAndroid :feature:quickcreate:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
+    - "$matches = Select-String -LiteralPath @('feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/fields/QuickCreationServiceFieldUiModel.kt','docs/governance/ui-copy-hardcoded-baseline.txt') -Pattern '\\\"[^\\\"]*[一-龥][^\\\"]*\\\"'; if ($matches) { $matches; exit 1 } else { 'service field presentation has no Chinese string literals or baseline entry' }"
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest --tests \"com.runninghub.feature.auth.presentation.creator.CreatorProfileStateHolderTest\" # RED: failed before CreatorProfileStateHolder existed"
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest --tests \"com.runninghub.feature.auth.presentation.creator.CreatorProfileStateHolderTest\""
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest :feature:auth:presentation:compileDebugKotlinAndroid :feature:auth:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
@@ -1311,6 +1319,7 @@ last_verification:
     - "2026-06-22 Gate H/P7 shared 空壳继续瘦身：删除未接入 Android/iOS 生产启动图的 sharedModule，并从 shared/build.gradle.kts 移除仅由该组合入口需要的 core/network、core/storage、feature:auth:domain、Ktor、Koin、serialization 和 DataStore 依赖；:shared 仍暂时保留 Platform 与 MD5 expect/actual，避免触碰仍显式编译 shared framework 的验证入口。"
     - "2026-06-22 P8 QuickCreate billing 文案继续收口：quickCreateSendButtonLabel 返回稳定 QuickCreateSendButtonLabel 状态，composeApp compact/classic 生成按钮使用 Compose Resources 映射最终文案；QuickCreateBillingUiText 的 3 个硬编码 UI 文案基线已移除。"
     - "2026-06-22 P8 QuickCreate 任务状态缺省文案继续收口：quickCreateTaskStatusDisplay 返回稳定 QuickCreateTaskStatusText，QuickCreateResultContent 使用 Compose Resources 映射生成失败、生成完成、任务已取消和处理中缺省文案；QuickCreateTaskStatusUi 的 4 个硬编码 UI 文案基线已移除。"
+    - "2026-06-22 P8 QuickCreate 动态上传字段提示继续收口：QuickCreationServiceFieldUiModel 输出 QuickCreationServiceUploadHint 结构化约束，QuickCreateParamsSheetContent 使用 Compose Resources 映射格式、最多文件数、单文件大小和分隔符；QuickCreationServiceFieldUiModel 的 2 个硬编码 UI 文案基线已移除。"
     - "P0-4 图形验证码本轮继续补强：TAC 脚本加载失败和超时会显示可重试降级状态，并由 SmsCaptchaHtmlTest 锁定；真实 WKWebView 加载、ATS/Cookie/同源行为仍需 macOS/iOS 运行证据。"
     - "网络 JSON 本轮按复核建议补强：TokenRefresher 不再用正则截取刷新响应，改用 kotlinx.serialization DTO 解码，新增测试覆盖 JSON unicode escape token。"
     - "安全存储本轮按复核建议前置修复：生产 CredentialStore 已切换到 Android Keystore backed 密文存储和 iOS Keychain，MigratingCredentialStore 负责把旧 Preferences DataStore 凭据逐项迁移并清理；架构门禁会阻止 Android/iOS RuntimeModule 退回普通 Preferences 绑定。"
