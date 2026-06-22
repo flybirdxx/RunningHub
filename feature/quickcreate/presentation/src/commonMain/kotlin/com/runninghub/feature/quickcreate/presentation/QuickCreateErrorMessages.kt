@@ -45,6 +45,18 @@ internal object QuickCreateErrorFallbackText {
     /** 灵感模板详情请求失败时的页面兜底文案，覆盖模板应用前的详情加载流程。 */
     const val INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED: String = "模板详情加载失败"
 
+    /** 最近历史第一页、下一页或普通历史来源请求失败时的页面兜底文案。 */
+    const val HISTORY_LOAD_FAILED: String = "历史加载失败"
+
+    /** 历史输出详情请求失败时的页面兜底文案，覆盖详情弹窗打开后的远端加载流程。 */
+    const val HISTORY_DETAIL_LOAD_FAILED: String = "历史详情加载失败"
+
+    /** 历史区域取消任务请求失败时的页面兜底文案，覆盖最近历史和项目任务两个来源。 */
+    const val TASK_CANCEL_FAILED: String = "取消任务失败"
+
+    /** 历史区域轮询刷新失败时的页面兜底文案，覆盖非终态任务自动刷新流程。 */
+    const val HISTORY_REFRESH_FAILED: String = "历史刷新失败"
+
     /** 项目列表第一页或下一页请求失败时的页面兜底文案，覆盖项目入口和分页加载流程。 */
     const val PROJECT_LIST_LOAD_FAILED: String = "项目加载失败"
 
@@ -62,6 +74,9 @@ internal object QuickCreateErrorFallbackText {
 
     /** 项目详情请求失败时的页面兜底文案，覆盖详情弹窗打开后的远端加载流程。 */
     const val PROJECT_DETAIL_LOAD_FAILED: String = "项目详情加载失败"
+
+    /** 项目任务列表请求失败时的页面兜底文案，覆盖从项目筛选进入历史区域的加载流程。 */
+    const val PROJECT_TASK_LIST_LOAD_FAILED: String = "项目任务加载失败"
 }
 
 /**
@@ -91,12 +106,14 @@ private fun String.toQuickCreateIssueMessageOrNull(): String? =
             QuickCreateErrorFallbackText.INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED
         QuickCreateRepositoryIssueCode.INSPIRATION_TEMPLATE_DETAIL_EMPTY -> "模板详情为空"
         QuickCreateRepositoryIssueCode.MODEL_LIST_LOAD_FAILED -> "模型列表加载失败"
-        QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED -> "历史加载失败"
-        QuickCreateRepositoryIssueCode.HISTORY_DETAIL_LOAD_FAILED -> "历史详情加载失败"
-        QuickCreateRepositoryIssueCode.TASK_CANCEL_FAILED -> "取消任务失败"
+        QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED -> QuickCreateErrorFallbackText.HISTORY_LOAD_FAILED
+        QuickCreateRepositoryIssueCode.HISTORY_DETAIL_LOAD_FAILED ->
+            QuickCreateErrorFallbackText.HISTORY_DETAIL_LOAD_FAILED
+        QuickCreateRepositoryIssueCode.TASK_CANCEL_FAILED -> QuickCreateErrorFallbackText.TASK_CANCEL_FAILED
         QuickCreateRepositoryIssueCode.PROJECT_LIST_LOAD_FAILED ->
             QuickCreateErrorFallbackText.PROJECT_LIST_LOAD_FAILED
-        QuickCreateRepositoryIssueCode.PROJECT_TASK_LIST_LOAD_FAILED -> "项目任务加载失败"
+        QuickCreateRepositoryIssueCode.PROJECT_TASK_LIST_LOAD_FAILED ->
+            QuickCreateErrorFallbackText.PROJECT_TASK_LIST_LOAD_FAILED
         QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED ->
             QuickCreateErrorFallbackText.PROJECT_CREATE_FAILED
         QuickCreateRepositoryIssueCode.PROJECT_RENAME_FAILED ->

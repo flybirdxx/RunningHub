@@ -56,6 +56,28 @@ class QuickCreateErrorMessagesTest {
         }
     }
 
+    @Test
+    fun `history issue codes reuse history fallback messages`() {
+        val mappings = listOf(
+            QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED to
+                QuickCreateErrorFallbackText.HISTORY_LOAD_FAILED,
+            QuickCreateRepositoryIssueCode.HISTORY_DETAIL_LOAD_FAILED to
+                QuickCreateErrorFallbackText.HISTORY_DETAIL_LOAD_FAILED,
+            QuickCreateRepositoryIssueCode.TASK_CANCEL_FAILED to
+                QuickCreateErrorFallbackText.TASK_CANCEL_FAILED,
+            QuickCreateRepositoryIssueCode.PROJECT_TASK_LIST_LOAD_FAILED to
+                QuickCreateErrorFallbackText.PROJECT_TASK_LIST_LOAD_FAILED,
+        )
+
+        mappings.forEach { (issueCode, expectedMessage) ->
+            val error = QuickCreateRepositoryException(
+                issueCode = issueCode,
+                remoteMessage = "server detail should not be displayed",
+            )
+
+            assertEquals(expectedMessage, error.toQuickCreateDisplayMessage("fallback"))
+        }
+    }
 
     @Test
     fun `task issue code can share the same mapper outside polling controller`() {

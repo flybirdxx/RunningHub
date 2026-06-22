@@ -4,6 +4,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryOutput
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryPage
 import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
+import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -306,6 +307,88 @@ class QuickCreateHistoryStateHolderTest {
     }
 
     @Test
+    fun `history failures use safe fallback messages without exposing exception text`() = runTest {
+        val repository = FakeHistoryRepository().apply {
+            historyPages = mapOf(
+                1 to historyPage(
+                    total = 3,
+                    items = listOf(
+                        historyItem("recent-task-1"),
+                        historyItem("recent-task-2"),
+                    ),
+                ),
+            )
+        }
+        val state = MutableStateFlow(QuickCreateUiState())
+        val holder = createHolder(repository, state, this)
+
+        holder.loadRecentHistory()
+        runCurrent()
+
+        repository.historyPageFailure = IllegalStateException("debug history page failure")
+        holder.loadMoreHistory()
+        runCurrent()
+        assertEquals(QuickCreateErrorFallbackText.HISTORY_LOAD_FAILED, state.value.error)
+        repository.historyPageFailure = null
+
+        repository.detailFailure = IllegalStateException("debug detail failure")
+        holder.selectHistoryOutput("output-1")
+        runCurrent()
+        assertEquals(QuickCreateErrorFallbackText.HISTORY_DETAIL_LOAD_FAILED, state.value.error)
+        repository.detailFailure = null
+
+        repository.projectTaskPageFailure = IllegalStateException("debug project task failure")
+        holder.selectProject("project-1")
+        runCurrent()
+        assertEquals(QuickCreateErrorFallbackText.PROJECT_TASK_LIST_LOAD_FAILED, state.value.error)
+        repository.projectTaskPageFailure = null
+    }
+
+    @Test
+    fun `cancel history task failure uses safe fallback message`() = runTest {
+        val repository = FakeHistoryRepository().apply {
+            historyPages = mapOf(
+                1 to historyPage(items = listOf(historyItem("active-task", status = "RUNNING"))),
+            )
+            cancelFailure = IllegalStateException("debug cancel failure")
+        }
+        val state = MutableStateFlow(QuickCreateUiState())
+        val holder = createHolder(repository, state, this, refreshIntervalMillis = 1_000L)
+
+        holder.loadRecentHistory()
+        runCurrent()
+        holder.cancelHistoryTask("active-task")
+        runCurrent()
+
+        assertEquals(QuickCreateErrorFallbackText.TASK_CANCEL_FAILED, state.value.error)
+        assertEquals(emptySet(), state.value.historyCancellingTaskIds)
+        holder.dispose()
+    }
+
+    @Test
+    fun `history polling refresh failure uses safe fallback message`() = runTest {
+        val repository = FakeHistoryRepository().apply {
+            historyPages = mapOf(
+                1 to historyPage(items = listOf(historyItem("polling-task", status = "RUNNING"))),
+            )
+        }
+        val state = MutableStateFlow(QuickCreateUiState())
+        val holder = createHolder(repository, state, this, refreshIntervalMillis = 1_000L)
+
+        holder.loadRecentHistory()
+        runCurrent()
+        repository.historyPages = mapOf(
+            1 to historyPage(items = listOf(historyItem("polling-task", status = "RUNNING"))),
+        )
+        repository.historyPageFailure = IllegalStateException("debug refresh failure")
+        advanceTimeBy(1_000L)
+        runCurrent()
+
+        assertEquals(QuickCreateErrorFallbackText.HISTORY_REFRESH_FAILED, state.value.error)
+        holder.dispose()
+    }
+
+    @Test
     fun `clear selected project resets project source and reloads recent history`() = runTest {
         val repository = FakeHistoryRepository()
         val state = MutableStateFlow(QuickCreateUiState())
@@ -350,6 +433,10 @@ class QuickCreateHistoryStateHolderTest {
         var projectTaskPageGate: CompletableDeferred<Unit>? = null
         var refreshHistoryPage: QuickCreationHistoryPage? = null
         var refreshProjectTaskPage: QuickCreationHistoryPage? = null
+        var historyPageFailure: Throwable? = null
+        var projectTaskPageFailure: Throwable? = null
+        var detailFailure: Throwable? = null
+        var cancelFailure: Throwable? = null
         var historyDetail = historyItem(
             taskId = "history-detail-task",
             status = "SUCCESS",
@@ -375,6 +462,7 @@ class QuickCreateHistoryStateHolderTest {
         override suspend fun listQuickCreationHistory(page: Int, size: Int): Result<QuickCreationHistoryPage> {
             requestedHistoryPages += page to size
             historyPageGate?.await()
+            historyPageFailure?.let { return Result.failure(it) }
             val isRefresh = page == 1 && requestedHistoryPages.count { it.first == 1 } > 1
             val configuredPage = historyPages?.get(page) ?: defaultHistoryPage(page = page, size = size)
             val pageResult = if (isRefresh) {
@@ -395,6 +483,7 @@ class QuickCreateHistoryStateHolderTest {
         ): Result<QuickCreationHistoryPage> {
             requestedProjectTaskPages += projectId to page
             projectTaskPageGate?.await()
+            projectTaskPageFailure?.let { return Result.failure(it) }
             val isRefresh = page == 1 && requestedProjectTaskPages.count { it == (projectId to 1) } > 1
             val configuredPage = projectTaskPages?.get(projectId to page) ?: historyPage(
                 page = page,
@@ -411,6 +500,7 @@ class QuickCreateHistoryStateHolderTest {
          */
         override suspend fun getQuickCreationHistoryDetail(outputId: String): Result<QuickCreationHistoryItem> {
             lastHistoryDetailOutputId = outputId
+            detailFailure?.let { return Result.failure(it) }
             return Result.success(historyDetail)
         }
 
@@ -419,6 +509,7 @@ class QuickCreateHistoryStateHolderTest {
          */
         override suspend fun cancelQuickCreationTask(taskId: String): Result<Unit> {
             cancelledTaskIds += taskId
+            cancelFailure?.let { return Result.failure(it) }
             return Result.success(Unit)
         }
     }

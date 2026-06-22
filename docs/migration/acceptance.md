@@ -91,6 +91,7 @@ QuickCreate 生成提交和媒体上传等待的运行时状态文案已从裸 `
 QuickCreate 计费预览拦截和失败 fallback 文案已从 `QuickCreateFeePreviewInteractor` 移到 `QuickCreateRuntimeUiText` 与 `QuickCreateErrorFallbackText`；Interactor 只引用统一文案端口并保留原计费防抖、旧响应隔离和请求指纹行为，对应硬编码 UI 文案基线移除。
 QuickCreate 灵感标签、模板分页和模板详情失败的本地 fallback 文案已从 `QuickCreateInspirationStateHolder` 移到 `QuickCreateErrorFallbackText`，StateHolder 只引用统一错误文案端口；对应硬编码 UI 文案基线移除，测试覆盖未知异常不会透传到页面状态。
 QuickCreate 项目列表、置顶、创建、重命名、删除和详情加载失败 fallback 已从 QuickCreateProjectStateHolder 的直接中文字符串移到 QuickCreateErrorFallbackText.PROJECT_*，项目错误码映射和 StateHolder 共用同一批兜底文案；对应硬编码 UI 文案基线移除，测试覆盖未知异常不会透传到页面状态。
+QuickCreate 最近历史分页、取消任务、历史详情、项目任务列表和轮询刷新失败 fallback 已从 QuickCreateHistoryStateHolder 的直接中文字符串移到 QuickCreateErrorFallbackText 的 HISTORY/TASK/PROJECT_TASK 常量；已有历史错误码映射同步复用常量，轮询刷新继续作为 Presentation 场景 fallback，不扩 Domain 错误码；对应 StateHolder 硬编码 UI 文案基线移除，测试覆盖未知异常不会透传到页面状态。
 QuickCreate 紧凑模型入口加载文案已从 `QuickCreateServiceModelUiModel` 的中文 `String` 改为稳定 `QuickCreateCompactServiceModelLabel`，由 `QuickCreateCompactComposerContent` 通过 Compose Resources 映射加载态；服务端模型名和本地 fallback 模型名仍作为运行时数据展示，对应硬编码 UI 文案基线从 7 下调到 6。
 QuickCreate `AdaptivePromptTextField` 的右下角字数展示已从字符串模板改为 `charCount.toString()`，确认该项只是运行时动态数字展示而非固定 UI 文案；对应硬编码 UI 文案基线从 1 下调为 0。
 AppDetailScreen 的详情输出/参数区标题、参数数量、返回无障碍描述、应用名兜底、统计标签、粉丝数量格式、简介标题、上传区标题、输入占位、下拉占位、布尔开关、视频输出占位和运行按钮状态文案也已迁入
