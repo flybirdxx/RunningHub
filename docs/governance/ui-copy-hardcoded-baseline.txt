@@ -5,7 +5,6 @@
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateErrorMessages.kt|27|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt|8|presentation runtime UI text port; move to Compose Resources or injected text provider after QuickCreate UI leaves composeApp
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/billing/QuickCreateFeePreviewInteractor.kt|3|presentation hardcoded UI copy baseline
-feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/draft/QuickCreateDraftUiModel.kt|2|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/editor/QuickCreateEditorUiModels.kt|11|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/generation/QuickCreateGenerationRequestFactory.kt|2|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/history/QuickCreateHistoryStateHolder.kt|5|presentation hardcoded UI copy baseline

@@ -48,18 +48,37 @@ val DraftData.restorableTab: QuickCreateTab
     }
 
 /**
- * 生成草稿恢复提示文案。
+ * 草稿恢复入口展示所需的稳定摘要数据。
  *
- * 该函数位于 Presentation 层，因为返回值是页面直接展示的中文摘要。
- * 它根据可恢复 Tab 计算字数，避免视频 Tab 无内容时展示一个无法恢复的视频草稿。
+ * 该模型属于 Presentation 层的 UI 语义契约，只描述“恢复哪类草稿”和“提示词长度”，
+ * 不生成最终中文文案。最终展示字符串由 composeApp 的 Compose Resources 映射，
+ * 避免业务 Presentation 模块承担本地化职责。
  *
- * @return 面向快捷创作恢复入口展示的短摘要，例如 `上次草稿 · 图片 · 12 字`。
+ * @property tab 恢复入口对应的创作 Tab，由 [DraftData.restorableTab] 推导。
+ * 该值决定资源层展示图片或视频标签，也决定点击恢复后应切换到的编辑区。
+ * @property promptLength 当前可恢复提示词的字符数，单位为 Kotlin 字符数量。
+ * `0` 表示草稿没有可展示摘要内容，正常调用前应先通过 [DraftData.hasPromptContent] 过滤。
  */
-fun DraftData.resumeSummaryText(): String {
+data class QuickCreateDraftResumeSummary(
+    val tab: QuickCreateTab,
+    val promptLength: Int,
+)
+
+/**
+ * 生成草稿恢复入口的稳定摘要数据。
+ *
+ * 恢复摘要必须复用 [restorableTab] 的降级规则，避免旧草稿保存为视频 Tab、
+ * 但只有图片提示词时，页面仍展示一个无法恢复的视频草稿。
+ *
+ * @return 面向资源层映射的草稿摘要数据；调用方负责转换为最终展示文案。
+ */
+fun DraftData.resumeSummary(): QuickCreateDraftResumeSummary {
     val tab = restorableTab
-    val tabLabel = if (tab == QuickCreateTab.VIDEO) "视频" else "图片"
     val promptLength = if (tab == QuickCreateTab.VIDEO) videoPrompt.length else imagePrompt.length
-    return "上次草稿 · $tabLabel · $promptLength 字"
+    return QuickCreateDraftResumeSummary(
+        tab = tab,
+        promptLength = promptLength,
+    )
 }
 
 /**

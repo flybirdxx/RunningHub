@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.feature.quickcreate.AdaptivePromptTextField
 import com.runninghub.feature.quickcreate.presentation.draft.DraftData
+import com.runninghub.feature.quickcreate.presentation.draft.QuickCreateDraftResumeSummary
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
 import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
@@ -61,7 +62,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
 import com.runninghub.app.ui.feature.quickcreate.presentation.upload.QuickCreateMediaToolbarRow
-import com.runninghub.feature.quickcreate.presentation.draft.resumeSummaryText
+import com.runninghub.feature.quickcreate.presentation.draft.resumeSummary
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
 import com.runninghub.app.ui.theme.DarkSurfaceVariant
@@ -85,6 +86,9 @@ import runninghub.composeapp.generated.resources.quick_create_classic_audio_enab
 import runninghub.composeapp.generated.resources.quick_create_classic_default_model
 import runninghub.composeapp.generated.resources.quick_create_classic_default_model_subtitle
 import runninghub.composeapp.generated.resources.quick_create_classic_discard_draft
+import runninghub.composeapp.generated.resources.quick_create_classic_draft_image_tab
+import runninghub.composeapp.generated.resources.quick_create_classic_draft_resume_summary_format
+import runninghub.composeapp.generated.resources.quick_create_classic_draft_video_tab
 import runninghub.composeapp.generated.resources.quick_create_classic_generate_button_label
 import runninghub.composeapp.generated.resources.quick_create_classic_generate_content_description
 import runninghub.composeapp.generated.resources.quick_create_classic_image_prompt_placeholder
@@ -347,7 +351,7 @@ private fun DraftResumeRow(
                 tint = Primary300,
             )
             Text(
-                text = draftData.resumeSummaryText(),
+                text = quickCreateDraftResumeSummaryText(draftData.resumeSummary()),
                 modifier = Modifier.weight(1f),
                 color = Neutral100,
                 fontSize = 12.sp,
@@ -378,6 +382,25 @@ private fun DraftResumeRow(
             }
         }
     }
+}
+
+/**
+ * 将草稿摘要的稳定结构映射为旧版编辑器展示文案。
+ *
+ * 草稿摘要的业务推导保留在 feature presentation 模块；这里仅完成 Compose Resources
+ * 本地化映射，确保后续多语言或文案调整不需要改动业务状态模型。
+ */
+@Composable
+private fun quickCreateDraftResumeSummaryText(summary: QuickCreateDraftResumeSummary): String {
+    val tabLabel = when (summary.tab) {
+        QuickCreateTab.IMAGE -> stringResource(Res.string.quick_create_classic_draft_image_tab)
+        QuickCreateTab.VIDEO -> stringResource(Res.string.quick_create_classic_draft_video_tab)
+    }
+    return stringResource(
+        Res.string.quick_create_classic_draft_resume_summary_format,
+        tabLabel,
+        summary.promptLength,
+    )
 }
 
 /**

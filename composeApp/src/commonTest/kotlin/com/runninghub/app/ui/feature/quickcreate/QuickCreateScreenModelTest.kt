@@ -1,7 +1,8 @@
 package com.runninghub.app.ui.feature.quickcreate
 
 import com.runninghub.feature.quickcreate.presentation.draft.DraftData
-import com.runninghub.feature.quickcreate.presentation.draft.resumeSummaryText
+import com.runninghub.feature.quickcreate.presentation.draft.QuickCreateDraftResumeSummary
+import com.runninghub.feature.quickcreate.presentation.draft.resumeSummary
 
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
@@ -4768,7 +4769,13 @@ class QuickCreateScreenModelTest {
             videoPrompt = "video prompt",
         )
 
-        assertEquals("上次草稿 · 视频 · 12 字", draft.resumeSummaryText())
+        assertEquals(
+            QuickCreateDraftResumeSummary(
+                tab = QuickCreateTab.VIDEO,
+                promptLength = 12,
+            ),
+            draft.resumeSummary(),
+        )
     }
 
     @Test
@@ -4779,7 +4786,13 @@ class QuickCreateScreenModelTest {
             videoPrompt = "",
         )
 
-        assertEquals("上次草稿 · 图片 · 12 字", draft.resumeSummaryText())
+        assertEquals(
+            QuickCreateDraftResumeSummary(
+                tab = QuickCreateTab.IMAGE,
+                promptLength = 12,
+            ),
+            draft.resumeSummary(),
+        )
     }
 
     @Test
