@@ -44,6 +44,24 @@ internal object QuickCreateErrorFallbackText {
 
     /** 灵感模板详情请求失败时的页面兜底文案，覆盖模板应用前的详情加载流程。 */
     const val INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED: String = "模板详情加载失败"
+
+    /** 项目列表第一页或下一页请求失败时的页面兜底文案，覆盖项目入口和分页加载流程。 */
+    const val PROJECT_LIST_LOAD_FAILED: String = "项目加载失败"
+
+    /** 项目创建请求失败时的页面兜底文案，覆盖新增项目 mutation 流程。 */
+    const val PROJECT_CREATE_FAILED: String = "项目创建失败"
+
+    /** 项目重命名请求失败时的页面兜底文案，覆盖已有项目名称变更流程。 */
+    const val PROJECT_RENAME_FAILED: String = "项目重命名失败"
+
+    /** 项目删除请求失败时的页面兜底文案，覆盖普通删除和当前选中项目删除流程。 */
+    const val PROJECT_DELETE_FAILED: String = "项目删除失败"
+
+    /** 项目置顶状态切换失败时的页面兜底文案，覆盖置顶和取消置顶两个方向。 */
+    const val PROJECT_PIN_FAILED: String = "项目置顶失败"
+
+    /** 项目详情请求失败时的页面兜底文案，覆盖详情弹窗打开后的远端加载流程。 */
+    const val PROJECT_DETAIL_LOAD_FAILED: String = "项目详情加载失败"
 }
 
 /**
@@ -76,13 +94,19 @@ private fun String.toQuickCreateIssueMessageOrNull(): String? =
         QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED -> "历史加载失败"
         QuickCreateRepositoryIssueCode.HISTORY_DETAIL_LOAD_FAILED -> "历史详情加载失败"
         QuickCreateRepositoryIssueCode.TASK_CANCEL_FAILED -> "取消任务失败"
-        QuickCreateRepositoryIssueCode.PROJECT_LIST_LOAD_FAILED -> "项目加载失败"
+        QuickCreateRepositoryIssueCode.PROJECT_LIST_LOAD_FAILED ->
+            QuickCreateErrorFallbackText.PROJECT_LIST_LOAD_FAILED
         QuickCreateRepositoryIssueCode.PROJECT_TASK_LIST_LOAD_FAILED -> "项目任务加载失败"
-        QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED -> "项目创建失败"
-        QuickCreateRepositoryIssueCode.PROJECT_RENAME_FAILED -> "项目重命名失败"
-        QuickCreateRepositoryIssueCode.PROJECT_DELETE_FAILED -> "项目删除失败"
-        QuickCreateRepositoryIssueCode.PROJECT_PIN_FAILED -> "项目置顶失败"
-        QuickCreateRepositoryIssueCode.PROJECT_DETAIL_LOAD_FAILED -> "项目详情加载失败"
+        QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED ->
+            QuickCreateErrorFallbackText.PROJECT_CREATE_FAILED
+        QuickCreateRepositoryIssueCode.PROJECT_RENAME_FAILED ->
+            QuickCreateErrorFallbackText.PROJECT_RENAME_FAILED
+        QuickCreateRepositoryIssueCode.PROJECT_DELETE_FAILED ->
+            QuickCreateErrorFallbackText.PROJECT_DELETE_FAILED
+        QuickCreateRepositoryIssueCode.PROJECT_PIN_FAILED ->
+            QuickCreateErrorFallbackText.PROJECT_PIN_FAILED
+        QuickCreateRepositoryIssueCode.PROJECT_DETAIL_LOAD_FAILED ->
+            QuickCreateErrorFallbackText.PROJECT_DETAIL_LOAD_FAILED
         QuickCreateRepositoryIssueCode.PROJECT_ID_MISSING -> "项目数据缺少必要标识"
         else -> null
     }

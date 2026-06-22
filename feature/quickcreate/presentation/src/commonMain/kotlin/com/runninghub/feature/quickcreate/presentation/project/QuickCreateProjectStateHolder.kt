@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.project
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
+import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
 import kotlinx.coroutines.CoroutineScope
@@ -88,7 +89,9 @@ class QuickCreateProjectStateHolder(
                     uiState.update { current ->
                         current.copy(
                             projectsLoadingMore = false,
-                            error = error.toQuickCreateDisplayMessage("项目加载失败"),
+                            error = error.toQuickCreateDisplayMessage(
+                                QuickCreateErrorFallbackText.PROJECT_LIST_LOAD_FAILED,
+                            ),
                         )
                     }
                 },
@@ -130,7 +133,9 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectPinningIds = state.projectPinningIds - projectId,
-                            error = error.toQuickCreateDisplayMessage("项目置顶失败"),
+                            error = error.toQuickCreateDisplayMessage(
+                                QuickCreateErrorFallbackText.PROJECT_PIN_FAILED,
+                            ),
                         )
                     }
                 },
@@ -169,7 +174,9 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectMutatingIds = state.projectMutatingIds - mutationId,
-                            error = error.toQuickCreateDisplayMessage("项目创建失败"),
+                            error = error.toQuickCreateDisplayMessage(
+                                QuickCreateErrorFallbackText.PROJECT_CREATE_FAILED,
+                            ),
                         )
                     }
                 },
@@ -214,7 +221,9 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectMutatingIds = state.projectMutatingIds - projectId,
-                            error = error.toQuickCreateDisplayMessage("项目重命名失败"),
+                            error = error.toQuickCreateDisplayMessage(
+                                QuickCreateErrorFallbackText.PROJECT_RENAME_FAILED,
+                            ),
                         )
                     }
                 },
@@ -260,7 +269,9 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectMutatingIds = state.projectMutatingIds - projectId,
-                            error = error.toQuickCreateDisplayMessage("项目删除失败"),
+                            error = error.toQuickCreateDisplayMessage(
+                                QuickCreateErrorFallbackText.PROJECT_DELETE_FAILED,
+                            ),
                         )
                     }
                 },
@@ -298,7 +309,9 @@ class QuickCreateProjectStateHolder(
                     uiState.update {
                         it.copy(
                             projectDetailLoading = false,
-                            error = error.toQuickCreateDisplayMessage("项目详情加载失败"),
+                            error = error.toQuickCreateDisplayMessage(
+                                QuickCreateErrorFallbackText.PROJECT_DETAIL_LOAD_FAILED,
+                            ),
                         )
                     }
                 },

@@ -30,6 +30,34 @@ class QuickCreateErrorMessagesTest {
     }
 
     @Test
+    fun `project issue codes reuse project fallback messages`() {
+        val mappings = listOf(
+            QuickCreateRepositoryIssueCode.PROJECT_LIST_LOAD_FAILED to
+                QuickCreateErrorFallbackText.PROJECT_LIST_LOAD_FAILED,
+            QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED to
+                QuickCreateErrorFallbackText.PROJECT_CREATE_FAILED,
+            QuickCreateRepositoryIssueCode.PROJECT_RENAME_FAILED to
+                QuickCreateErrorFallbackText.PROJECT_RENAME_FAILED,
+            QuickCreateRepositoryIssueCode.PROJECT_DELETE_FAILED to
+                QuickCreateErrorFallbackText.PROJECT_DELETE_FAILED,
+            QuickCreateRepositoryIssueCode.PROJECT_PIN_FAILED to
+                QuickCreateErrorFallbackText.PROJECT_PIN_FAILED,
+            QuickCreateRepositoryIssueCode.PROJECT_DETAIL_LOAD_FAILED to
+                QuickCreateErrorFallbackText.PROJECT_DETAIL_LOAD_FAILED,
+        )
+
+        mappings.forEach { (issueCode, expectedMessage) ->
+            val error = QuickCreateRepositoryException(
+                issueCode = issueCode,
+                remoteMessage = "server detail should not be displayed",
+            )
+
+            assertEquals(expectedMessage, error.toQuickCreateDisplayMessage("fallback"))
+        }
+    }
+
+
+    @Test
     fun `task issue code can share the same mapper outside polling controller`() {
         val error = IllegalStateException(QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED)
 

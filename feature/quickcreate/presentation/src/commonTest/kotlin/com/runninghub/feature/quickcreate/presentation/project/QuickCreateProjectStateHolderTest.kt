@@ -3,6 +3,7 @@ package com.runninghub.feature.quickcreate.presentation.project
 import com.runninghub.feature.quickcreate.domain.QuickCreationProject
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectPage
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
+import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -74,6 +75,50 @@ class QuickCreateProjectStateHolderTest {
         assertEquals(2, state.value.projectsPage)
         assertFalse(state.value.projectsHasMore)
         assertFalse(state.value.projectsLoadingMore)
+    }
+
+    @Test
+    fun `project failures use safe fallback messages without exposing exception text`() = runTest {
+        val repository = FakeProjectRepository().apply {
+            listMoreFailure = IllegalStateException("remote list stack")
+            pinFailure = IllegalStateException("remote pin stack")
+            createFailure = IllegalStateException("remote create stack")
+            renameFailure = IllegalStateException("remote rename stack")
+            deleteFailure = IllegalStateException("remote delete stack")
+            detailFailure = IllegalStateException("remote detail stack")
+        }
+        val state = MutableStateFlow(
+            QuickCreateUiState(
+                projects = listOf(project("project-1", "世界杯广告").toQuickCreateProjectUiItem()),
+                projectsPage = 1,
+                projectsHasMore = true,
+            )
+        )
+        val holder = createHolder(repository, state, this)
+
+        holder.loadMoreProjects()
+        runCurrent()
+        assertEquals(QuickCreateErrorFallbackText.PROJECT_LIST_LOAD_FAILED, state.value.error)
+
+        holder.toggleProjectPin("project-1")
+        runCurrent()
+        assertEquals(QuickCreateErrorFallbackText.PROJECT_PIN_FAILED, state.value.error)
+
+        holder.createProject("新项目")
+        runCurrent()
+        assertEquals(QuickCreateErrorFallbackText.PROJECT_CREATE_FAILED, state.value.error)
+
+        holder.renameProject("project-1", "新名称")
+        runCurrent()
+        assertEquals(QuickCreateErrorFallbackText.PROJECT_RENAME_FAILED, state.value.error)
+
+        holder.deleteProject("project-1")
+        runCurrent()
+        assertEquals(QuickCreateErrorFallbackText.PROJECT_DELETE_FAILED, state.value.error)
+
+        holder.selectProjectDetail("project-1")
+        runCurrent()
+        assertEquals(QuickCreateErrorFallbackText.PROJECT_DETAIL_LOAD_FAILED, state.value.error)
     }
 
     @Test
@@ -218,6 +263,12 @@ class QuickCreateProjectStateHolderTest {
         val deletedProjectIds = mutableListOf<String>()
         var lastDetailProjectId: String? = null
         var createdProject = project("project-new", "新项目")
+        var listMoreFailure: Throwable? = null
+        var pinFailure: Throwable? = null
+        var createFailure: Throwable? = null
+        var renameFailure: Throwable? = null
+        var deleteFailure: Throwable? = null
+        var detailFailure: Throwable? = null
         var detailProject = project(
             projectId = "project-1",
             name = "项目详情",
@@ -234,6 +285,9 @@ class QuickCreateProjectStateHolderTest {
             size: Int,
         ): Result<QuickCreationProjectPage> {
             requestedPages += page
+            if (page > 1) {
+                listMoreFailure?.let { return Result.failure(it) }
+            }
             return Result.success(pages?.get(page) ?: projectPage(page = page, size = size))
         }
 
@@ -242,6 +296,7 @@ class QuickCreateProjectStateHolderTest {
          */
         override suspend fun createQuickCreationProject(name: String): Result<QuickCreationProject> {
             createdNames += name
+            createFailure?.let { return Result.failure(it) }
             return Result.success(createdProject.copy(name = name))
         }
 
@@ -250,6 +305,7 @@ class QuickCreateProjectStateHolderTest {
          */
         override suspend fun renameQuickCreationProject(projectId: String, name: String): Result<Unit> {
             renameRequests += projectId to name
+            renameFailure?.let { return Result.failure(it) }
             return Result.success(Unit)
         }
 
@@ -258,6 +314,7 @@ class QuickCreateProjectStateHolderTest {
          */
         override suspend fun deleteQuickCreationProject(projectId: String): Result<Unit> {
             deletedProjectIds += projectId
+            deleteFailure?.let { return Result.failure(it) }
             return Result.success(Unit)
         }
 
@@ -266,6 +323,7 @@ class QuickCreateProjectStateHolderTest {
          */
         override suspend fun pinQuickCreationProject(projectId: String, pinned: Boolean): Result<Unit> {
             pinRequests += projectId to pinned
+            pinFailure?.let { return Result.failure(it) }
             return Result.success(Unit)
         }
 
@@ -274,6 +332,7 @@ class QuickCreateProjectStateHolderTest {
          */
         override suspend fun getQuickCreationProjectDetail(projectId: String): Result<QuickCreationProject> {
             lastDetailProjectId = projectId
+            detailFailure?.let { return Result.failure(it) }
             return Result.success(detailProject.copy(projectId = projectId))
         }
     }
