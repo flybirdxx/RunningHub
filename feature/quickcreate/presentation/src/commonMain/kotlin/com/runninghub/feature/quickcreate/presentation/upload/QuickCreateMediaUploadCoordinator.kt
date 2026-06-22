@@ -2,6 +2,8 @@ package com.runninghub.feature.quickcreate.presentation.upload
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
+import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
@@ -9,7 +11,6 @@ import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGen
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -23,6 +24,18 @@ import kotlinx.datetime.Clock
 
 private const val UPLOAD_WAIT_MAX_TICKS = 120
 private const val UPLOAD_WAIT_TICK_MILLIS = 500L
+
+/**
+ * 生成前等待媒体上传失败时使用的受控异常。
+ *
+ * 该异常只在 QuickCreate Presentation 内部传播，不依赖 [Throwable.message] 承载 UI 文案；
+ * 调用方应读取 [uiMessage] 中的稳定语义并映射为页面错误提示。
+ *
+ * @property uiMessage 等待上传失败后需要展示给用户的稳定页面消息。
+ */
+class QuickCreateMediaUploadException(
+    val uiMessage: QuickCreateUiMessage,
+) : RuntimeException()
 
 /**
  * 快捷创作上传协调器使用的平台媒体读取端口。
@@ -192,7 +205,7 @@ class QuickCreateMediaUploadCoordinator(
         val mediaRefs = generationRequestFactory.currentRelevantMediaReferences(stateSnapshot)
         val alreadyFailed = mediaRefs.filter { it.uploadStatus == UploadStatus.FAILED }
         if (alreadyFailed.isNotEmpty()) {
-            throw IllegalStateException(MEDIA_UPLOAD_FAILED_MESSAGE)
+            throw QuickCreateMediaUploadException(MEDIA_UPLOAD_FAILED_MESSAGE)
         }
         val pending = mediaRefs.filter { it.isUploadPending() }
         if (pending.isEmpty()) return stateSnapshot
@@ -207,11 +220,11 @@ class QuickCreateMediaUploadCoordinator(
             val currentReferences = uiState.value.mediaReferencesById()
             val removed = pendingIds.filter { it !in currentReferences.keys }
             if (removed.isNotEmpty()) {
-                throw IllegalStateException(MEDIA_UPLOAD_FAILED_MESSAGE)
+                throw QuickCreateMediaUploadException(MEDIA_UPLOAD_FAILED_MESSAGE)
             }
             val failed = currentReferences.values.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
             if (failed.isNotEmpty()) {
-                throw IllegalStateException(MEDIA_UPLOAD_FAILED_MESSAGE)
+                throw QuickCreateMediaUploadException(MEDIA_UPLOAD_FAILED_MESSAGE)
             }
             val stillPending = currentReferences.values
                 .filter { it.id in pendingIds && it.isUploadPending() }
@@ -225,13 +238,13 @@ class QuickCreateMediaUploadCoordinator(
         val currentReferences = uiState.value.mediaReferencesById()
         val failed = currentReferences.values.filter { it.id in pendingIds && it.uploadStatus == UploadStatus.FAILED }
         if (failed.isNotEmpty()) {
-            throw IllegalStateException(MEDIA_UPLOAD_FAILED_MESSAGE)
+            throw QuickCreateMediaUploadException(MEDIA_UPLOAD_FAILED_MESSAGE)
         }
         val timedOut = pending.filter { reference ->
             currentReferences[reference.id]?.isUploadPending() != false
         }
         if (timedOut.isNotEmpty()) {
-            throw IllegalStateException(MEDIA_UPLOAD_TIMEOUT_MESSAGE)
+            throw QuickCreateMediaUploadException(MEDIA_UPLOAD_TIMEOUT_MESSAGE)
         }
         return stateSnapshot.withUploadedMediaFrom(uiState.value, pendingIds)
     }
@@ -290,12 +303,11 @@ class QuickCreateMediaUploadCoordinator(
                 // 不应把媒体标记为失败，也不能继续触发计费预览。
                 throw error
             } catch (error: Exception) {
-                val displayMessage = error.toQuickCreateDisplayMessage(QuickCreateRuntimeUiText.mediaUploadFailed)
                 uiState.update { state ->
                     state.withUpdatedMediaReference(targetTab, id) { reference ->
                         reference.copy(
                             uploadStatus = UploadStatus.FAILED,
-                            errorMessage = displayMessage,
+                            errorMessage = QuickCreateRuntimeUiText.MediaUploadFailed.asQuickCreateUiMessage(),
                         )
                     }
                 }
@@ -401,5 +413,5 @@ class QuickCreateMediaUploadCoordinator(
 }
 
 // 等待上传完成时抛给页面的错误不拼接 displayName，避免本地媒体文件名进入错误上报或日志链路。
-private val MEDIA_UPLOAD_FAILED_MESSAGE = QuickCreateRuntimeUiText.mediaUploadBlocked
-private val MEDIA_UPLOAD_TIMEOUT_MESSAGE = QuickCreateRuntimeUiText.mediaUploadTimeout
+private val MEDIA_UPLOAD_FAILED_MESSAGE = QuickCreateRuntimeUiText.MediaUploadBlocked.asQuickCreateUiMessage()
+private val MEDIA_UPLOAD_TIMEOUT_MESSAGE = QuickCreateRuntimeUiText.MediaUploadTimeout.asQuickCreateUiMessage()

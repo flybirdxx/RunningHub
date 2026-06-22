@@ -1,5 +1,7 @@
 package com.runninghub.feature.auth.data.repository
 
+import com.runninghub.core.common.MissingCredential
+import com.runninghub.core.common.MissingCredentialException
 import com.runninghub.core.model.AccountStatus
 import com.runninghub.core.model.User
 import com.runninghub.core.network.RunningHubApiEnvironment
@@ -7,6 +9,8 @@ import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.auth.data.remote.api.AuthApi
 import com.runninghub.feature.auth.data.remote.dto.AccountStatusRequestDto
 import com.runninghub.feature.auth.data.remote.dto.toDomain
+import com.runninghub.feature.auth.domain.UserRepositoryException
+import com.runninghub.feature.auth.domain.UserRepositoryIssue
 import com.runninghub.feature.auth.domain.UserRepository
 
 /**
@@ -28,10 +32,11 @@ class UserRepositoryImpl(
      */
     override suspend fun getAccountStatus(): Result<AccountStatus> = runCatching {
         val apiKey = credentialStore.getApiKey()?.takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("请先在设置中绑定 API Key")
+            ?: throw MissingCredentialException(MissingCredential.ApiKey)
         val response = api.getAccountStatus(AccountStatusRequestDto(apikey = apiKey))
-        requireSuccessfulResponse(response.code, "ACCOUNT_STATUS_FAILED")
-        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
+        requireSuccessfulResponse(response.code, UserRepositoryIssue.AccountStatusFailed)
+        response.data?.toDomain()
+            ?: throw UserRepositoryException(UserRepositoryIssue.AccountStatusMissing)
     }
 
     /**
@@ -43,8 +48,9 @@ class UserRepositoryImpl(
     override suspend fun getUserInfo(userId: String?): Result<User> = runCatching {
         val params = if (!userId.isNullOrEmpty()) mapOf("userId" to userId) else emptyMap()
         val response = api.getUserInfo(params)
-        requireSuccessfulResponse(response.code, "USER_INFO_FAILED")
-        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
+        requireSuccessfulResponse(response.code, UserRepositoryIssue.UserInfoFailed)
+        response.data?.toDomain()
+            ?: throw UserRepositoryException(UserRepositoryIssue.UserInfoMissing)
     }
 
     /**
@@ -56,8 +62,9 @@ class UserRepositoryImpl(
     override suspend fun getUserDetail(userId: String): Result<User> = runCatching {
         val referer = profileReferer(userId)
         val response = api.getUserDetail(referer, mapOf("userId" to userId))
-        requireSuccessfulResponse(response.code, "USER_DETAIL_FAILED")
-        response.data?.toDomain() ?: throw IllegalStateException("Empty response data")
+        requireSuccessfulResponse(response.code, UserRepositoryIssue.UserDetailFailed)
+        response.data?.toDomain()
+            ?: throw UserRepositoryException(UserRepositoryIssue.UserDetailMissing)
     }
 
     /**
@@ -67,7 +74,7 @@ class UserRepositoryImpl(
      */
     override suspend fun isFollow(targetUserId: String): Result<Boolean> = runCatching {
         val response = api.isFollow(profileReferer(targetUserId), mapOf("followId" to targetUserId))
-        requireSuccessfulResponse(response.code, "FOLLOW_STATUS_FAILED")
+        requireSuccessfulResponse(response.code, UserRepositoryIssue.FollowStatusFailed)
         response.data ?: false
     }
 
@@ -79,7 +86,7 @@ class UserRepositoryImpl(
      */
     override suspend fun followUser(targetUserId: String): Result<Boolean> = runCatching {
         val response = api.followUser(profileReferer(targetUserId), mapOf("followId" to targetUserId))
-        requireSuccessfulResponse(response.code, "FOLLOW_USER_FAILED")
+        requireSuccessfulResponse(response.code, UserRepositoryIssue.FollowUserFailed)
         response.data ?: false
     }
 
@@ -91,14 +98,14 @@ class UserRepositoryImpl(
      */
     override suspend fun unFollowUser(targetUserId: String): Result<Boolean> = runCatching {
         val response = api.unFollowUser(profileReferer(targetUserId), mapOf("followId" to targetUserId))
-        requireSuccessfulResponse(response.code, "UNFOLLOW_USER_FAILED")
+        requireSuccessfulResponse(response.code, UserRepositoryIssue.UnfollowUserFailed)
         response.data ?: false
     }
 
-    private fun requireSuccessfulResponse(code: Int, fallbackCode: String) {
+    private fun requireSuccessfulResponse(code: Int, issue: UserRepositoryIssue) {
         if (code != 0) {
-            // 服务端 msg 只用于 Data 层诊断和分类，不能直接进入异常消息后被 UI 当作展示文案。
-            throw IllegalStateException("${fallbackCode}_CODE_$code")
+            // 服务端 msg 不能进入异常 message；这里只保留稳定语义和业务 code 供上层分类。
+            throw UserRepositoryException(issue, code)
         }
     }
 

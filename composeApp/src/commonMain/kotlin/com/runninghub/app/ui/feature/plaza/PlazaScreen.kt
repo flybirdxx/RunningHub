@@ -66,6 +66,11 @@ import com.runninghub.feature.community.domain.PlazaCreationCard
 import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
 import com.runninghub.feature.community.domain.PlazaTag
+import com.runninghub.feature.community.presentation.PlazaFallbackCardIntro
+import com.runninghub.feature.community.presentation.PlazaFallbackCardMediaType
+import com.runninghub.feature.community.presentation.PlazaFallbackCardOwner
+import com.runninghub.feature.community.presentation.PlazaFallbackCardText
+import com.runninghub.feature.community.presentation.PlazaFallbackTagLabel
 import com.runninghub.feature.community.presentation.PlazaMode
 import com.runninghub.feature.community.presentation.PlazaPresentationError
 import com.runninghub.feature.community.presentation.PlazaUiState
@@ -78,6 +83,15 @@ import runninghub.composeapp.generated.resources.plaza_empty_creations
 import runninghub.composeapp.generated.resources.plaza_empty_shorts
 import runninghub.composeapp.generated.resources.plaza_error_creations_load_failed
 import runninghub.composeapp.generated.resources.plaza_error_shorts_load_failed
+import runninghub.composeapp.generated.resources.plaza_fallback_card_image_v2_intro
+import runninghub.composeapp.generated.resources.plaza_fallback_card_owner_creator
+import runninghub.composeapp.generated.resources.plaza_fallback_card_owner_runninghub_api
+import runninghub.composeapp.generated.resources.plaza_fallback_card_seedream_intro
+import runninghub.composeapp.generated.resources.plaza_fallback_card_video_workflow_intro
+import runninghub.composeapp.generated.resources.plaza_fallback_card_workflow_intro
+import runninghub.composeapp.generated.resources.plaza_fallback_catalog_tag_images
+import runninghub.composeapp.generated.resources.plaza_fallback_catalog_tag_videos
+import runninghub.composeapp.generated.resources.plaza_fallback_catalog_tag_workflows
 import runninghub.composeapp.generated.resources.plaza_fallback_tag_api
 import runninghub.composeapp.generated.resources.plaza_fallback_tag_avatar
 import runninghub.composeapp.generated.resources.plaza_fallback_tag_photo
@@ -101,6 +115,8 @@ import runninghub.composeapp.generated.resources.plaza_title
 import runninghub.composeapp.generated.resources.plaza_untitled_creation
 import runninghub.composeapp.generated.resources.plaza_untitled_short
 import runninghub.composeapp.generated.resources.plaza_use_count_format
+import runninghub.composeapp.generated.resources.plaza_video_media_type_fallback
+import runninghub.composeapp.generated.resources.plaza_workflow_media_type_fallback
 
 class PlazaVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
@@ -164,7 +180,12 @@ fun PlazaScreenContent(
                     onCategorySelected = onShortCategorySelected,
                 )
             } else {
-                PlazaTagRow(tags = uiState.tags, selectedTagId = uiState.selectedTagId, onTagSelected = onTagSelected)
+                PlazaTagRow(
+                    tags = uiState.tags,
+                    fallbackTagLabels = uiState.fallbackTagLabels,
+                    selectedTagId = uiState.selectedTagId,
+                    onTagSelected = onTagSelected,
+                )
             }
 
             val showingShorts = uiState.mode == PlazaMode.SHORTS
@@ -208,7 +229,10 @@ fun PlazaScreenContent(
                             }
                         } else {
                             items(uiState.creations, key = { it.id }) { card ->
-                                PlazaCreationTile(card = card)
+                                PlazaCreationTile(
+                                    card = card,
+                                    fallbackText = uiState.fallbackCreationTexts[card.id],
+                                )
                             }
                         }
                         if (uiState.hasMore) {
@@ -392,6 +416,7 @@ private fun PlazaShortCategoryRow(
 @Composable
 private fun PlazaTagRow(
     tags: List<PlazaTag>,
+    fallbackTagLabels: Map<String, PlazaFallbackTagLabel>,
     selectedTagId: String?,
     onTagSelected: (String?) -> Unit,
 ) {
@@ -418,7 +443,7 @@ private fun PlazaTagRow(
         }
         visibleTags.forEach { tag ->
             TagChip(
-                label = tag.name,
+                label = fallbackTagLabels[tag.id]?.asText() ?: tag.name,
                 selected = selectedTagId == tag.id,
                 onClick = { onTagSelected(tag.id) },
             )
@@ -455,7 +480,10 @@ private fun TagChip(
 }
 
 @Composable
-private fun PlazaCreationTile(card: PlazaCreationCard) {
+private fun PlazaCreationTile(card: PlazaCreationCard, fallbackText: PlazaFallbackCardText?) {
+    val intro = fallbackText?.intro?.asText() ?: card.intro
+    val ownerName = fallbackText?.owner?.asText() ?: card.ownerName
+    val mediaType = fallbackText?.mediaType?.asText() ?: card.mediaType
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -465,11 +493,11 @@ private fun PlazaCreationTile(card: PlazaCreationCard) {
             .background(RhCard),
     ) {
         if (card.mediaUrl.isNullOrBlank()) {
-            PlazaFallbackVisual(card)
+            PlazaFallbackVisual(card, mediaType = mediaType)
         } else {
             SmartAsyncImage(
                 imageUrl = card.mediaUrl,
-                contentDescription = card.intro,
+                contentDescription = intro,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
                 shape = RoundedCornerShape(8.dp),
@@ -522,7 +550,7 @@ private fun PlazaCreationTile(card: PlazaCreationCard) {
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(
-                text = card.intro ?: stringResource(Res.string.plaza_untitled_creation),
+                text = intro ?: stringResource(Res.string.plaza_untitled_creation),
                 color = RhText,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
@@ -530,7 +558,7 @@ private fun PlazaCreationTile(card: PlazaCreationCard) {
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = listOfNotNull(card.ownerName, card.mediaType)
+                text = listOfNotNull(ownerName, mediaType)
                     .joinToString(" / ")
                     .ifBlank { stringResource(Res.string.plaza_default_creation_owner) },
                 color = RhMuted,
@@ -572,8 +600,8 @@ private fun PlazaShortTile(card: PlazaShortCard) {
                 PlazaCreationCard(
                     id = card.id,
                     intro = card.name,
-                    mediaType = stringResource(Res.string.plaza_short_media_type_fallback),
                 ),
+                mediaType = stringResource(Res.string.plaza_short_media_type_fallback),
             )
         } else {
             SmartAsyncImage(
@@ -656,7 +684,7 @@ private fun LoadMoreTile(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PlazaFallbackVisual(card: PlazaCreationCard) {
+private fun PlazaFallbackVisual(card: PlazaCreationCard, mediaType: String? = card.mediaType) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -667,7 +695,7 @@ private fun PlazaFallbackVisual(card: PlazaCreationCard) {
             ),
     ) {
         Text(
-            text = card.mediaType ?: stringResource(Res.string.plaza_image_media_type_fallback),
+            text = mediaType ?: stringResource(Res.string.plaza_image_media_type_fallback),
             color = BrandLime,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
@@ -675,6 +703,38 @@ private fun PlazaFallbackVisual(card: PlazaCreationCard) {
         )
     }
 }
+
+@Composable
+private fun PlazaFallbackTagLabel.asText(): String =
+    when (this) {
+        PlazaFallbackTagLabel.Images -> stringResource(Res.string.plaza_fallback_catalog_tag_images)
+        PlazaFallbackTagLabel.Videos -> stringResource(Res.string.plaza_fallback_catalog_tag_videos)
+        PlazaFallbackTagLabel.Workflows -> stringResource(Res.string.plaza_fallback_catalog_tag_workflows)
+    }
+
+@Composable
+private fun PlazaFallbackCardIntro.asText(): String =
+    when (this) {
+        PlazaFallbackCardIntro.ImageV2PromptGallery -> stringResource(Res.string.plaza_fallback_card_image_v2_intro)
+        PlazaFallbackCardIntro.SeedreamLiteTextToImage -> stringResource(Res.string.plaza_fallback_card_seedream_intro)
+        PlazaFallbackCardIntro.VideoWorkflowFromDocs -> stringResource(Res.string.plaza_fallback_card_video_workflow_intro)
+        PlazaFallbackCardIntro.ReusableApiWorkflow -> stringResource(Res.string.plaza_fallback_card_workflow_intro)
+    }
+
+@Composable
+private fun PlazaFallbackCardOwner.asText(): String =
+    when (this) {
+        PlazaFallbackCardOwner.RunningHubApi -> stringResource(Res.string.plaza_fallback_card_owner_runninghub_api)
+        PlazaFallbackCardOwner.RunningHubCreator -> stringResource(Res.string.plaza_fallback_card_owner_creator)
+    }
+
+@Composable
+private fun PlazaFallbackCardMediaType.asText(): String =
+    when (this) {
+        PlazaFallbackCardMediaType.Image -> stringResource(Res.string.plaza_image_media_type_fallback)
+        PlazaFallbackCardMediaType.Video -> stringResource(Res.string.plaza_video_media_type_fallback)
+        PlazaFallbackCardMediaType.Workflow -> stringResource(Res.string.plaza_workflow_media_type_fallback)
+    }
 
 @Composable
 private fun plazaPresentationErrorMessage(error: PlazaPresentationError): String =

@@ -1,9 +1,9 @@
 package com.runninghub.feature.quickcreate.presentation.project
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
-import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateUiMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -89,8 +89,8 @@ class QuickCreateProjectStateHolder(
                     uiState.update { current ->
                         current.copy(
                             projectsLoadingMore = false,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.PROJECT_LIST_LOAD_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.ProjectListLoadFailed,
                             ),
                         )
                     }
@@ -133,8 +133,8 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectPinningIds = state.projectPinningIds - projectId,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.PROJECT_PIN_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.ProjectPinFailed,
                             ),
                         )
                     }
@@ -174,8 +174,8 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectMutatingIds = state.projectMutatingIds - mutationId,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.PROJECT_CREATE_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.ProjectCreateFailed,
                             ),
                         )
                     }
@@ -221,8 +221,8 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectMutatingIds = state.projectMutatingIds - projectId,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.PROJECT_RENAME_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.ProjectRenameFailed,
                             ),
                         )
                     }
@@ -269,8 +269,8 @@ class QuickCreateProjectStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectMutatingIds = state.projectMutatingIds - projectId,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.PROJECT_DELETE_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.ProjectDeleteFailed,
                             ),
                         )
                     }
@@ -309,8 +309,8 @@ class QuickCreateProjectStateHolder(
                     uiState.update {
                         it.copy(
                             projectDetailLoading = false,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.PROJECT_DETAIL_LOAD_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.ProjectDetailLoadFailed,
                             ),
                         )
                     }

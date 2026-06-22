@@ -105,11 +105,15 @@ import com.runninghub.core.storage.Permission
 import com.runninghub.core.model.TaskOutput
 import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.feature.detail.presentation.AppDetailErrorText
+import com.runninghub.feature.detail.presentation.AppDetailInputControl
+import com.runninghub.feature.detail.presentation.AppDetailInputFieldUiModel
+import com.runninghub.feature.detail.presentation.AppDetailInputRowUiModel
 import com.runninghub.feature.detail.presentation.AppDetailMediaType
 import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.detail.presentation.AppDetailUiState
 import com.runninghub.feature.detail.presentation.AppDetailUploadingState
 import com.runninghub.feature.detail.presentation.appDetailInputKey
+import com.runninghub.feature.detail.presentation.inputRows
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import runninghub.composeapp.generated.resources.Res
@@ -323,7 +327,7 @@ private fun DetailContent(
                             initiallyExpanded = detail.inputNodes.size <= 5
                         ) {
                             InputNodesContent(
-                                inputNodes = detail.inputNodes,
+                                rows = uiState.inputRows(),
                                 uiState = uiState,
                                 onInputChanged = onInputChanged,
                                 onPickMedia = onPickMedia,
@@ -761,55 +765,34 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
 
 @Composable
 private fun InputNodesContent(
-    inputNodes: List<InputNode>,
+    rows: List<AppDetailInputRowUiModel>,
     uiState: AppDetailUiState,
     onInputChanged: (String, String, String) -> Unit,
     onPickMedia: (String, String, AppDetailMediaType) -> Unit,
     onRemoveFile: (String, String) -> Unit
 ) {
     Column {
-        var index = 0
-        while (index < inputNodes.size) {
-            val node = inputNodes[index]
-            val mediaType = node.uploadMediaType()
-            if (mediaType == AppDetailMediaType.IMAGE) {
-                val imageNodes = mutableListOf<InputNode>()
-                var cursor = index
-                while (cursor < inputNodes.size && inputNodes[cursor].uploadMediaType() == AppDetailMediaType.IMAGE) {
-                    imageNodes += inputNodes[cursor]
-                    cursor++
-                }
-
-                if (imageNodes.size > 1) {
+        rows.forEachIndexed { index, row ->
+            when (row) {
+                is AppDetailInputRowUiModel.ImageUploadGroup -> {
                     MultiImageUploadRow(
-                        nodes = imageNodes,
+                        fields = row.fields,
                         uiState = uiState,
                         onPickMedia = onPickMedia,
                         onRemoveFile = onRemoveFile
                     )
-                    index = cursor
-                } else {
+                }
+                is AppDetailInputRowUiModel.Single -> {
                     RenderInputNodeField(
-                        node = node,
+                        field = row.field,
                         uiState = uiState,
                         onInputChanged = onInputChanged,
                         onPickMedia = onPickMedia,
                         onRemoveFile = onRemoveFile
                     )
-                    index++
                 }
-            } else {
-                RenderInputNodeField(
-                    node = node,
-                    uiState = uiState,
-                    onInputChanged = onInputChanged,
-                    onPickMedia = onPickMedia,
-                    onRemoveFile = onRemoveFile
-                )
-                index++
             }
-
-            if (index < inputNodes.size) {
+            if (index < rows.lastIndex) {
                 InputDivider()
             }
         }
@@ -818,28 +801,28 @@ private fun InputNodesContent(
 
 @Composable
 private fun RenderInputNodeField(
-    node: InputNode,
+    field: AppDetailInputFieldUiModel,
     uiState: AppDetailUiState,
     onInputChanged: (String, String, String) -> Unit,
     onPickMedia: (String, String, AppDetailMediaType) -> Unit,
     onRemoveFile: (String, String) -> Unit
 ) {
-    val nodeKey = appDetailInputKey(node)
-    val currentValue = uiState.inputValues[nodeKey] ?: node.fieldValue ?: ""
     InputNodeField(
-        node = node,
-        currentValue = currentValue,
-        localUri = uiState.localUris[node.nodeId],
-        uploadState = uiState.uploadingNodes[node.nodeId],
-        onValueChanged = { onInputChanged(node.nodeId, node.fieldName, it) },
-        onPickFile = { onPickMedia(node.nodeId, node.fieldName, node.uploadMediaType() ?: AppDetailMediaType.IMAGE) },
-        onRemoveFile = { onRemoveFile(node.nodeId, node.fieldName) }
+        field = field,
+        localUri = uiState.localUris[field.nodeId],
+        uploadState = uiState.uploadingNodes[field.nodeId],
+        onValueChanged = { onInputChanged(field.nodeId, field.fieldName, it) },
+        onPickFile = {
+            val mediaType = (field.control as? AppDetailInputControl.MediaUpload)?.mediaType ?: AppDetailMediaType.IMAGE
+            onPickMedia(field.nodeId, field.fieldName, mediaType)
+        },
+        onRemoveFile = { onRemoveFile(field.nodeId, field.fieldName) }
     )
 }
 
 @Composable
 private fun MultiImageUploadRow(
-    nodes: List<InputNode>,
+    fields: List<AppDetailInputFieldUiModel>,
     uiState: AppDetailUiState,
     onPickMedia: (String, String, AppDetailMediaType) -> Unit,
     onRemoveFile: (String, String) -> Unit
@@ -860,13 +843,11 @@ private fun MultiImageUploadRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(end = 4.dp)
         ) {
-            items(nodes, key = { it.nodeId + it.fieldName }) { node ->
-                val nodeKey = appDetailInputKey(node)
-                val currentValue = uiState.inputValues[nodeKey] ?: node.fieldValue ?: ""
-                val uploadState = uiState.uploadingNodes[node.nodeId]
+            items(fields, key = { it.inputKey }) { field ->
+                val uploadState = uiState.uploadingNodes[field.nodeId]
                 Column(modifier = Modifier.width(112.dp)) {
                     Text(
-                        text = node.description ?: node.fieldName,
+                        text = field.title,
                         color = Neutral400,
                         fontSize = 11.sp,
                         maxLines = 1,
@@ -874,17 +855,17 @@ private fun MultiImageUploadRow(
                         modifier = Modifier.padding(bottom = 6.dp)
                     )
                     ImageUploadButton(
-                        localUri = uiState.localUris[node.nodeId] ?: currentValue.takeIf { it.startsWith("http") },
-                        remoteUrl = currentValue.takeIf { it.startsWith("http") },
-                        fileName = uiState.localUris[node.nodeId]?.substringAfterLast("/")?.substringAfterLast("%2F")
-                            ?: currentValue.takeIf { it.isNotBlank() && !it.startsWith("http") },
+                        localUri = uiState.localUris[field.nodeId] ?: field.currentValue.takeIf { it.startsWith("http") },
+                        remoteUrl = field.currentValue.takeIf { it.startsWith("http") },
+                        fileName = uiState.localUris[field.nodeId]?.substringAfterLast("/")?.substringAfterLast("%2F")
+                            ?: field.currentValue.takeIf { it.isNotBlank() && !it.startsWith("http") },
                         isUploading = uploadState != null && !uploadState.isError,
                         uploadProgress = uploadState?.progress ?: 0f,
                         isError = uploadState?.isError == true,
                         mediaType = MediaType.IMAGE,
                         square = true,
-                        onPickFile = { onPickMedia(node.nodeId, node.fieldName, AppDetailMediaType.IMAGE) },
-                        onRemoveFile = { onRemoveFile(node.nodeId, node.fieldName) }
+                        onPickFile = { onPickMedia(field.nodeId, field.fieldName, AppDetailMediaType.IMAGE) },
+                        onRemoveFile = { onRemoveFile(field.nodeId, field.fieldName) }
                     )
                 }
             }
@@ -901,26 +882,6 @@ private fun InputDivider() {
             .height(1.dp)
             .background(DarkSurfaceVariant)
     )
-}
-
-private fun InputNode.uploadMediaType(): AppDetailMediaType? {
-    val type = fieldType.uppercase()
-
-    val label = listOfNotNull(fieldName, nodeName, description, descriptionEn)
-        .joinToString(" ")
-        .lowercase()
-    return when {
-        type == "IMAGE" || type == "IMAGE_UPLOAD" -> AppDetailMediaType.IMAGE
-        label.contains("上传视频") || label.contains("上传录像") ||
-            label.contains("upload video") || label.contains("video upload") ||
-            label.contains("video file") -> AppDetailMediaType.VIDEO
-        label.contains("上传音频") || label.contains("上传音乐") ||
-            label.contains("upload audio") || label.contains("audio upload") ||
-            label.contains("audio file") -> AppDetailMediaType.AUDIO
-        label.contains("上传图片") || label.contains("上传图像") ||
-            label.contains("upload image") || label.contains("image upload") -> AppDetailMediaType.IMAGE
-        else -> null
-    }
 }
 
 private fun AppDetailMediaType.permission(): Permission = when (this) {
@@ -957,19 +918,16 @@ private fun AppDetailTaskStep.toComponentTaskStep(): TaskStep = when (this) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun InputNodeField(
-    node: InputNode,
-    currentValue: String,
+    field: AppDetailInputFieldUiModel,
     localUri: String?,
     uploadState: AppDetailUploadingState?,
     onValueChanged: (String) -> Unit,
     onPickFile: () -> Unit,
     onRemoveFile: () -> Unit
 ) {
-    val options = remember(node.fieldData) { node.getOptions() }
     val isUploading = uploadState != null && !uploadState.isError
     val uploadProgress = uploadState?.progress ?: 0f
     val isUploadError = uploadState?.isError == true
-    val mediaType = node.uploadMediaType()
 
     Column(
         modifier = Modifier
@@ -977,69 +935,50 @@ private fun InputNodeField(
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
-            text = node.description ?: node.fieldName,
+            text = field.title,
             color = Neutral400,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 6.dp)
         )
 
-        if (mediaType != null) {
-            ImageUploadButton(
-                localUri = localUri ?: currentValue.takeIf { it.startsWith("http") },
-                remoteUrl = currentValue.takeIf { it.startsWith("http") },
-                fileName = localUri?.substringAfterLast("/")?.substringAfterLast("%2F")
-                    ?: currentValue.takeIf { it.isNotBlank() && !it.startsWith("http") },
-                isUploading = isUploading,
-                uploadProgress = uploadProgress,
-                isError = isUploadError,
-                mediaType = mediaType.toComponentMediaType(),
-                onPickFile = onPickFile,
-                onRemoveFile = onRemoveFile
-            )
-            return@Column
-        }
-
-        when (node.fieldType.uppercase()) {
-            "LIST" -> {
+        when (val control = field.control) {
+            is AppDetailInputControl.Dropdown -> {
                 ListDropdown(
-                    options = options,
-                    currentValue = currentValue,
+                    options = control.options,
+                    currentValue = field.currentValue,
                     onValueChanged = onValueChanged
                 )
             }
-
-            "IMAGE" -> {
+            is AppDetailInputControl.MediaUpload -> {
                 ImageUploadButton(
-                    localUri = localUri ?: currentValue.takeIf { it.startsWith("http") },
-                    remoteUrl = currentValue.takeIf { it.startsWith("http") },
+                    localUri = localUri ?: field.currentValue.takeIf { it.startsWith("http") },
+                    remoteUrl = field.currentValue.takeIf { it.startsWith("http") },
                     fileName = localUri?.substringAfterLast("/")?.substringAfterLast("%2F"),
                     isUploading = isUploading,
                     uploadProgress = uploadProgress,
                     isError = isUploadError,
+                    mediaType = control.mediaType.toComponentMediaType(),
                     onPickFile = onPickFile,
                     onRemoveFile = onRemoveFile
                 )
             }
-
-            "BOOLEAN" -> {
+            AppDetailInputControl.BooleanSwitch -> {
                 BooleanSwitch(
-                    currentValue = currentValue,
+                    currentValue = field.currentValue,
                     onValueChanged = onValueChanged
                 )
             }
-
-            "SWITCH" -> {
+            is AppDetailInputControl.Segmented -> {
                 SegmentedSelector(
-                    options = options.ifEmpty { listOf("选项A", "选项B") },
-                    currentValue = currentValue,
+                    options = control.options,
+                    currentValue = field.currentValue,
                     onValueChanged = onValueChanged
                 )
             }
-
-            "INT" -> {
+            AppDetailInputControl.IntegerText -> {
                 DarkTextField(
-                    value = currentValue,
+                    value = field.currentValue,
                     onValueChange = { newVal ->
                         if (newVal.isEmpty() || newVal == "-" || newVal.toIntOrNull() != null) {
                             onValueChanged(newVal)
@@ -1050,10 +989,9 @@ private fun InputNodeField(
                     singleLine = true
                 )
             }
-
-            "FLOAT" -> {
+            AppDetailInputControl.DecimalText -> {
                 DarkTextField(
-                    value = currentValue,
+                    value = field.currentValue,
                     onValueChange = { newVal ->
                         if (newVal.isEmpty() || newVal == "-" || newVal == "." ||
                             newVal.toDoubleOrNull() != null || newVal.endsWith(".")
@@ -1066,41 +1004,14 @@ private fun InputNodeField(
                     singleLine = true
                 )
             }
-
-            "STRING" -> {
-                val isMultiline = node.fieldData?.contains("multiline", ignoreCase = true) == true
-                if (options.isNotEmpty()) {
-                    ListDropdown(
-                        options = options,
-                        currentValue = currentValue,
-                        onValueChanged = onValueChanged
-                    )
-                } else {
-                    DarkTextField(
-                        value = currentValue,
-                        onValueChange = onValueChanged,
-                        placeholder = stringResource(Res.string.app_detail_text_placeholder),
-                        singleLine = !isMultiline,
-                        minLines = if (isMultiline) 4 else 1
-                    )
-                }
-            }
-
-            else -> {
-                if (options.isNotEmpty()) {
-                    ListDropdown(
-                        options = options,
-                        currentValue = currentValue,
-                        onValueChanged = onValueChanged
-                    )
-                } else {
-                    DarkTextField(
-                        value = currentValue,
-                        onValueChange = onValueChanged,
-                        placeholder = stringResource(Res.string.app_detail_text_placeholder),
-                        singleLine = true
-                    )
-                }
+            is AppDetailInputControl.Text -> {
+                DarkTextField(
+                    value = field.currentValue,
+                    onValueChange = onValueChanged,
+                    placeholder = stringResource(Res.string.app_detail_text_placeholder),
+                    singleLine = !control.multiline,
+                    minLines = if (control.multiline) 4 else 1
+                )
             }
         }
     }

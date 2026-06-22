@@ -36,22 +36,35 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.runninghub.core.storage.Permission
+import com.runninghub.core.storage.PermissionTextKey
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.permission_bottom_sheet_authorize
 import runninghub.composeapp.generated.resources.permission_bottom_sheet_dont_ask_again
 import runninghub.composeapp.generated.resources.permission_bottom_sheet_not_now
 import runninghub.composeapp.generated.resources.permission_bottom_sheet_open_settings
+import runninghub.composeapp.generated.resources.permission_camera_description
+import runninghub.composeapp.generated.resources.permission_camera_required_for
+import runninghub.composeapp.generated.resources.permission_media_audio_description
+import runninghub.composeapp.generated.resources.permission_media_audio_required_for
+import runninghub.composeapp.generated.resources.permission_media_images_description
+import runninghub.composeapp.generated.resources.permission_media_images_required_for
+import runninghub.composeapp.generated.resources.permission_media_video_description
+import runninghub.composeapp.generated.resources.permission_media_video_required_for
+import runninghub.composeapp.generated.resources.permission_notifications_description
+import runninghub.composeapp.generated.resources.permission_notifications_required_for
+import runninghub.composeapp.generated.resources.permission_storage_read_description
+import runninghub.composeapp.generated.resources.permission_storage_read_required_for
 
 /**
  * 展示跨平台权限请求的底部引导弹窗。
  *
  * 组件只承担权限说明、授权入口、跳转设置入口和“不再提示”选择的 UI 展示；
  * 实际系统权限请求、永久拒绝记录和设置页跳转由调用方通过回调完成。
- * [Permission.description] 是业务层为具体权限提供的说明文案，本组件不会重新映射；
- * 弹窗自身的按钮、复选框和设置引导文案来自 Compose Resources。
+ * [Permission.descriptionKey] 是业务层为具体权限提供的稳定文案 key，本组件负责把它映射到
+ * Compose Resources；弹窗自身的按钮、复选框和设置引导文案同样来自 Compose Resources。
  *
- * @param permission 当前需要解释和申请的业务权限，包含展示图标 key 与说明文案。
+ * @param permission 当前需要解释和申请的业务权限，包含展示图标 key 与说明文案 key。
  * @param onDismiss 用户关闭弹窗或选择暂不需要时触发，调用方应同步清理当前权限请求状态。
  * @param onAuthorize 用户点击授权按钮时触发，调用方负责调用平台权限 API 并处理授权结果。
  * @param onOpenSettings 当权限已被系统永久拒绝时使用；非空表示展示设置入口，由调用方打开系统设置。
@@ -67,6 +80,7 @@ fun PermissionBottomSheet(
     onDontAskAgain: (() -> Unit)? = null,
 ) {
     var dontAskAgain by remember { mutableStateOf(false) }
+    val permissionDescription = permission.descriptionKey.asPermissionText()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surface,
@@ -80,7 +94,7 @@ fun PermissionBottomSheet(
         ) {
             Icon(
                 imageVector = getIconForPermission(permission.icon),
-                contentDescription = permission.description,
+                contentDescription = permissionDescription,
                 modifier = Modifier.size(56.dp),
                 tint = MaterialTheme.colorScheme.primary,
             )
@@ -88,7 +102,7 @@ fun PermissionBottomSheet(
             Spacer(Modifier.height(16.dp))
 
             Text(
-                text = permission.description,
+                text = permissionDescription,
                 style = MaterialTheme.typography.bodyLarge,
                 textAlign = TextAlign.Center,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -157,3 +171,20 @@ private fun getIconForPermission(icon: String): ImageVector = when (icon) {
     "folder" -> Icons.Default.Folder
     else -> Icons.Default.Lock
 }
+
+@Composable
+private fun PermissionTextKey.asPermissionText(): String =
+    when (this) {
+        PermissionTextKey.MediaImagesDescription -> stringResource(Res.string.permission_media_images_description)
+        PermissionTextKey.MediaImagesRequiredFor -> stringResource(Res.string.permission_media_images_required_for)
+        PermissionTextKey.MediaVideoDescription -> stringResource(Res.string.permission_media_video_description)
+        PermissionTextKey.MediaVideoRequiredFor -> stringResource(Res.string.permission_media_video_required_for)
+        PermissionTextKey.MediaAudioDescription -> stringResource(Res.string.permission_media_audio_description)
+        PermissionTextKey.MediaAudioRequiredFor -> stringResource(Res.string.permission_media_audio_required_for)
+        PermissionTextKey.StorageReadDescription -> stringResource(Res.string.permission_storage_read_description)
+        PermissionTextKey.StorageReadRequiredFor -> stringResource(Res.string.permission_storage_read_required_for)
+        PermissionTextKey.CameraDescription -> stringResource(Res.string.permission_camera_description)
+        PermissionTextKey.CameraRequiredFor -> stringResource(Res.string.permission_camera_required_for)
+        PermissionTextKey.NotificationsDescription -> stringResource(Res.string.permission_notifications_description)
+        PermissionTextKey.NotificationsRequiredFor -> stringResource(Res.string.permission_notifications_required_for)
+    }

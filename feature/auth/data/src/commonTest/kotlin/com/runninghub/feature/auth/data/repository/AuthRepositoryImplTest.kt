@@ -12,6 +12,7 @@ import io.ktor.client.engine.mock.respond
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.encodedPath
 import io.ktor.http.headersOf
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.coroutines.runBlocking
@@ -110,6 +111,106 @@ class AuthRepositoryImplTest {
     }
 
     @Test
+    fun `login maps empty token data to stable auth error`() = runBlocking {
+        val repository = repositoryWithResponses(
+            "/uc/pwdLogin" to """{"code":0,"msg":"success","data":null}""",
+        )
+
+        val result = repository.login("13800138000", "password")
+
+        assertTrue(result.isFailure)
+        val error = assertIs<AuthError.EmptyLoginResponse>(result.exceptionOrNull())
+        assertEquals("EMPTY_LOGIN_RESPONSE", error.code)
+    }
+
+    @Test
+    fun `login maps missing access token to stable auth error`() = runBlocking {
+        val repository = repositoryWithResponses(
+            "/uc/pwdLogin" to """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "access_token": "",
+                    "refresh_token": "refresh-token"
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        val result = repository.login("13800138000", "password")
+
+        assertTrue(result.isFailure)
+        val error = assertIs<AuthError.MissingAccessToken>(result.exceptionOrNull())
+        assertEquals("MISSING_ACCESS_TOKEN", error.code)
+    }
+
+    @Test
+    fun `smsLogin maps missing access token to stable auth error`() = runBlocking {
+        val repository = repositoryWithResponses(
+            "/uc/smsLogin" to """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "access_token": "",
+                    "refresh_token": "refresh-token"
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        val result = repository.smsLogin("13800138000", "123456")
+
+        assertTrue(result.isFailure)
+        val error = assertIs<AuthError.MissingAccessToken>(result.exceptionOrNull())
+        assertEquals("MISSING_ACCESS_TOKEN", error.code)
+    }
+
+    @Test
+    fun `login maps empty user response to stable auth error`() = runBlocking {
+        val repository = repositoryWithResponses(
+            "/uc/pwdLogin" to """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "access_token": "access-token",
+                    "refresh_token": "refresh-token"
+                  }
+                }
+            """.trimIndent(),
+            "/uc/getUserInfo" to """{"code":0,"msg":"success","data":null}""",
+        )
+
+        val result = repository.login("13800138000", "password")
+
+        assertTrue(result.isFailure)
+        val error = assertIs<AuthError.EmptyUserResponse>(result.exceptionOrNull())
+        assertEquals("EMPTY_USER_RESPONSE", error.code)
+    }
+
+    @Test
+    fun `refreshTokenIfNeeded maps refresh failure to stable auth error`() = runBlocking {
+        val credentialStore = FakeCredentialStore(authToken = null, refreshToken = null)
+        val repository = AuthRepositoryImpl(
+            api = AuthApi(mockClient(emptyMap())),
+            credentialStore = credentialStore,
+            sessionManager = SessionManager(),
+            tokenRefresher = TokenRefresher(
+                refreshClient = mockClient(emptyMap()),
+                credentialStore = credentialStore,
+            ),
+        )
+
+        val result = repository.refreshTokenIfNeeded()
+
+        assertTrue(result.isFailure)
+        val error = assertIs<AuthError.TokenRefreshFailed>(result.exceptionOrNull())
+        assertEquals("TOKEN_REFRESH_FAILED", error.code)
+    }
+
+    @Test
     fun `getCurrentUserId decodes escaped JWT subject with JSON semantics`() = runBlocking {
         val credentialStore = FakeCredentialStore(
             authToken = jwtWithPayload("""{"sub":"user\u002D123","exp":4102444800}"""),
@@ -153,8 +254,37 @@ class AuthRepositoryImplTest {
         ).joinToString(".")
     }
 
+    private fun repositoryWithResponses(vararg responses: Pair<String, String>): AuthRepositoryImpl {
+        val client = mockClient(responses.toMap())
+        val credentialStore = FakeCredentialStore()
+        return AuthRepositoryImpl(
+            api = AuthApi(client),
+            credentialStore = credentialStore,
+            sessionManager = SessionManager(),
+            tokenRefresher = TokenRefresher(
+                refreshClient = client,
+                credentialStore = credentialStore,
+            ),
+        )
+    }
+
+    private fun mockClient(responses: Map<String, String>): HttpClient =
+        HttpClient(
+            MockEngine { request ->
+                respond(
+                    content = responses.getValue(request.url.encodedPath),
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            },
+        ) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+
     private class FakeCredentialStore(
         var authToken: String? = null,
+        var refreshToken: String? = null,
     ) : CredentialStore {
         override suspend fun getApiKey(): String? = null
         override suspend fun setApiKey(key: String) = Unit
@@ -172,12 +302,17 @@ class AuthRepositoryImplTest {
         override suspend fun clearAuthToken() {
             authToken = null
         }
-        override suspend fun getRefreshToken(): String? = null
-        override suspend fun setRefreshToken(token: String) = Unit
-        override suspend fun clearRefreshToken() = Unit
+        override suspend fun getRefreshToken(): String? = refreshToken
+        override suspend fun setRefreshToken(token: String) {
+            refreshToken = token
+        }
+        override suspend fun clearRefreshToken() {
+            refreshToken = null
+        }
         override suspend fun isLoggedIn(): Boolean = !authToken.isNullOrEmpty()
         override suspend fun clearAll() {
             authToken = null
+            refreshToken = null
         }
     }
 }

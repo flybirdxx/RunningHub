@@ -1,6 +1,7 @@
 ﻿package com.runninghub.feature.quickcreate.data.remote.api
 
 import com.runninghub.core.network.RunningHubApiEnvironment
+import com.runninghub.core.network.auth.markRunningHubAuthRetryAllowed
 import com.runninghub.feature.quickcreate.data.remote.dto.*
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -173,6 +174,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
      */
     suspend fun getQuickCreationCategories(): QuickCreationEnvelopeDto<List<QuickCreationCategoryDto>> =
         client.post(RunningHubApiEnvironment.apiUrl("qc/v2/categories")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(emptyMap<String, String>())
         }.body()
@@ -185,6 +187,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
      */
     suspend fun getQuickCreationModels(categoryIds: List<String>): QuickCreationEnvelopeDto<QuickCreationModelCatalogDto> =
         client.post(RunningHubApiEnvironment.apiUrl("qc/v2/models")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(QuickCreationModelRequestDto(categoryIds))
         }.body()
@@ -197,6 +200,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
      */
     suspend fun getQuickCreationModes(categoryId: String): QuickCreationEnvelopeDto<List<String>> =
         client.post(RunningHubApiEnvironment.apiUrl("qc/v2/creation-modes")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(mapOf("categoryId" to categoryId))
         }.body()
@@ -211,6 +215,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         request: QuickCreationCreateRequestDto,
     ): QuickCreationEnvelopeDto<QuickCreationFeePreviewDto> =
         client.post(RunningHubApiEnvironment.webUrl(QC_FEE_PREVIEW)) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
@@ -254,6 +259,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         size: Int = 10,
     ): QuickCreationEnvelopeDto<QuickCreationTaskPageDto> =
         client.post(RunningHubApiEnvironment.webUrl(QC_TASK_LIST)) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(QuickCreationTaskPageRequestDto(page, size))
         }.body()
@@ -268,6 +274,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         outputId: String,
     ): QuickCreationEnvelopeDto<QuickCreationTaskRecordDto> =
         client.post(RunningHubApiEnvironment.webUrl(QC_TASK_DETAIL)) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(QuickCreationTaskDetailRequestDto(outputId))
         }.body()
@@ -297,6 +304,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         size: Int = 20,
     ): QuickCreationEnvelopeDto<QuickCreationProjectPageDto> =
         client.post(RunningHubApiEnvironment.webUrl(QC_PROJECT_LIST)) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(QuickCreationProjectPageRequestDto(page, size))
         }.body()
@@ -313,6 +321,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         size: Int = 10,
     ): QuickCreationEnvelopeDto<QuickCreationTaskPageDto> =
         client.post(RunningHubApiEnvironment.webUrl(QC_PROJECT_TASKS)) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(QuickCreationProjectTasksRequestDto(projectId, page, size))
         }.body()
@@ -384,6 +393,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         projectId: String,
     ): QuickCreationEnvelopeDto<QuickCreationProjectDto> =
         client.post(RunningHubApiEnvironment.webUrl(QC_PROJECT_DETAIL)) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(QuickCreationProjectIdRequestDto(projectId))
         }.body()
@@ -396,6 +406,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
      */
     suspend fun getQuickCreationInspirationTags(): QuickCreationEnvelopeDto<List<QuickCreationCategoryDto>> =
         client.post(RunningHubApiEnvironment.webUrl(QC_INSPIRATION_TAGS)) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(emptyMap<String, String>())
         }.body()
@@ -412,6 +423,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         tagId: String? = null,
     ): QuickCreationEnvelopeDto<QuickCreationInspirationTemplatePageDto> =
         client.post(RunningHubApiEnvironment.webUrl(QC_INSPIRATION_TEMPLATES)) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(QuickCreationInspirationTemplatePageRequestDto(page, size, tagId))
         }.body()
@@ -426,6 +438,7 @@ class QuickCreateApi(private val client: HttpClient, private val json: Json) {
         templateId: String,
     ): QuickCreationEnvelopeDto<QuickCreationInspirationTemplateDetailDto> =
         client.post(RunningHubApiEnvironment.webUrl(QC_INSPIRATION_TEMPLATE_DETAIL)) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(QuickCreationInspirationTemplateDetailRequestDto(templateId))
         }.body()

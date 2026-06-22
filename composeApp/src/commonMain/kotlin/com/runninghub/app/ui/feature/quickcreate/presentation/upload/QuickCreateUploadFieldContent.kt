@@ -38,6 +38,21 @@ import com.runninghub.app.ui.theme.Neutral300
 import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_upload_audio_reference
+import runninghub.composeapp.generated.resources.quick_create_upload_audio_reference_count_format
+import runninghub.composeapp.generated.resources.quick_create_upload_done_count_format
+import runninghub.composeapp.generated.resources.quick_create_upload_field_default_hint
+import runninghub.composeapp.generated.resources.quick_create_upload_field_select_audio
+import runninghub.composeapp.generated.resources.quick_create_upload_field_select_image
+import runninghub.composeapp.generated.resources.quick_create_upload_field_select_media
+import runninghub.composeapp.generated.resources.quick_create_upload_field_select_video
+import runninghub.composeapp.generated.resources.quick_create_upload_image_reference
+import runninghub.composeapp.generated.resources.quick_create_upload_image_reference_count_format
+import runninghub.composeapp.generated.resources.quick_create_upload_progress_count_format
+import runninghub.composeapp.generated.resources.quick_create_upload_video_reference
+import runninghub.composeapp.generated.resources.quick_create_upload_video_reference_count_format
 
 /**
  * 渲染快捷创作编辑器里的全局素材选择工具条。
@@ -68,19 +83,31 @@ internal fun QuickCreateMediaToolbarRow(
         val audioCount = mediaReferences.count { it.type == QuickCreateMediaType.AUDIO }
 
         MediaToolbarChip(
-            label = if (imageCount > 0) "图片参考 · $imageCount" else "图片参考",
+            label = if (imageCount > 0) {
+                stringResource(Res.string.quick_create_upload_image_reference_count_format, imageCount)
+            } else {
+                stringResource(Res.string.quick_create_upload_image_reference)
+            },
             icon = Icons.Default.Image,
             hasItems = imageCount > 0,
             onClick = onLaunchImagePicker,
         )
         MediaToolbarChip(
-            label = if (videoCount > 0) "视频参考 · $videoCount" else "视频参考",
+            label = if (videoCount > 0) {
+                stringResource(Res.string.quick_create_upload_video_reference_count_format, videoCount)
+            } else {
+                stringResource(Res.string.quick_create_upload_video_reference)
+            },
             icon = Icons.Default.Videocam,
             hasItems = videoCount > 0,
             onClick = onLaunchVideoPicker,
         )
         MediaToolbarChip(
-            label = if (audioCount > 0) "音频参考 · $audioCount" else "音频参考",
+            label = if (audioCount > 0) {
+                stringResource(Res.string.quick_create_upload_audio_reference_count_format, audioCount)
+            } else {
+                stringResource(Res.string.quick_create_upload_audio_reference)
+            },
             icon = Icons.Default.MusicNote,
             hasItems = audioCount > 0,
             onClick = onLaunchAudioPicker,
@@ -117,10 +144,10 @@ internal fun QuickCreateServiceUploadFieldPicker(
         it.uploadStatus == UploadStatus.UPLOADING || it.uploadStatus == UploadStatus.PROCESSING
     }
     val label = when (mediaType) {
-        QuickCreateMediaType.IMAGE -> "选择图片"
-        QuickCreateMediaType.VIDEO -> "选择视频"
-        QuickCreateMediaType.AUDIO -> "选择音频"
-        null -> "选择素材"
+        QuickCreateMediaType.IMAGE -> stringResource(Res.string.quick_create_upload_field_select_image)
+        QuickCreateMediaType.VIDEO -> stringResource(Res.string.quick_create_upload_field_select_video)
+        QuickCreateMediaType.AUDIO -> stringResource(Res.string.quick_create_upload_field_select_audio)
+        null -> stringResource(Res.string.quick_create_upload_field_select_media)
     }
     Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
         Row(
@@ -132,9 +159,15 @@ internal fun QuickCreateServiceUploadFieldPicker(
                 Text(
                     text = listOfNotNull(
                         hint.takeIf { it.isNotBlank() },
-                        doneCount.takeIf { it > 0 }?.let { "已上传 $it" },
-                        uploadingCount.takeIf { it > 0 }?.let { "上传中 $it" },
-                    ).joinToString(" · ").ifBlank { "为该字段选择专属素材" },
+                        doneCount.takeIf { it > 0 }?.let {
+                            stringResource(Res.string.quick_create_upload_done_count_format, it)
+                        },
+                        uploadingCount.takeIf { it > 0 }?.let {
+                            stringResource(Res.string.quick_create_upload_progress_count_format, it)
+                        },
+                    ).joinToString(" · ").ifBlank {
+                        stringResource(Res.string.quick_create_upload_field_default_hint)
+                    },
                     fontSize = 11.sp,
                     color = Neutral500,
                 )

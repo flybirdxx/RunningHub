@@ -59,8 +59,8 @@ class AuthRepositoryImpl(
         }
         if (response.code != 0) throw AuthError.Unknown("AUTH_FAILED_CODE_${response.code}")
 
-        val tokenData = response.data ?: throw IllegalStateException("Empty login response")
-        check(tokenData.accessToken.isNotEmpty()) { "No access token received" }
+        val tokenData = response.data ?: throw AuthError.EmptyLoginResponse()
+        ensureAccessToken(tokenData)
 
         persistTokens(tokenData)
         val user = try {
@@ -106,8 +106,8 @@ class AuthRepositoryImpl(
         }
         if (response.code != 0) throw mapSmsError(response.msg, response.code)
 
-        val tokenData = response.data ?: throw IllegalStateException("Empty login response")
-        check(tokenData.accessToken.isNotEmpty()) { "No access token received" }
+        val tokenData = response.data ?: throw AuthError.EmptyLoginResponse()
+        ensureAccessToken(tokenData)
 
         persistTokens(tokenData)
         val user = fetchAndCacheUser(tokenData.accessToken)
@@ -162,13 +162,13 @@ class AuthRepositoryImpl(
         val refreshed = tokenRefresher.refreshAfterUnauthorized(currentToken)
         if (!refreshed) {
             sessionManager.expire()
-            throw IllegalStateException("Token refresh failed")
+            throw AuthError.TokenRefreshFailed()
         }
 
         val refreshedToken = credentialStore.getAuthToken()
         if (refreshedToken.isNullOrEmpty()) {
             sessionManager.expire()
-            throw IllegalStateException("No access token received")
+            throw AuthError.MissingAccessToken()
         }
 
         sessionManager.resetExpiration()
@@ -198,12 +198,18 @@ class AuthRepositoryImpl(
         credentialStore.setRefreshToken(tokenData.refreshToken)
     }
 
+    private fun ensureAccessToken(tokenData: LoginTokenDataDto) {
+        if (tokenData.accessToken.isBlank()) {
+            throw AuthError.MissingAccessToken()
+        }
+    }
+
     private suspend fun fetchAndCacheUser(accessToken: String): User {
         val userId = extractUserIdFromJwt(accessToken)
         val userResponse = api.getUserInfoWithToken(accessToken, userId)
         if (userResponse.code != 0) throw AuthError.Unknown("AUTH_USER_INFO_FAILED_CODE_${userResponse.code}")
 
-        val user = userResponse.data?.toDomain() ?: throw IllegalStateException("Empty user response")
+        val user = userResponse.data?.toDomain() ?: throw AuthError.EmptyUserResponse()
         user.apiKey?.let { credentialStore.setApiKey(it) }
         return user
     }

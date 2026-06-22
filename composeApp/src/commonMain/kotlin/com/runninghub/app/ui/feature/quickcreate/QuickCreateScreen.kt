@@ -56,6 +56,11 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.navigationLabel
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
+import runninghub.composeapp.generated.resources.quick_create_top_bar_mute_content_description
+import runninghub.composeapp.generated.resources.quick_create_top_bar_support_content_description
 
 /**
  * 快捷创作页面在 Voyager 导航中的入口。
@@ -84,6 +89,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
     val controller: PermissionController = rememberPermissionController(permissionStateStore)
 
     var pendingPermission by remember { mutableStateOf<Permission?>(null) }
+    val errorText = uiState.error?.asQuickCreateText()
 
     uiState.error?.let { error ->
         // 错误提示由页面状态驱动展示，但自动清理需要等待 3 秒后回调最新 ScreenModel。
@@ -218,7 +224,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     modifier = Modifier.padding(horizontal = Dimens.SpaceLG),
                 ) {
                     Text(
-                        uiState.error ?: "",
+                        errorText.orEmpty(),
                         color = Color.White,
                         modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = Dimens.SpaceSM),
                         fontSize = 13.sp,
@@ -351,7 +357,9 @@ private fun QuickCreateTopBar(
                 IconButton(onClick = onBack) {
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "返回",
+                        contentDescription = stringResource(
+                            Res.string.quick_create_top_bar_back_content_description,
+                        ),
                         tint = Color.White,
                     )
                 }
@@ -363,14 +371,18 @@ private fun QuickCreateTopBar(
             IconButton(onClick = {}) {
                 Icon(
                     Icons.Default.Call,
-                    contentDescription = "客服",
+                    contentDescription = stringResource(
+                        Res.string.quick_create_top_bar_support_content_description,
+                    ),
                     tint = Color.White.copy(alpha = 0.86f),
                 )
             }
             IconButton(onClick = {}) {
                 Icon(
                     Icons.AutoMirrored.Filled.VolumeOff,
-                    contentDescription = "静音",
+                    contentDescription = stringResource(
+                        Res.string.quick_create_top_bar_mute_content_description,
+                    ),
                     tint = Color.White.copy(alpha = 0.86f),
                 )
             }

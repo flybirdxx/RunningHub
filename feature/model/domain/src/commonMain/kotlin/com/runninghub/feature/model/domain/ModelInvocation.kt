@@ -74,20 +74,29 @@ data class ModelInvocationTask(
 )
 
 /**
- * 标准模型调用仓库使用的稳定错误码。
+ * 标准模型调用仓库的结构化失败异常。
  *
- * Data 层通过这些常量表达可机器识别的失败语义，不直接返回最终中文 UI 文案、
- * 服务端 `msg/message/errorMessage` 或底层异常 message。Presentation 层负责把这些错误码
- * 映射为当前页面的本地化提示和重试策略。
+ * Data 层用该异常表达模型调用内部可机器识别的失败语义；[message] 仅保留稳定诊断码，
+ * Presentation 不得把它作为最终用户可见文案展示。
+ *
+ * @property issue 标准模型调用的稳定失败语义。
  */
-object ModelInvocationIssueCode {
-    /**
-     * 用户尚未绑定可用于 OpenAPI 上传的 API Key。
-     */
-    const val API_KEY_MISSING = "MODEL_API_KEY_MISSING"
+class ModelInvocationException(
+    val issue: ModelInvocationIssue,
+) : IllegalStateException(issue.code)
 
+/**
+ * 标准模型调用仓库使用的稳定错误语义。
+ *
+ * Data 层通过这些枚举值表达可机器识别的失败原因，不直接返回最终中文 UI 文案、
+ * 服务端 `msg/message/errorMessage` 或底层异常 message。Presentation 层负责把这些错误语义
+ * 映射为当前页面的本地化提示和重试策略。
+ *
+ * @property code 稳定诊断码，可用于日志分类和兼容旧测试断言；不得作为最终 UI 文案。
+ */
+enum class ModelInvocationIssue(val code: String) {
     /**
      * 媒体上传响应缺少可访问的远端 URL 或可拼接文件名。
      */
-    const val MEDIA_UPLOAD_EMPTY_URL = "MODEL_MEDIA_UPLOAD_EMPTY_URL"
+    MediaUploadEmptyUrl("MODEL_MEDIA_UPLOAD_EMPTY_URL"),
 }

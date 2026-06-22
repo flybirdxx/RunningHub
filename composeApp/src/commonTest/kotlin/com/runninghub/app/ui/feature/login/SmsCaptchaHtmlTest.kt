@@ -25,6 +25,7 @@ class SmsCaptchaHtmlTest {
         val html = smsCaptchaHtml(
             tokenCallbackExpression = "window.bridge.onToken(token)",
             closeCallbackExpression = "window.bridge.onClose()",
+            copy = testSmsCaptchaCopy(),
         )
 
         assertTrue(html.contains("requestCaptchaDataUrl: '/uc/genCaptcha?type=ROTATE'"))
@@ -48,6 +49,7 @@ class SmsCaptchaHtmlTest {
         val html = smsCaptchaHtml(
             tokenCallbackExpression = "window.bridge.onToken(token)",
             closeCallbackExpression = "window.bridge.onClose()",
+            copy = testSmsCaptchaCopy(),
         )
 
         assertTrue(html.contains("function extractValidToken(res)"))
@@ -70,6 +72,7 @@ class SmsCaptchaHtmlTest {
         val html = smsCaptchaHtml(
             tokenCallbackExpression = "window.location.href = 'runninghub-sms-captcha://token?value=' + encodeURIComponent(token || '')",
             closeCallbackExpression = "window.location.href = 'runninghub-sms-captcha://close'",
+            copy = testSmsCaptchaCopy(),
         )
 
         assertTrue(html.contains("window[bridgeName] && typeof window[bridgeName].onToken === 'function'"))
@@ -91,12 +94,13 @@ class SmsCaptchaHtmlTest {
         val html = smsCaptchaHtml(
             tokenCallbackExpression = "window.bridge.onToken(token)",
             closeCallbackExpression = "window.bridge.onClose()",
+            copy = testSmsCaptchaCopy(),
         )
 
         assertTrue(html.contains("scheduleRenderWatchdog"))
         assertTrue(html.contains("tianai-captcha-slider-bg-img"))
         assertTrue(html.contains("tianai-captcha-slider-move-img"))
-        assertTrue(html.contains("图形验证图片加载失败，请点击重试"))
+        assertTrue(html.contains("Image failed, retry"))
     }
 
     /**
@@ -110,13 +114,14 @@ class SmsCaptchaHtmlTest {
         val html = smsCaptchaHtml(
             tokenCallbackExpression = "window.bridge.onToken(token)",
             closeCallbackExpression = "window.bridge.onClose()",
+            copy = testSmsCaptchaCopy(),
         )
 
         assertTrue(html.contains("function loadCaptchaScript()"))
         assertTrue(html.contains("script.onerror = function ()"))
         assertTrue(html.contains("window.__captchaScriptTimer = window.setTimeout"))
-        assertTrue(html.contains("图形验证脚本加载失败，请点击重试"))
-        assertTrue(html.contains("图形验证脚本加载超时，请点击重试"))
+        assertTrue(html.contains("Script failed, retry"))
+        assertTrue(html.contains("Script timeout, retry"))
         assertTrue(html.contains("onclick=\"window.__loadSmsCaptchaScript()\""))
     }
 
@@ -131,6 +136,7 @@ class SmsCaptchaHtmlTest {
         val html = smsCaptchaHtml(
             tokenCallbackExpression = "window.bridge.onToken(token)",
             closeCallbackExpression = "window.bridge.onClose()",
+            copy = testSmsCaptchaCopy(),
         )
 
         assertTrue(html.contains("window.clearTimeout(window.__captchaScriptTimer)"))
@@ -141,4 +147,23 @@ class SmsCaptchaHtmlTest {
         assertTrue(html.contains("window.__initSmsCaptcha = initCaptcha"))
         assertTrue(html.contains("window.__loadSmsCaptchaScript = loadCaptchaScript"))
     }
+
+    private fun testSmsCaptchaCopy(): SmsCaptchaCopy =
+        SmsCaptchaCopy(
+            dialogTitle = "Complete captcha",
+            dismissAction = "Cancel",
+            preparing = "Preparing captcha...",
+            retryAction = "Retry",
+            loadFailedRetry = "Captcha failed, retry",
+            imageLoadFailedRetry = "Image failed, retry",
+            loadFailedLater = "Captcha failed, try later",
+            rotateTitle = "Rotate image",
+            captchaLoadFailed = "Captcha load failed",
+            verifyFailed = "Verify failed",
+            verifySuccess = "Verify success",
+            tokenMissingRetry = "Token missing, retry",
+            initFailedRetry = "Init failed, retry",
+            scriptLoadFailedRetry = "Script failed, retry",
+            scriptTimeoutRetry = "Script timeout, retry",
+        )
 }

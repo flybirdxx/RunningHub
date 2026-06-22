@@ -1,5 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.result
 
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
+
 /**
  * 快捷创作任务在 Presentation 模块中的稳定状态。
  *
@@ -50,19 +52,17 @@ enum class QuickCreateTaskIndicator {
 /**
  * 快捷创作任务状态区域的稳定文案来源。
  *
- * 该模型只描述状态区域应该使用哪类文案，不保存默认中文文案。固定状态文案由 composeApp
- * 映射到 Compose Resources；[Custom] 仅承载错误映射或服务端状态流传入的非结构化说明。
+ * 该模型只描述状态区域应该使用哪类文案，不保存默认中文文案。固定状态和错误语义由 composeApp
+ * 映射到 Compose Resources；服务端返回的未知摘要不得通过该类型原样透传到 UI。
  */
 sealed interface QuickCreateTaskStatusText {
     /**
-     * 使用轮询控制器或服务端状态流给出的运行时状态说明。
+     * 使用稳定错误语义展示失败说明。
      *
-     * @property value 需要直接展示的进度或失败说明，来源于当前生成流程的状态流。
-     * 空字符串会被原样保留，用于兼容旧状态机已有契约；该值不应包含 Token、Cookie、
-     * API Key 或其他敏感凭据。
+     * @property error 任务失败或查询异常对应的 Presentation 错误语义，由 composeApp 映射为资源文案。
      */
-    data class Custom(
-        val value: String,
+    data class Error(
+        val error: QuickCreatePresentationError,
     ) : QuickCreateTaskStatusText
 
     /** 提交请求已通过本地校验、正在等待远端任务创建的文案键，由 composeApp 映射为本地化资源。 */
@@ -107,8 +107,8 @@ sealed interface QuickCreateTaskStatusText {
 /**
  * 快捷创作任务状态的可渲染展示模型。
  *
- * @property text 状态区域展示的稳定文案来源；默认状态文案由 composeApp 映射资源，
- * 运行时补充说明使用 [QuickCreateTaskStatusText.Custom] 原样透传。
+ * @property text 状态区域展示的稳定文案来源；默认状态和错误文案由 composeApp 映射资源，
+ * 远端未知状态摘要必须先映射为稳定语义，不允许原样透传到 UI。
  * @property indicator 状态区域的视觉指示类型，决定图标、颜色和进度样式。
  */
 data class QuickCreateTaskStatusDisplay(

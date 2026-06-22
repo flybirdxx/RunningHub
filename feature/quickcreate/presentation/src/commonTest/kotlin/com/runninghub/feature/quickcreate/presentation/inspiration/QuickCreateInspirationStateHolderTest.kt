@@ -8,6 +8,8 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationReposit
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationUploadMediaKind
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
@@ -29,7 +31,9 @@ class QuickCreateInspirationStateHolderTest {
     @Test
     fun `load inspiration writes tags and first template page`() = runTest {
         val repository = FakeInspirationRepository()
-        val state = MutableStateFlow(QuickCreateUiState(error = "old error"))
+        val state = MutableStateFlow(
+            QuickCreateUiState(error = QuickCreatePresentationError.InspirationTagsLoadFailed.asQuickCreateUiMessage()),
+        )
         val holder = createHolder(repository, state, this)
 
         holder.loadInspiration()
@@ -58,7 +62,7 @@ class QuickCreateInspirationStateHolderTest {
 
         assertEquals(emptyList(), state.value.inspirationTags)
         assertEquals(listOf("tpl-1", "tpl-2"), state.value.inspirationTemplates.map { it.id })
-        assertEquals("灵感标签加载失败", state.value.error)
+        assertEquals(QuickCreatePresentationError.InspirationTagsLoadFailed.asQuickCreateUiMessage(), state.value.error)
     }
 
     @Test
@@ -74,7 +78,10 @@ class QuickCreateInspirationStateHolderTest {
 
         assertEquals(listOf("热门", "新品"), state.value.inspirationTags.map { it.label })
         assertEquals(emptyList(), state.value.inspirationTemplates)
-        assertEquals("灵感模板加载失败", state.value.error)
+        assertEquals(
+            QuickCreatePresentationError.InspirationTemplatesLoadFailed.asQuickCreateUiMessage(),
+            state.value.error,
+        )
     }
 
     @Test
@@ -136,7 +143,10 @@ class QuickCreateInspirationStateHolderTest {
 
         assertEquals(listOf("tpl-1"), state.value.inspirationTemplates.map { it.id })
         assertFalse(state.value.inspirationTemplatesLoadingMore)
-        assertEquals("灵感模板加载失败", state.value.error)
+        assertEquals(
+            QuickCreatePresentationError.InspirationTemplatesLoadFailed.asQuickCreateUiMessage(),
+            state.value.error,
+        )
     }
 
     @Test
@@ -208,7 +218,10 @@ class QuickCreateInspirationStateHolderTest {
         assertEquals(QuickCreateMode.CREATION, state.value.currentMode)
         assertEquals(QuickCreateTab.IMAGE, state.value.currentTab)
         assertFalse(state.value.inspirationLoading)
-        assertEquals("模板详情加载失败", state.value.error)
+        assertEquals(
+            QuickCreatePresentationError.InspirationTemplateDetailLoadFailed.asQuickCreateUiMessage(),
+            state.value.error,
+        )
     }
 
     private fun createHolder(

@@ -97,7 +97,7 @@ class QuickCreationServiceSchemaTest {
             ),
         )
         assertEquals(
-            "childImages 不能为空",
+            QuickCreationServiceValidationIssue.Required("childImages"),
             QuickCreationServiceSchema.validateUploads(
                 model = model,
                 uploadedMedia = emptyList(),
@@ -505,21 +505,21 @@ class QuickCreationServiceSchemaTest {
         )
 
         assertEquals(
-            "Tagline 不能为空",
+            QuickCreationServiceValidationIssue.Required("Tagline"),
             QuickCreationServiceSchema.validateFields(
                 model = model,
                 serviceParams = mapOf("tagline" to ""),
             ),
         )
         assertEquals(
-            "Tagline 至少 3 个字符",
+            QuickCreationServiceValidationIssue.MinLength("Tagline", 3),
             QuickCreationServiceSchema.validateFields(
                 model = model,
                 serviceParams = mapOf("tagline" to "ab"),
             ),
         )
         assertEquals(
-            "Sub prompt 不能为空",
+            QuickCreationServiceValidationIssue.Required("Sub prompt"),
             QuickCreationServiceSchema.validateFields(
                 model = model,
                 serviceParams = mapOf("tagline" to "abc", "mode" to "image", "subPrompt" to ""),
@@ -560,7 +560,7 @@ class QuickCreationServiceSchemaTest {
         )
 
         assertEquals(
-            "Reference image 不能为空",
+            QuickCreationServiceValidationIssue.Required("Reference image"),
             QuickCreationServiceSchema.validateUploads(
                 model = model,
                 uploadedMedia = emptyList(),
@@ -569,7 +569,7 @@ class QuickCreationServiceSchemaTest {
             ),
         )
         assertEquals(
-            "Reference image 最多 4 个文件",
+            QuickCreationServiceValidationIssue.MaxUploadCount("Reference image", 4),
             QuickCreationServiceSchema.validateUploads(
                 model = model,
                 uploadedMedia = (1..5).map { index ->
@@ -584,7 +584,7 @@ class QuickCreationServiceSchemaTest {
             ),
         )
         assertEquals(
-            "childImages 不能为空",
+            QuickCreationServiceValidationIssue.Required("childImages"),
             QuickCreationServiceSchema.validateUploads(
                 model = model,
                 uploadedMedia = listOf(

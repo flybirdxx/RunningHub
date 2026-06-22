@@ -1,12 +1,16 @@
-package com.runninghub.app.ui.feature.quickcreate
+package com.runninghub.feature.quickcreate.presentation
 
-import cafe.adriel.voyager.core.model.ScreenModel
-import cafe.adriel.voyager.core.model.screenModelScope
+import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
-import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationStateHolder
-import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationStateHolderFactory
+import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
+import com.runninghub.feature.quickcreate.presentation.coordinator.QuickCreateCoordinator
 import com.runninghub.feature.quickcreate.presentation.draft.DraftData
-import kotlinx.coroutines.flow.StateFlow
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
 import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
@@ -18,24 +22,99 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 /**
- * 快捷创作页面的 Voyager ScreenModel 门面。
+ * 创建快捷创作页面级 Presentation 会话。
  *
- * 本类只保留应用壳的页面生命周期边界和 UI Action 方法外观。唯一 [QuickCreateUiState]
- * 所有权、仓库聚合以及草稿、模型目录、媒体上传、计费预览、任务生成、轮询、历史、项目和
- * 灵感模板编排均由 [QuickCreatePresentationStateHolder] 承担。
+ * 该工厂由应用组合根注入领域仓库、草稿仓库和平台媒体端口，但不依赖 Voyager 或 Compose。
+ * 每次页面进入导航栈时，应用壳只需要传入页面生命周期 [CoroutineScope]，即可得到一份独立的
+ * [QuickCreatePresentationStateHolder]。这样仓库聚合、状态所有权和 Coordinator 装配都保留在
+ * feature presentation 边界内，composeApp 只承担导航生命周期适配。
  *
- * 这样做的目的是让 ScreenModel 不再继续膨胀为事实上的业务协调器，同时保持现有 UI 和测试调用
- * 的公开方法签名不变，降低迁移过程中的行为风险。
- *
- * @param presentationFactory 创建页面级 Presentation 状态持有者的工厂，由组合根注入领域仓库和平台端口。
+ * @param historyRepository 快捷创作历史仓库，用于最近历史、项目任务列表、详情和取消任务。
+ * @param modelCatalogRepository 快捷创作模型目录仓库，用于加载图片和视频服务模型。
+ * @param generationRepository 快捷创作生成仓库，用于提交生成任务并收集任务状态流。
+ * @param feePreviewRepository 快捷创作计费预览仓库，用于刷新远端价格预览。
+ * @param inspirationRepository 快捷创作灵感仓库，用于加载模板标签、分页和模板详情。
+ * @param mediaUploadRepository 快捷创作媒体上传仓库，用于把本地媒体上传为远端 URL。
+ * @param projectRepository 快捷创作项目仓库，用于项目列表、详情和项目变更操作。
+ * @param mediaResolver 平台无关媒体读取端口，由 composeApp 在组合根适配 Android/iOS 能力。
+ * @param draftRepository 快捷创作草稿仓库，用于保存和清理可恢复编辑草稿快照。
+ * @param ioDispatcher 媒体字节读取使用的调度器；默认值保持 commonMain 跨平台可用。
  */
-class QuickCreateScreenModel(
-    presentationFactory: QuickCreatePresentationStateHolderFactory,
-) : ScreenModel {
+class QuickCreatePresentationStateHolderFactory(
+    private val historyRepository: QuickCreationTaskHistoryRepository,
+    private val modelCatalogRepository: QuickCreationModelCatalogRepository,
+    private val generationRepository: QuickCreationGenerationRepository,
+    private val feePreviewRepository: QuickCreationFeePreviewRepository,
+    private val inspirationRepository: QuickCreationInspirationRepository,
+    private val mediaUploadRepository: QuickCreationMediaUploadRepository,
+    private val projectRepository: QuickCreationProjectRepository,
+    private val mediaResolver: QuickCreateMediaResolver,
+    private val draftRepository: QuickCreateDraftRepository,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
+) {
+    /**
+     * 为一次页面生命周期创建独立状态持有者。
+     *
+     * @param scope Voyager ScreenModel 或测试传入的页面级作用域；dispose 前所有异步任务都绑定到该作用域。
+     */
+    fun create(scope: CoroutineScope): QuickCreatePresentationStateHolder =
+        QuickCreatePresentationStateHolder(
+            historyRepository = historyRepository,
+            modelCatalogRepository = modelCatalogRepository,
+            generationRepository = generationRepository,
+            feePreviewRepository = feePreviewRepository,
+            inspirationRepository = inspirationRepository,
+            mediaUploadRepository = mediaUploadRepository,
+            projectRepository = projectRepository,
+            mediaResolver = mediaResolver,
+            draftRepository = draftRepository,
+            scope = scope,
+            ioDispatcher = ioDispatcher,
+        )
+}
 
-    private val presentation = presentationFactory.create(screenModelScope)
+/**
+ * 快捷创作页面级 Presentation 状态持有者。
+ *
+ * 本类拥有页面唯一 [QuickCreateUiState]，并把所有 UI action 转发给 [QuickCreateCoordinator]。
+ * 它不依赖 Voyager、Koin、Compose Resources 或平台类型，因此可以在 feature presentation
+ * 测试中直接验证业务状态流；应用壳 ScreenModel 只负责把导航生命周期转接到 [dispose]。
+ *
+ * @param historyRepository 快捷创作历史仓库，只用于最近历史、项目任务列表、详情和取消任务。
+ * @param modelCatalogRepository 快捷创作模型目录仓库，只用于加载和刷新服务模型列表。
+ * @param generationRepository 快捷创作生成仓库，只用于提交图片或视频生成任务并收集状态流。
+ * @param feePreviewRepository 快捷创作计费预览仓库，只用于刷新远端价格预览。
+ * @param inspirationRepository 快捷创作灵感仓库，只用于加载模板标签、模板分页和模板详情。
+ * @param mediaUploadRepository 快捷创作媒体上传仓库，只用于把本地媒体上传为远端 URL。
+ * @param projectRepository 快捷创作项目仓库，只用于项目列表、详情和项目变更操作。
+ * @param mediaResolver 快捷创作媒体读取端口，由 app 组合根把平台媒体能力适配后注入。
+ * @param draftRepository 快捷创作草稿领域仓库，只保存和清理可恢复编辑草稿快照。
+ * @param scope 页面生命周期协程作用域，所有异步任务随该作用域取消。
+ * @param ioDispatcher 媒体字节读取使用的调度器。
+ */
+class QuickCreatePresentationStateHolder(
+    historyRepository: QuickCreationTaskHistoryRepository,
+    modelCatalogRepository: QuickCreationModelCatalogRepository,
+    generationRepository: QuickCreationGenerationRepository,
+    feePreviewRepository: QuickCreationFeePreviewRepository,
+    inspirationRepository: QuickCreationInspirationRepository,
+    mediaUploadRepository: QuickCreationMediaUploadRepository,
+    projectRepository: QuickCreationProjectRepository,
+    mediaResolver: QuickCreateMediaResolver,
+    draftRepository: QuickCreateDraftRepository,
+    scope: CoroutineScope,
+    ioDispatcher: CoroutineDispatcher,
+) {
+    private val mutableUiState = MutableStateFlow(QuickCreateUiState())
 
     /**
      * 页面唯一只读状态流。
@@ -43,7 +122,22 @@ class QuickCreateScreenModel(
      * UI 只能观察该 StateFlow 并通过本类公开 action 回传用户操作；实际状态修改由 Coordinator
      * 和局部 StateHolder / Interactor 完成，避免 Composable 直接接触仓库或存储。
      */
-    val uiState: StateFlow<QuickCreateUiState> = presentation.uiState
+    val uiState: StateFlow<QuickCreateUiState> = mutableUiState.asStateFlow()
+
+    private val coordinator = QuickCreateCoordinator(
+        historyRepository = historyRepository,
+        mediaResolver = mediaResolver,
+        draftRepository = draftRepository,
+        scope = scope,
+        uiState = mutableUiState,
+        ioDispatcher = ioDispatcher,
+        modelCatalogRepository = modelCatalogRepository,
+        generationRepository = generationRepository,
+        feePreviewRepository = feePreviewRepository,
+        inspirationRepository = inspirationRepository,
+        mediaUploadRepository = mediaUploadRepository,
+        projectRepository = projectRepository,
+    )
 
     /**
      * 当前是否存在可恢复草稿。
@@ -52,7 +146,7 @@ class QuickCreateScreenModel(
      * 不直接访问持久化存储。
      */
     val hasDraft: Boolean
-        get() = presentation.hasDraft
+        get() = mutableUiState.value.hasDraft
 
     /**
      * 当前内存中的可恢复草稿数据。
@@ -60,41 +154,45 @@ class QuickCreateScreenModel(
      * `null` 表示没有可恢复草稿，或草稿已经被恢复、放弃、提交进入队列后清理。
      */
     val draftData: DraftData?
-        get() = presentation.draftData
+        get() = mutableUiState.value.draftData
+
+    init {
+        coordinator.initialize()
+    }
 
     /**
      * 释放页面级长生命周期任务。
      *
-     * Voyager 会在页面离开导航栈时调用该方法；实际释放顺序由 [QuickCreatePresentationStateHolder.dispose]
-     * 统一维护，确保生成轮询、历史轮询、计费防抖、媒体上传和草稿自动保存都被取消。
+     * 实际释放顺序由 [QuickCreateCoordinator.dispose] 统一维护，确保生成轮询、历史轮询、
+     * 计费防抖、媒体上传和草稿自动保存都被取消。
      */
-    override fun onDispose() {
-        presentation.dispose()
+    fun dispose() {
+        coordinator.dispose()
     }
 
     /** 重新加载服务端快捷创作模型目录。 */
     fun loadServiceModels() {
-        presentation.loadServiceModels()
+        coordinator.loadServiceModels()
     }
 
     /** 加载最近快捷创作历史首页。 */
     fun loadQuickCreationHistory() {
-        presentation.loadQuickCreationHistory()
+        coordinator.loadQuickCreationHistory()
     }
 
     /** 加载快捷创作项目列表首页。 */
     fun loadQuickCreationProjects() {
-        presentation.loadQuickCreationProjects()
+        coordinator.loadQuickCreationProjects()
     }
 
     /** 加载更多快捷创作项目。 */
     fun loadMoreQuickCreationProjects() {
-        presentation.loadMoreQuickCreationProjects()
+        coordinator.loadMoreQuickCreationProjects()
     }
 
     /** 加载更多当前历史区域，可能是最近历史或当前项目任务。 */
     fun loadMoreQuickCreationHistory() {
-        presentation.loadMoreQuickCreationHistory()
+        coordinator.loadMoreQuickCreationHistory()
     }
 
     /**
@@ -103,12 +201,12 @@ class QuickCreateScreenModel(
      * @param projectId 项目稳定标识；空值和重复选择由 Coordinator 下游忽略。
      */
     fun selectProject(projectId: String) {
-        presentation.selectProject(projectId)
+        coordinator.selectProject(projectId)
     }
 
     /** 清除当前项目筛选并恢复最近历史。 */
     fun clearSelectedProject() {
-        presentation.clearSelectedProject()
+        coordinator.clearSelectedProject()
     }
 
     /**
@@ -117,7 +215,7 @@ class QuickCreateScreenModel(
      * @param projectId 需要置顶或取消置顶的项目稳定标识。
      */
     fun toggleProjectPin(projectId: String) {
-        presentation.toggleProjectPin(projectId)
+        coordinator.toggleProjectPin(projectId)
     }
 
     /**
@@ -126,7 +224,7 @@ class QuickCreateScreenModel(
      * @param name 用户输入的新项目名称。
      */
     fun createProject(name: String) {
-        presentation.createProject(name)
+        coordinator.createProject(name)
     }
 
     /**
@@ -136,7 +234,7 @@ class QuickCreateScreenModel(
      * @param name 用户输入的新名称。
      */
     fun renameProject(projectId: String, name: String) {
-        presentation.renameProject(projectId, name)
+        coordinator.renameProject(projectId, name)
     }
 
     /**
@@ -145,7 +243,7 @@ class QuickCreateScreenModel(
      * 如果删除的是当前选中项目，Coordinator 会恢复最近历史，避免 UI 停留在已删除项目的任务列表。
      */
     fun deleteProject(projectId: String) {
-        presentation.deleteProject(projectId)
+        coordinator.deleteProject(projectId)
     }
 
     /**
@@ -154,12 +252,12 @@ class QuickCreateScreenModel(
      * @param projectId 要查看详情的项目稳定标识。
      */
     fun selectProjectDetail(projectId: String) {
-        presentation.selectProjectDetail(projectId)
+        coordinator.selectProjectDetail(projectId)
     }
 
     /** 关闭项目详情。 */
     fun dismissProjectDetail() {
-        presentation.dismissProjectDetail()
+        coordinator.dismissProjectDetail()
     }
 
     /**
@@ -168,7 +266,7 @@ class QuickCreateScreenModel(
      * @param taskId 服务端任务标识。
      */
     fun cancelHistoryTask(taskId: String) {
-        presentation.cancelHistoryTask(taskId)
+        coordinator.cancelHistoryTask(taskId)
     }
 
     /**
@@ -177,27 +275,27 @@ class QuickCreateScreenModel(
      * @param outputId 历史输出项标识。
      */
     fun selectHistoryOutput(outputId: String) {
-        presentation.selectHistoryOutput(outputId)
+        coordinator.selectHistoryOutput(outputId)
     }
 
     /** 关闭历史输出详情。 */
     fun dismissHistoryDetail() {
-        presentation.dismissHistoryDetail()
+        coordinator.dismissHistoryDetail()
     }
 
     /** 检查本地是否存在可恢复草稿。 */
     fun checkForDraft() {
-        presentation.checkForDraft()
+        coordinator.checkForDraft()
     }
 
     /** 将当前草稿恢复到图片或视频编辑区，并重新调度价格预览。 */
     fun restoreDraft() {
-        presentation.restoreDraft()
+        coordinator.restoreDraft()
     }
 
     /** 放弃当前可恢复草稿。 */
     fun discardDraft() {
-        presentation.discardDraft()
+        coordinator.discardDraft()
     }
 
     /**
@@ -206,17 +304,17 @@ class QuickCreateScreenModel(
      * @param mode 目标模式，普通创作或灵感模板模式。
      */
     fun switchMode(mode: QuickCreateMode) {
-        presentation.switchMode(mode)
+        coordinator.switchMode(mode)
     }
 
     /** 加载灵感模板首页。 */
     fun loadInspiration() {
-        presentation.loadInspiration()
+        coordinator.loadInspiration()
     }
 
     /** 加载更多灵感模板。 */
     fun loadMoreInspirationTemplates() {
-        presentation.loadMoreInspirationTemplates()
+        coordinator.loadMoreInspirationTemplates()
     }
 
     /**
@@ -225,7 +323,7 @@ class QuickCreateScreenModel(
      * @param templateId 模板稳定标识，来源于灵感模板列表。
      */
     fun applyInspirationTemplate(templateId: String) {
-        presentation.applyInspirationTemplate(templateId)
+        coordinator.applyInspirationTemplate(templateId)
     }
 
     /**
@@ -234,7 +332,7 @@ class QuickCreateScreenModel(
      * 切换会通过 Coordinator 触发计费预览和草稿自动保存。
      */
     fun switchTab(tab: QuickCreateTab) {
-        presentation.switchTab(tab)
+        coordinator.switchTab(tab)
     }
 
     /**
@@ -243,7 +341,7 @@ class QuickCreateScreenModel(
      * @param prompt 用户输入的图片提示词；空字符串表示清空输入。
      */
     fun updateImagePrompt(prompt: String) {
-        presentation.updateImagePrompt(prompt)
+        coordinator.updateImagePrompt(prompt)
     }
 
     /**
@@ -252,22 +350,22 @@ class QuickCreateScreenModel(
      * @param prompt 用户输入的视频提示词；空字符串表示清空输入。
      */
     fun updateVideoPrompt(prompt: String) {
-        presentation.updateVideoPrompt(prompt)
+        coordinator.updateVideoPrompt(prompt)
     }
 
     /** 打开模型选择弹层。 */
     fun showModelPickerSheet() {
-        presentation.showModelPickerSheet()
+        coordinator.showModelPickerSheet()
     }
 
     /** 打开参数调节弹层。 */
     fun showParamsSheet() {
-        presentation.showParamsSheet()
+        coordinator.showParamsSheet()
     }
 
     /** 关闭当前模型或参数弹层。 */
     fun closeActiveSheet() {
-        presentation.closeActiveSheet()
+        coordinator.closeActiveSheet()
     }
 
     /**
@@ -276,7 +374,7 @@ class QuickCreateScreenModel(
      * @param model 图片本地兜底模型枚举。
      */
     fun updateImageModel(model: ImageModel) {
-        presentation.updateImageModel(model)
+        coordinator.updateImageModel(model)
     }
 
     /**
@@ -285,7 +383,7 @@ class QuickCreateScreenModel(
      * @param model 来自当前图片服务模型目录的模型对象。
      */
     fun updateImageServiceModel(model: QuickCreationServiceModel) {
-        presentation.updateImageServiceModel(model)
+        coordinator.updateImageServiceModel(model)
     }
 
     /**
@@ -294,7 +392,7 @@ class QuickCreateScreenModel(
      * @param identityKey 模型选择面板回传的稳定身份键，格式由 Presentation 映射层生成。
      */
     fun updateImageServiceModel(identityKey: String) {
-        presentation.updateImageServiceModel(identityKey)
+        coordinator.updateImageServiceModel(identityKey)
     }
 
     /**
@@ -303,7 +401,7 @@ class QuickCreateScreenModel(
      * @param model 来自当前视频服务模型目录的模型对象。
      */
     fun updateVideoServiceModel(model: QuickCreationServiceModel) {
-        presentation.updateVideoServiceModel(model)
+        coordinator.updateVideoServiceModel(model)
     }
 
     /**
@@ -312,7 +410,7 @@ class QuickCreateScreenModel(
      * @param identityKey 模型选择面板回传的稳定身份键，空白或过期 key 会被忽略。
      */
     fun updateVideoServiceModel(identityKey: String) {
-        presentation.updateVideoServiceModel(identityKey)
+        coordinator.updateVideoServiceModel(identityKey)
     }
 
     /**
@@ -322,7 +420,7 @@ class QuickCreateScreenModel(
      * @param value 用户选择或输入的字段值。
      */
     fun updateImageServiceParam(paramKey: String, value: String) {
-        presentation.updateImageServiceParam(paramKey, value)
+        coordinator.updateImageServiceParam(paramKey, value)
     }
 
     /**
@@ -332,7 +430,7 @@ class QuickCreateScreenModel(
      * @param value 用户选择或输入的字段值。
      */
     fun updateVideoServiceParam(paramKey: String, value: String) {
-        presentation.updateVideoServiceParam(paramKey, value)
+        coordinator.updateVideoServiceParam(paramKey, value)
     }
 
     /**
@@ -341,22 +439,22 @@ class QuickCreateScreenModel(
      * @param model 视频本地兜底模型枚举。
      */
     fun updateVideoModel(model: VideoModel) {
-        presentation.updateVideoModel(model)
+        coordinator.updateVideoModel(model)
     }
 
     /** 更新图片宽高比。 */
     fun updateImageAspectRatio(ratio: ImageAspectRatio) {
-        presentation.updateImageAspectRatio(ratio)
+        coordinator.updateImageAspectRatio(ratio)
     }
 
     /** 更新图片分辨率。 */
     fun updateImageResolution(res: ImageResolution) {
-        presentation.updateImageResolution(res)
+        coordinator.updateImageResolution(res)
     }
 
     /** 更新图片质量档位。 */
     fun updateImageQuality(quality: ImageQuality) {
-        presentation.updateImageQuality(quality)
+        coordinator.updateImageQuality(quality)
     }
 
     /**
@@ -365,7 +463,7 @@ class QuickCreateScreenModel(
      * @param count 生成数量，只接受当前模型支持的固定值。
      */
     fun updateImageCount(count: Int) {
-        presentation.updateImageCount(count)
+        coordinator.updateImageCount(count)
     }
 
     /**
@@ -374,22 +472,22 @@ class QuickCreateScreenModel(
      * @param seed 非负整数表示固定种子，`null` 或负数表示交给服务端随机。
      */
     fun updateImageSeed(seed: Int?) {
-        presentation.updateImageSeed(seed)
+        coordinator.updateImageSeed(seed)
     }
 
     /** 更新视频宽高比。 */
     fun updateVideoAspectRatio(ratio: VideoAspectRatio) {
-        presentation.updateVideoAspectRatio(ratio)
+        coordinator.updateVideoAspectRatio(ratio)
     }
 
     /** 更新视频分辨率。 */
     fun updateVideoResolution(res: VideoResolution) {
-        presentation.updateVideoResolution(res)
+        coordinator.updateVideoResolution(res)
     }
 
     /** 更新视频时长。 */
     fun updateVideoDuration(duration: VideoDuration) {
-        presentation.updateVideoDuration(duration)
+        coordinator.updateVideoDuration(duration)
     }
 
     /**
@@ -398,7 +496,7 @@ class QuickCreateScreenModel(
      * @param count 生成数量，只接受当前模型支持的固定值。
      */
     fun updateVideoCount(count: Int) {
-        presentation.updateVideoCount(count)
+        coordinator.updateVideoCount(count)
     }
 
     /**
@@ -407,17 +505,17 @@ class QuickCreateScreenModel(
      * @param seed 非负整数表示固定种子，`null` 或负数表示交给服务端随机。
      */
     fun updateVideoSeed(seed: Int?) {
-        presentation.updateVideoSeed(seed)
+        coordinator.updateVideoSeed(seed)
     }
 
     /** 切换视频真实模式。 */
     fun toggleRealisticMode() {
-        presentation.toggleRealisticMode()
+        coordinator.toggleRealisticMode()
     }
 
     /** 切换视频生成音频开关。 */
     fun toggleGenerateAudio() {
-        presentation.toggleGenerateAudio()
+        coordinator.toggleGenerateAudio()
     }
 
     /**
@@ -426,7 +524,7 @@ class QuickCreateScreenModel(
      * @param uriString 用户从平台文件选择器返回的本地 URI 字符串。
      */
     fun pickImageReference(uriString: String) {
-        presentation.pickImageReference(uriString)
+        coordinator.pickImageReference(uriString)
     }
 
     /**
@@ -435,7 +533,7 @@ class QuickCreateScreenModel(
      * @param uriString 用户从平台文件选择器返回的本地 URI 字符串。
      */
     fun pickVideoReference(uriString: String) {
-        presentation.pickVideoReference(uriString)
+        coordinator.pickVideoReference(uriString)
     }
 
     /**
@@ -444,7 +542,7 @@ class QuickCreateScreenModel(
      * @param uriString 用户从平台文件选择器返回的本地 URI 字符串。
      */
     fun pickAudioReference(uriString: String) {
-        presentation.pickAudioReference(uriString)
+        coordinator.pickAudioReference(uriString)
     }
 
     /**
@@ -454,7 +552,7 @@ class QuickCreateScreenModel(
      * @param fieldParamKey 服务字段参数名。
      */
     fun pickImageReferenceForField(uriString: String, fieldParamKey: String) {
-        presentation.pickImageReferenceForField(uriString, fieldParamKey)
+        coordinator.pickImageReferenceForField(uriString, fieldParamKey)
     }
 
     /**
@@ -464,7 +562,7 @@ class QuickCreateScreenModel(
      * @param fieldParamKey 服务字段参数名。
      */
     fun pickVideoReferenceForField(uriString: String, fieldParamKey: String) {
-        presentation.pickVideoReferenceForField(uriString, fieldParamKey)
+        coordinator.pickVideoReferenceForField(uriString, fieldParamKey)
     }
 
     /**
@@ -474,7 +572,7 @@ class QuickCreateScreenModel(
      * @param fieldParamKey 服务字段参数名。
      */
     fun pickAudioReferenceForField(uriString: String, fieldParamKey: String) {
-        presentation.pickAudioReferenceForField(uriString, fieldParamKey)
+        coordinator.pickAudioReferenceForField(uriString, fieldParamKey)
     }
 
     /**
@@ -483,21 +581,21 @@ class QuickCreateScreenModel(
      * @param id 媒体引用在页面状态中的稳定标识。
      */
     fun removeMediaReference(id: String) {
-        presentation.removeMediaReference(id)
+        coordinator.removeMediaReference(id)
     }
 
     /** 清除页面当前错误提示。 */
     fun dismissError() {
-        presentation.dismissError()
+        coordinator.dismissError()
     }
 
     /** 清空当前生成结果并恢复任务展示区域。 */
     fun clearResults() {
-        presentation.clearResults()
+        coordinator.clearResults()
     }
 
     /** 提交当前快捷创作任务。 */
     fun generate() {
-        presentation.generate()
+        coordinator.generate()
     }
 }

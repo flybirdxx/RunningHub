@@ -18,6 +18,18 @@ sealed class AuthError(
     /** 网络不可用、连接超时或 DNS 解析失败，调用方通常应保留用户输入以便重试。 */
     class Network : AuthError("NETWORK_UNAVAILABLE")
 
+    /** 登录接口返回成功 code 但缺少 token data，调用方应视为认证失败并允许重试。 */
+    class EmptyLoginResponse : AuthError("EMPTY_LOGIN_RESPONSE")
+
+    /** 登录或刷新成功路径缺少可用 access token，调用方不得继续进入已认证会话。 */
+    class MissingAccessToken : AuthError("MISSING_ACCESS_TOKEN")
+
+    /** 本地 token 过期后刷新失败，调用方应进入会话过期或重新登录流程。 */
+    class TokenRefreshFailed : AuthError("TOKEN_REFRESH_FAILED")
+
+    /** 用户资料接口返回成功 code 但缺少 user data，调用方不得把会话标记为已认证。 */
+    class EmptyUserResponse : AuthError("EMPTY_USER_RESPONSE")
+
     /**
      * 未被客户端稳定分类的认证失败。
      *

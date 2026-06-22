@@ -1,6 +1,7 @@
 package com.runninghub.feature.discovery.data.remote.api
 
 import com.runninghub.core.network.RunningHubApiEnvironment
+import com.runninghub.core.network.auth.markRunningHubAuthRetryAllowed
 import com.runninghub.feature.discovery.data.remote.dto.CatalogTagDto
 import com.runninghub.feature.discovery.data.remote.dto.CatalogTagTreeRequestDto
 import com.runninghub.feature.discovery.data.remote.dto.CustomMadeWebappRequestDto
@@ -32,6 +33,7 @@ class WebAppCatalogApi(private val client: HttpClient) {
         request: WebAppListRequestDto,
     ): DiscoveryBaseResponseDto<DiscoveryPageDataDto<WebAppCatalogDto>> =
         client.post(RunningHubApiEnvironment.apiUrl("webapp/list")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
@@ -43,6 +45,7 @@ class WebAppCatalogApi(private val client: HttpClient) {
      */
     suspend fun getCarefullyChosenList(): DiscoveryBaseResponseDto<List<WebAppCatalogDto>> =
         client.post(RunningHubApiEnvironment.apiUrl("webapp/carefullyChosenList")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(emptyMap<String, String>())
         }.body()
@@ -56,6 +59,7 @@ class WebAppCatalogApi(private val client: HttpClient) {
         request: CustomMadeWebappRequestDto,
     ): DiscoveryBaseResponseDto<List<WebAppCatalogDto>> =
         client.post(RunningHubApiEnvironment.apiUrl("webapp/customMadeWebappList")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
@@ -69,6 +73,7 @@ class WebAppCatalogApi(private val client: HttpClient) {
         params: Map<String, String>,
     ): DiscoveryBaseResponseDto<DiscoveryPageDataDto<WebAppCatalogDto>> =
         client.post(RunningHubApiEnvironment.apiUrl("webapp/user/list")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(params)
         }.body()
@@ -82,6 +87,7 @@ class WebAppCatalogApi(private val client: HttpClient) {
         request: CatalogTagTreeRequestDto = CatalogTagTreeRequestDto(),
     ): DiscoveryBaseResponseDto<List<CatalogTagDto>> =
         client.post(RunningHubApiEnvironment.apiUrl("portal/tag/tree")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
@@ -95,6 +101,7 @@ class WebAppCatalogApi(private val client: HttpClient) {
         params: Map<String, String>,
     ): DiscoveryBaseResponseDto<WebAppDetailCatalogDto> =
         client.post(RunningHubApiEnvironment.apiUrl("webapp/detail")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(params)
         }.body()

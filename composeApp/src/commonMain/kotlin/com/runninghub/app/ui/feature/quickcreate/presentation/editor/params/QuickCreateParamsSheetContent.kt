@@ -46,6 +46,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer.asImageModelText
 import com.runninghub.app.ui.feature.quickcreate.presentation.upload.QuickCreateServiceUploadFieldPicker
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
@@ -254,7 +255,7 @@ private fun ImageParamsContent(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = model.displayName,
+                            text = model.label.asImageModelText(),
                             fontSize = 13.sp,
                             fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
                             color = if (isSelected) Primary300 else Neutral200,

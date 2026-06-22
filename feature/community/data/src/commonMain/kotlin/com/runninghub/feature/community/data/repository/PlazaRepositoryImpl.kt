@@ -7,6 +7,8 @@ import com.runninghub.feature.community.data.remote.dto.flatten
 import com.runninghub.feature.community.data.remote.dto.toDomain
 import com.runninghub.feature.community.domain.PlazaCreationPage
 import com.runninghub.feature.community.domain.PlazaRepository
+import com.runninghub.feature.community.domain.PlazaRepositoryException
+import com.runninghub.feature.community.domain.PlazaRepositoryIssue
 import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
 import com.runninghub.feature.community.domain.PlazaTag
@@ -28,7 +30,7 @@ class PlazaRepositoryImpl(
     override suspend fun getTags(): Result<List<PlazaTag>> =
         runCatching {
             val response = api.getCreationTags()
-            requireSuccessfulResponse(response.code, "PLAZA_TAGS_LOAD_FAILED")
+            requireSuccessfulResponse(response.code, PlazaRepositoryIssue.TagsLoadFailed)
             response.data.orEmpty().flatMap { it.flatten() }
         }
 
@@ -47,7 +49,7 @@ class PlazaRepositoryImpl(
             val response = api.listCreations(
                 PlazaCreationListRequestDto(current = page, size = size, sort = sort, tags = tags)
             )
-            requireSuccessfulResponse(response.code, "PLAZA_CREATIONS_LOAD_FAILED")
+            requireSuccessfulResponse(response.code, PlazaRepositoryIssue.CreationsLoadFailed)
             response.data?.toDomain() ?: PlazaCreationPage(page = page, total = 0, items = emptyList())
         }
 
@@ -59,7 +61,7 @@ class PlazaRepositoryImpl(
     override suspend fun listShortCategories(): Result<List<PlazaShortCategory>> =
         runCatching {
             val response = api.listShortCategories()
-            requireSuccessfulResponse(response.code, "PLAZA_SHORT_CATEGORIES_LOAD_FAILED")
+            requireSuccessfulResponse(response.code, PlazaRepositoryIssue.ShortCategoriesLoadFailed)
             response.data.orEmpty().map { it.toDomain() }
         }
 
@@ -71,14 +73,13 @@ class PlazaRepositoryImpl(
     override suspend fun listShorts(page: Int, size: Int, categoryCode: String?): Result<List<PlazaShortCard>> =
         runCatching {
             val response = api.listShorts(PlazaShortListRequestDto(page = page, size = size, categoryCode = categoryCode))
-            requireSuccessfulResponse(response.code, "PLAZA_SHORT_LIST_LOAD_FAILED")
+            requireSuccessfulResponse(response.code, PlazaRepositoryIssue.ShortListLoadFailed)
             response.data?.items.orEmpty().map { it.toDomain() }
         }
 
-    private fun requireSuccessfulResponse(code: Int, fallbackCode: String) {
+    private fun requireSuccessfulResponse(code: Int, issue: PlazaRepositoryIssue) {
         if (code != 0) {
-            // Community Data 只输出稳定错误码，最终中文文案由 Presentation 根据页面上下文映射。
-            throw IllegalStateException("${fallbackCode}_CODE_$code")
+            throw PlazaRepositoryException(issue, code)
         }
     }
 }

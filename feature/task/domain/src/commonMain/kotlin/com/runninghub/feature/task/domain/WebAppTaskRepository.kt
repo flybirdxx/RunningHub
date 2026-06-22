@@ -60,3 +60,60 @@ interface WebAppTaskRepository {
         fileName: String,
     ): Result<UploadResult>
 }
+
+/**
+ * WebApp 任务仓库的结构化失败异常。
+ *
+ * Data 层用该异常表达任务提交、输出、上传和历史接口的稳定失败语义；[message] 只保留诊断码，
+ * Presentation 不得把它作为最终用户可见文案展示。
+ *
+ * @property issue WebApp 任务仓库的稳定失败语义。
+ * @property remoteCode 服务端业务 code；`null` 表示失败来自成功响应缺 data 等结构异常。
+ */
+class WebAppTaskException(
+    val issue: WebAppTaskIssue,
+    val remoteCode: Int? = null,
+) : IllegalStateException(issue.diagnosticMessage(remoteCode))
+
+/**
+ * WebApp 任务仓库使用的稳定错误语义。
+ *
+ * 这些枚举值只用于上层按类型判断错误和日志分类，不携带服务端 `msg`、底层异常 message
+ * 或最终中文 UI 文案。
+ *
+ * @property code 稳定诊断码，可用于测试断言和日志分类；不得作为最终 UI 文案。
+ */
+enum class WebAppTaskIssue(val code: String) {
+    /** 调用示例详情接口返回非成功业务 code。 */
+    ApiCallDemoFailed("WEB_APP_TASK_API_CALL_DEMO_FAILED"),
+
+    /** 调用示例详情接口成功但响应缺少 data。 */
+    ApiCallDemoMissing("WEB_APP_TASK_API_CALL_DEMO_MISSING"),
+
+    /** 任务提交接口返回非成功业务 code。 */
+    RunTaskFailed("WEB_APP_TASK_RUN_TASK_FAILED"),
+
+    /** 任务提交接口成功但响应缺少 data。 */
+    RunTaskMissing("WEB_APP_TASK_RUN_TASK_MISSING"),
+
+    /** 任务输出接口返回非成功业务 code。 */
+    TaskOutputsFailed("WEB_APP_TASK_OUTPUTS_FAILED"),
+
+    /** 任务输出接口成功但响应缺少 data。 */
+    TaskOutputsMissing("WEB_APP_TASK_OUTPUTS_MISSING"),
+
+    /** 文件上传接口返回非成功业务 code。 */
+    UploadFileFailed("WEB_APP_TASK_UPLOAD_FILE_FAILED"),
+
+    /** 文件上传接口成功但响应缺少 data。 */
+    UploadFileMissing("WEB_APP_TASK_UPLOAD_FILE_MISSING"),
+
+    /** 任务历史接口返回非成功业务 code。 */
+    TaskHistoryFailed("WEB_APP_TASK_HISTORY_FAILED"),
+
+    /** 任务历史接口成功但响应缺少 data。 */
+    TaskHistoryMissing("WEB_APP_TASK_HISTORY_MISSING"),
+}
+
+private fun WebAppTaskIssue.diagnosticMessage(remoteCode: Int?): String =
+    if (remoteCode == null) code else "$code:$remoteCode"

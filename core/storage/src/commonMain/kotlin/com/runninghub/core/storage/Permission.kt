@@ -3,42 +3,42 @@ package com.runninghub.core.storage
 /**
  * 跨平台应用权限。
  *
- * 该模型只描述业务层关心的权限语义、用户可见说明和稳定持久化 key，不包含 Android
+ * 该模型只描述业务层关心的权限语义、资源化文案 key 和稳定持久化 key，不包含 Android
  * 运行时权限名、iOS Info.plist key 或其他平台协议字符串。具体平台权限名由 androidMain /
  * iosMain 中的映射函数负责，避免 commonMain 泄漏平台细节。
  *
  * @property key 跨平台稳定权限标识，用于权限状态持久化和集合互斥判断。
- * @property description 权限说明文案，用于权限引导弹层。
- * @property requiredFor 权限用途摘要，用于说明该权限为什么被请求。
+ * @property descriptionKey 权限说明的稳定文案 key，应用壳负责映射为最终展示文案。
+ * @property requiredForKey 权限用途摘要的稳定文案 key，应用壳负责映射为最终展示文案。
  * @property icon Presentation 图标语义名，UI 层会映射为具体图标。
  */
 sealed class Permission(
     val key: String,
-    val description: String,
-    val requiredFor: String,
+    val descriptionKey: PermissionTextKey,
+    val requiredForKey: PermissionTextKey,
     val icon: String,
 ) {
     /** 图片读取权限。 */
     data object MediaImages : Permission(
         key = "media_images",
-        description = "需要读取您的图片，以便上传应用封面和素材",
-        requiredFor = "上传图片",
+        descriptionKey = PermissionTextKey.MediaImagesDescription,
+        requiredForKey = PermissionTextKey.MediaImagesRequiredFor,
         icon = "image",
     )
 
     /** 视频读取权限。 */
     data object MediaVideo : Permission(
         key = "media_video",
-        description = "需要读取您的视频，以便上传演示内容",
-        requiredFor = "上传视频",
+        descriptionKey = PermissionTextKey.MediaVideoDescription,
+        requiredForKey = PermissionTextKey.MediaVideoRequiredFor,
         icon = "videocam",
     )
 
     /** 音频读取权限。 */
     data object MediaAudio : Permission(
         key = "media_audio",
-        description = "需要读取您的音频文件，以便添加背景音乐",
-        requiredFor = "添加音频",
+        descriptionKey = PermissionTextKey.MediaAudioDescription,
+        requiredForKey = PermissionTextKey.MediaAudioRequiredFor,
         icon = "music_note",
     )
 
@@ -50,24 +50,24 @@ sealed class Permission(
      */
     data object StorageRead : Permission(
         key = "storage_read",
-        description = "需要访问存储，以便读取媒体文件",
-        requiredFor = "访问媒体",
+        descriptionKey = PermissionTextKey.StorageReadDescription,
+        requiredForKey = PermissionTextKey.StorageReadRequiredFor,
         icon = "folder",
     )
 
     /** 相机权限。 */
     data object Camera : Permission(
         key = "camera",
-        description = "需要使用相机，以便拍照或扫描二维码",
-        requiredFor = "拍照/扫码",
+        descriptionKey = PermissionTextKey.CameraDescription,
+        requiredForKey = PermissionTextKey.CameraRequiredFor,
         icon = "camera_alt",
     )
 
     /** 通知权限。 */
     data object Notifications : Permission(
         key = "notifications",
-        description = "需要发送通知，以便告知您任务完成状态",
-        requiredFor = "任务通知",
+        descriptionKey = PermissionTextKey.NotificationsDescription,
+        requiredForKey = PermissionTextKey.NotificationsRequiredFor,
         icon = "notifications",
     )
 
@@ -88,4 +88,48 @@ sealed class Permission(
                 Notifications,
             ).find { it.key == key }
     }
+}
+
+/**
+ * 跨平台权限模型的稳定文案 key。
+ *
+ * 该枚举只用于在 Core 层标记权限说明和用途摘要的语义，不保存最终中文文案。
+ * composeApp 负责把这些 key 映射到 Compose Resources。
+ */
+enum class PermissionTextKey {
+    /** 图片读取权限说明。 */
+    MediaImagesDescription,
+
+    /** 图片读取权限用途摘要。 */
+    MediaImagesRequiredFor,
+
+    /** 视频读取权限说明。 */
+    MediaVideoDescription,
+
+    /** 视频读取权限用途摘要。 */
+    MediaVideoRequiredFor,
+
+    /** 音频读取权限说明。 */
+    MediaAudioDescription,
+
+    /** 音频读取权限用途摘要。 */
+    MediaAudioRequiredFor,
+
+    /** 旧版存储读取权限说明。 */
+    StorageReadDescription,
+
+    /** 旧版存储读取权限用途摘要。 */
+    StorageReadRequiredFor,
+
+    /** 相机权限说明。 */
+    CameraDescription,
+
+    /** 相机权限用途摘要。 */
+    CameraRequiredFor,
+
+    /** 通知权限说明。 */
+    NotificationsDescription,
+
+    /** 通知权限用途摘要。 */
+    NotificationsRequiredFor,
 }

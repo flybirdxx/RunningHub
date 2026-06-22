@@ -1,18 +1,19 @@
 package com.runninghub.feature.quickcreate.presentation.result
 
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class QuickCreateTaskStatusUiTest {
     @Test
-    fun `failed task status uses error indicator`() {
+    fun `failed task status keeps stable error semantic`() {
         val display = quickCreateTaskStatusDisplay(
             status = QuickCreateTaskPresentationStatus.FAILED,
-            statusText = QuickCreateTaskStatusText.Custom("render failed"),
+            statusText = QuickCreateTaskStatusText.Error(QuickCreatePresentationError.TaskFailed),
         )
 
         assertEquals(QuickCreateTaskIndicator.Error, display.indicator)
-        assertEquals(QuickCreateTaskStatusText.Custom("render failed"), display.text)
+        assertEquals(QuickCreateTaskStatusText.Error(QuickCreatePresentationError.TaskFailed), display.text)
     }
 
     @Test

@@ -11,6 +11,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TaskHistoryStateHolderTest {
@@ -23,6 +24,22 @@ class TaskHistoryStateHolderTest {
         stateHolder.setFilter(TaskHistoryFilter.COMPLETED)
 
         assertEquals(listOf("success-task"), stateHolder.uiState.value.items.map { it.taskId })
+    }
+
+    @Test
+    fun `history entries expose stable cost and output count semantics`() = runTest {
+        val stateHolder = TaskHistoryStateHolder(FakeGenerationHistoryRepository(), this, enablePolling = false)
+
+        stateHolder.loadHistory()
+        runCurrent()
+
+        val entries = stateHolder.uiState.value.items.associateBy { it.taskId }
+        assertEquals(TaskHistoryCostText.CHARACTER, entries.getValue("success-task").costText)
+        assertEquals(TaskHistoryOutputCountText.COMPLETED, entries.getValue("success-task").outputCountText)
+        assertEquals(TaskHistoryCostText.VIDEO, entries.getValue("running-task").costText)
+        assertEquals(TaskHistoryOutputCountText.RUNNING, entries.getValue("running-task").outputCountText)
+        assertEquals(TaskHistoryCostText.FAILED, entries.getValue("failed-task").costText)
+        assertEquals(TaskHistoryOutputCountText.FAILED, entries.getValue("failed-task").outputCountText)
     }
 
     @Test
@@ -55,7 +72,7 @@ class TaskHistoryStateHolderTest {
         val state = stateHolder.uiState.value
         assertEquals("output-1", state.selectedOutput?.outputId)
         assertEquals("https://example.com/image.png", state.selectedOutput?.url)
-        assertEquals("已加载输出详情", state.actionMessage)
+        assertEquals(TaskHistoryActionMessage.OutputDetailLoaded, state.actionMessage)
     }
 
     @Test
@@ -68,7 +85,18 @@ class TaskHistoryStateHolderTest {
 
         val state = stateHolder.uiState.value
         assertEquals(mapOf("prompt" to "city"), state.reuseParams)
-        assertEquals("已准备 1 个可复用参数", state.actionMessage)
+        assertEquals(TaskHistoryActionMessage.ReusableParamsPrepared(1), state.actionMessage)
+    }
+
+    @Test
+    fun `prepareReuseParams exposes stable empty reusable parameter action`() = runTest {
+        val stateHolder = TaskHistoryStateHolder(FakeGenerationHistoryRepository(), this, enablePolling = false)
+
+        stateHolder.loadHistory()
+        runCurrent()
+        stateHolder.prepareReuseParams("running-task")
+
+        assertEquals(TaskHistoryActionMessage.NoReusableParams, stateHolder.uiState.value.actionMessage)
     }
 
     @Test
@@ -81,7 +109,18 @@ class TaskHistoryStateHolderTest {
 
         val state = stateHolder.uiState.value
         assertEquals(mapOf("prompt" to "retry city"), state.reuseParams)
-        assertEquals("已准备重试参数，请在创建页确认后重新生成", state.actionMessage)
+        assertEquals(TaskHistoryActionMessage.RetryParamsPrepared, state.actionMessage)
+    }
+
+    @Test
+    fun `retryTask exposes stable empty retry parameter action`() = runTest {
+        val stateHolder = TaskHistoryStateHolder(FakeGenerationHistoryRepository(), this, enablePolling = false)
+
+        stateHolder.loadHistory()
+        runCurrent()
+        stateHolder.retryTask("failed-empty-task")
+
+        assertEquals(TaskHistoryActionMessage.NoRetryParams, stateHolder.uiState.value.actionMessage)
     }
 
     @Test
@@ -95,7 +134,7 @@ class TaskHistoryStateHolderTest {
         runCurrent()
 
         assertEquals("running-task", repository.cancelledTaskId)
-        assertEquals("已请求取消任务", stateHolder.uiState.value.actionMessage)
+        assertEquals(TaskHistoryActionMessage.CancelRequested, stateHolder.uiState.value.actionMessage)
         assertEquals(2, repository.listCalls)
     }
 
@@ -109,7 +148,20 @@ class TaskHistoryStateHolderTest {
         stateHolder.loadHistory()
         runCurrent()
 
-        assertEquals("历史记录加载失败，请稍后重试", stateHolder.uiState.value.error)
+        assertEquals(TaskHistoryPresentationError.HistoryLoadFailed, stateHolder.uiState.value.error)
+    }
+
+    @Test
+    fun `history auth failure exposes stable auth error without repository message`() = runTest {
+        val repository = FakeGenerationHistoryRepository().apply {
+            listFailureMessage = "HTTP 401 TOKEN expired internal detail"
+        }
+        val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
+
+        stateHolder.loadHistory()
+        runCurrent()
+
+        assertEquals(TaskHistoryPresentationError.AuthRequired, stateHolder.uiState.value.error)
     }
 
     @Test
@@ -124,7 +176,23 @@ class TaskHistoryStateHolderTest {
         stateHolder.cancelTask("running-task")
         runCurrent()
 
-        assertEquals("取消失败，请稍后重试", stateHolder.uiState.value.error)
+        assertEquals(TaskHistoryPresentationError.CancelFailed, stateHolder.uiState.value.error)
+    }
+
+    @Test
+    fun `detail failure exposes stable detail error without repository message`() = runTest {
+        val repository = FakeGenerationHistoryRepository().apply {
+            detailFailureMessage = "DETAIL_CODE_500 msg=remote stack"
+        }
+        val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
+
+        stateHolder.loadHistory()
+        runCurrent()
+        stateHolder.selectOutput("output-1")
+        runCurrent()
+
+        assertEquals(TaskHistoryPresentationError.DetailLoadFailed, stateHolder.uiState.value.error)
+        assertIs<TaskHistoryPresentationError>(stateHolder.uiState.value.error)
     }
 
     @Test
@@ -147,13 +215,14 @@ class TaskHistoryStateHolderTest {
         var cancelledTaskId: String? = null
         var listCalls = 0
         var listFailureMessage: String? = null
+        var detailFailureMessage: String? = null
         var cancelFailureMessage: String? = null
 
         private val successItem = GenerationHistoryItem(
             taskId = "success-task",
             source = GenerationHistorySource.QUICK_CREATION,
             status = "SUCCESS",
-            taskType = "Image",
+            taskType = "\u89d2\u8272\u8bbe\u5b9a",
             params = mapOf("prompt" to "city"),
             outputs = listOf(
                 GenerationHistoryOutput(
@@ -168,7 +237,7 @@ class TaskHistoryStateHolderTest {
             taskId = "running-task",
             source = GenerationHistorySource.QUICK_CREATION,
             status = "RUNNING",
-            taskType = "Video",
+            taskType = "\u751f\u6210\u89c6\u9891",
         )
 
         private val failedItem = GenerationHistoryItem(
@@ -179,6 +248,14 @@ class TaskHistoryStateHolderTest {
             params = mapOf("prompt" to "retry city"),
         )
 
+        private val failedEmptyItem = GenerationHistoryItem(
+            taskId = "failed-empty-task",
+            source = GenerationHistorySource.STANDARD_MODEL,
+            status = "FAILED",
+            taskType = "Image",
+            params = emptyMap(),
+        )
+
         override suspend fun listHistory(page: Int, size: Int): Result<GenerationHistoryPage> {
             listCalls += 1
             listFailureMessage?.let { return Result.failure(IllegalStateException(it)) }
@@ -186,14 +263,15 @@ class TaskHistoryStateHolderTest {
                 GenerationHistoryPage(
                     page = page,
                     size = size,
-                    total = 3,
-                    items = listOf(successItem, runningItem, failedItem),
+                    total = 4,
+                    items = listOf(successItem, runningItem, failedItem, failedEmptyItem),
                 )
             )
         }
 
         override suspend fun getHistoryDetail(outputId: String): Result<GenerationHistoryItem> {
             lastDetailOutputId = outputId
+            detailFailureMessage?.let { return Result.failure(IllegalStateException(it)) }
             return Result.success(successItem)
         }
 

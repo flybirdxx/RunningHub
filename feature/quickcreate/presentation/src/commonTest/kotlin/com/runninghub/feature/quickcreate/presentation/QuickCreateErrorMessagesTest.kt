@@ -9,73 +9,85 @@ import kotlin.test.assertEquals
 class QuickCreateErrorMessagesTest {
 
     @Test
-    fun `repository issue code maps to presentation message`() {
+    fun `repository issue code maps to stable presentation error`() {
         val error = QuickCreateRepositoryException(
             issueCode = QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED,
         )
 
-        assertEquals("历史加载失败", error.toQuickCreateDisplayMessage("fallback"))
+        assertEquals(
+            QuickCreatePresentationError.HistoryLoadFailed,
+            error.toQuickCreatePresentationError(QuickCreatePresentationError.GenerationFailed),
+        )
     }
 
     @Test
-    fun `remote business summary is not exposed as display message`() {
+    fun `remote business summary is not exposed as presentation error`() {
         val error = QuickCreateRepositoryException(
             issueCode = QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED,
             remoteMessage = "duplicate project name",
             remoteStatusCode = 409,
         )
 
-        assertEquals("项目创建失败", error.toQuickCreateDisplayMessage("项目创建失败"))
+        assertEquals(
+            QuickCreatePresentationError.ProjectCreateFailed,
+            error.toQuickCreatePresentationError(QuickCreatePresentationError.GenerationFailed),
+        )
         assertEquals(QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED, error.message)
     }
 
     @Test
-    fun `project issue codes reuse project fallback messages`() {
+    fun `project issue codes map to project presentation errors`() {
         val mappings = listOf(
             QuickCreateRepositoryIssueCode.PROJECT_LIST_LOAD_FAILED to
-                QuickCreateErrorFallbackText.PROJECT_LIST_LOAD_FAILED,
+                QuickCreatePresentationError.ProjectListLoadFailed,
             QuickCreateRepositoryIssueCode.PROJECT_CREATE_FAILED to
-                QuickCreateErrorFallbackText.PROJECT_CREATE_FAILED,
+                QuickCreatePresentationError.ProjectCreateFailed,
             QuickCreateRepositoryIssueCode.PROJECT_RENAME_FAILED to
-                QuickCreateErrorFallbackText.PROJECT_RENAME_FAILED,
+                QuickCreatePresentationError.ProjectRenameFailed,
             QuickCreateRepositoryIssueCode.PROJECT_DELETE_FAILED to
-                QuickCreateErrorFallbackText.PROJECT_DELETE_FAILED,
+                QuickCreatePresentationError.ProjectDeleteFailed,
             QuickCreateRepositoryIssueCode.PROJECT_PIN_FAILED to
-                QuickCreateErrorFallbackText.PROJECT_PIN_FAILED,
+                QuickCreatePresentationError.ProjectPinFailed,
             QuickCreateRepositoryIssueCode.PROJECT_DETAIL_LOAD_FAILED to
-                QuickCreateErrorFallbackText.PROJECT_DETAIL_LOAD_FAILED,
+                QuickCreatePresentationError.ProjectDetailLoadFailed,
         )
 
-        mappings.forEach { (issueCode, expectedMessage) ->
+        mappings.forEach { (issueCode, expectedError) ->
             val error = QuickCreateRepositoryException(
                 issueCode = issueCode,
                 remoteMessage = "server detail should not be displayed",
             )
 
-            assertEquals(expectedMessage, error.toQuickCreateDisplayMessage("fallback"))
+            assertEquals(
+                expectedError,
+                error.toQuickCreatePresentationError(QuickCreatePresentationError.GenerationFailed),
+            )
         }
     }
 
     @Test
-    fun `history issue codes reuse history fallback messages`() {
+    fun `history issue codes map to history presentation errors`() {
         val mappings = listOf(
             QuickCreateRepositoryIssueCode.HISTORY_LOAD_FAILED to
-                QuickCreateErrorFallbackText.HISTORY_LOAD_FAILED,
+                QuickCreatePresentationError.HistoryLoadFailed,
             QuickCreateRepositoryIssueCode.HISTORY_DETAIL_LOAD_FAILED to
-                QuickCreateErrorFallbackText.HISTORY_DETAIL_LOAD_FAILED,
+                QuickCreatePresentationError.HistoryDetailLoadFailed,
             QuickCreateRepositoryIssueCode.TASK_CANCEL_FAILED to
-                QuickCreateErrorFallbackText.TASK_CANCEL_FAILED,
+                QuickCreatePresentationError.TaskCancelFailed,
             QuickCreateRepositoryIssueCode.PROJECT_TASK_LIST_LOAD_FAILED to
-                QuickCreateErrorFallbackText.PROJECT_TASK_LIST_LOAD_FAILED,
+                QuickCreatePresentationError.ProjectTaskListLoadFailed,
         )
 
-        mappings.forEach { (issueCode, expectedMessage) ->
+        mappings.forEach { (issueCode, expectedError) ->
             val error = QuickCreateRepositoryException(
                 issueCode = issueCode,
                 remoteMessage = "server detail should not be displayed",
             )
 
-            assertEquals(expectedMessage, error.toQuickCreateDisplayMessage("fallback"))
+            assertEquals(
+                expectedError,
+                error.toQuickCreatePresentationError(QuickCreatePresentationError.GenerationFailed),
+            )
         }
     }
 
@@ -83,25 +95,28 @@ class QuickCreateErrorMessagesTest {
     fun `task issue code can share the same mapper outside polling controller`() {
         val error = IllegalStateException(QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED)
 
-        assertEquals("价格预览失败", error.toQuickCreateDisplayMessage("fallback"))
+        assertEquals(
+            QuickCreatePresentationError.FeePreviewFailed,
+            error.toQuickCreatePresentationError(QuickCreatePresentationError.GenerationFailed),
+        )
     }
 
     @Test
-    fun `task polling issue codes reuse centralized presentation messages`() {
+    fun `task polling issue codes reuse centralized presentation errors`() {
         val mappings = listOf(
-            QuickCreateTaskIssueCode.TASK_FAILED to "任务失败",
-            QuickCreateTaskIssueCode.TASK_TIMEOUT to "任务超时",
-            QuickCreateTaskIssueCode.TASK_QUERY_FAILED to "任务查询失败",
-            QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED to QuickCreateErrorFallbackText.FEE_PREVIEW_FAILED,
-            QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED to QuickCreateErrorFallbackText.FEE_PREVIEW_NOT_PASSED,
-            QuickCreateTaskIssueCode.PREPARE_FAILED to "任务预提交失败",
-            QuickCreateTaskIssueCode.COMMIT_FAILED to "任务提交失败",
-            QuickCreateTaskIssueCode.UNKNOWN_ERROR to QuickCreateErrorFallbackText.GENERATION_FAILED,
-            "network unavailable" to QuickCreateErrorFallbackText.GENERATION_FAILED,
+            QuickCreateTaskIssueCode.TASK_FAILED to QuickCreatePresentationError.TaskFailed,
+            QuickCreateTaskIssueCode.TASK_TIMEOUT to QuickCreatePresentationError.TaskTimeout,
+            QuickCreateTaskIssueCode.TASK_QUERY_FAILED to QuickCreatePresentationError.TaskQueryFailed,
+            QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED to QuickCreatePresentationError.FeePreviewFailed,
+            QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED to QuickCreatePresentationError.FeePreviewNotPassed,
+            QuickCreateTaskIssueCode.PREPARE_FAILED to QuickCreatePresentationError.PrepareFailed,
+            QuickCreateTaskIssueCode.COMMIT_FAILED to QuickCreatePresentationError.CommitFailed,
+            QuickCreateTaskIssueCode.UNKNOWN_ERROR to QuickCreatePresentationError.GenerationFailed,
+            "network unavailable" to QuickCreatePresentationError.GenerationFailed,
         )
 
-        mappings.forEach { (issueCode, expectedMessage) ->
-            assertEquals(expectedMessage, issueCode.toQuickCreateTaskIssueDisplayMessage())
+        mappings.forEach { (issueCode, expectedError) ->
+            assertEquals(expectedError, issueCode.toQuickCreateTaskIssueError())
         }
     }
 }

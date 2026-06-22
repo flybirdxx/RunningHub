@@ -3,7 +3,8 @@ package com.runninghub.feature.quickcreate.presentation.project
 import com.runninghub.feature.quickcreate.domain.QuickCreationProject
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectPage
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
-import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -98,27 +99,27 @@ class QuickCreateProjectStateHolderTest {
 
         holder.loadMoreProjects()
         runCurrent()
-        assertEquals(QuickCreateErrorFallbackText.PROJECT_LIST_LOAD_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.ProjectListLoadFailed.asQuickCreateUiMessage(), state.value.error)
 
         holder.toggleProjectPin("project-1")
         runCurrent()
-        assertEquals(QuickCreateErrorFallbackText.PROJECT_PIN_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.ProjectPinFailed.asQuickCreateUiMessage(), state.value.error)
 
         holder.createProject("新项目")
         runCurrent()
-        assertEquals(QuickCreateErrorFallbackText.PROJECT_CREATE_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.ProjectCreateFailed.asQuickCreateUiMessage(), state.value.error)
 
         holder.renameProject("project-1", "新名称")
         runCurrent()
-        assertEquals(QuickCreateErrorFallbackText.PROJECT_RENAME_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.ProjectRenameFailed.asQuickCreateUiMessage(), state.value.error)
 
         holder.deleteProject("project-1")
         runCurrent()
-        assertEquals(QuickCreateErrorFallbackText.PROJECT_DELETE_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.ProjectDeleteFailed.asQuickCreateUiMessage(), state.value.error)
 
         holder.selectProjectDetail("project-1")
         runCurrent()
-        assertEquals(QuickCreateErrorFallbackText.PROJECT_DETAIL_LOAD_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.ProjectDetailLoadFailed.asQuickCreateUiMessage(), state.value.error)
     }
 
     @Test

@@ -13,9 +13,10 @@ import com.runninghub.feature.task.domain.GenerationHistorySource
 /**
  * 将 QuickCreate 历史仓库适配为当前历史页仍在使用的通用历史仓库。
  *
- * 该类属于 composeApp 组合层的迁移兼容桥：左侧连接 Task Domain 的统一历史契约，
- * 右侧只依赖 QuickCreate Domain 的窄历史仓库。这样 QuickCreate Data 不需要再知道
- * 旧 shared 模型，同时历史页可在正式 Task Data 模块落地前继续复用同一套 ScreenModel。
+ * 该类属于 composeApp 组合层的唯一迁移兼容桥：左侧连接 Task Domain 的统一历史契约，
+ * 右侧只依赖 QuickCreate Domain 的窄历史仓库。它不得扩散到其他 composeApp 文件，也不得被
+ * 搬进 Task Data 后通过跨 Feature 依赖伪装成正式实现；删除条件是 Task Data 能直接提供列表、
+ * 详情、取消和参数快照完整能力的 [GenerationHistoryRepository]。
  *
  * @param quickCreationTaskHistoryRepository QuickCreate 领域历史仓库，负责最近历史、详情和取消任务。
  */

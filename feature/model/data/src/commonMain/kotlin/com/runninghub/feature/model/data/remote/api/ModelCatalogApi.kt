@@ -1,6 +1,7 @@
 ﻿package com.runninghub.feature.model.data.remote.api
 
 import com.runninghub.core.network.RunningHubApiEnvironment
+import com.runninghub.core.network.auth.markRunningHubAuthRetryAllowed
 import com.runninghub.feature.model.data.remote.dto.BaseResponseDto
 import com.runninghub.feature.model.data.remote.dto.LlmModelDto
 import com.runninghub.feature.model.data.remote.dto.SkuDetailDto
@@ -32,6 +33,7 @@ class ModelCatalogApi(private val client: HttpClient) {
      */
     suspend fun listStandardModels(request: SkuListRequestDto): BaseResponseDto<SkuListPageDto> =
         client.post(RunningHubApiEnvironment.apiUrl("sku/list")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
@@ -44,6 +46,7 @@ class ModelCatalogApi(private val client: HttpClient) {
      */
     suspend fun getStandardModelDetail(id: String): BaseResponseDto<SkuDetailDto> =
         client.post(RunningHubApiEnvironment.apiUrl("sku/detail")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(SkuDetailRequestDto(id))
         }.body()

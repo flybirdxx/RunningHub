@@ -28,7 +28,7 @@ val RhAppText = TextPrimaryDark
 val RhAppMuted = TextMutedDark
 val RhAppBottomBar = Color(0xF209090B)
 
-// Primary 鈥?Electric Violet 钃濈传鑹查樁
+// Primary：Electric Violet 蓝紫色阶。
 val Primary50 = Color(0xFFF3F1FF)
 val Primary100 = Color(0xFFE0DBFF)
 val Primary200 = Color(0xFFC4B5FD)
@@ -40,7 +40,7 @@ val Primary700 = Color(0xFF4C3EC0)
 val Primary800 = Color(0xFF3D31A8)
 val Primary900 = Color(0xFF2E2490)
 
-// Secondary 鈥?Cyan 闈掕摑鑹查樁
+// Secondary：Cyan 青蓝色阶。
 val Secondary50 = Color(0xFFE8FBFF)
 val Secondary100 = Color(0xFFBFF3FF)
 val Secondary200 = Color(0xFF80E7FF)
@@ -52,7 +52,7 @@ val Secondary700 = Color(0xFF009EC0)
 val Secondary800 = Color(0xFF0084A0)
 val Secondary900 = Color(0xFF006A80)
 
-// Neutral 鐏板害鑹查樁
+// Neutral：灰度色阶。
 val Neutral50 = Color(0xFFF8FAFC)
 val Neutral100 = Color(0xFFF1F5F9)
 val Neutral200 = Color(0xFFE2E8F0)

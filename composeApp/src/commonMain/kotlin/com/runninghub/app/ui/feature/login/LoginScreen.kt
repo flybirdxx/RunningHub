@@ -79,10 +79,25 @@ import runninghub.composeapp.generated.resources.login_error_wrong_sms_code
 import runninghub.composeapp.generated.resources.login_password_label
 import runninghub.composeapp.generated.resources.login_phone_country_code
 import runninghub.composeapp.generated.resources.login_phone_label
+import runninghub.composeapp.generated.resources.login_sms_captcha_captcha_load_failed
+import runninghub.composeapp.generated.resources.login_sms_captcha_dialog_title
+import runninghub.composeapp.generated.resources.login_sms_captcha_dismiss_action
+import runninghub.composeapp.generated.resources.login_sms_captcha_image_load_failed_retry
+import runninghub.composeapp.generated.resources.login_sms_captcha_init_failed_retry
+import runninghub.composeapp.generated.resources.login_sms_captcha_load_failed_later
+import runninghub.composeapp.generated.resources.login_sms_captcha_load_failed_retry
+import runninghub.composeapp.generated.resources.login_sms_captcha_preparing
+import runninghub.composeapp.generated.resources.login_sms_captcha_retry_action
+import runninghub.composeapp.generated.resources.login_sms_captcha_rotate_title
+import runninghub.composeapp.generated.resources.login_sms_captcha_script_load_failed_retry
+import runninghub.composeapp.generated.resources.login_sms_captcha_script_timeout_retry
 import runninghub.composeapp.generated.resources.login_send_code_action
 import runninghub.composeapp.generated.resources.login_send_code_countdown_format
 import runninghub.composeapp.generated.resources.login_send_code_sending
 import runninghub.composeapp.generated.resources.login_sms_code_label
+import runninghub.composeapp.generated.resources.login_sms_captcha_token_missing_retry
+import runninghub.composeapp.generated.resources.login_sms_captcha_verify_failed
+import runninghub.composeapp.generated.resources.login_sms_captcha_verify_success
 import runninghub.composeapp.generated.resources.login_submit_button
 import runninghub.composeapp.generated.resources.login_toggle_password_mode
 import runninghub.composeapp.generated.resources.login_toggle_sms_mode
@@ -115,6 +130,7 @@ class LoginVoyagerScreen : Screen {
         if (uiState.requiresSmsCaptcha) {
             SmsCaptchaDialog(
                 phone = uiState.phone,
+                copy = smsCaptchaCopy(),
                 onToken = screenModel::onSmsCaptchaVerified,
                 onDismiss = screenModel::dismissSmsCaptcha,
             )
@@ -140,6 +156,26 @@ class LoginVoyagerScreen : Screen {
         }
     }
 }
+
+@Composable
+private fun smsCaptchaCopy(): SmsCaptchaCopy =
+    SmsCaptchaCopy(
+        dialogTitle = stringResource(Res.string.login_sms_captcha_dialog_title),
+        dismissAction = stringResource(Res.string.login_sms_captcha_dismiss_action),
+        preparing = stringResource(Res.string.login_sms_captcha_preparing),
+        retryAction = stringResource(Res.string.login_sms_captcha_retry_action),
+        loadFailedRetry = stringResource(Res.string.login_sms_captcha_load_failed_retry),
+        imageLoadFailedRetry = stringResource(Res.string.login_sms_captcha_image_load_failed_retry),
+        loadFailedLater = stringResource(Res.string.login_sms_captcha_load_failed_later),
+        rotateTitle = stringResource(Res.string.login_sms_captcha_rotate_title),
+        captchaLoadFailed = stringResource(Res.string.login_sms_captcha_captcha_load_failed),
+        verifyFailed = stringResource(Res.string.login_sms_captcha_verify_failed),
+        verifySuccess = stringResource(Res.string.login_sms_captcha_verify_success),
+        tokenMissingRetry = stringResource(Res.string.login_sms_captcha_token_missing_retry),
+        initFailedRetry = stringResource(Res.string.login_sms_captcha_init_failed_retry),
+        scriptLoadFailedRetry = stringResource(Res.string.login_sms_captcha_script_load_failed_retry),
+        scriptTimeoutRetry = stringResource(Res.string.login_sms_captcha_script_timeout_retry),
+    )
 
 @Composable
 private fun loginErrorMessage(error: LoginErrorText): String =

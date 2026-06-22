@@ -1,11 +1,16 @@
 ﻿package com.runninghub.feature.model.data.repository
 
+import com.runninghub.core.common.MissingCredential
+import com.runninghub.core.common.MissingCredentialException
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.model.data.remote.api.ModelCatalogApi
 import com.runninghub.feature.model.domain.ApiModelField
 import com.runninghub.feature.model.domain.ApiModelFieldType
 import com.runninghub.feature.model.domain.ModelFieldValue
-import com.runninghub.feature.model.domain.ModelInvocationIssueCode
+import com.runninghub.feature.model.domain.ModelCatalogException
+import com.runninghub.feature.model.domain.ModelCatalogIssue
+import com.runninghub.feature.model.domain.ModelInvocationException
+import com.runninghub.feature.model.domain.ModelInvocationIssue
 import com.runninghub.feature.model.domain.ModelInvocationRequest
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -20,6 +25,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 class ModelInvocationRepositoryImplTest {
@@ -82,6 +88,59 @@ class ModelInvocationRepositoryImplTest {
     }
 
     @Test
+    fun `submitStandardModel maps sku detail failure to catalog issue`() = runBlocking {
+        val repository = repositoryWithSkuDetail(
+            content = """{"code":502,"msg":"remote failure","data":null}""",
+        )
+
+        val result = repository.submitStandardModel(sampleInvocationRequest())
+
+        assertTrue(result.isFailure)
+        val error = assertIs<ModelCatalogException>(result.exceptionOrNull())
+        assertEquals(ModelCatalogIssue.StandardDetailLoadFailed, error.issue)
+        assertEquals(502, error.remoteCode)
+    }
+
+    @Test
+    fun `submitStandardModel maps missing sku detail to catalog issue`() = runBlocking {
+        val repository = repositoryWithSkuDetail(
+            content = """{"code":0,"msg":"success","data":null}""",
+        )
+
+        val result = repository.submitStandardModel(sampleInvocationRequest())
+
+        assertTrue(result.isFailure)
+        val error = assertIs<ModelCatalogException>(result.exceptionOrNull())
+        assertEquals(ModelCatalogIssue.StandardDetailMissing, error.issue)
+        assertEquals(null, error.remoteCode)
+    }
+
+    @Test
+    fun `submitStandardModel maps missing endpoint to catalog issue`() = runBlocking {
+        val repository = repositoryWithSkuDetail(
+            content = """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "id": "sku-1",
+                    "name": "Image V2",
+                    "rhEndpoint": "",
+                    "inputConfigJson": "[]"
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        val result = repository.submitStandardModel(sampleInvocationRequest())
+
+        assertTrue(result.isFailure)
+        val error = assertIs<ModelCatalogException>(result.exceptionOrNull())
+        assertEquals(ModelCatalogIssue.StandardEndpointMissing, error.issue)
+        assertEquals(null, error.remoteCode)
+    }
+
+    @Test
     fun `uploadMedia fails before network when api key is missing`() = runBlocking {
         var networkCalls = 0
         val repository = repositoryWithMock(
@@ -100,7 +159,8 @@ class ModelInvocationRepositoryImplTest {
 
         assertTrue(result.isFailure)
         assertEquals(0, networkCalls)
-        assertEquals(ModelInvocationIssueCode.API_KEY_MISSING, result.exceptionOrNull()?.message)
+        val error = assertIs<MissingCredentialException>(result.exceptionOrNull())
+        assertEquals(MissingCredential.ApiKey, error.credential)
     }
 
     @Test
@@ -155,7 +215,8 @@ class ModelInvocationRepositoryImplTest {
         )
 
         assertTrue(result.isFailure)
-        assertEquals(ModelInvocationIssueCode.MEDIA_UPLOAD_EMPTY_URL, result.exceptionOrNull()?.message)
+        val error = assertIs<ModelInvocationException>(result.exceptionOrNull())
+        assertEquals(ModelInvocationIssue.MediaUploadEmptyUrl, error.issue)
     }
 
     private fun repositoryWithMock(
@@ -180,6 +241,36 @@ class ModelInvocationRepositoryImplTest {
             endpointRegistry = ModelEndpointRegistry(),
         )
     }
+
+    private fun repositoryWithSkuDetail(content: String): ModelInvocationRepositoryImpl {
+        val engine = MockEngine { request ->
+            respond(
+                content = when (request.url.encodedPath) {
+                    "/api/sku/detail" -> content
+                    else -> error("Unexpected path: ${request.url.encodedPath}")
+                },
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        return ModelInvocationRepositoryImpl(
+            client = client,
+            modelCatalogApi = ModelCatalogApi(client),
+            credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+            endpointRegistry = ModelEndpointRegistry(),
+        )
+    }
+
+    private fun sampleInvocationRequest(): ModelInvocationRequest =
+        ModelInvocationRequest(
+            modelId = "sku-1",
+            fields = listOf(ApiModelField("prompt", "prompt", ApiModelFieldType.STRING, required = true)),
+            values = mapOf("prompt" to ModelFieldValue.Text("a cat")),
+        )
 
     private class FakeCredentialStore(
         private val apiKey: String?,

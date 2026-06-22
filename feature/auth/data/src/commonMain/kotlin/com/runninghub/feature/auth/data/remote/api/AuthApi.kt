@@ -1,6 +1,7 @@
 package com.runninghub.feature.auth.data.remote.api
 
 import com.runninghub.core.network.RunningHubApiEnvironment
+import com.runninghub.core.network.auth.markRunningHubAuthRetryAllowed
 import com.runninghub.feature.auth.data.remote.dto.AccountStatusDto
 import com.runninghub.feature.auth.data.remote.dto.AccountStatusRequestDto
 import com.runninghub.feature.auth.data.remote.dto.AuthBaseResponseDto
@@ -70,6 +71,7 @@ class AuthApi(
     /** 查询当前 API Key 的账户余额和权益状态。 */
     suspend fun getAccountStatus(request: AccountStatusRequestDto): AuthBaseResponseDto<AccountStatusDto> =
         client.post(RunningHubApiEnvironment.userCenterUrl("openapi/accountStatus")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
@@ -77,6 +79,7 @@ class AuthApi(
     /** 查询当前会话或指定用户的用户信息。 */
     suspend fun getUserInfo(params: Map<String, String> = emptyMap()): AuthBaseResponseDto<UserDto> =
         client.post(RunningHubApiEnvironment.userCenterUrl("getUserInfo")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(params)
         }.body()
@@ -87,6 +90,7 @@ class AuthApi(
         params: Map<String, String>,
     ): AuthBaseResponseDto<UserDto> =
         client.post(RunningHubApiEnvironment.userCenterUrl("getUserInfo")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             header("Referer", referer)
             setBody(params)
@@ -98,6 +102,7 @@ class AuthApi(
         params: Map<String, String>,
     ): AuthBaseResponseDto<Boolean> =
         client.post(RunningHubApiEnvironment.userCenterUrl("follow/isFollow")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             header("Referer", referer)
             setBody(params)

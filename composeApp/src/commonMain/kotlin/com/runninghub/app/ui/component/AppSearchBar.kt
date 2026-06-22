@@ -20,36 +20,54 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.app_search_bar_clear_content_description
+import runninghub.composeapp.generated.resources.app_search_bar_placeholder
+import runninghub.composeapp.generated.resources.app_search_bar_search_content_description
 
+/**
+ * 应用内通用搜索输入框。
+ *
+ * @param query 当前搜索关键词，空字符串表示尚未输入。
+ * @param onQueryChange 用户编辑关键词时触发，调用方负责保存状态和触发联想或筛选。
+ * @param modifier 外层布局修饰符，默认填满父容器宽度并保持最小按钮高度。
+ * @param placeholder 可选占位文案；`null` 时使用应用资源中的默认搜索占位文案。
+ * @param onSearch 用户通过键盘搜索动作提交时触发，参数为当前关键词。
+ */
 @Composable
 fun AppSearchBar(
     query: String,
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "搜索 AI 应用...",
+    placeholder: String? = null,
     onSearch: (String) -> Unit = {},
 ) {
+    val placeholderText = placeholder ?: stringResource(Res.string.app_search_bar_placeholder)
     OutlinedTextField(
         value = query,
         onValueChange = onQueryChange,
         modifier = modifier.fillMaxWidth().heightIn(min = Dimens.ButtonHeightLG),
         placeholder = {
             Text(
-                text = placeholder,
+                text = placeholderText,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
             )
         },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Rounded.Search,
-                contentDescription = "搜索",
+                contentDescription = stringResource(Res.string.app_search_bar_search_content_description),
                 modifier = Modifier.size(24.dp),
             )
         },
         trailingIcon = if (query.isNotEmpty()) {
             {
                 IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Rounded.Close, contentDescription = "清除")
+                    Icon(
+                        Icons.Rounded.Close,
+                        contentDescription = stringResource(Res.string.app_search_bar_clear_content_description),
+                    )
                 }
             }
         } else {

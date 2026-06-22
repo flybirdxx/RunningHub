@@ -116,6 +116,45 @@ data class QuickCreationResolvedServiceField(
 )
 
 /**
+ * 快捷创作服务字段校验失败的稳定语义。
+ *
+ * Domain 层只描述失败类型、服务端字段标题和约束数值，不拼接最终中文 UI 文案。
+ * Presentation 层可以把 [fieldTitle] 作为运行时字段名传给资源格式串；该值来自服务端字段声明，
+ * 为空时由字段 key 兜底，因此不应当在 Domain 层本地化。
+ */
+sealed interface QuickCreationServiceValidationIssue {
+    /** 服务字段缺少必填值。 */
+    data class Required(
+        val fieldTitle: String,
+    ) : QuickCreationServiceValidationIssue
+
+    /** 服务字段当前值不属于服务端声明的候选项。 */
+    data class InvalidOption(
+        val fieldTitle: String,
+    ) : QuickCreationServiceValidationIssue
+
+    /**
+     * 文本字段未达到服务端声明的最小长度。
+     *
+     * @property minLength 最少字符数，单位为 Kotlin 字符数量；小于等于 `0` 的服务端约束会被忽略。
+     */
+    data class MinLength(
+        val fieldTitle: String,
+        val minLength: Int,
+    ) : QuickCreationServiceValidationIssue
+
+    /**
+     * 上传字段超过服务端声明的最大文件数。
+     *
+     * @property maxCount 最多文件数；`null` 或非正数约束不会生成该 issue。
+     */
+    data class MaxUploadCount(
+        val fieldTitle: String,
+        val maxCount: Int,
+    ) : QuickCreationServiceValidationIssue
+}
+
+/**
  * 解析快捷创作服务模型字段声明的纯 Domain 规则。
  *
  * 本对象集中处理服务端字段的可见性、默认值、激活 child 字段、字段校验和上传素材绑定。
@@ -396,12 +435,12 @@ object QuickCreationServiceSchema {
      *
      * @param model 当前选中的服务模型；`null` 表示没有服务字段需要校验。
      * @param serviceParams 用户当前选择或输入的服务参数。
-     * @return 第一条可展示错误；全部通过时返回 `null`。
+     * @return 第一条稳定校验失败语义；全部通过时返回 `null`。
      */
     fun validateFields(
         model: QuickCreationServiceModel?,
         serviceParams: Map<String, String>,
-    ): String? {
+    ): QuickCreationServiceValidationIssue? {
         val defaults = defaultParams(model, serviceParams)
         val aliasedParams = paramsWithFieldAliases(model, serviceParams)
         return model?.fields.orEmpty()
@@ -413,10 +452,10 @@ object QuickCreationServiceSchema {
                 if (field.options.isNotEmpty()) {
                     val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
                     if (field.required && value.isBlank()) {
-                        return@firstNotNullOfOrNull "${field.title()} 不能为空"
+                        return@firstNotNullOfOrNull QuickCreationServiceValidationIssue.Required(field.title())
                     }
                     if (value.isNotBlank() && field.options.none { option -> option.value == value }) {
-                        return@firstNotNullOfOrNull "${field.title()} 选项无效"
+                        return@firstNotNullOfOrNull QuickCreationServiceValidationIssue.InvalidOption(field.title())
                     }
                 }
                 if (field.supportsTextEntry()) {
@@ -427,10 +466,10 @@ object QuickCreationServiceSchema {
                     .firstNotNullOfOrNull { child ->
                         val value = serviceParams[child.paramKey] ?: child.defaultValue.orEmpty()
                         if (child.options.isNotEmpty() && child.required && value.isBlank()) {
-                            return@firstNotNullOfOrNull "${child.title()} 不能为空"
+                            return@firstNotNullOfOrNull QuickCreationServiceValidationIssue.Required(child.title())
                         }
                         if (child.options.isNotEmpty() && value.isNotBlank() && child.options.none { option -> option.value == value }) {
-                            return@firstNotNullOfOrNull "${child.title()} 选项无效"
+                            return@firstNotNullOfOrNull QuickCreationServiceValidationIssue.InvalidOption(child.title())
                         }
                         if (child.supportsTextEntry()) {
                             return@firstNotNullOfOrNull child.textValidationError(value)
@@ -447,14 +486,14 @@ object QuickCreationServiceSchema {
      * @param uploadedMedia 已上传完成且有远程 URL 的素材列表。
      * @param fallbackMediaKind 字段没有明确媒体类型时的兜底类型；图片创作通常传图片，视频创作通常传 `null`。
      * @param serviceParams 用户当前选择或输入的服务参数。
-     * @return 第一条可展示错误；全部通过时返回 `null`。
+     * @return 第一条稳定校验失败语义；全部通过时返回 `null`。
      */
     fun validateUploads(
         model: QuickCreationServiceModel?,
         uploadedMedia: List<QuickCreationUploadedMedia>,
         fallbackMediaKind: QuickCreationUploadMediaKind?,
         serviceParams: Map<String, String>,
-    ): String? {
+    ): QuickCreationServiceValidationIssue? {
         val urlsByType = uploadedMedia.urlsByType()
         val urlsByField = uploadedMedia.urlsByField()
         val uploadFieldCountByType = uploadFieldCountByType(model, serviceParams, fallbackMediaKind)
@@ -699,52 +738,52 @@ private fun QuickCreationServiceField.title(): String =
 private fun QuickCreationServiceFieldInputChild.title(): String =
     title?.takeIf { it.isNotBlank() } ?: fieldKey
 
-private fun QuickCreationServiceField.textValidationError(value: String): String? {
+private fun QuickCreationServiceField.textValidationError(value: String): QuickCreationServiceValidationIssue? {
     val title = title()
     val trimmed = value.trim()
     if (required && trimmed.isEmpty()) {
-        return "$title 不能为空"
+        return QuickCreationServiceValidationIssue.Required(title)
     }
     val minLength = inputExtra?.minLength?.takeIf { it > 0 }
     if (minLength != null && trimmed.isNotEmpty() && trimmed.length < minLength) {
-        return "$title 至少 $minLength 个字符"
+        return QuickCreationServiceValidationIssue.MinLength(title, minLength)
     }
     return null
 }
 
-private fun QuickCreationServiceFieldInputChild.textValidationError(value: String): String? {
+private fun QuickCreationServiceFieldInputChild.textValidationError(value: String): QuickCreationServiceValidationIssue? {
     val title = title()
     val trimmed = value.trim()
     if (required && trimmed.isEmpty()) {
-        return "$title 不能为空"
+        return QuickCreationServiceValidationIssue.Required(title)
     }
     val minLength = minLength?.takeIf { it > 0 }
     if (minLength != null && trimmed.isNotEmpty() && trimmed.length < minLength) {
-        return "$title 至少 $minLength 个字符"
+        return QuickCreationServiceValidationIssue.MinLength(title, minLength)
     }
     return null
 }
 
-private fun QuickCreationServiceField.uploadValidationError(uploadedCount: Int): String? {
+private fun QuickCreationServiceField.uploadValidationError(uploadedCount: Int): QuickCreationServiceValidationIssue? {
     val title = title()
     if (required && uploadedCount <= 0) {
-        return "$title 不能为空"
+        return QuickCreationServiceValidationIssue.Required(title)
     }
     val maxCount = inputExtra?.maxInputCount ?: maxUploadCount
     if (maxCount != null && uploadedCount > maxCount) {
-        return "$title 最多 $maxCount 个文件"
+        return QuickCreationServiceValidationIssue.MaxUploadCount(title, maxCount)
     }
     return null
 }
 
-private fun QuickCreationServiceFieldInputChild.uploadValidationError(uploadedCount: Int): String? {
+private fun QuickCreationServiceFieldInputChild.uploadValidationError(uploadedCount: Int): QuickCreationServiceValidationIssue? {
     val title = title()
     if (required && uploadedCount <= 0) {
-        return "$title 不能为空"
+        return QuickCreationServiceValidationIssue.Required(title)
     }
     val maxCount = maxInputCount
     if (maxCount != null && uploadedCount > maxCount) {
-        return "$title 最多 $maxCount 个文件"
+        return QuickCreationServiceValidationIssue.MaxUploadCount(title, maxCount)
     }
     return null
 }

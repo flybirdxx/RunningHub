@@ -1,6 +1,7 @@
 package com.runninghub.feature.community.data.remote.api
 
 import com.runninghub.core.network.RunningHubApiEnvironment
+import com.runninghub.core.network.auth.markRunningHubAuthRetryAllowed
 import com.runninghub.feature.community.data.remote.dto.CommunityBaseResponseDto
 import com.runninghub.feature.community.data.remote.dto.PlazaCreationListRequestDto
 import com.runninghub.feature.community.data.remote.dto.PlazaCreationPageDto
@@ -30,6 +31,7 @@ class PlazaApi(private val client: HttpClient) {
      */
     suspend fun getCreationTags(): CommunityBaseResponseDto<List<PlazaTagDto>> =
         client.post(RunningHubApiEnvironment.apiUrl("portal/tag/tree")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(PlazaTagTreeRequestDto())
         }.body()
@@ -41,6 +43,7 @@ class PlazaApi(private val client: HttpClient) {
      */
     suspend fun listCreations(request: PlazaCreationListRequestDto): CommunityBaseResponseDto<PlazaCreationPageDto> =
         client.post(RunningHubApiEnvironment.apiUrl("portal/creation/list")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
@@ -52,6 +55,7 @@ class PlazaApi(private val client: HttpClient) {
      */
     suspend fun listShortCategories(): CommunityBaseResponseDto<List<PlazaShortCategoryDto>> =
         client.post(RunningHubApiEnvironment.webUrl("canvas/community/category/list")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(emptyMap<String, String>())
         }.body()
@@ -63,6 +67,7 @@ class PlazaApi(private val client: HttpClient) {
      */
     suspend fun listShorts(request: PlazaShortListRequestDto): CommunityBaseResponseDto<PlazaShortPageDto> =
         client.post(RunningHubApiEnvironment.webUrl("canvas/community/composition/list")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()

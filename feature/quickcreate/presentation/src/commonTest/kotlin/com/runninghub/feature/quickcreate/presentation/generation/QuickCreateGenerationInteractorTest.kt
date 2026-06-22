@@ -8,6 +8,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationReposito
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
@@ -50,7 +51,7 @@ class QuickCreateGenerationInteractorTest {
         assertEquals(0, repository.imageGenerateCalls)
         assertEquals(0, repository.videoGenerateCalls)
         assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
-        assertEquals(QuickCreateRuntimeUiText.feeConfirming, uiState.value.error)
+        assertEquals(QuickCreateRuntimeUiText.FeeConfirming.asQuickCreateUiMessage(), uiState.value.error)
     }
 
     private fun createInteractor(

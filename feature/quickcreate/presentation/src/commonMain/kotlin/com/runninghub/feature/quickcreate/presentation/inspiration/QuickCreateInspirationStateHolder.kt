@@ -6,7 +6,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceUploadFieldAlias
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationUploadMediaKind
-import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
 import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
@@ -20,7 +20,7 @@ import com.runninghub.feature.quickcreate.presentation.modelcatalog.toQuickCreat
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateUiMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
@@ -69,10 +69,10 @@ class QuickCreateInspirationStateHolder(
                 val tags = tagsResult.getOrElse { emptyList() }.toQuickCreateInspirationTagUiItems()
                 val templatePage = templatesResult.getOrNull()
                 val templates = templatePage?.items.orEmpty().map { it.toQuickCreateInspirationTemplateUi() }
-                val error = tagsResult.exceptionOrNull()?.toQuickCreateDisplayMessage(
-                    QuickCreateErrorFallbackText.INSPIRATION_TAGS_LOAD_FAILED,
-                ) ?: templatesResult.exceptionOrNull()?.toQuickCreateDisplayMessage(
-                    QuickCreateErrorFallbackText.INSPIRATION_TEMPLATES_LOAD_FAILED,
+                val error = tagsResult.exceptionOrNull()?.toQuickCreateUiMessage(
+                    QuickCreatePresentationError.InspirationTagsLoadFailed,
+                ) ?: templatesResult.exceptionOrNull()?.toQuickCreateUiMessage(
+                    QuickCreatePresentationError.InspirationTemplatesLoadFailed,
                 )
 
                 state.copy(
@@ -127,8 +127,8 @@ class QuickCreateInspirationStateHolder(
                     onFailure = { error ->
                         state.copy(
                             inspirationTemplatesLoadingMore = false,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.INSPIRATION_TEMPLATES_LOAD_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.InspirationTemplatesLoadFailed,
                             ),
                         )
                     },
@@ -159,8 +159,8 @@ class QuickCreateInspirationStateHolder(
                     uiState.update {
                         it.copy(
                             inspirationLoading = false,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.INSPIRATION_TEMPLATE_DETAIL_LOAD_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.InspirationTemplateDetailLoadFailed,
                             ),
                         )
                     }

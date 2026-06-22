@@ -1,9 +1,11 @@
-# format: feature|maxLines|reason
+# format: feature|maxLines|ownerPresentation|reason
 # 这些是迁移期仍留在 composeApp 的大体量 UI Feature 基线。
-# 没有独立 feature:<name>:presentation 模块的 Feature 超过 800 行时必须登记；
+# 没有同名 feature:<name>:presentation 模块的 Feature 超过 800 行时必须登记；
+# ownerPresentation 必须指向实际持有状态机的 feature:<owner>:presentation 模块。
 # 后续继续增长会触发 checkLongTermGovernance，除非先拆分 Presentation 模块或更新治理说明。
 # quickcreate、discovery 已有 feature:<name>:presentation，因此不需要在此登记。
 # create 当前没有遗留 Kotlin UI 文件，因此不需要保留历史行数基线。
-history|1116|History UI/Voyager adapter remains in composeApp; state machine, polling, detail loading, cancellation and tests are now owned by feature:task:presentation. 2026-06-22 increase is limited to TaskHistoryScreen Compose Resources migration; no new state-machine responsibility was added.
-login|901|Login UI shell and platform captcha dialog remain in composeApp; state machine, stable error semantics and tests are now owned by feature:auth:presentation. 2026-06-22 increase is limited to mapping LoginErrorText through Compose Resources; no new state-machine responsibility was added.
-profile|926|Profile UI shell remains in composeApp; state holder, credential operations and tests are now owned by feature:auth:presentation. P8 copy resourceization temporarily increases imports while keeping ProfileScreen and SettingsDialog hardcoded UI copy at zero.
+history|1173|feature:task:presentation|History UI/Voyager adapter remains in composeApp; TaskHistoryStateHolder owns state machine, polling, detail loading, cancellation and tests. Current baseline reflects the 2026-06-22 Compose Resources and compatibility-bridge notes only; no state-machine responsibility is allowed to return to composeApp.
+login|1022|feature:auth:presentation|Login UI shell and platform captcha dialog remain in composeApp; LoginStateHolder owns login state, stable error semantics and tests. Current baseline reflects Compose Resources and SMS captcha Web copy mapping only; no state-machine responsibility is allowed to return to composeApp.
+profile|926|feature:auth:presentation|Profile UI shell remains in composeApp; ProfileStateHolder owns profile refresh, credential operations, logout state and tests. Current baseline reflects Compose Resources imports while ProfileScreen and SettingsDialog hardcoded UI copy remain at zero.
+plaza|860|feature:community:presentation|Plaza UI shell and Voyager adapter remain in composeApp; PlazaStateHolder owns paging, filtering, fallback semantics and tests. Current baseline reflects Compose Resources mapping for fallback labels/cards only; no state-machine responsibility is allowed to return to composeApp.

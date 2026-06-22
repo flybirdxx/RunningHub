@@ -3,90 +3,62 @@ package com.runninghub.feature.quickcreate.domain
 /**
  * 旧版图片生成入口使用的本地模型身份。
  *
- * 该枚举位于 Domain 层，只保留业务可见的模型标识、展示名称和说明。
+ * 该枚举位于 Domain 层，只保留业务可见的稳定模型标识。
  * 具体 OpenAPI endpoint、请求 path 和渠道分组属于 Data 层职责，由
  * `QuickCreateRepositoryImpl` 根据枚举值路由到对应 API 方法，避免远端路径泄露到 Domain。
  *
- * @property displayName 面向用户或调试信息展示的中文模型名称，允许包含版本和渠道描述。
- * 该值不参与远端路由，修改文案不应改变请求目标。
  * @property modelKey 旧版生成请求中的稳定模型标识，来自 UI 选择或草稿恢复。
  * 该值可用于跨页面传递和持久化，但不是远端 endpoint。
- * @property description 模型能力说明，用于展示或调试；空字符串不建议使用，
- * 因为调用方可能依赖该字段向用户解释模型差异。
  */
 enum class ImageModel(
-    val displayName: String,
     val modelKey: String,
-    val description: String,
 ) {
     // 全能图片 G 系列
     ALL_POWER_IMAGE_G_2_OFFICIAL(
-        displayName = "全能图片G-2.0-官方版",
         modelKey = "all-power-image-g2",
-        description = "顶级图像生成底座，支持任意分辨率，革命性文本渲染能力"
     ),
     ALL_POWER_IMAGE_G_2_CHEAP(
-        displayName = "全能图片G-2.0-低价版",
         modelKey = "all-power-image-g2",
-        description = "全能图片G-2.0的低价渠道版，价格更优但不稳定"
     ),
     // 全能图片 X 系列
     ALL_POWER_IMAGE_X_OFFICIAL(
-        displayName = "全能图片X-官方版",
         modelKey = "all-power-image-x-official",
-        description = "全能图片X文生图官方稳定版，精准文本解析"
     ),
     ALL_POWER_IMAGE_X_CHEAP(
-        displayName = "全能图片X-低价版",
         modelKey = "all-power-image-x",
-        description = "全能图片X低价渠道版，价格更优但不稳定"
     ),
     // 全能图片 Pro 系列
     ALL_POWER_IMAGE_PRO_OFFICIAL(
-        displayName = "全能图片Pro-官方版",
         modelKey = "all-power-image-pro-official",
-        description = "专业级图像编辑，支持4K超清画质输出"
     ),
     ALL_POWER_IMAGE_PRO_CHEAP(
-        displayName = "全能图片Pro-低价版",
         modelKey = "all-power-image-pro",
-        description = "全能图片Pro低价渠道版"
     ),
     // 全能图片 2.0 系列
     ALL_POWER_IMAGE_2_OFFICIAL(
-        displayName = "全能图片2.0-官方版",
         modelKey = "all-power-image-v2-official",
-        description = "全能图片V2官方稳定版，4K超高清画质"
     ),
     ALL_POWER_IMAGE_2_CHEAP(
-        displayName = "全能图片2.0-低价版",
         modelKey = "all-power-image-v2",
-        description = "全能图片2.0低价渠道版"
     ),
     // Seedream 系列
     SEEDREAM_5_0_LITE(
-        displayName = "Seedream 5.0 Lite",
         modelKey = "seedream5",
-        description = "豆包大模型新一代智能视觉创作引擎，支持文生组图"
     ),
     SEEDREAM_4_0(
-        displayName = "Seedream 4.0",
         modelKey = "seedream4",
-        description = "字节跳动专业级布局感知型文生图模型"
     ),
 }
 
 /**
- * 旧版视频生成入口使用的本地模型身份与能力描述。
+ * 旧版视频生成入口使用的本地模型身份与能力开关。
  *
  * 该枚举只表达 Domain 层需要知道的模型选择项和能力开关。
  * 远端 provider 分类、OpenAPI path 和渠道编码由 Data 层路由表维护，避免 Presentation
  * 或 Domain 通过字段拼接网络地址。
  *
- * @property displayName 面向用户或调试信息展示的视频模型名称，允许包含版本和渠道描述。
  * @property modelKey 旧版视频生成请求中的稳定模型标识，来自页面选择或草稿恢复。
  * 该值用于匹配枚举，不代表远端接口路径。
- * @property description 模型能力说明，用于展示或诊断模型选择，不参与请求路由。
  * @property supportsTextToVideo `true` 表示该模型支持仅凭文本生成视频；
  * `false` 表示必须提供图片、首帧或其他媒体输入。
  * @property supportsImageToVideo `true` 表示该模型支持图片或首帧驱动的视频生成；
@@ -95,163 +67,125 @@ enum class ImageModel(
  * `false` 表示尾帧参数应在提交前被忽略或阻止。
  */
 enum class VideoModel(
-    val displayName: String,
     val modelKey: String,
-    val description: String,
     val supportsTextToVideo: Boolean,
     val supportsImageToVideo: Boolean,
     val supportsFirstLastFrame: Boolean,
 ) {
     // HappyHorse
     HAPPYHORSE(
-        displayName = "HappyHorse",
         modelKey = "happyhorse",
-        description = "阿里巴巴多模态视频生成模型",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = false,
     ),
     // Seedance 2.0 系列
     SEEDANCE_2_0(
-        displayName = "Seedance2.0",
         modelKey = "seedance2",
-        description = "字节跳动顶级图生视频，追求最高生成品质",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     SEEDANCE_2_0_FAST(
-        displayName = "Seedance2.0-Fast",
         modelKey = "seedance2-fast",
-        description = "Seedance2.0极速版，更注重生成速度与性价比",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     // 可灵 3.0 系列
     KLING_3_0_4K(
-        displayName = "可灵3.0-4k",
         modelKey = "kling-o3-4k",
-        description = "快手4K级图生视频，影院级画质",
         supportsTextToVideo = false,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     KLING_O3_PRO(
-        displayName = "可灵03-Pro",
         modelKey = "kling-o3-pro",
-        description = "可灵O3系列顶级画质，专业创作首选",
         supportsTextToVideo = false,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     KLING_O3_STD(
-        displayName = "可灵03-Std",
         modelKey = "kling-o3-std",
-        description = "可灵O3系列高性价比旗舰方案",
         supportsTextToVideo = false,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     KLING_O1(
-        displayName = "可灵01",
         modelKey = "kling-o1",
-        description = "可灵o1统一多模态视频生成引擎",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     // 万相 2.7
     WAN_2_7(
-        displayName = "万相2.7",
         modelKey = "wanxiang2.7",
-        description = "阿里通义万相2.7，先进文本/图像生成视频模型",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     // 万相 2.6
     WAN_2_6(
-        displayName = "万相2.6",
         modelKey = "wanxiang2.6",
-        description = "阿里通义万相2.6，专业级电影级视频生成",
         supportsTextToVideo = false,
         supportsImageToVideo = true,
         supportsFirstLastFrame = false,
     ),
     // PixVerse V6
     PIXVERSE_V6(
-        displayName = "PixVerseV6",
         modelKey = "pixverse-v6",
-        description = "PixVerse第六代图生视频，支持Thinking模式",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = false,
     ),
     // 全能视频 V-Pro 系列
     ALL_POWER_VIDEO_V_PRO_OFFICIAL(
-        displayName = "全能视频V-Pro-官方版",
         modelKey = "all-power-video-v-pro",
-        description = "全能视频V3.1专业版，支持4K高清和参考生视频",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     ALL_POWER_VIDEO_V_PRO_CHEAP(
-        displayName = "全能视频V-Pro-低价版",
         modelKey = "all-power-video-v-pro-cheap",
-        description = "全能视频V3.1专业版低价渠道",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     // 全能视频 V-Fast 系列
     ALL_POWER_VIDEO_V_FAST_OFFICIAL(
-        displayName = "全能视频V-Fast-官方版",
         modelKey = "all-power-video-v-fast",
-        description = "全能视频V3.1极速版，生成速度快30%",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     ALL_POWER_VIDEO_V_FAST_CHEAP(
-        displayName = "全能视频V-Fast-低价版",
         modelKey = "all-power-video-v-fast-cheap",
-        description = "全能视频V3.1极速版低价渠道",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     // 全能视频 X 系列
     ALL_POWER_VIDEO_X_OFFICIAL(
-        displayName = "全能视频X-官方版",
         modelKey = "all-power-video-x",
-        description = "全能视频X官方稳定版，主体身份绝对锁定",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = false,
     ),
     ALL_POWER_VIDEO_X_CHEAP(
-        displayName = "全能视频X-低价版",
         modelKey = "all-power-video-x-cheap",
-        description = "全能视频X低价渠道版",
         supportsTextToVideo = false,
         supportsImageToVideo = true,
         supportsFirstLastFrame = false,
     ),
     // Vidu Q3 系列
     VIDU_Q3_PRO(
-        displayName = "ViduQ3-Pro",
         modelKey = "vidu-q3-pro",
-        description = "Vidu Q3专业版，音视频一体化叙事",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,
     ),
     VIDU_Q3_PRO_FAST(
-        displayName = "ViduQ3-Pro-Fast",
         modelKey = "vidu-q3-pro-fast",
-        description = "Vidu Q3极速版，兼顾卓越画质与极致效率",
         supportsTextToVideo = true,
         supportsImageToVideo = true,
         supportsFirstLastFrame = true,

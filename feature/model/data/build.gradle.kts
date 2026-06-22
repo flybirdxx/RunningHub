@@ -13,6 +13,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
+            implementation(projects.core.common)
             implementation(projects.core.network)
             implementation(projects.core.storage)
             implementation(projects.feature.model.domain)

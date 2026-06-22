@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.state
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.draft.DraftData
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
@@ -43,13 +44,14 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * 本字段不得保存 Token、Cookie、API Key、密码等敏感数据，也不得作为持久任务状态来源。
  * @property results 最近一次成功生成或轮询得到的输出结果。
  * 顺序来自生成流程或服务端输出顺序；空集合表示当前没有可展示结果。
- * @property error 等待页面展示的一次性错误提示。
+ * @property error 等待页面展示的一次性错误提示语义。
  * `null` 表示没有待展示错误；非空时由 UI 展示后通过对应事件清理，避免重组重复提示。
+ * 新增场景必须写入稳定语义，不得直接保存最终中文文案或远端异常摘要。
  * @property estimatedCost 当前生成入口展示的价格，单位为 RunningHub 业务余额或现金金额。
  * `0.0` 表示免费、尚未计算或本地默认估算为零；不允许为负数。
  * @property feePreviewLoading 是否正在执行计费预览请求。
  * `true` 表示生成入口应避免提交并展示等待状态；`false` 表示当前没有进行中的计费预览。
- * @property feePreviewError 计费预览失败或余额不足时的阻塞原因。
+ * @property feePreviewError 计费预览失败或余额不足时的阻塞原因语义。
  * `null` 表示当前价格可用或尚未触发远程预览；非空时生成流程应先拦截提交。
  * @property feePreviewRequestKey 最近一次成功通过计费预览的请求指纹。
  * `null` 表示还没有任何可用于正式提交的远端计费结果；生成流程必须用当前提交请求重新计算指纹并匹配该值，
@@ -141,10 +143,10 @@ data class QuickCreateUiState(
     val taskStatus: QuickCreateTaskUiStatus = QuickCreateTaskUiStatus.IDLE,
     val statusText: QuickCreateTaskStatusText? = null,
     val results: List<QuickCreateResultUi> = emptyList(),
-    val error: String? = null,
+    val error: QuickCreateUiMessage? = null,
     val estimatedCost: Double = 0.0,
     val feePreviewLoading: Boolean = false,
-    val feePreviewError: String? = null,
+    val feePreviewError: QuickCreateUiMessage? = null,
     val feePreviewRequestKey: String? = null,
     val activeSheet: QuickCreateSheet? = null,
     val inspirationLoading: Boolean = false,

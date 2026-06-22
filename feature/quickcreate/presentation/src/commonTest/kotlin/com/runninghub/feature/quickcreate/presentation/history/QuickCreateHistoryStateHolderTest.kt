@@ -4,7 +4,8 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryOutput
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryPage
 import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
-import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -328,19 +329,22 @@ class QuickCreateHistoryStateHolderTest {
         repository.historyPageFailure = IllegalStateException("debug history page failure")
         holder.loadMoreHistory()
         runCurrent()
-        assertEquals(QuickCreateErrorFallbackText.HISTORY_LOAD_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.HistoryLoadFailed.asQuickCreateUiMessage(), state.value.error)
         repository.historyPageFailure = null
 
         repository.detailFailure = IllegalStateException("debug detail failure")
         holder.selectHistoryOutput("output-1")
         runCurrent()
-        assertEquals(QuickCreateErrorFallbackText.HISTORY_DETAIL_LOAD_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.HistoryDetailLoadFailed.asQuickCreateUiMessage(), state.value.error)
         repository.detailFailure = null
 
         repository.projectTaskPageFailure = IllegalStateException("debug project task failure")
         holder.selectProject("project-1")
         runCurrent()
-        assertEquals(QuickCreateErrorFallbackText.PROJECT_TASK_LIST_LOAD_FAILED, state.value.error)
+        assertEquals(
+            QuickCreatePresentationError.ProjectTaskListLoadFailed.asQuickCreateUiMessage(),
+            state.value.error,
+        )
         repository.projectTaskPageFailure = null
     }
 
@@ -360,7 +364,7 @@ class QuickCreateHistoryStateHolderTest {
         holder.cancelHistoryTask("active-task")
         runCurrent()
 
-        assertEquals(QuickCreateErrorFallbackText.TASK_CANCEL_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.TaskCancelFailed.asQuickCreateUiMessage(), state.value.error)
         assertEquals(emptySet(), state.value.historyCancellingTaskIds)
         holder.dispose()
     }
@@ -384,7 +388,7 @@ class QuickCreateHistoryStateHolderTest {
         advanceTimeBy(1_000L)
         runCurrent()
 
-        assertEquals(QuickCreateErrorFallbackText.HISTORY_REFRESH_FAILED, state.value.error)
+        assertEquals(QuickCreatePresentationError.HistoryRefreshFailed.asQuickCreateUiMessage(), state.value.error)
         holder.dispose()
     }
 

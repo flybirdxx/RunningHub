@@ -1,6 +1,7 @@
 package com.runninghub.feature.task.data.remote.api
 
 import com.runninghub.core.network.RunningHubApiEnvironment
+import com.runninghub.core.network.auth.markRunningHubAuthRetryAllowed
 import com.runninghub.feature.task.data.remote.dto.TaskBaseResponseDto
 import com.runninghub.feature.task.data.remote.dto.TaskHistoryRequestDto
 import com.runninghub.feature.task.data.remote.dto.TaskHistoryItemDto
@@ -37,6 +38,7 @@ class WebAppTaskApi(private val client: HttpClient) {
      */
     suspend fun getApiCallDemo(apiKey: String, webappId: String): TaskBaseResponseDto<WebAppTaskDetailDto> =
         client.post(RunningHubApiEnvironment.apiUrl("webapp/apiCallDemo")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             header("X-API-Key", apiKey)
             setBody(mapOf("webappId" to webappId))
@@ -60,6 +62,7 @@ class WebAppTaskApi(private val client: HttpClient) {
      */
     suspend fun getTaskOutputs(request: TaskStatusRequestDto): TaskBaseResponseDto<List<TaskOutputDto>> =
         client.post(RunningHubApiEnvironment.taskOpenApiUrl("outputs")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()
@@ -96,6 +99,7 @@ class WebAppTaskApi(private val client: HttpClient) {
         request: TaskHistoryRequestDto,
     ): TaskBaseResponseDto<TaskPageDataDto<TaskHistoryItemDto>> =
         client.post(RunningHubApiEnvironment.apiUrl("output/v2/history")) {
+            markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)
         }.body()

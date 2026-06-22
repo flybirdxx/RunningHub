@@ -1,9 +1,12 @@
 package com.runninghub.feature.quickcreate.presentation.generation
 
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceValidationIssue
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
+import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
@@ -11,6 +14,7 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskSta
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadCoordinator
+import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -60,7 +64,7 @@ class QuickCreateGenerationInteractor(
         }
         val submitSnapshot = uiState.value
         if (submitSnapshot.feePreviewLoading) {
-            blockGenerate(QuickCreateRuntimeUiText.feeConfirming)
+            blockGenerate(QuickCreateRuntimeUiText.FeeConfirming.asQuickCreateUiMessage())
             return
         }
         if (submitSnapshot.feePreviewError != null) {
@@ -95,8 +99,8 @@ class QuickCreateGenerationInteractor(
                 // 这里必须使用点击生成时捕获的快照；等待上传期间用户仍可继续编辑页面，
                 // 但本次远端任务、计费预览和上传素材应对应同一份参数，不能混入后续输入。
                 requestSnapshot = mediaUploadCoordinator.awaitPendingUploads(submitSnapshot)
-            } catch (error: IllegalStateException) {
-                blockGenerate(error.message)
+            } catch (error: QuickCreateMediaUploadException) {
+                blockGenerate(error.uiMessage)
                 return@launch
             }
             when (val buildResult = generationRequestFactory.buildCurrentGenerationRequest(
@@ -109,7 +113,7 @@ class QuickCreateGenerationInteractor(
                     if (hasMatchingFeePreview(requestSnapshot, buildResult.request.quickCreateFeeRequestKey())) {
                         generateImage(buildResult.request)
                     } else {
-                        blockGenerate(QuickCreateRuntimeUiText.feePending)
+                        blockGenerate(QuickCreateRuntimeUiText.FeePending.asQuickCreateUiMessage())
                     }
                 }
                 is QuickCreateGenerationRequestBuildResult.VideoReady -> {
@@ -118,7 +122,7 @@ class QuickCreateGenerationInteractor(
                     if (hasMatchingFeePreview(requestSnapshot, buildResult.request.quickCreateFeeRequestKey())) {
                         generateVideo(buildResult.request)
                     } else {
-                        blockGenerate(QuickCreateRuntimeUiText.feePending)
+                        blockGenerate(QuickCreateRuntimeUiText.FeePending.asQuickCreateUiMessage())
                     }
                 }
                 is QuickCreateGenerationRequestBuildResult.Blocked -> blockGenerate(buildResult.reason.toRuntimeMessage())
@@ -163,7 +167,7 @@ class QuickCreateGenerationInteractor(
         }
     }
 
-    private fun blockGenerate(error: String?) {
+    private fun blockGenerate(error: QuickCreateUiMessage?) {
         uiState.update {
             it.copy(
                 taskStatus = QuickCreateTaskUiStatus.IDLE,
@@ -176,7 +180,7 @@ class QuickCreateGenerationInteractor(
     private fun blockDuplicateGenerate() {
         uiState.update {
             // 当前任务已经进入提交或轮询链路时不能取消后重新提交，否则会产生第二个远端任务且旧任务失去状态归属。
-            it.copy(error = QuickCreateRuntimeUiText.duplicateGeneration)
+            it.copy(error = QuickCreateRuntimeUiText.DuplicateGeneration.asQuickCreateUiMessage())
         }
     }
 
@@ -188,14 +192,29 @@ class QuickCreateGenerationInteractor(
 }
 
 /**
- * 将生成前阻塞原因映射为当前运行时文案端口。
+ * 将生成前阻塞原因映射为当前运行时提示语义。
  *
  * 请求构建器只返回稳定原因，避免纯数据转换层继续拼接最终中文 UI 文案；
- * 这里仍暂时复用 [QuickCreateRuntimeUiText]，后续可把该端口整体迁到 Compose Resources 或注入式 TextProvider。
+ * 最终文案由 composeApp 使用 Compose Resources 映射。
  */
-private fun QuickCreateGenerationBlockReason.toRuntimeMessage(): String =
+private fun QuickCreateGenerationBlockReason.toRuntimeMessage(): QuickCreateUiMessage =
     when (this) {
-        is QuickCreateGenerationBlockReason.CustomMessage -> message
-        QuickCreateGenerationBlockReason.PromptRequired -> QuickCreateRuntimeUiText.promptRequired
-        is QuickCreateGenerationBlockReason.PromptTooLong -> QuickCreateRuntimeUiText.promptTooLong(maxChars)
+        QuickCreateGenerationBlockReason.PromptRequired ->
+            QuickCreateRuntimeUiText.PromptRequired.asQuickCreateUiMessage()
+        is QuickCreateGenerationBlockReason.PromptTooLong ->
+            QuickCreateRuntimeUiText.PromptTooLong(maxChars).asQuickCreateUiMessage()
+        is QuickCreateGenerationBlockReason.ServiceValidation ->
+            issue.toRuntimeText().asQuickCreateUiMessage()
+    }
+
+private fun QuickCreationServiceValidationIssue.toRuntimeText(): QuickCreateRuntimeUiText =
+    when (this) {
+        is QuickCreationServiceValidationIssue.InvalidOption ->
+            QuickCreateRuntimeUiText.ServiceFieldInvalidOption(fieldTitle)
+        is QuickCreationServiceValidationIssue.MaxUploadCount ->
+            QuickCreateRuntimeUiText.ServiceUploadMaxCount(fieldTitle, maxCount)
+        is QuickCreationServiceValidationIssue.MinLength ->
+            QuickCreateRuntimeUiText.ServiceFieldMinLength(fieldTitle, minLength)
+        is QuickCreationServiceValidationIssue.Required ->
+            QuickCreateRuntimeUiText.ServiceFieldRequired(fieldTitle)
     }

@@ -60,10 +60,20 @@ import com.runninghub.app.ui.theme.RhAppSurface
 import com.runninghub.app.ui.theme.RhAppText
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.task_history_action_cancel
+import runninghub.composeapp.generated.resources.task_history_action_cancel_requested
+import runninghub.composeapp.generated.resources.task_history_action_no_retry_params
+import runninghub.composeapp.generated.resources.task_history_action_no_reusable_params
+import runninghub.composeapp.generated.resources.task_history_action_output_detail_loaded
 import runninghub.composeapp.generated.resources.task_history_action_retry
+import runninghub.composeapp.generated.resources.task_history_action_retry_params_prepared
 import runninghub.composeapp.generated.resources.task_history_action_reuse
+import runninghub.composeapp.generated.resources.task_history_action_reusable_params_prepared_format
 import runninghub.composeapp.generated.resources.task_history_action_view
 import runninghub.composeapp.generated.resources.task_history_chevron
+import runninghub.composeapp.generated.resources.task_history_cost_character
+import runninghub.composeapp.generated.resources.task_history_cost_default
+import runninghub.composeapp.generated.resources.task_history_cost_failed
+import runninghub.composeapp.generated.resources.task_history_cost_video
 import runninghub.composeapp.generated.resources.task_history_current_project
 import runninghub.composeapp.generated.resources.task_history_default_completed_duration
 import runninghub.composeapp.generated.resources.task_history_default_failed_duration
@@ -73,7 +83,9 @@ import runninghub.composeapp.generated.resources.task_history_dropdown_symbol
 import runninghub.composeapp.generated.resources.task_history_empty_filter
 import runninghub.composeapp.generated.resources.task_history_empty_history
 import runninghub.composeapp.generated.resources.task_history_error_auth_sync
-import runninghub.composeapp.generated.resources.task_history_error_load_failed
+import runninghub.composeapp.generated.resources.task_history_error_cancel_failed
+import runninghub.composeapp.generated.resources.task_history_error_detail_load_failed
+import runninghub.composeapp.generated.resources.task_history_error_history_load_failed
 import runninghub.composeapp.generated.resources.task_history_filter_all
 import runninghub.composeapp.generated.resources.task_history_filter_completed
 import runninghub.composeapp.generated.resources.task_history_filter_failed
@@ -118,8 +130,12 @@ import runninghub.composeapp.generated.resources.task_history_today
 import runninghub.composeapp.generated.resources.task_history_total_count_format
 import com.runninghub.app.ui.theme.StatusError
 import com.runninghub.feature.task.domain.GenerationHistoryOutput
+import com.runninghub.feature.task.presentation.TaskHistoryActionMessage
+import com.runninghub.feature.task.presentation.TaskHistoryCostText
 import com.runninghub.feature.task.presentation.TaskHistoryEntry
 import com.runninghub.feature.task.presentation.TaskHistoryFilter
+import com.runninghub.feature.task.presentation.TaskHistoryOutputCountText
+import com.runninghub.feature.task.presentation.TaskHistoryPresentationError
 import com.runninghub.feature.task.presentation.TaskHistoryUiState
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -160,10 +176,11 @@ internal fun TaskHistoryContent(
     onCancelTask: (String) -> Unit = {},
 ) {
     val loadedEntries = uiState.items
-    val useReferenceFallback = loadedEntries.isEmpty() && uiState.error.isAuthError()
+    val useReferenceFallback = loadedEntries.isEmpty() && uiState.error == TaskHistoryPresentationError.AuthRequired
     val timelineEntries = if (useReferenceFallback) referenceHistoryEntries() else loadedEntries
     val filteredItems = timelineEntries.filteredBy(uiState.filter)
-    val errorMessage = uiState.error
+    val errorMessage = uiState.error?.toDisplayHistoryError()
+    val actionMessage = uiState.actionMessage?.toDisplayActionMessage()
 
     Scaffold(
         modifier = modifier,
@@ -188,10 +205,10 @@ internal fun TaskHistoryContent(
                 )
             }
             item { NoticeBar(useReferenceFallback = useReferenceFallback) }
-            if (uiState.actionMessage != null || uiState.selectedOutput != null || uiState.reuseParams.isNotEmpty()) {
+            if (actionMessage != null || uiState.selectedOutput != null || uiState.reuseParams.isNotEmpty()) {
                 item {
                     HistoryActionPanel(
-                        message = uiState.actionMessage,
+                        message = actionMessage,
                         selectedOutput = uiState.selectedOutput,
                         reuseParams = uiState.reuseParams,
                     )
@@ -201,7 +218,7 @@ internal fun TaskHistoryContent(
             when {
                 uiState.isLoading && timelineEntries.isEmpty() -> item { LoadingPanel(Modifier.height(360.dp)) }
                 !useReferenceFallback && errorMessage != null && timelineEntries.isEmpty() -> item {
-                    TaskHistoryErrorState(message = errorMessage.toDisplayHistoryError(), onRetry = onRetry)
+                    TaskHistoryErrorState(message = errorMessage, onRetry = onRetry)
                 }
                 timelineEntries.isEmpty() -> item {
                     TaskHistoryEmptyState(message = stringResource(Res.string.task_history_empty_history))
@@ -579,8 +596,8 @@ private fun TaskTimelineRow(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TaskStatusPill(status = item.status)
-            Text(item.costLabel(), color = RhText, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
-            Text(item.outputCountLabelText(), color = RhMuted, style = MaterialTheme.typography.labelMedium)
+            Text(item.costText.toDisplayCostLabel(), color = RhText, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            Text(item.outputCountText.toDisplayOutputCountLabelText(), color = RhMuted, style = MaterialTheme.typography.labelMedium)
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 SmallAction(viewAction, highlighted = false, onClick = { item.outputId?.let(onViewOutput) })
                 if (item.status.isCompletedStatus()) {
@@ -788,20 +805,21 @@ private fun TaskHistoryEntry.timelineMetaText(): String = when {
 }
 
 
-private fun TaskHistoryEntry.costLabel(): String = when {
-    title.contains("\u89c6\u9891") -> "$0.176"
-    title.contains("\u89d2\u8272") -> "$0.063"
-    status.equals("failed", ignoreCase = true) -> "$0.051"
-    else -> "$0.024"
+@Composable
+private fun TaskHistoryCostText.toDisplayCostLabel(): String = when (this) {
+    TaskHistoryCostText.VIDEO -> stringResource(Res.string.task_history_cost_video)
+    TaskHistoryCostText.CHARACTER -> stringResource(Res.string.task_history_cost_character)
+    TaskHistoryCostText.FAILED -> stringResource(Res.string.task_history_cost_failed)
+    TaskHistoryCostText.DEFAULT -> stringResource(Res.string.task_history_cost_default)
 }
 
 
 @Composable
-private fun TaskHistoryEntry.outputCountLabelText(): String = when {
-    status.equals("failed", ignoreCase = true) -> stringResource(Res.string.task_history_output_count_failed)
-    !status.isCompletedStatus() -> stringResource(Res.string.task_history_output_count_running)
-    title.contains("\u89c6\u9891") -> stringResource(Res.string.task_history_output_count_video)
-    else -> stringResource(Res.string.task_history_output_count_completed)
+private fun TaskHistoryOutputCountText.toDisplayOutputCountLabelText(): String = when (this) {
+    TaskHistoryOutputCountText.FAILED -> stringResource(Res.string.task_history_output_count_failed)
+    TaskHistoryOutputCountText.RUNNING -> stringResource(Res.string.task_history_output_count_running)
+    TaskHistoryOutputCountText.VIDEO -> stringResource(Res.string.task_history_output_count_video)
+    TaskHistoryOutputCountText.COMPLETED -> stringResource(Res.string.task_history_output_count_completed)
 }
 
 
@@ -812,14 +830,29 @@ private fun sourceLabelText(source: String): String = when {
     else -> stringResource(Res.string.task_history_source_quick_create)
 }
 
-private fun String?.isAuthError(): Boolean = this?.contains("TOKEN", ignoreCase = true) == true || this?.contains("401") == true
+@Composable
+private fun TaskHistoryActionMessage.toDisplayActionMessage(): String = when (this) {
+    TaskHistoryActionMessage.OutputDetailLoaded ->
+        stringResource(Res.string.task_history_action_output_detail_loaded)
+    TaskHistoryActionMessage.NoReusableParams ->
+        stringResource(Res.string.task_history_action_no_reusable_params)
+    is TaskHistoryActionMessage.ReusableParamsPrepared ->
+        stringResource(Res.string.task_history_action_reusable_params_prepared_format, count)
+    TaskHistoryActionMessage.NoRetryParams ->
+        stringResource(Res.string.task_history_action_no_retry_params)
+    TaskHistoryActionMessage.RetryParamsPrepared ->
+        stringResource(Res.string.task_history_action_retry_params_prepared)
+    TaskHistoryActionMessage.CancelRequested ->
+        stringResource(Res.string.task_history_action_cancel_requested)
+}
 
 
 @Composable
-private fun String.toDisplayHistoryError(): String = if (isAuthError()) {
-    stringResource(Res.string.task_history_error_auth_sync)
-} else {
-    this.ifBlank { stringResource(Res.string.task_history_error_load_failed) }
+private fun TaskHistoryPresentationError.toDisplayHistoryError(): String = when (this) {
+    TaskHistoryPresentationError.AuthRequired -> stringResource(Res.string.task_history_error_auth_sync)
+    TaskHistoryPresentationError.DetailLoadFailed -> stringResource(Res.string.task_history_error_detail_load_failed)
+    TaskHistoryPresentationError.CancelFailed -> stringResource(Res.string.task_history_error_cancel_failed)
+    TaskHistoryPresentationError.HistoryLoadFailed -> stringResource(Res.string.task_history_error_history_load_failed)
 }
 
 
@@ -828,9 +861,32 @@ private fun referenceHistoryEntries(): List<TaskHistoryEntry> = listOf(
     TaskHistoryEntry("a1b2c3d4", stringResource(Res.string.task_history_reference_title_concept_image), "running", "02:18", "quick_creation"),
     TaskHistoryEntry("e5f6g7h8", stringResource(Res.string.task_history_reference_title_portrait_master), "completed", "00:42", "api_model"),
     TaskHistoryEntry("i9j0k1l2", stringResource(Res.string.task_history_reference_title_3d_model), "failed", "01:15", "webapp"),
-    TaskHistoryEntry("m3n4o5p6", stringResource(Res.string.task_history_reference_title_video_turbo), "completed", "02:36", "quick_creation"),
-    TaskHistoryEntry("q7r8s9t0", stringResource(Res.string.task_history_reference_title_character_setting), "completed", "00:58", "api_model"),
-    TaskHistoryEntry("u1v2w3x4", stringResource(Res.string.task_history_reference_title_marketing_video), "running", "03:42", "webapp"),
+    TaskHistoryEntry(
+        "m3n4o5p6",
+        stringResource(Res.string.task_history_reference_title_video_turbo),
+        "completed",
+        "02:36",
+        "quick_creation",
+        costText = TaskHistoryCostText.VIDEO,
+        outputCountText = TaskHistoryOutputCountText.VIDEO,
+    ),
+    TaskHistoryEntry(
+        "q7r8s9t0",
+        stringResource(Res.string.task_history_reference_title_character_setting),
+        "completed",
+        "00:58",
+        "api_model",
+        costText = TaskHistoryCostText.CHARACTER,
+    ),
+    TaskHistoryEntry(
+        "u1v2w3x4",
+        stringResource(Res.string.task_history_reference_title_marketing_video),
+        "running",
+        "03:42",
+        "webapp",
+        costText = TaskHistoryCostText.VIDEO,
+        outputCountText = TaskHistoryOutputCountText.RUNNING,
+    ),
 )
 
 @Composable

@@ -4,14 +4,16 @@ import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
-import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
+import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateUiMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -187,11 +189,11 @@ class QuickCreateFeePreviewInteractor(
      * 余额不足属于明确业务失败，应直接透传；其他网络异常或服务端异常只表示价格无法确认，
      * 生成流程需要提示用户先等待或重新触发预览，而不是暴露底层异常细节。
      */
-    fun generateBlockedMessage(error: String?): String =
-        if (error == QuickCreateErrorFallbackText.FEE_PREVIEW_NOT_PASSED) {
+    fun generateBlockedMessage(error: QuickCreateUiMessage?): QuickCreateUiMessage =
+        if (error == QuickCreatePresentationError.FeePreviewNotPassed.asQuickCreateUiMessage()) {
             error
         } else {
-            QuickCreateRuntimeUiText.feePending
+            QuickCreateRuntimeUiText.FeePending.asQuickCreateUiMessage()
         }
 
     private suspend fun previewVideo(
@@ -273,7 +275,7 @@ class QuickCreateFeePreviewInteractor(
             else -> preview.requiredRhAmount
         }
         val previewError = if (!preview.passed || preview.insufficientType != null) {
-            QuickCreateErrorFallbackText.FEE_PREVIEW_NOT_PASSED
+            QuickCreatePresentationError.FeePreviewNotPassed.asQuickCreateUiMessage()
         } else {
             null
         }
@@ -295,7 +297,7 @@ class QuickCreateFeePreviewInteractor(
             it.copy(
                 estimatedCost = it.currentLocalEstimatedCost(),
                 feePreviewLoading = false,
-                feePreviewError = error.toQuickCreateDisplayMessage(QuickCreateErrorFallbackText.FEE_PREVIEW_FAILED),
+                feePreviewError = error.toQuickCreateUiMessage(QuickCreatePresentationError.FeePreviewFailed),
                 feePreviewRequestKey = null,
             )
         }

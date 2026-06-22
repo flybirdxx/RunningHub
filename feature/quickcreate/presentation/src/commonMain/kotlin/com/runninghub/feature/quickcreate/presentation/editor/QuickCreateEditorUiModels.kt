@@ -2,6 +2,7 @@ package com.runninghub.feature.quickcreate.presentation.editor
 
 import com.runninghub.feature.quickcreate.presentation.state.MAX_PROMPT_CHARS
 import com.runninghub.feature.quickcreate.presentation.state.MAX_VISIBLE_CHARS_WARN
+import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 
 /**
  * 快捷创作素材在 Presentation 层使用的媒体类型。
@@ -55,7 +56,8 @@ enum class UploadStatus {
  * @property uploadStatus 当前上传生命周期状态。
  * @property uploadProgress 上传进度，范围通常为 0.0 到 1.0；失败时保留最后进度用于 UI 反馈。
  * @property remoteUrl 远端可访问地址；只有 [UploadStatus.DONE] 且非空时才应参与生成请求。
- * @property errorMessage 上传失败或本地媒体读取失败后的展示文案；`null` 表示当前素材没有失败原因。
+ * @property errorMessage 上传失败或本地媒体读取失败后的展示消息语义；`null` 表示当前素材没有失败原因。
+ * 新增上传错误必须使用稳定语义，不得保存最终中文文案或本地文件名。
  */
 data class MediaReference(
     val id: String,
@@ -68,13 +70,13 @@ data class MediaReference(
     val uploadStatus: UploadStatus = UploadStatus.UPLOADING,
     val uploadProgress: Float = 0f,
     val remoteUrl: String? = null,
-    val errorMessage: String? = null,
+    val errorMessage: QuickCreateUiMessage? = null,
 )
 
 /**
  * 图片生成内置宽高比选项。
  *
- * @property displayName 页面展示文案。
+ * @property displayName 页面展示文案；该值为比例协议文本，不承载本地化中文内容。
  * @property apiValue 兼容旧生成接口的请求参数值。
  */
 enum class ImageAspectRatio(val displayName: String, val apiValue: String) {
@@ -89,7 +91,7 @@ enum class ImageAspectRatio(val displayName: String, val apiValue: String) {
 /**
  * 图片生成内置分辨率选项。
  *
- * @property displayName 页面展示文案。
+ * @property displayName 页面展示文案；该值为分辨率规格文本，不承载本地化中文内容。
  * @property apiValue 兼容旧生成接口的请求参数值。
  */
 enum class ImageResolution(val displayName: String, val apiValue: String) {
@@ -134,7 +136,7 @@ sealed interface ImageQualityLabel {
  * 最终计费必须以后端 fee preview 为准。
  */
 enum class ImageModel(
-    val displayName: String,
+    val label: ImageModelLabel,
     val apiValue: String,
     val defaultAspectRatio: ImageAspectRatio,
     val defaultResolution: ImageResolution,
@@ -146,7 +148,7 @@ enum class ImageModel(
     val baseCost: Double,
 ) {
     ALL_POWER_IMAGE_G2(
-        displayName = "全能图片 G-2.0",
+        label = ImageModelLabel.AllPowerImageG2,
         apiValue = "all-power-image-g2",
         defaultAspectRatio = ImageAspectRatio.RATIO_16_9,
         defaultResolution = ImageResolution.RES_1K,
@@ -158,7 +160,7 @@ enum class ImageModel(
         baseCost = 0.93,
     ),
     SEEDREAM_5(
-        displayName = "Seedream 5.0",
+        label = ImageModelLabel.RuntimeName("Seedream 5.0"),
         apiValue = "seedream5",
         defaultAspectRatio = ImageAspectRatio.RATIO_3_4,
         defaultResolution = ImageResolution.RES_1K,
@@ -174,7 +176,7 @@ enum class ImageModel(
         baseCost = 1.50,
     ),
     SEEDREAM_4(
-        displayName = "Seedream 4.0",
+        label = ImageModelLabel.RuntimeName("Seedream 4.0"),
         apiValue = "seedream4",
         defaultAspectRatio = ImageAspectRatio.RATIO_3_4,
         defaultResolution = ImageResolution.RES_1K,
@@ -208,9 +210,28 @@ enum class ImageModel(
 }
 
 /**
+ * 图片本地兼容模型的稳定展示语义。
+ *
+ * 该类型只服务于迁移期本地兼容模型入口；服务端模型名称仍来自
+ * `QuickCreationServiceModel.name` 运行时数据。固定中文名称交给 composeApp 资源层映射，
+ * 避免 Presentation 枚举保存最终本地化文案。
+ */
+sealed interface ImageModelLabel {
+    /** 全能图片 G-2.0 本地兼容模型。 */
+    data object AllPowerImageG2 : ImageModelLabel
+
+    /**
+     * 不含本地化语义的模型商品名或英文名。
+     *
+     * @property value 可直接展示的运行时模型名称；空字符串不应传入。
+     */
+    data class RuntimeName(val value: String) : ImageModelLabel
+}
+
+/**
  * 视频生成内置宽高比选项。
  *
- * @property displayName 页面展示文案。
+ * @property displayName 页面展示文案；`Auto` 和比例值是旧接口兼容文本，不承载本地化中文内容。
  * @property apiValue 兼容旧生成接口的请求参数值。
  */
 enum class VideoAspectRatio(val displayName: String, val apiValue: String) {
@@ -302,7 +323,7 @@ enum class VideoApiTier {
  * 最终计费必须以后端 fee preview 为准。
  */
 enum class VideoModel(
-    val displayName: String,
+    val label: VideoModelLabel,
     val iconChar: String,
     val apiValue: String,
     val apiTier: VideoApiTier,
@@ -318,7 +339,7 @@ enum class VideoModel(
     val baseCost: Double,
 ) {
     SEEDANCE_2(
-        displayName = "Seedance2.0",
+        label = VideoModelLabel.RuntimeName("Seedance2.0"),
         iconChar = "🎬",
         apiValue = "seedance2",
         apiTier = VideoApiTier.S,
@@ -334,7 +355,7 @@ enum class VideoModel(
         baseCost = 6.0,
     ),
     SEEDANCE_2_FAST(
-        displayName = "Seedance2.0-Fast",
+        label = VideoModelLabel.RuntimeName("Seedance2.0-Fast"),
         iconChar = "⚡",
         apiValue = "seedance2-fast",
         apiTier = VideoApiTier.S,
@@ -350,7 +371,7 @@ enum class VideoModel(
         baseCost = 3.0,
     ),
     WANXIANG_2_6(
-        displayName = "万相2.6",
+        label = VideoModelLabel.Wanxiang26,
         iconChar = "🎞️",
         apiValue = "wanxiang2.6",
         apiTier = VideoApiTier.G,
@@ -366,7 +387,7 @@ enum class VideoModel(
         baseCost = 6.0,
     ),
     WANXIANG_2_7(
-        displayName = "万相2.7",
+        label = VideoModelLabel.Wanxiang27,
         iconChar = "🌟",
         apiValue = "wanxiang2.7",
         apiTier = VideoApiTier.G,
@@ -382,7 +403,7 @@ enum class VideoModel(
         baseCost = 8.0,
     ),
     KLING_O1(
-        displayName = "可灵O1",
+        label = VideoModelLabel.KlingO1,
         iconChar = "🎥",
         apiValue = "kling-o1",
         apiTier = VideoApiTier.KLING,
@@ -398,7 +419,7 @@ enum class VideoModel(
         baseCost = 10.0,
     ),
     KLING_O3_4K(
-        displayName = "可灵O3-4k",
+        label = VideoModelLabel.KlingO34k,
         iconChar = "🔮",
         apiValue = "kling-o3-4k",
         apiTier = VideoApiTier.KLING,
@@ -439,6 +460,33 @@ enum class VideoModel(
         fun fromApiValue(value: String): VideoModel =
             entries.find { it.apiValue == value } ?: SEEDANCE_2
     }
+}
+
+/**
+ * 视频本地兼容模型的稳定展示语义。
+ *
+ * 该类型只用于旧参数入口和本地兼容模型列表。固定中文模型名由 composeApp 资源层映射；
+ * 英文商品名作为运行时文本保留，避免无意义地资源化第三方模型品牌名。
+ */
+sealed interface VideoModelLabel {
+    /**
+     * 不含本地化语义的模型商品名或英文名。
+     *
+     * @property value 可直接展示的运行时模型名称；空字符串不应传入。
+     */
+    data class RuntimeName(val value: String) : VideoModelLabel
+
+    /** 万相 2.6 本地兼容模型。 */
+    data object Wanxiang26 : VideoModelLabel
+
+    /** 万相 2.7 本地兼容模型。 */
+    data object Wanxiang27 : VideoModelLabel
+
+    /** 可灵 O1 本地兼容模型。 */
+    data object KlingO1 : VideoModelLabel
+
+    /** 可灵 O3 4K 本地兼容模型。 */
+    data object KlingO34k : VideoModelLabel
 }
 
 /**

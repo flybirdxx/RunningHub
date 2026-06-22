@@ -103,6 +103,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                             "checkRootBuildScriptSize",
                             "checkLegacyAndroidAppGuard",
                             "checkProductionTodoGuard",
+                            "checkMojibakeTextGuard",
                             "checkComposeAppFileSize",
                             "checkFeaturePresentationThresholds",
                             "checkTrustedAuthHostGuard",
@@ -117,7 +118,14 @@ class LongTermGovernancePlugin : Plugin<Project> {
                             "checkMediaUploadErrorPrivacyGuard",
                             "checkApiContractBaseline",
                             "checkDatabaseContractBaseline",
+                            "checkRetiredCreateGuard",
+                            "checkHistoryCompatibilityBridgeGuard",
+                            "checkQuickCreateLegacyImplementationGuard",
+                            "checkQuickCreateScreenModelFacadeGuard",
+                            "checkQuickCreateTaskStatusTextGuard",
+                            "checkTaskHistoryPresentationTextGuard",
                             "checkUiCopyBaseline",
+                            "checkQuickCreateDomainModelTextGuard",
                             "checkPerformanceBaselineTargets",
                             "checkAndroidReleaseBuildGuard",
                             "checkReleaseReadinessChecklist",
@@ -157,7 +165,13 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     )
                     requireDocumentSnippets(
                         relativePath = "docs/governance/feature-presentation-thresholds.txt",
-                        snippets = listOf("feature|maxLines|reason", "history|", "login|", "profile|"),
+                        snippets = listOf(
+                            "feature|maxLines|ownerPresentation|reason",
+                            "history|",
+                            "feature:task:presentation",
+                            "feature:auth:presentation",
+                            "feature:community:presentation",
+                        ),
                         violations = violations,
                     )
                     requireDocumentSnippets(
@@ -187,7 +201,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     )
                     requireDocumentSnippets(
                         relativePath = "docs/governance/ui-copy-hardcoded-baseline.txt",
-                        snippets = listOf("filePath|maxMatches|reason", "QuickCreateErrorMessages.kt", "TaskHistoryStateHolder.kt"),
+                        snippets = listOf("filePath|maxMatches|reason", "当前无正数基线"),
                         violations = violations,
                     )
                     requireDocumentSnippets(
@@ -217,6 +231,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     checkRootBuildScriptSize(violations)
                     checkLegacyAndroidAppGuard(violations)
                     checkProductionTodoGuard(violations)
+                    checkMojibakeTextGuard(violations)
                     checkFeaturePresentationThresholds(violations)
                     checkTrustedAuthHostGuard(violations)
                     checkAuthReplayGuard(violations)
@@ -231,7 +246,14 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     checkApiContractBaseline(violations)
                     checkCoreAuthContractSamples(violations)
                     checkDatabaseContractBaseline(violations)
+                    checkRetiredCreateGuard(violations)
+                    checkHistoryCompatibilityBridgeGuard(violations)
+                    checkQuickCreateLegacyImplementationGuard(violations)
+                    checkQuickCreateScreenModelFacadeGuard(violations)
+                    checkQuickCreateTaskStatusTextGuard(violations)
+                    checkTaskHistoryPresentationTextGuard(violations)
                     checkUiCopyBaseline(violations)
+                    checkQuickCreateDomainModelTextGuard(violations)
                     checkPerformanceBaselineTargets(violations)
                     checkAndroidReleaseBuildGuard(violations)
                     checkReleaseReadinessChecklist(violations)
@@ -536,27 +558,99 @@ class LongTermGovernancePlugin : Plugin<Project> {
     }
 
     /**
+     * 拦截生产 Kotlin 源码中的常见中文乱码片段。
+     *
+     * 中文注释是交付内容，出现 mojibake 会让后续协作者误读业务约束。这里不判断注释语义，
+     * 只扫描迁移过程中已经出现过的 UTF-8/GBK 解码错位特征，防止乱码再次进入生产源码或构建脚本。
+     */
+    private fun Project.checkMojibakeTextGuard(violations: MutableList<String>) {
+        val sourceRoots = listOf("composeApp", "core", "feature", "build-logic")
+            .map { rootDir.resolve(it) }
+            .filter { it.isDirectory }
+        val mojibakeCharacters = setOf(
+            '\u9225',
+            '\u940F',
+            '\u9483',
+            '\u95C8',
+            '\u9479',
+            '\u6A01',
+            '\u00E4',
+            '\u00E5',
+            '\u00E6',
+            '\uFFFD',
+        )
+
+        sourceRoots
+            .asSequence()
+            .flatMap { root ->
+                root.walkTopDown()
+                    .filter { it.isFile && (it.extension == "kt" || it.extension == "kts") }
+            }
+            .filterNot { file ->
+                val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
+                listOf(
+                    "/src/commonTest/",
+                    "/src/androidUnitTest/",
+                    "/src/iosTest/",
+                    "/build/",
+                ).any { it in relativePath }
+            }
+            .forEach { file ->
+                file.readLines().forEachIndexed { index, line ->
+                    if (line.any { it in mojibakeCharacters }) {
+                        val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
+                        violations += "$relativePath:${index + 1} contains mojibake text; rewrite the comment or string with readable Chinese/ASCII."
+                    }
+                }
+            }
+    }
+
+    /**
      * 约束大体量 UI Feature 的 Presentation 模块拆分计划。
      *
      * 复核建议要求 Feature 达到规模阈值后建立独立 Presentation 模块。既有历史 Feature
-     * 不能在一次治理中强行迁移，因此用基线记录当前行数；后续如果这些 Feature 继续增长，
-     * 门禁会要求先拆分模块或显式更新治理文档说明原因。
+     * 不能在一次治理中强行迁移，因此用基线记录当前行数和真实 Presentation owner；
+     * 后续如果这些 Feature 继续增长，门禁会要求先拆分模块或显式更新治理文档说明原因。
      */
     private fun Project.checkFeaturePresentationThresholds(violations: MutableList<String>) {
         val thresholdLines = 800
         val baselineFile = rootDir.resolve("docs/governance/feature-presentation-thresholds.txt")
-        val baseline = baselineFile
+        val baselineEntries = baselineFile
             .takeIf { it.isFile }
             ?.readLines()
-            ?.map { it.trim() }
-            ?.filter { it.isNotEmpty() && !it.startsWith("#") }
-            ?.associate { line ->
-                val parts = line.split('|')
-                val featureName = parts.getOrNull(0).orEmpty()
-                val maxLines = parts.getOrNull(1)?.toIntOrNull() ?: 0
-                featureName to maxLines
+            ?.mapIndexedNotNull { index, rawLine ->
+                parseFeaturePresentationBaseline(
+                    line = rawLine.trim(),
+                    lineNumber = index + 1,
+                    violations = violations,
+                )
             }
             .orEmpty()
+        baselineEntries
+            .groupingBy { it.featureName }
+            .eachCount()
+            .filterValues { it > 1 }
+            .keys
+            .forEach { featureName ->
+                violations += "docs/governance/feature-presentation-thresholds.txt contains duplicate baseline for $featureName."
+            }
+        baselineEntries.forEach { entry ->
+            val ownerDir = ownerPresentationDirectory(entry.ownerPresentation)
+            if (ownerDir == null) {
+                violations += "${entry.featureName} baseline has invalid ownerPresentation '${entry.ownerPresentation}'; use feature:<name>:presentation."
+            } else if (!ownerDir.isDirectory) {
+                violations += "${entry.featureName} baseline ownerPresentation '${entry.ownerPresentation}' does not exist."
+            }
+
+            val featureDir = rootDir.resolve("composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/${entry.featureName}")
+            if (!featureDir.isDirectory) {
+                violations += "${entry.featureName} baseline is stale; composeApp feature UI directory is missing."
+            }
+            if (rootDir.resolve("feature/${entry.featureName}/presentation").isDirectory) {
+                violations += "${entry.featureName} has a same-name Presentation module; remove its migration threshold baseline."
+            }
+        }
+        val baseline = baselineEntries.associateBy { it.featureName }
 
         val featureUiRoot = rootDir.resolve("composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature")
         if (!featureUiRoot.isDirectory) {
@@ -575,17 +669,90 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 val hasPresentationModule = rootDir.resolve("feature/$featureName/presentation").isDirectory
 
                 if (totalLines > thresholdLines && !hasPresentationModule) {
-                    val allowedLines = baseline[featureName]
+                    val entry = baseline[featureName]
                     when {
-                        allowedLines == null -> {
-                            violations += "$featureName UI has $totalLines lines and no presentation module; split it or register a threshold baseline."
+                        entry == null -> {
+                            violations += "$featureName UI has $totalLines lines and no same-name presentation module; split it or register a threshold baseline with ownerPresentation."
                         }
-                        totalLines > allowedLines -> {
-                            violations += "$featureName UI grew from allowed $allowedLines lines to $totalLines without a presentation module."
+                        totalLines > entry.maxLines -> {
+                            violations += "$featureName UI grew from allowed ${entry.maxLines} lines to $totalLines without a same-name presentation module; owner is ${entry.ownerPresentation}."
                         }
                     }
                 }
             }
+    }
+
+    /**
+     * 记录无同名 Presentation 模块的大体量 composeApp Feature 临时基线。
+     *
+     * @property featureName composeApp `ui/feature/<name>` 目录名。
+     * @property maxLines 当前允许的 Kotlin 行数上限，单位为行；后续增长必须降低或更新治理说明。
+     * @property ownerPresentation 实际持有状态机的 Presentation 模块，格式为 `feature:<name>:presentation`。
+     * @property reason 保留该 UI 壳的迁移期原因。
+     */
+    private data class FeaturePresentationBaseline(
+        val featureName: String,
+        val maxLines: Int,
+        val ownerPresentation: String,
+        val reason: String,
+    )
+
+    /**
+     * 解析 `feature-presentation-thresholds.txt` 的一行基线。
+     *
+     * 空行和注释行返回 `null`；非法行会写入 [violations]，由统一治理任务汇总失败。
+     */
+    private fun Project.parseFeaturePresentationBaseline(
+        line: String,
+        lineNumber: Int,
+        violations: MutableList<String>,
+    ): FeaturePresentationBaseline? {
+        if (line.isEmpty() || line.startsWith("#")) {
+            return null
+        }
+
+        val parts = line.split('|', limit = 4)
+        if (parts.size != 4) {
+            violations += "docs/governance/feature-presentation-thresholds.txt:$lineNumber must use feature|maxLines|ownerPresentation|reason."
+            return null
+        }
+
+        val featureName = parts[0].trim()
+        val maxLines = parts[1].trim().toIntOrNull()
+        val ownerPresentation = parts[2].trim()
+        val reason = parts[3].trim()
+        if (featureName.isBlank()) {
+            violations += "docs/governance/feature-presentation-thresholds.txt:$lineNumber has blank feature name."
+        }
+        if (maxLines == null || maxLines <= 0) {
+            violations += "docs/governance/feature-presentation-thresholds.txt:$lineNumber has invalid maxLines '${parts[1]}'."
+        }
+        if (ownerPresentation.isBlank()) {
+            violations += "docs/governance/feature-presentation-thresholds.txt:$lineNumber has blank ownerPresentation."
+        }
+        if (reason.isBlank()) {
+            violations += "docs/governance/feature-presentation-thresholds.txt:$lineNumber has blank reason."
+        }
+        if (featureName.isBlank() || maxLines == null || maxLines <= 0 || ownerPresentation.isBlank() || reason.isBlank()) {
+            return null
+        }
+
+        return FeaturePresentationBaseline(
+            featureName = featureName,
+            maxLines = maxLines,
+            ownerPresentation = ownerPresentation,
+            reason = reason,
+        )
+    }
+
+    /**
+     * 将 `feature:<name>:presentation` 模块坐标转换为仓库目录。
+     *
+     * 返回 `null` 表示坐标格式非法，调用方负责生成治理错误。
+     */
+    private fun Project.ownerPresentationDirectory(ownerPresentation: String): java.io.File? {
+        val match = Regex("""feature:([a-z0-9_-]+):presentation""").matchEntire(ownerPresentation) ?: return null
+        return rootDir.resolve("feature/${match.groupValues[1]}/presentation")
     }
 
     /**
@@ -700,6 +867,49 @@ class LongTermGovernancePlugin : Plugin<Project> {
             ),
             violations = violations,
         )
+
+        val replayableReadPostSources = mapOf(
+            "feature/discovery/data/src/commonMain/kotlin/com/runninghub/feature/discovery/data/remote/api/WebAppCatalogApi.kt" to
+                listOf("webapp/list", "webapp/carefullyChosenList", "webapp/customMadeWebappList", "webapp/user/list", "portal/tag/tree", "webapp/detail"),
+            "feature/community/data/src/commonMain/kotlin/com/runninghub/feature/community/data/remote/api/PlazaApi.kt" to
+                listOf("portal/tag/tree", "portal/creation/list", "canvas/community/category/list", "canvas/community/composition/list"),
+            "feature/model/data/src/commonMain/kotlin/com/runninghub/feature/model/data/remote/api/ModelCatalogApi.kt" to
+                listOf("sku/list", "sku/detail"),
+            "feature/task/data/src/commonMain/kotlin/com/runninghub/feature/task/data/remote/api/WebAppTaskApi.kt" to
+                listOf("webapp/apiCallDemo", "outputs", "output/v2/history"),
+            "feature/auth/data/src/commonMain/kotlin/com/runninghub/feature/auth/data/remote/api/AuthApi.kt" to
+                listOf("openapi/accountStatus", "fun getUserInfo(", "fun getUserDetail(", "fun isFollow("),
+            "feature/quickcreate/data/src/commonMain/kotlin/com/runninghub/feature/quickcreate/data/remote/api/QuickCreateApi.kt" to
+                listOf(
+                    "qc/v2/categories",
+                    "qc/v2/models",
+                    "qc/v2/creation-modes",
+                    "QC_FEE_PREVIEW",
+                    "QC_TASK_LIST",
+                    "QC_TASK_DETAIL",
+                    "QC_PROJECT_LIST",
+                    "QC_PROJECT_TASKS",
+                    "QC_PROJECT_DETAIL",
+                    "QC_INSPIRATION_TAGS",
+                    "QC_INSPIRATION_TEMPLATES",
+                    "QC_INSPIRATION_TEMPLATE_DETAIL",
+                ),
+        )
+        replayableReadPostSources.forEach { (relativePath, readEndpointSnippets) ->
+            val source = rootDir.resolve(relativePath)
+            if (!source.isFile) {
+                violations += "Replayable read POST guard source is missing: $relativePath."
+                return@forEach
+            }
+            val text = source.readText()
+            val replayMarkerCalls = Regex("""\bmarkRunningHubAuthRetryAllowed\s*\(""")
+                .findAll(text)
+                .count()
+            val presentReadEndpoints = readEndpointSnippets.count { it in text }
+            if (replayMarkerCalls < presentReadEndpoints) {
+                violations += "$relativePath must mark each idempotent read POST request as replayable after token refresh; found $replayMarkerCalls markers for $presentReadEndpoints registered read endpoints."
+            }
+        }
     }
 
     /**
@@ -980,6 +1190,300 @@ class LongTermGovernancePlugin : Plugin<Project> {
                         violations += "${file.relativeTo(rootDir).invariantSeparatorsPath} must not expose service response msg directly: $label."
                     }
             }
+
+        val authRepositoryPath =
+            "feature/auth/data/src/commonMain/kotlin/com/runninghub/feature/auth/data/repository/AuthRepositoryImpl.kt"
+        val authRepositoryTestPath =
+            "feature/auth/data/src/commonTest/kotlin/com/runninghub/feature/auth/data/repository/AuthRepositoryImplTest.kt"
+        val authDomainPath =
+            "feature/auth/domain/src/commonMain/kotlin/com/runninghub/feature/auth/domain/AuthRepository.kt"
+        val userRepositoryPath =
+            "feature/auth/data/src/commonMain/kotlin/com/runninghub/feature/auth/data/repository/UserRepositoryImpl.kt"
+        val userRepositoryTestPath =
+            "feature/auth/data/src/commonTest/kotlin/com/runninghub/feature/auth/data/repository/UserRepositoryImplTest.kt"
+        val userDomainPath =
+            "feature/auth/domain/src/commonMain/kotlin/com/runninghub/feature/auth/domain/UserRepository.kt"
+        val taskRepositoryPath =
+            "feature/task/data/src/commonMain/kotlin/com/runninghub/feature/task/data/repository/WebAppTaskRepositoryImpl.kt"
+        val taskRepositoryTestPath =
+            "feature/task/data/src/commonTest/kotlin/com/runninghub/feature/task/data/repository/WebAppTaskRepositoryImplTest.kt"
+        val taskDomainPath =
+            "feature/task/domain/src/commonMain/kotlin/com/runninghub/feature/task/domain/WebAppTaskRepository.kt"
+        val modelDataBuildPath = "feature/model/data/build.gradle.kts"
+        val modelInvocationPath =
+            "feature/model/data/src/commonMain/kotlin/com/runninghub/feature/model/data/repository/ModelInvocationRepositoryImpl.kt"
+        val modelCatalogPath =
+            "feature/model/data/src/commonMain/kotlin/com/runninghub/feature/model/data/repository/ModelCatalogRepositoryImpl.kt"
+        val modelInvocationTestPath =
+            "feature/model/data/src/commonTest/kotlin/com/runninghub/feature/model/data/repository/ModelInvocationRepositoryImplTest.kt"
+        val modelCatalogTestPath =
+            "feature/model/data/src/commonTest/kotlin/com/runninghub/feature/model/data/repository/ModelCatalogRepositoryImplTest.kt"
+        val modelDomainPath =
+            "feature/model/domain/src/commonMain/kotlin/com/runninghub/feature/model/domain/ModelCatalogRepository.kt"
+        val modelInvocationDomainPath =
+            "feature/model/domain/src/commonMain/kotlin/com/runninghub/feature/model/domain/ModelInvocation.kt"
+        val plazaRepositoryPath =
+            "feature/community/data/src/commonMain/kotlin/com/runninghub/feature/community/data/repository/PlazaRepositoryImpl.kt"
+        val plazaRepositoryTestPath =
+            "feature/community/data/src/commonTest/kotlin/com/runninghub/feature/community/data/repository/PlazaRepositoryImplTest.kt"
+        val plazaDomainPath =
+            "feature/community/domain/src/commonMain/kotlin/com/runninghub/feature/community/domain/PlazaRepository.kt"
+
+        val authRepository = rootDir.resolve(authRepositoryPath)
+        val authRepositoryTest = rootDir.resolve(authRepositoryTestPath)
+        val authDomain = rootDir.resolve(authDomainPath)
+        val userRepository = rootDir.resolve(userRepositoryPath)
+        val userRepositoryTest = rootDir.resolve(userRepositoryTestPath)
+        val userDomain = rootDir.resolve(userDomainPath)
+        val taskRepository = rootDir.resolve(taskRepositoryPath)
+        val taskRepositoryTest = rootDir.resolve(taskRepositoryTestPath)
+        val taskDomain = rootDir.resolve(taskDomainPath)
+        val modelDataBuild = rootDir.resolve(modelDataBuildPath)
+        val modelInvocation = rootDir.resolve(modelInvocationPath)
+        val modelCatalog = rootDir.resolve(modelCatalogPath)
+        val modelInvocationTest = rootDir.resolve(modelInvocationTestPath)
+        val modelCatalogTest = rootDir.resolve(modelCatalogTestPath)
+        val modelDomain = rootDir.resolve(modelDomainPath)
+        val modelInvocationDomain = rootDir.resolve(modelInvocationDomainPath)
+        val plazaRepository = rootDir.resolve(plazaRepositoryPath)
+        val plazaRepositoryTest = rootDir.resolve(plazaRepositoryTestPath)
+        val plazaDomain = rootDir.resolve(plazaDomainPath)
+
+        if (authRepository.isFile) {
+            val text = authRepository.readText()
+            if (text.contains("Empty login response") ||
+                text.contains("No access token received") ||
+                text.contains("Token refresh failed") ||
+                text.contains("Empty user response")
+            ) {
+                violations += "$authRepositoryPath must not encode auth response structure failures through exception message."
+            }
+            if (!text.contains("AuthError.EmptyLoginResponse") ||
+                !text.contains("AuthError.MissingAccessToken") ||
+                !text.contains("AuthError.TokenRefreshFailed") ||
+                !text.contains("AuthError.EmptyUserResponse")
+            ) {
+                violations += "$authRepositoryPath must map auth response structure failures to typed AuthError subclasses."
+            }
+        }
+        if (authRepositoryTest.isFile) {
+            val text = authRepositoryTest.readText()
+            if (!text.contains("assertIs<AuthError.EmptyLoginResponse>") ||
+                !text.contains("assertIs<AuthError.MissingAccessToken>") ||
+                !text.contains("assertIs<AuthError.TokenRefreshFailed>") ||
+                !text.contains("assertIs<AuthError.EmptyUserResponse>")
+            ) {
+                violations += "$authRepositoryTestPath must assert typed AuthError subclasses for auth response structure failures."
+            }
+        }
+        if (authDomain.isFile) {
+            val text = authDomain.readText()
+            if (!text.contains("class EmptyLoginResponse") ||
+                !text.contains("class MissingAccessToken") ||
+                !text.contains("class TokenRefreshFailed") ||
+                !text.contains("class EmptyUserResponse")
+            ) {
+                violations += "$authDomainPath must expose typed AuthError subclasses for auth response structure failures."
+            }
+        }
+        if (userRepository.isFile) {
+            val text = userRepository.readText()
+            if (text.contains("Empty response data") ||
+                text.contains("IllegalStateException(\"") ||
+                text.contains("\${fallbackCode}_CODE_\$code")
+            ) {
+                violations += "$userRepositoryPath must not encode user repository failures through exception message."
+            }
+            if (!text.contains("UserRepositoryException(UserRepositoryIssue.AccountStatusMissing") ||
+                !text.contains("UserRepositoryException(UserRepositoryIssue.UserInfoMissing") ||
+                !text.contains("UserRepositoryException(UserRepositoryIssue.UserDetailMissing") ||
+                !text.contains("throw UserRepositoryException(issue, code)")
+            ) {
+                violations += "$userRepositoryPath must map user repository response failures to typed UserRepositoryException issues."
+            }
+        }
+        if (userRepositoryTest.isFile) {
+            val text = userRepositoryTest.readText()
+            if (!text.contains("assertIs<UserRepositoryException>") ||
+                !text.contains("UserRepositoryIssue.AccountStatusMissing") ||
+                !text.contains("UserRepositoryIssue.UserInfoFailed") ||
+                !text.contains("UserRepositoryIssue.FollowStatusFailed") ||
+                !text.contains("UserRepositoryIssue.FollowUserFailed") ||
+                !text.contains("UserRepositoryIssue.UnfollowUserFailed")
+            ) {
+                violations += "$userRepositoryTestPath must assert typed UserRepositoryException issues for user repository failures."
+            }
+        }
+        if (userDomain.isFile) {
+            val text = userDomain.readText()
+            if (!text.contains("class UserRepositoryException") ||
+                !text.contains("enum class UserRepositoryIssue")
+            ) {
+                violations += "$userDomainPath must expose typed UserRepositoryException and UserRepositoryIssue instead of message-only user repository errors."
+            }
+        }
+        if (taskRepository.isFile) {
+            val text = taskRepository.readText()
+            if (text.contains("TASK_\${operation.uppercase()}_FAILED_CODE_\$code") ||
+                text.contains("Empty response data") ||
+                text.contains("IllegalStateException(\"")
+            ) {
+                violations += "$taskRepositoryPath must not encode task response failures through exception message."
+            }
+            if (!text.contains("WebAppTaskException(failedIssue, code)") ||
+                !text.contains("WebAppTaskException(missingIssue)") ||
+                !text.contains("WebAppTaskIssue.RunTaskFailed") ||
+                !text.contains("WebAppTaskIssue.TaskHistoryMissing")
+            ) {
+                violations += "$taskRepositoryPath must map task response failures to typed WebAppTaskException issues."
+            }
+        }
+        if (taskRepositoryTest.isFile) {
+            val text = taskRepositoryTest.readText()
+            if (!text.contains("assertIs<WebAppTaskException>") ||
+                !text.contains("WebAppTaskIssue.RunTaskFailed") ||
+                !text.contains("WebAppTaskIssue.RunTaskMissing") ||
+                !text.contains("WebAppTaskIssue.ApiCallDemoFailed") ||
+                !text.contains("WebAppTaskIssue.TaskHistoryFailed")
+            ) {
+                violations += "$taskRepositoryTestPath must assert typed WebAppTaskException issues for task response failures."
+            }
+        }
+        if (taskDomain.isFile) {
+            val text = taskDomain.readText()
+            if (!text.contains("class WebAppTaskException") ||
+                !text.contains("enum class WebAppTaskIssue")
+            ) {
+                violations += "$taskDomainPath must expose typed WebAppTaskException and WebAppTaskIssue instead of message-only task errors."
+            }
+        }
+
+        if (modelDataBuild.isFile && !modelDataBuild.readText().contains("projects.core.common")) {
+            violations += "$modelDataBuildPath must depend on core:common for shared credential error semantics."
+        }
+        if (modelInvocation.isFile) {
+            val text = modelInvocation.readText()
+            if (!text.contains("MissingCredentialException(MissingCredential.ApiKey)")) {
+                violations += "$modelInvocationPath must use MissingCredentialException(MissingCredential.ApiKey) when local API Key is missing."
+            }
+            if (text.contains("error(ModelInvocationIssue")) {
+                violations += "$modelInvocationPath must not encode model invocation issues through exception message; use ModelInvocationException(issue)."
+            }
+            if (!text.contains("ModelInvocationException(ModelInvocationIssue.MediaUploadEmptyUrl)")) {
+                violations += "$modelInvocationPath must use ModelInvocationException(ModelInvocationIssue.MediaUploadEmptyUrl) when media upload returns no URL."
+            }
+            if (text.contains("Model detail load failed") ||
+                text.contains("Model detail missing") ||
+                text.contains("Model endpoint missing")
+            ) {
+                violations += "$modelInvocationPath must not encode model catalog endpoint fallback failures through exception message."
+            }
+            if (!text.contains("ModelCatalogException(ModelCatalogIssue.StandardDetailLoadFailed") ||
+                !text.contains("ModelCatalogException(ModelCatalogIssue.StandardDetailMissing") ||
+                !text.contains("ModelCatalogException(ModelCatalogIssue.StandardEndpointMissing")
+            ) {
+                violations += "$modelInvocationPath must map endpoint fallback failures to typed ModelCatalogException issues."
+            }
+        }
+        if (modelCatalog.isFile) {
+            val text = modelCatalog.readText()
+            if (text.contains("Model list load failed") ||
+                text.contains("Model detail load failed") ||
+                text.contains("Model detail missing") ||
+                text.contains("LLM model list load failed")
+            ) {
+                violations += "$modelCatalogPath must not encode catalog response failures through exception message."
+            }
+            if (!text.contains("ModelCatalogException(ModelCatalogIssue.StandardListLoadFailed") ||
+                !text.contains("ModelCatalogException(ModelCatalogIssue.StandardDetailLoadFailed") ||
+                !text.contains("ModelCatalogException(ModelCatalogIssue.StandardDetailMissing") ||
+                !text.contains("ModelCatalogException(ModelCatalogIssue.LlmListLoadFailed")
+            ) {
+                violations += "$modelCatalogPath must map catalog response failures to typed ModelCatalogException issues."
+            }
+        }
+        if (modelInvocationTest.isFile &&
+            !modelInvocationTest.readText().contains("assertIs<MissingCredentialException>")
+        ) {
+            violations += "$modelInvocationTestPath must assert the stable MissingCredentialException type for missing API Key."
+        }
+        if (modelInvocationTest.isFile &&
+            !modelInvocationTest.readText().contains("assertIs<ModelInvocationException>")
+        ) {
+            violations += "$modelInvocationTestPath must assert the stable ModelInvocationException type for model invocation issues."
+        }
+        if (modelInvocationTest.isFile &&
+            !modelInvocationTest.readText().contains("ModelCatalogIssue.StandardEndpointMissing")
+        ) {
+            violations += "$modelInvocationTestPath must assert typed ModelCatalogIssue for endpoint fallback failures."
+        }
+        if (modelCatalogTest.isFile) {
+            val text = modelCatalogTest.readText()
+            if (!text.contains("assertIs<ModelCatalogException>") ||
+                !text.contains("ModelCatalogIssue.StandardListLoadFailed") ||
+                !text.contains("ModelCatalogIssue.StandardDetailMissing") ||
+                !text.contains("ModelCatalogIssue.LlmListLoadFailed")
+            ) {
+                violations += "$modelCatalogTestPath must assert typed ModelCatalogException issues for catalog response failures."
+            }
+        } else {
+            violations += "$modelCatalogTestPath must cover typed ModelCatalogException issues for catalog response failures."
+        }
+        if (modelDomain.isFile) {
+            val text = modelDomain.readText()
+            if (!text.contains("class ModelCatalogException") ||
+                !text.contains("enum class ModelCatalogIssue")
+            ) {
+                violations += "$modelDomainPath must expose typed ModelCatalogException and ModelCatalogIssue instead of message-only catalog errors."
+            }
+        }
+        if (modelInvocationDomain.isFile) {
+            val text = modelInvocationDomain.readText()
+            if (text.contains("API_KEY_MISSING")) {
+                violations += "$modelInvocationDomainPath must not keep a duplicate model-specific API Key missing issue code; use core:common MissingCredential."
+            }
+            if (!text.contains("class ModelInvocationException") ||
+                !text.contains("enum class ModelInvocationIssue")
+            ) {
+                violations += "$modelInvocationDomainPath must expose typed ModelInvocationException and ModelInvocationIssue instead of message-only errors."
+            }
+        }
+        if (plazaRepository.isFile) {
+            val text = plazaRepository.readText()
+            if (text.contains("IllegalStateException(\"") ||
+                text.contains("\${fallbackCode}_CODE_\$code") ||
+                text.contains("PLAZA_CREATIONS_LOAD_FAILED\"")
+            ) {
+                violations += "$plazaRepositoryPath must not encode Plaza response failures through exception message."
+            }
+            if (!text.contains("PlazaRepositoryException(issue, code)") ||
+                !text.contains("PlazaRepositoryIssue.TagsLoadFailed") ||
+                !text.contains("PlazaRepositoryIssue.CreationsLoadFailed") ||
+                !text.contains("PlazaRepositoryIssue.ShortCategoriesLoadFailed") ||
+                !text.contains("PlazaRepositoryIssue.ShortListLoadFailed")
+            ) {
+                violations += "$plazaRepositoryPath must map Plaza response failures to typed PlazaRepositoryException issues."
+            }
+        }
+        if (plazaRepositoryTest.isFile) {
+            val text = plazaRepositoryTest.readText()
+            if (!text.contains("assertIs<PlazaRepositoryException>") ||
+                !text.contains("PlazaRepositoryIssue.TagsLoadFailed") ||
+                !text.contains("PlazaRepositoryIssue.CreationsLoadFailed") ||
+                !text.contains("PlazaRepositoryIssue.ShortCategoriesLoadFailed") ||
+                !text.contains("PlazaRepositoryIssue.ShortListLoadFailed")
+            ) {
+                violations += "$plazaRepositoryTestPath must assert typed PlazaRepositoryException issues for Plaza response failures."
+            }
+        }
+        if (plazaDomain.isFile) {
+            val text = plazaDomain.readText()
+            if (!text.contains("class PlazaRepositoryException") ||
+                !text.contains("enum class PlazaRepositoryIssue")
+            ) {
+                violations += "$plazaDomainPath must expose typed PlazaRepositoryException and PlazaRepositoryIssue instead of message-only Plaza errors."
+            }
+        }
     }
 
     /**
@@ -1125,6 +1629,9 @@ class LongTermGovernancePlugin : Plugin<Project> {
         val htmlTest = rootDir.resolve(
             "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaHtmlTest.kt"
         )
+        val composeResources = rootDir.resolve(
+            "composeApp/src/commonMain/composeResources/values/strings.xml"
+        )
         val callbackTest = rootDir.resolve(
             "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaCallbackTest.kt"
         )
@@ -1132,7 +1639,16 @@ class LongTermGovernancePlugin : Plugin<Project> {
             "composeApp/src/androidUnitTest/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaEnvironmentTest.kt"
         )
 
-        val requiredFiles = listOf(commonHtml, callbackParser, androidDialog, iosDialog, htmlTest, callbackTest, environmentTest)
+        val requiredFiles = listOf(
+            commonHtml,
+            callbackParser,
+            androidDialog,
+            iosDialog,
+            htmlTest,
+            composeResources,
+            callbackTest,
+            environmentTest,
+        )
         requiredFiles
             .filterNot { it.isFile }
             .forEach { file -> violations += "SMS captcha guard source is missing: ${file.relativeTo(rootDir).invariantSeparatorsPath}." }
@@ -1152,9 +1668,23 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 "window.__captchaWatchdog = window.setTimeout",
                 "oldScript.parentNode.removeChild(oldScript)",
                 "function extractValidToken(res)",
-                "图形验证脚本加载失败，请点击重试",
-                "图形验证图片加载失败，请点击重试",
+                "copy.scriptLoadFailedRetry.escapeJavaScriptString()",
+                "copy.imageLoadFailedRetry.escapeJavaScriptString()",
+                "copy.retryAction.escapeJavaScriptString()",
                 "internal expect fun smsCaptchaBaseUrl(): String",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = composeResources,
+            snippets = listOf(
+                "login_sms_captcha_preparing",
+                "login_sms_captcha_retry_action",
+                "login_sms_captcha_image_load_failed_retry",
+                "图形验证图片加载失败，请点击重试",
+                "login_sms_captcha_script_load_failed_retry",
+                "图形验证脚本加载失败，请点击重试",
+                "login_sms_captcha_script_timeout_retry",
             ),
             violations = violations,
         )
@@ -1558,6 +2088,325 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     }
                 }
             }
+    }
+
+    /**
+     * 防止已经退役的旧 Create 页面或状态机重新进入仓库。
+     *
+     * 新架构的快捷创作入口是 composeApp 的 `QuickCreateVoyagerScreen` 壳层和
+     * `feature:quickcreate:*` 模块；旧 `feature/create` 源目录、`CreateVoyagerScreen`
+     * 和 `CreateScreenModel` 不应再作为第二套创作实现存在。
+     */
+    private fun Project.checkRetiredCreateGuard(violations: MutableList<String>) {
+        listOf(
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/create",
+            "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/create",
+        ).forEach { relativePath ->
+            val dir = rootDir.resolve(relativePath)
+            if (dir.isDirectory && dir.walkTopDown().any { it.isFile && it.extension == "kt" }) {
+                violations += "$relativePath contains retired legacy Create source; keep creation on QuickCreate feature-first modules."
+            }
+        }
+
+        val roots = listOf(
+            rootDir.resolve("composeApp/src/commonMain/kotlin"),
+            rootDir.resolve("composeApp/src/commonTest/kotlin"),
+        )
+        val retiredTypePattern = Regex("""\b(CreateVoyagerScreen|CreateScreenModel)\b""")
+        roots
+            .filter { it.isDirectory }
+            .flatMap { root -> root.walkTopDown().filter { it.isFile && it.extension == "kt" }.toList() }
+            .forEach { file ->
+                if (retiredTypePattern.containsMatchIn(file.readText())) {
+                    val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
+                    violations += "$relativePath references retired legacy Create screen or state machine."
+                }
+            }
+    }
+
+    /**
+     * 约束 History 迁移期兼容桥，避免它在中期治理阶段扩散成新的长期架构事实。
+     *
+     * 当前 History 页仍需要 QuickCreate 历史详情、取消和参数复用能力，现有 Task Data 的 WebApp
+     * 历史接口还不能替代它。因此兼容桥可以暂时留在 composeApp 组合层，但只能有一个明确文件；
+     * 未来 Task Data 正式实现 GenerationHistoryRepository 后，应删除该桥和 AppModule 绑定。
+     */
+    private fun Project.checkHistoryCompatibilityBridgeGuard(violations: MutableList<String>) {
+        val adapterPath =
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/QuickCreateGenerationHistoryRepositoryAdapter.kt"
+        val appModulePath = "composeApp/src/commonMain/kotlin/com/runninghub/app/di/AppModule.kt"
+        val taskDataModulePath = "feature/task/data/src/commonMain/kotlin/com/runninghub/feature/task/data/di/TaskDataModule.kt"
+        val taskDataBuildPath = "feature/task/data/build.gradle.kts"
+
+        val adapterFile = rootDir.resolve(adapterPath)
+        val appModuleFile = rootDir.resolve(appModulePath)
+        val taskDataModuleFile = rootDir.resolve(taskDataModulePath)
+        val taskDataBuildFile = rootDir.resolve(taskDataBuildPath)
+
+        if (!appModuleFile.isFile) {
+            violations += "AppModule source is missing: $appModulePath."
+            return
+        }
+        if (!taskDataModuleFile.isFile) {
+            violations += "Task data module source is missing: $taskDataModulePath."
+            return
+        }
+
+        val appModuleText = appModuleFile.readText()
+        val taskDataModuleText = taskDataModuleFile.readText()
+        val taskDataProvidesUnifiedHistory = taskDataModuleText.contains("single<GenerationHistoryRepository>")
+
+        if (taskDataBuildFile.isFile && taskDataBuildFile.readText().contains("projects.feature.quickcreate.domain")) {
+            violations += "$taskDataBuildPath must not depend on feature:quickcreate:domain just to move the History compatibility bridge; add a real Task Data unified history implementation instead."
+        }
+
+        val appRoot = rootDir.resolve("composeApp/src/commonMain/kotlin/com/runninghub/app")
+        if (appRoot.isDirectory) {
+            appRoot.walkTopDown()
+                .filter { it.isFile && it.extension == "kt" }
+                .filterNot { it.relativeTo(rootDir).invariantSeparatorsPath == adapterPath }
+                .forEach { file ->
+                    val text = file.readText()
+                    if (text.contains("QuickCreationHistoryItem") ||
+                        text.contains("QuickCreationHistoryOutput") ||
+                        text.contains("QuickCreationHistoryPage") ||
+                        text.contains("QuickCreationTaskHistoryRepository")
+                    ) {
+                        violations += "${file.relativeTo(rootDir).invariantSeparatorsPath} must not map QuickCreate history models directly; keep the migration bridge isolated or replace it with Task Data."
+                    }
+                }
+        }
+
+        if (adapterFile.isFile) {
+            val adapterText = adapterFile.readText()
+            if (!adapterText.contains("internal class QuickCreateGenerationHistoryRepositoryAdapter")) {
+                violations += "$adapterPath must keep the QuickCreate history bridge internal to composeApp until it is deleted."
+            }
+            if (!adapterText.contains("QuickCreationTaskHistoryRepository") ||
+                !adapterText.contains("GenerationHistoryRepository")
+            ) {
+                violations += "$adapterPath must remain an explicit QuickCreate-to-GenerationHistory adapter; do not hide the bridge behind broader app code."
+            }
+            if (!appModuleText.contains("QuickCreateGenerationHistoryRepositoryAdapter") ||
+                !appModuleText.contains("single<GenerationHistoryRepository> { QuickCreateGenerationHistoryRepositoryAdapter(get()) }")
+            ) {
+                violations += "$appModulePath must bind the temporary History bridge explicitly, or delete the bridge after Task Data provides GenerationHistoryRepository."
+            }
+            if (taskDataProvidesUnifiedHistory) {
+                violations += "$adapterPath must be deleted once TaskDataModule binds GenerationHistoryRepository."
+            }
+        } else {
+            if (appModuleText.contains("QuickCreateGenerationHistoryRepositoryAdapter")) {
+                violations += "$appModulePath still references deleted QuickCreateGenerationHistoryRepositoryAdapter."
+            }
+            if (!taskDataProvidesUnifiedHistory) {
+                violations += "History compatibility bridge is missing, but TaskDataModule does not bind GenerationHistoryRepository yet."
+            }
+        }
+    }
+
+    /**
+     * 防止旧 QuickCreate 实现职责回流到 composeApp。
+     *
+     * 当前允许 composeApp 保留 Voyager Screen、ScreenModel 门面、Compose UI 叶子组件和资源映射；
+     * 仓库聚合、页面级状态所有权、Coordinator/Interactor/StateHolder 装配必须留在
+     * `feature:quickcreate:presentation`。该检查把“旧实现”的代码特征显式列出，避免后续协作者
+     * 在应用壳中重新创建第二套快捷创作状态机。
+     */
+    private fun Project.checkQuickCreateLegacyImplementationGuard(violations: MutableList<String>) {
+        val rootPath = "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate"
+        val quickCreateRoot = rootDir.resolve(rootPath)
+        if (!quickCreateRoot.isDirectory) {
+            violations += "QuickCreate composeApp UI shell is missing: $rootPath."
+            return
+        }
+
+        val forbiddenSnippets = listOf(
+            "import kotlinx.coroutines.flow.MutableStateFlow",
+            "QuickCreationTaskHistoryRepository",
+            "QuickCreationModelCatalogRepository",
+            "QuickCreationGenerationRepository",
+            "QuickCreationFeePreviewRepository",
+            "QuickCreationInspirationRepository",
+            "QuickCreationMediaUploadRepository",
+            "QuickCreationProjectRepository",
+            "QuickCreateDraftRepository",
+            "QuickCreateCoordinator(",
+            "QuickCreateGenerationInteractor(",
+            "QuickCreateFeePreviewInteractor(",
+            "QuickCreateMediaUploadCoordinator(",
+            "QuickCreateTaskPollingController(",
+            "QuickCreateDraftStateHolder(",
+            "QuickCreateEditorStateHolder(",
+            "QuickCreateHistoryStateHolder(",
+            "QuickCreateInspirationStateHolder(",
+            "QuickCreateProjectStateHolder(",
+            "QuickCreateModelCatalogInteractor(",
+            "QuickCreateGenerationRequestFactory(",
+        )
+
+        quickCreateRoot.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .forEach { file ->
+                val text = file.readText()
+                forbiddenSnippets
+                    .filter { forbidden -> text.contains(forbidden) }
+                    .forEach { forbidden ->
+                        val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
+                        violations += "$relativePath contains legacy QuickCreate implementation snippet '$forbidden'; keep composeApp as UI shell and move state/coordination to feature:quickcreate:presentation."
+                    }
+            }
+
+        val testRootPath = "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/quickcreate"
+        val quickCreateTestRoot = rootDir.resolve(testRootPath)
+        val forbiddenTestSnippets = forbiddenSnippets + listOf(
+            "QuickCreatePresentationStateHolderFactory(",
+            "FakeQuickCreateRepository",
+            "RecordingQuickCreateRepository",
+        )
+        if (quickCreateTestRoot.isDirectory) {
+            quickCreateTestRoot.walkTopDown()
+                .filter { it.isFile && it.extension == "kt" }
+                .forEach { file ->
+                    val text = file.readText()
+                    forbiddenTestSnippets
+                        .filter { forbidden -> text.contains(forbidden) }
+                        .forEach { forbidden ->
+                            val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
+                            violations += "$relativePath contains legacy QuickCreate test fixture snippet '$forbidden'; keep behavior tests in feature:quickcreate:presentation and limit composeApp tests to UI shell wiring."
+                        }
+                }
+        }
+    }
+
+    /**
+     * 防止 QuickCreate 的应用壳 ScreenModel 重新承载仓库聚合或页面状态所有权。
+     *
+     * QuickCreate 仍由 composeApp 提供 Voyager ScreenModel 生命周期，但页面级状态容器、
+     * Coordinator 装配和领域仓库聚合必须位于 `feature:quickcreate:presentation`。
+     */
+    private fun Project.checkQuickCreateScreenModelFacadeGuard(violations: MutableList<String>) {
+        val relativePath = "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreenModel.kt"
+        val file = rootDir.resolve(relativePath)
+        if (!file.isFile) {
+            violations += "QuickCreate ScreenModel facade is missing: $relativePath."
+            return
+        }
+
+        val text = file.readText()
+        val forbiddenSnippets = listOf(
+            "import kotlinx.coroutines.flow.MutableStateFlow",
+            "QuickCreateCoordinator(",
+            "QuickCreationTaskHistoryRepository",
+            "QuickCreationModelCatalogRepository",
+            "QuickCreationGenerationRepository",
+            "QuickCreationFeePreviewRepository",
+            "QuickCreationInspirationRepository",
+            "QuickCreationMediaUploadRepository",
+            "QuickCreationProjectRepository",
+            "QuickCreateDraftRepository",
+        )
+        forbiddenSnippets.forEach { forbidden ->
+            if (text.contains(forbidden)) {
+                violations += "$relativePath must remain a Voyager facade; move QuickCreate state ownership and repository aggregation to feature:quickcreate:presentation."
+            }
+        }
+
+        if (!text.contains("QuickCreatePresentationStateHolderFactory")) {
+            violations += "$relativePath must create its presentation session through QuickCreatePresentationStateHolderFactory."
+        }
+    }
+
+    /**
+     * 防止 QuickCreate 任务状态区重新出现原文透传文案通道。
+     *
+     * 任务状态区只能展示稳定状态键或 [QuickCreatePresentationError] 映射后的资源文案；
+     * 服务端未知摘要需要先降级为稳定错误语义，不能通过 `Custom(value)` 直接进入 UI。
+     */
+    private fun Project.checkQuickCreateTaskStatusTextGuard(violations: MutableList<String>) {
+        val statusTextPath =
+            "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/result/QuickCreateTaskStatusUi.kt"
+        val resultContentPath =
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/result/QuickCreateResultContent.kt"
+        val statusTextFile = rootDir.resolve(statusTextPath)
+        val resultContentFile = rootDir.resolve(resultContentPath)
+
+        listOf(statusTextFile, resultContentFile)
+            .filterNot { it.isFile }
+            .forEach { file -> violations += "QuickCreate task status text guard source is missing: ${file.relativeTo(rootDir).invariantSeparatorsPath}." }
+
+        if (statusTextFile.isFile) {
+            val text = statusTextFile.readText()
+            if (text.contains("data class Custom(") || text.contains("QuickCreateTaskStatusText.Custom")) {
+                violations += "$statusTextPath must not define or document QuickCreateTaskStatusText.Custom; use stable status or error semantics."
+            }
+        }
+        if (resultContentFile.isFile) {
+            val text = resultContentFile.readText()
+            if (text.contains("is QuickCreateTaskStatusText.Custom")) {
+                violations += "$resultContentPath must not render QuickCreateTaskStatusText.Custom directly."
+            }
+        }
+    }
+
+    /**
+     * 防止 History Compose 页面重新按运行时任务标题推断费用或输出数量。
+     *
+     * 服务端标题仍可作为迁移期启发式输入，但必须集中在 Task Presentation 层输出稳定语义；
+     * composeApp 只负责把 TaskHistoryCostText 和 TaskHistoryOutputCountText 映射为资源文案。
+     */
+    private fun Project.checkTaskHistoryPresentationTextGuard(violations: MutableList<String>) {
+        val historyScreenPath =
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/TaskHistoryScreen.kt"
+        val stateHolderPath =
+            "feature/task/presentation/src/commonMain/kotlin/com/runninghub/feature/task/presentation/TaskHistoryStateHolder.kt"
+
+        val historyScreenFile = rootDir.resolve(historyScreenPath)
+        if (historyScreenFile.isFile) {
+            val text = historyScreenFile.readText()
+            if (text.contains("title.contains(\"\\u89c6\\u9891\")") ||
+                text.contains("title.contains(\"\\u89d2\\u8272\")")
+            ) {
+                violations += "$historyScreenPath must not infer task cost or output count from runtime title text; map TaskHistoryCostText/TaskHistoryOutputCountText instead."
+            }
+        } else {
+            violations += "Task history screen guard target is missing: $historyScreenPath."
+        }
+
+        val stateHolderFile = rootDir.resolve(stateHolderPath)
+        if (stateHolderFile.isFile) {
+            val text = stateHolderFile.readText()
+            if (!text.contains("enum class TaskHistoryCostText") ||
+                !text.contains("enum class TaskHistoryOutputCountText")
+            ) {
+                violations += "$stateHolderPath must expose stable TaskHistory cost/output text semantics for composeApp mapping."
+            }
+        } else {
+            violations += "Task history presentation guard target is missing: $stateHolderPath."
+        }
+    }
+
+    /**
+     * 防止 QuickCreate 旧版 Domain 模型重新承载最终展示文案。
+     *
+     * 旧版图片/视频模型枚举只应作为 Data 路由用的稳定标识和能力开关。模型名称、说明或
+     * 兼容展示文本必须留在 Presentation 语义或 Compose Resources 边界，避免 Domain
+     * 再次保存中文 UI 文案。
+     */
+    private fun Project.checkQuickCreateDomainModelTextGuard(violations: MutableList<String>) {
+        val relativePath = "feature/quickcreate/domain/src/commonMain/kotlin/com/runninghub/feature/quickcreate/domain/QuickCreationModels.kt"
+        val file = rootDir.resolve(relativePath)
+        if (!file.isFile) {
+            violations += "QuickCreate domain model source is missing: $relativePath."
+            return
+        }
+
+        val text = file.readText()
+        listOf("val displayName:", "val description:").forEach { forbidden ->
+            if (text.contains(forbidden)) {
+                violations += "$relativePath must not define $forbidden on legacy Domain model enums; use stable Presentation text semantics instead."
+            }
+        }
     }
 
     /**

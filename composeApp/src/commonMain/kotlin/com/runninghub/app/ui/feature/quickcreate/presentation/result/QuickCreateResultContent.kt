@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.VideoThumbnail
+import com.runninghub.app.ui.feature.quickcreate.asQuickCreateErrorText
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultUi
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultMediaType
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
@@ -117,7 +118,7 @@ internal fun QuickCreateTaskStatusArea(status: QuickCreateTaskUiStatus, statusTe
 private fun quickCreateTaskStatusText(text: QuickCreateTaskStatusText): String =
     when (text) {
         QuickCreateTaskStatusText.Canceled -> stringResource(Res.string.quick_create_task_status_canceled)
-        is QuickCreateTaskStatusText.Custom -> text.value
+        is QuickCreateTaskStatusText.Error -> text.error.asQuickCreateErrorText()
         QuickCreateTaskStatusText.Failed -> stringResource(Res.string.quick_create_task_status_failed)
         QuickCreateTaskStatusText.Processing -> stringResource(Res.string.quick_create_task_status_processing)
         QuickCreateTaskStatusText.Queuing -> stringResource(Res.string.quick_create_task_status_queuing)

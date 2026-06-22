@@ -8,6 +8,7 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceValidationIssue
 import com.runninghub.feature.quickcreate.domain.QuickCreationUploadMediaKind
 import com.runninghub.feature.quickcreate.domain.QuickCreationUploadedMedia
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
@@ -66,8 +67,8 @@ sealed interface QuickCreateGenerationRequestBuildResult {
  * 快捷创作生成前同步校验失败的稳定原因。
  *
  * 请求构建器只负责判断当前状态为何不能生成，不直接返回最终中文文案。
- * 服务端模型字段校验目前仍由 [QuickCreationServiceSchema] 返回可展示文本，
- * 因此通过 [CustomMessage] 兼容；Prompt 类固定规则则使用稳定枚举，便于后续统一资源化。
+ * 服务端模型字段校验由 [QuickCreationServiceSchema] 返回稳定 issue，
+ * 本类型只保存业务原因和运行时约束值，不保存最终中文 UI 文案。
  */
 sealed interface QuickCreateGenerationBlockReason {
     /** 描述词为空或只包含空白字符，当前请求不能提交。 */
@@ -83,13 +84,12 @@ sealed interface QuickCreateGenerationBlockReason {
     ) : QuickCreateGenerationBlockReason
 
     /**
-     * 兼容动态服务字段或上传字段校验返回的可展示消息。
+     * 动态服务字段或上传字段校验失败。
      *
-     * @property message 由服务字段 schema 校验生成的阻塞说明，通常包含字段标题或上传约束；
-     * 空字符串不应传入，调用方会原样展示该值。
+     * @property issue Domain 层返回的稳定校验失败语义，包含服务端字段标题和约束数值。
      */
-    data class CustomMessage(
-        val message: String,
+    data class ServiceValidation(
+        val issue: QuickCreationServiceValidationIssue,
     ) : QuickCreateGenerationBlockReason
 }
 
@@ -117,7 +117,7 @@ class QuickCreateGenerationRequestFactory {
     ): QuickCreateGenerationRequestBuildResult {
         validateCurrentServiceFields(state)?.let { error ->
             return QuickCreateGenerationRequestBuildResult.Blocked(
-                QuickCreateGenerationBlockReason.CustomMessage(error),
+                QuickCreateGenerationBlockReason.ServiceValidation(error),
             )
         }
         currentPromptError(state)?.let { error ->
@@ -126,7 +126,7 @@ class QuickCreateGenerationRequestFactory {
         if (validateUploads) {
             validateCurrentServiceUploads(state)?.let { error ->
                 return QuickCreateGenerationRequestBuildResult.Blocked(
-                    QuickCreateGenerationBlockReason.CustomMessage(error),
+                    QuickCreateGenerationBlockReason.ServiceValidation(error),
                 )
             }
         }
@@ -243,9 +243,9 @@ class QuickCreateGenerationRequestFactory {
     /**
      * 校验当前 Tab 的服务字段。
      *
-     * @return 校验失败时返回可展示错误；全部通过时返回 null。
+     * @return 校验失败时返回稳定 issue；全部通过时返回 null。
      */
-    fun validateCurrentServiceFields(state: QuickCreateUiState): String? =
+    fun validateCurrentServiceFields(state: QuickCreateUiState): QuickCreationServiceValidationIssue? =
         when (state.currentTab) {
             QuickCreateTab.IMAGE -> validateServiceFields(
                 model = state.selectedImageServiceModel,
@@ -262,7 +262,7 @@ class QuickCreateGenerationRequestFactory {
      *
      * 隐藏字段和未激活 child 字段不会参与校验，避免不可见参数阻塞生成。
      */
-    fun validateCurrentServiceUploads(state: QuickCreateUiState): String? =
+    fun validateCurrentServiceUploads(state: QuickCreateUiState): QuickCreationServiceValidationIssue? =
         when (state.currentTab) {
             QuickCreateTab.IMAGE -> validateServiceUploads(
                 model = state.selectedImageServiceModel,
@@ -393,7 +393,7 @@ private fun quickCreationListParams(
 private fun validateServiceFields(
     model: QuickCreationServiceModel?,
     serviceParams: Map<String, String>,
-): String? =
+): QuickCreationServiceValidationIssue? =
     QuickCreationServiceSchema.validateFields(model = model, serviceParams = serviceParams)
 
 private fun validateServiceUploads(
@@ -401,7 +401,7 @@ private fun validateServiceUploads(
     mediaReferences: List<MediaReference>,
     fallbackMediaType: QuickCreateMediaType?,
     serviceParams: Map<String, String>,
-): String? =
+): QuickCreationServiceValidationIssue? =
     QuickCreationServiceSchema.validateUploads(
         model = model,
         uploadedMedia = mediaReferences.toQuickCreationUploadedMedia(),

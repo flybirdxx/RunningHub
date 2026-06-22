@@ -16,11 +16,29 @@ package com.runninghub.app.ui.feature.login
  * 调用方必须只把它用于下一次 `/uc/sendSms` 请求，不得持久化或写入日志。
  * @param closeCallbackExpression TAC 关闭按钮触发时执行的 JavaScript 表达式。
  * 调用方应关闭当前验证码弹窗，但保留登录页手机号等用户输入。
+ * @param copy 验证码 HTML 包装层和 TAC 组件需要展示的本地化文案。
  */
 internal fun smsCaptchaHtml(
     tokenCallbackExpression: String,
     closeCallbackExpression: String,
-): String =
+    copy: SmsCaptchaCopy,
+): String {
+    val initialStatus = copy.preparing.escapeHtml()
+    val retryAction = copy.retryAction.escapeJavaScriptString()
+    val preparing = copy.preparing.escapeJavaScriptString()
+    val loadFailedRetry = copy.loadFailedRetry.escapeJavaScriptString()
+    val imageLoadFailedRetry = copy.imageLoadFailedRetry.escapeJavaScriptString()
+    val loadFailedLater = copy.loadFailedLater.escapeJavaScriptString()
+    val rotateTitle = copy.rotateTitle.escapeJavaScriptString()
+    val captchaLoadFailed = copy.captchaLoadFailed.escapeJavaScriptString()
+    val verifyFailed = copy.verifyFailed.escapeJavaScriptString()
+    val verifySuccess = copy.verifySuccess.escapeJavaScriptString()
+    val tokenMissingRetry = copy.tokenMissingRetry.escapeJavaScriptString()
+    val initFailedRetry = copy.initFailedRetry.escapeJavaScriptString()
+    val scriptLoadFailedRetry = copy.scriptLoadFailedRetry.escapeJavaScriptString()
+    val scriptTimeoutRetry = copy.scriptTimeoutRetry.escapeJavaScriptString()
+
+    return (
     """
     <!doctype html>
     <html>
@@ -35,13 +53,15 @@ internal fun smsCaptchaHtml(
       </style>
     </head>
     <body>
-      <div id="captcha"><div id="captcha-status" class="status">准备图形验证...</div></div>
+      <div id="captcha"><div id="captcha-status" class="status">$initialStatus</div></div>
       <script>
         (function () {
           var bridgeName = '$CAPTCHA_BRIDGE_NAME';
+          var copyRetryAction = '$retryAction';
+          var copyPreparing = '$preparing';
           function fail(message) {
             document.getElementById('captcha').innerHTML =
-              '<div class="status">' + message + '<br><button class="retry" onclick="window.__loadSmsCaptchaScript()">重试</button></div>';
+              '<div class="status">' + message + '<br><button class="retry" onclick="window.__loadSmsCaptchaScript()">' + copyRetryAction + '</button></div>';
           }
           function notifyNativeToken(token) {
             var callbackToken = token || '';
@@ -83,22 +103,22 @@ internal fun smsCaptchaHtml(
               var bgImage = document.getElementById('tianai-captcha-slider-bg-img');
               var moveImage = document.getElementById('tianai-captcha-slider-move-img');
               if (!bgImage || !moveImage) {
-                fail('图形验证加载失败，请点击重试');
+                fail('$loadFailedRetry');
                 return;
               }
               if (!bgImage.complete || bgImage.naturalWidth <= 0 || !moveImage.complete || moveImage.naturalWidth <= 0) {
-                fail('图形验证图片加载失败，请点击重试');
+                fail('$imageLoadFailedRetry');
               }
             }, 8000);
           }
           function initCaptcha() {
             if (!window.TAC) {
-              fail('图形验证加载失败，请稍后重试');
+              fail('$loadFailedLater');
               return;
             }
             window.clearTimeout(window.__captchaWatchdog);
             var container = document.getElementById('captcha');
-            container.innerHTML = '<div id="captcha-status" class="status">准备图形验证...</div>';
+            container.innerHTML = '<div id="captcha-status" class="status">' + copyPreparing + '</div>';
             try {
               var config = new window.CaptchaConfig({
                 bindEl: '#captcha',
@@ -106,16 +126,16 @@ internal fun smsCaptchaHtml(
                 validCaptchaUrl: '/uc/checkCaptcha',
                 isEn: false,
                 i18n: {
-                  title: '拖动滑块将图片旋转至正确位置',
-                  errorText1: '验证码加载失败',
-                  errorText2: '验证失败，请重新尝试',
-                  successText: '验证成功'
+                  title: '$rotateTitle',
+                  errorText1: '$captchaLoadFailed',
+                  errorText2: '$verifyFailed',
+                  successText: '$verifySuccess'
                 },
                 validSuccess: function (res, captcha, tac) {
                   window.clearTimeout(window.__captchaWatchdog);
                   var token = extractValidToken(res);
                   if (!token) {
-                    fail('图形验证已通过，但未返回短信凭证，请点击重试');
+                    fail('$tokenMissingRetry');
                     return;
                   }
                   // 先把 token 交给原生层，由 Compose 状态关闭整个弹窗并重试短信发送；
@@ -127,7 +147,7 @@ internal fun smsCaptchaHtml(
                     tac.reloadCaptcha();
                     scheduleRenderWatchdog();
                   } else {
-                    fail('验证失败，请点击重试');
+                    fail('$loadFailedRetry');
                   }
                 },
                 btnCloseFun: function () {
@@ -149,10 +169,10 @@ internal fun smsCaptchaHtml(
                 moveTrackMaskBorderColor: '#0B0E12',
                 isEn: false,
                 i18n: {
-                  title: '拖动滑块将图片旋转至正确位置',
-                  errorText1: '验证码加载失败',
-                  errorText2: '验证失败，请重新尝试',
-                  successText: '验证成功'
+                  title: '$rotateTitle',
+                  errorText1: '$captchaLoadFailed',
+                  errorText2: '$verifyFailed',
+                  successText: '$verifySuccess'
                 }
               };
               // 按官网组件的调用顺序初始化，让 TAC 自己维护 challenge、轨迹和刷新状态。
@@ -160,7 +180,7 @@ internal fun smsCaptchaHtml(
               new window.TAC(config, style).init();
               scheduleRenderWatchdog();
             } catch (error) {
-              fail('图形验证初始化失败，请点击重试');
+              fail('$initFailedRetry');
             }
           }
           function loadCaptchaScript() {
@@ -175,7 +195,7 @@ internal fun smsCaptchaHtml(
               oldScript.parentNode.removeChild(oldScript);
             }
             document.getElementById('captcha').innerHTML =
-              '<div id="captcha-status" class="status">准备图形验证...</div>';
+              '<div id="captcha-status" class="status">' + copyPreparing + '</div>';
             var script = document.createElement('script');
             script.id = 'runninghub-tac-script';
             script.src = '/tac/js/tac.min.js';
@@ -186,11 +206,11 @@ internal fun smsCaptchaHtml(
             };
             script.onerror = function () {
               window.clearTimeout(window.__captchaScriptTimer);
-              fail('图形验证脚本加载失败，请点击重试');
+              fail('$scriptLoadFailedRetry');
             };
             window.__captchaScriptTimer = window.setTimeout(function () {
               if (!window.TAC) {
-                fail('图形验证脚本加载超时，请点击重试');
+                fail('$scriptTimeoutRetry');
               }
             }, 8000);
             document.head.appendChild(script);
@@ -213,6 +233,29 @@ internal fun smsCaptchaHtml(
     </body>
     </html>
     """.trimIndent()
+    )
+}
+
+private fun String.escapeHtml(): String =
+    replace("&", "&amp;")
+        .replace("<", "&lt;")
+        .replace(">", "&gt;")
+        .replace("\"", "&quot;")
+        .replace("'", "&#39;")
+
+private fun String.escapeJavaScriptString(): String =
+    buildString {
+        for (char in this@escapeJavaScriptString) {
+            when (char) {
+                '\\' -> append("\\\\")
+                '\'' -> append("\\'")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> append(char)
+            }
+        }
+    }
 
 /**
  * 返回短信图形验证码 Web 容器使用的同源根地址。

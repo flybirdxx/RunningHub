@@ -26,7 +26,9 @@ class PlazaStateHolderTest {
         val state = stateHolder.uiState.value
         assertEquals(false, state.isLoading)
         assertEquals(listOf("tag-1"), state.tags.map { it.id })
+        assertEquals(emptyMap(), state.fallbackTagLabels)
         assertEquals(listOf("creation-1"), state.creations.map { it.id })
+        assertEquals(emptyMap(), state.fallbackCreationTexts)
         assertEquals("RECOMMEND", repository.lastSort)
     }
 
@@ -120,6 +122,7 @@ class PlazaStateHolderTest {
     @Test
     fun `creation failure exposes stable presentation error without throwable message`() = runTest {
         val repository = FakePlazaRepository()
+        repository.tags = emptyList()
         repository.creationFailure = IllegalStateException("remote plaza msg should not reach ui")
         val stateHolder = PlazaStateHolder(repository, this)
 
@@ -130,6 +133,17 @@ class PlazaStateHolderTest {
         assertEquals(PlazaPresentationError.CreationsLoadFailed, state.error)
         assertTrue(state.creations.isNotEmpty())
         assertEquals("fallback-image-v2", state.creations.first().id)
+        assertEquals(PlazaFallbackTagLabel.Images, state.fallbackTagLabels["image"])
+        assertEquals(PlazaFallbackTagLabel.Videos, state.fallbackTagLabels["video"])
+        assertEquals(PlazaFallbackTagLabel.Workflows, state.fallbackTagLabels["workflow"])
+        assertEquals(
+            PlazaFallbackCardText(
+                intro = PlazaFallbackCardIntro.ImageV2PromptGallery,
+                owner = PlazaFallbackCardOwner.RunningHubApi,
+                mediaType = PlazaFallbackCardMediaType.Image,
+            ),
+            state.fallbackCreationTexts["fallback-image-v2"],
+        )
     }
 
     @Test
@@ -150,6 +164,7 @@ class PlazaStateHolderTest {
         var lastSort: String? = null
         var lastTags: List<String> = emptyList()
         val requestedPages = mutableListOf<Int>()
+        var tags: List<PlazaTag> = listOf(PlazaTag(id = "tag-1", name = "Images", level = 1))
         var pages: Map<Int, List<PlazaCreationCard>> = mapOf(
             1 to listOf(PlazaCreationCard(id = "creation-1", intro = "Demo")),
         )
@@ -160,7 +175,7 @@ class PlazaStateHolderTest {
         var shortFailure: Throwable? = null
 
         override suspend fun getTags(): Result<List<PlazaTag>> =
-            Result.success(listOf(PlazaTag(id = "tag-1", name = "Images", level = 1)))
+            Result.success(tags)
 
         override suspend fun listCreations(
             page: Int,

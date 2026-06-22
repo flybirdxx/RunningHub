@@ -1,17 +1,38 @@
 package com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer
 
 import androidx.compose.runtime.Composable
+import com.runninghub.feature.quickcreate.presentation.editor.ImageModelLabel
 import com.runninghub.feature.quickcreate.presentation.editor.ImageQualityLabel
+import com.runninghub.feature.quickcreate.presentation.editor.VideoModelLabel
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDurationLabel
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolutionLabel
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_image_model_all_power_image_g2
 import runninghub.composeapp.generated.resources.quick_create_image_quality_high
 import runninghub.composeapp.generated.resources.quick_create_image_quality_low
 import runninghub.composeapp.generated.resources.quick_create_image_quality_medium
 import runninghub.composeapp.generated.resources.quick_create_video_duration_10_seconds
 import runninghub.composeapp.generated.resources.quick_create_video_duration_5_seconds
+import runninghub.composeapp.generated.resources.quick_create_video_model_kling_o1
+import runninghub.composeapp.generated.resources.quick_create_video_model_kling_o3_4k
+import runninghub.composeapp.generated.resources.quick_create_video_model_wanxiang_2_6
+import runninghub.composeapp.generated.resources.quick_create_video_model_wanxiang_2_7
 import runninghub.composeapp.generated.resources.quick_create_video_resolution_native_1080p
+
+/**
+ * 将本地兼容图片模型展示语义映射为应用资源文案。
+ *
+ * 这些模型只作为服务端模型不可用时的旧参数兜底；固定中文名称必须留在资源层，
+ * 第三方英文商品名可作为运行时文本直接展示。
+ */
+@Composable
+internal fun ImageModelLabel.asImageModelText(): String =
+    when (this) {
+        ImageModelLabel.AllPowerImageG2 ->
+            stringResource(Res.string.quick_create_image_model_all_power_image_g2)
+        is ImageModelLabel.RuntimeName -> value
+    }
 
 /**
  * 将图片质量展示语义映射为 composeApp 本地资源文案。
@@ -25,6 +46,21 @@ internal fun ImageQualityLabel.asImageQualityText(): String =
         ImageQualityLabel.Low -> stringResource(Res.string.quick_create_image_quality_low)
         ImageQualityLabel.Medium -> stringResource(Res.string.quick_create_image_quality_medium)
         ImageQualityLabel.High -> stringResource(Res.string.quick_create_image_quality_high)
+    }
+
+/**
+ * 将本地兼容视频模型展示语义映射为应用资源文案。
+ *
+ * 固定中文模型名集中在资源层；不含本地化语义的英文商品名保留为运行时文本。
+ */
+@Composable
+internal fun VideoModelLabel.asVideoModelText(): String =
+    when (this) {
+        is VideoModelLabel.RuntimeName -> value
+        VideoModelLabel.Wanxiang26 -> stringResource(Res.string.quick_create_video_model_wanxiang_2_6)
+        VideoModelLabel.Wanxiang27 -> stringResource(Res.string.quick_create_video_model_wanxiang_2_7)
+        VideoModelLabel.KlingO1 -> stringResource(Res.string.quick_create_video_model_kling_o1)
+        VideoModelLabel.KlingO34k -> stringResource(Res.string.quick_create_video_model_kling_o3_4k)
     }
 
 /**

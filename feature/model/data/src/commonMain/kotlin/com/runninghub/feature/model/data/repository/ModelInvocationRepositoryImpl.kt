@@ -1,9 +1,14 @@
 ﻿package com.runninghub.feature.model.data.repository
 
+import com.runninghub.core.common.MissingCredential
+import com.runninghub.core.common.MissingCredentialException
 import com.runninghub.core.network.RunningHubApiEnvironment
 import com.runninghub.core.storage.CredentialStore
+import com.runninghub.feature.model.domain.ModelCatalogException
+import com.runninghub.feature.model.domain.ModelCatalogIssue
+import com.runninghub.feature.model.domain.ModelInvocationException
+import com.runninghub.feature.model.domain.ModelInvocationIssue
 import com.runninghub.feature.model.domain.ModelInvocationRepository
-import com.runninghub.feature.model.domain.ModelInvocationIssueCode
 import com.runninghub.feature.model.domain.ModelInvocationRequest
 import com.runninghub.feature.model.domain.ModelInvocationTask
 import com.runninghub.feature.model.data.remote.api.ModelCatalogApi
@@ -93,7 +98,8 @@ class ModelInvocationRepositoryImpl(
     /**
      * 上传模型调用媒体素材。
      *
-     * 上传前先读取本地 API Key；缺失时直接返回失败，避免产生无效网络请求或在日志中暴露空凭据。
+     * 上传前先读取本地 API Key；缺失时返回稳定凭据异常，避免产生无效网络请求、
+     * 在日志中暴露空凭据，或让上层通过异常 message 推断业务语义。
      */
     override suspend fun uploadMedia(
         fileBytes: ByteArray,
@@ -102,7 +108,7 @@ class ModelInvocationRepositoryImpl(
     ): Result<String> =
         runCatching {
             val apiKey = credentialStore.getApiKey()?.takeIf { it.isNotBlank() }
-                ?: error(ModelInvocationIssueCode.API_KEY_MISSING)
+                ?: throw MissingCredentialException(MissingCredential.ApiKey)
             val response = client.submitFormWithBinaryData(
                 url = RunningHubApiEnvironment.openApiV2Url("media/upload/binary"),
                 formData = formData {
@@ -117,7 +123,7 @@ class ModelInvocationRepositoryImpl(
 
             // 服务端历史上可能返回 downloadUrl，也可能只返回 fileName；后者沿用旧客户端的 CDN
             // 拼接规则，确保标准模型上传在接口未完全统一时仍能得到可访问 URL。
-            response.uploadUrl() ?: error(ModelInvocationIssueCode.MEDIA_UPLOAD_EMPTY_URL)
+            response.uploadUrl() ?: throw ModelInvocationException(ModelInvocationIssue.MediaUploadEmptyUrl)
         }
 
     private suspend fun resolveEndpoint(modelId: String): String {
@@ -126,11 +132,14 @@ class ModelInvocationRepositoryImpl(
         // 目录详情是 endpoint 的唯一远端来源；缓存未命中时在 Data 层回源，避免 Domain 请求携带路径。
         val response = modelCatalogApi.getStandardModelDetail(modelId)
         // endpoint 回源失败时只返回稳定错误和 code，不把服务端 msg 暴露到上层错误展示链路。
-        check(response.code == 0) { "Model detail load failed: code=${response.code}" }
-        val detail = checkNotNull(response.data) { "Model detail missing" }
+        if (response.code != 0) {
+            throw ModelCatalogException(ModelCatalogIssue.StandardDetailLoadFailed, response.code)
+        }
+        val detail = response.data
+            ?: throw ModelCatalogException(ModelCatalogIssue.StandardDetailMissing)
         endpointRegistry.register(detail.id, detail.rhEndpoint)
         return detail.rhEndpoint.takeIf { it.isNotBlank() }
-            ?: error("Model endpoint missing")
+            ?: throw ModelCatalogException(ModelCatalogIssue.StandardEndpointMissing)
     }
 
     private fun String.ensureOpenApiEndpoint(): String =

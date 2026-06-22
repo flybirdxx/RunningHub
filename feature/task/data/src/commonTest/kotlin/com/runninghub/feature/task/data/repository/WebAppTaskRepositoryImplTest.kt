@@ -1,9 +1,13 @@
 package com.runninghub.feature.task.data.repository
 
+import com.runninghub.core.common.MissingCredential
+import com.runninghub.core.common.MissingCredentialException
 import com.runninghub.core.model.InputNode
 import com.runninghub.core.model.TaskExecutionStatus
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.task.data.remote.api.WebAppTaskApi
+import com.runninghub.feature.task.domain.WebAppTaskException
+import com.runninghub.feature.task.domain.WebAppTaskIssue
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -17,6 +21,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import kotlin.test.assertIs
 
 /**
  * WebAppTaskRepositoryImpl 的凭据注入测试。
@@ -50,7 +55,9 @@ class WebAppTaskRepositoryImplTest {
 
         assertTrue(result.isFailure)
         assertEquals(0, networkCalls)
-        assertEquals("请先在设置中绑定 API Key", result.exceptionOrNull()?.message)
+        val error = assertIs<MissingCredentialException>(result.exceptionOrNull())
+        assertEquals(MissingCredential.ApiKey, error.credential)
+        assertEquals("MISSING_API_KEY", error.message)
     }
 
     /**
@@ -113,10 +120,69 @@ class WebAppTaskRepositoryImplTest {
             nodeInfoList = listOf(inputNode()),
         )
 
-        val message = result.exceptionOrNull()?.message.orEmpty()
         assertTrue(result.isFailure)
-        assertEquals("TASK_RUNTASK_FAILED_CODE_503", message)
-        assertTrue("raw task server failure" !in message)
+        val error = assertIs<WebAppTaskException>(result.exceptionOrNull())
+        assertEquals(WebAppTaskIssue.RunTaskFailed, error.issue)
+        assertEquals(503, error.remoteCode)
+        assertTrue("raw task server failure" !in error.message.orEmpty())
+    }
+
+    /**
+     * 成功业务码缺少 data 时应返回结构化响应异常，而不是英文异常 message。
+     */
+    @Test
+    fun `runTask missing data maps to stable task issue`() = runBlocking {
+        val repository = repositoryWithMock(
+            credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+            response = {
+                """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": null
+                    }
+                """.trimIndent()
+            },
+        )
+
+        val result = repository.runTask(
+            webappId = 10L,
+            nodeInfoList = listOf(inputNode()),
+        )
+
+        assertTrue(result.isFailure)
+        val error = assertIs<WebAppTaskException>(result.exceptionOrNull())
+        assertEquals(WebAppTaskIssue.RunTaskMissing, error.issue)
+        assertEquals(null, error.remoteCode)
+    }
+
+    /**
+     * 不同任务接口失败时应保留各自的稳定语义，避免上层解析 operation 字符串。
+     */
+    @Test
+    fun `task operations map failed responses to stable task issues`() = runBlocking {
+        val failures = listOf(
+            WebAppTaskIssue.ApiCallDemoFailed to suspend {
+                repositoryWithMock().getApiCallDemo("webapp-1")
+            },
+            WebAppTaskIssue.TaskOutputsFailed to suspend {
+                repositoryWithMock().getTaskOutputs(10L)
+            },
+            WebAppTaskIssue.UploadFileFailed to suspend {
+                repositoryWithMock().uploadFile("image/png", "image".encodeToByteArray(), "image.png")
+            },
+            WebAppTaskIssue.TaskHistoryFailed to suspend {
+                repositoryWithMock().getTaskHistory(pageNum = 1, pageSize = 10)
+            },
+        )
+
+        failures.forEach { (issue, call) ->
+            val result = call()
+            assertTrue(result.isFailure)
+            val error = assertIs<WebAppTaskException>(result.exceptionOrNull())
+            assertEquals(issue, error.issue)
+            assertEquals(409, error.remoteCode)
+        }
     }
 
     /**
@@ -155,8 +221,16 @@ class WebAppTaskRepositoryImplTest {
     }
 
     private fun repositoryWithMock(
-        credentialStore: CredentialStore,
-        response: (String) -> String,
+        credentialStore: CredentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+        response: (String) -> String = {
+            """
+                {
+                  "code": 409,
+                  "msg": "raw task server failure",
+                  "data": null
+                }
+            """.trimIndent()
+        },
     ): WebAppTaskRepositoryImpl {
         val engine = MockEngine { request ->
             respond(

@@ -3,6 +3,8 @@ package com.runninghub.feature.quickcreate.presentation.result
 import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskIssueCode
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -13,8 +15,8 @@ import kotlin.test.assertEquals
 /**
  * 验证快捷创作任务轮询控制器的状态映射。
  *
- * 这些用例直接覆盖已拆出的 [QuickCreateTaskPollingController]，避免所有任务状态行为继续只依赖
- * `QuickCreateScreenModelTest` 的间接验证。后续迁移 ScreenModel 时，可以优先保留这里的细粒度契约。
+ * 这些用例直接覆盖已拆出的 [QuickCreateTaskPollingController]，避免任务状态行为重新依赖
+ * composeApp 应用壳测试夹具。ScreenModel 只负责生命周期转发，不再承载轮询状态机断言。
  */
 class QuickCreateTaskPollingControllerTest {
 
@@ -40,8 +42,11 @@ class QuickCreateTaskPollingControllerTest {
 
         assertEquals(1, queuedCallbacks)
         assertEquals(QuickCreateTaskUiStatus.FAILED, uiState.value.taskStatus)
-        assertEquals(QuickCreateTaskStatusText.Custom("任务失败"), uiState.value.statusText)
-        assertEquals("任务失败", uiState.value.error)
+        assertEquals(
+            QuickCreateTaskStatusText.Error(QuickCreatePresentationError.TaskFailed),
+            uiState.value.statusText,
+        )
+        assertEquals(QuickCreatePresentationError.TaskFailed.asQuickCreateUiMessage(), uiState.value.error)
         assertEquals(emptyList(), uiState.value.results)
     }
 
@@ -121,7 +126,7 @@ class QuickCreateTaskPollingControllerTest {
 
         assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
         assertEquals(null, uiState.value.statusText)
-        assertEquals("生成失败，请稍后重试", uiState.value.error)
+        assertEquals(QuickCreatePresentationError.GenerationFailed.asQuickCreateUiMessage(), uiState.value.error)
     }
 
     @Test
@@ -130,7 +135,7 @@ class QuickCreateTaskPollingControllerTest {
             QuickCreateUiState(
                 taskStatus = QuickCreateTaskUiStatus.RUNNING,
                 statusText = QuickCreateTaskStatusText.Running(progressPercent = 42),
-                error = "previous warning",
+                error = QuickCreatePresentationError.GenerationFailed.asQuickCreateUiMessage(),
             )
         )
         val controller = QuickCreateTaskPollingController(
@@ -159,7 +164,7 @@ class QuickCreateTaskPollingControllerTest {
         controller.collect(flowOf(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED)))
 
         assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
-        assertEquals("余额不足或价格预览未通过", uiState.value.error)
+        assertEquals(QuickCreatePresentationError.FeePreviewNotPassed.asQuickCreateUiMessage(), uiState.value.error)
     }
 
     @Test
@@ -168,7 +173,7 @@ class QuickCreateTaskPollingControllerTest {
             QuickCreateUiState(
                 taskStatus = QuickCreateTaskUiStatus.SUCCESS,
                 statusText = QuickCreateTaskStatusText.Success,
-                error = "previous warning",
+                error = QuickCreatePresentationError.GenerationFailed.asQuickCreateUiMessage(),
                 results = listOf(
                     QuickCreateResultUi(
                         url = "https://example.com/result.png",
@@ -190,6 +195,6 @@ class QuickCreateTaskPollingControllerTest {
         assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
         assertEquals(null, uiState.value.statusText)
         assertEquals(emptyList(), uiState.value.results)
-        assertEquals("previous warning", uiState.value.error)
+        assertEquals(QuickCreatePresentationError.GenerationFailed.asQuickCreateUiMessage(), uiState.value.error)
     }
 }

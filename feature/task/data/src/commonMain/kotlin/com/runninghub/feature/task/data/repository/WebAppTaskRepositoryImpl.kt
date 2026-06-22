@@ -1,5 +1,7 @@
 package com.runninghub.feature.task.data.repository
 
+import com.runninghub.core.common.MissingCredential
+import com.runninghub.core.common.MissingCredentialException
 import com.runninghub.core.model.AppDetail
 import com.runninghub.core.model.InputNode
 import com.runninghub.core.model.TaskHistoryItem
@@ -15,6 +17,8 @@ import com.runninghub.feature.task.data.remote.dto.TaskStatusRequestDto
 import com.runninghub.feature.task.data.remote.dto.toDomain
 import com.runninghub.feature.task.data.remote.dto.toDto
 import com.runninghub.feature.task.domain.WebAppTaskHistoryRepository
+import com.runninghub.feature.task.domain.WebAppTaskException
+import com.runninghub.feature.task.domain.WebAppTaskIssue
 import com.runninghub.feature.task.domain.WebAppTaskRepository
 
 /**
@@ -40,7 +44,10 @@ class WebAppTaskRepositoryImpl(
     override suspend fun getApiCallDemo(webappId: String): Result<AppDetail> = runCatching {
         val apiKey = requireApiKey()
         val response = api.getApiCallDemo(apiKey, webappId)
-        response.requireTaskData("getApiCallDemo").toDomain()
+        response.requireTaskData(
+            failedIssue = WebAppTaskIssue.ApiCallDemoFailed,
+            missingIssue = WebAppTaskIssue.ApiCallDemoMissing,
+        ).toDomain()
     }
 
     /**
@@ -63,7 +70,10 @@ class WebAppTaskRepositoryImpl(
             instanceType = instanceType,
         )
         val response = api.runTask(request)
-        response.requireTaskData("runTask").toDomain()
+        response.requireTaskData(
+            failedIssue = WebAppTaskIssue.RunTaskFailed,
+            missingIssue = WebAppTaskIssue.RunTaskMissing,
+        ).toDomain()
     }
 
     /**
@@ -74,7 +84,10 @@ class WebAppTaskRepositoryImpl(
     override suspend fun getTaskOutputs(taskId: Long): Result<List<TaskOutput>> = runCatching {
         val apiKey = requireApiKey()
         val response = api.getTaskOutputs(TaskStatusRequestDto(taskId, apiKey))
-        response.requireTaskData("getTaskOutputs").map { it.toDomain() }
+        response.requireTaskData(
+            failedIssue = WebAppTaskIssue.TaskOutputsFailed,
+            missingIssue = WebAppTaskIssue.TaskOutputsMissing,
+        ).map { it.toDomain() }
     }
 
     /**
@@ -89,7 +102,10 @@ class WebAppTaskRepositoryImpl(
     ): Result<UploadResult> = runCatching {
         val apiKey = requireApiKey()
         val response = api.uploadFile(apiKey, fileType, fileBytes, fileName)
-        response.requireTaskData("uploadFile").toDomain()
+        response.requireTaskData(
+            failedIssue = WebAppTaskIssue.UploadFileFailed,
+            missingIssue = WebAppTaskIssue.UploadFileMissing,
+        ).toDomain()
     }
 
     /**
@@ -103,21 +119,27 @@ class WebAppTaskRepositoryImpl(
     ): Result<List<TaskHistoryItem>> = runCatching {
         val apiKey = requireApiKey()
         val response = api.getTaskHistory(TaskHistoryRequestDto(apiKey = apiKey, pageNum = pageNum, pageSize = pageSize))
-        response.requireTaskData("getTaskHistory").records.map { it.toDomain() }
+        response.requireTaskData(
+            failedIssue = WebAppTaskIssue.TaskHistoryFailed,
+            missingIssue = WebAppTaskIssue.TaskHistoryMissing,
+        ).records.map { it.toDomain() }
     }
 
     private suspend fun requireApiKey(): String {
         // 缺少 API Key 是明确的业务前置条件失败，不能用空字符串继续请求远端接口。
         return credentialStore.getApiKey()?.takeIf { it.isNotBlank() }
-            ?: throw IllegalStateException("请先在设置中绑定 API Key")
+            ?: throw MissingCredentialException(MissingCredential.ApiKey)
     }
 
-    private fun <T> TaskBaseResponseDto<T>.requireTaskData(operation: String): T {
+    private fun <T> TaskBaseResponseDto<T>.requireTaskData(
+        failedIssue: WebAppTaskIssue,
+        missingIssue: WebAppTaskIssue,
+    ): T {
         // Task 接口统一在 Data 层校验服务端业务码和空响应，
         // 调用方只处理 Kotlin Result，不直接解析 DTO，也不能把远端 msg 当成最终展示文案。
         if (code != 0) {
-            throw IllegalStateException("TASK_${operation.uppercase()}_FAILED_CODE_$code")
+            throw WebAppTaskException(failedIssue, code)
         }
-        return data ?: throw IllegalStateException("Empty response data")
+        return data ?: throw WebAppTaskException(missingIssue)
     }
 }

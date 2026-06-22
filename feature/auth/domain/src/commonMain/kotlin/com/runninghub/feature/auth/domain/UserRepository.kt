@@ -58,3 +58,57 @@ interface UserRepository {
      */
     suspend fun unFollowUser(targetUserId: String): Result<Boolean>
 }
+
+/**
+ * 用户资料仓库的结构化失败异常。
+ *
+ * Data 层用该异常表达账户状态、用户资料和关注接口的稳定失败语义；[message] 只保留诊断码，
+ * Presentation 不得把它作为最终用户可见文案展示。
+ *
+ * @property issue 用户资料仓库的稳定失败语义。
+ * @property remoteCode 服务端业务 code；`null` 表示失败来自响应缺字段或本地结构校验。
+ */
+class UserRepositoryException(
+    val issue: UserRepositoryIssue,
+    val remoteCode: Int? = null,
+) : IllegalStateException(issue.diagnosticMessage(remoteCode))
+
+/**
+ * 用户资料仓库使用的稳定错误语义。
+ *
+ * 这些枚举值只用于上层按类型判断错误和日志分类，不携带服务端 `msg`、底层异常 message
+ * 或最终中文 UI 文案。
+ *
+ * @property code 稳定诊断码，可用于测试断言和日志分类；不得作为最终 UI 文案。
+ */
+enum class UserRepositoryIssue(val code: String) {
+    /** 账户状态接口返回非成功业务 code。 */
+    AccountStatusFailed("USER_ACCOUNT_STATUS_FAILED"),
+
+    /** 账户状态接口成功但响应缺少 data。 */
+    AccountStatusMissing("USER_ACCOUNT_STATUS_MISSING"),
+
+    /** 用户基础资料接口返回非成功业务 code。 */
+    UserInfoFailed("USER_INFO_FAILED"),
+
+    /** 用户基础资料接口成功但响应缺少 data。 */
+    UserInfoMissing("USER_INFO_MISSING"),
+
+    /** 用户公开详情接口返回非成功业务 code。 */
+    UserDetailFailed("USER_DETAIL_FAILED"),
+
+    /** 用户公开详情接口成功但响应缺少 data。 */
+    UserDetailMissing("USER_DETAIL_MISSING"),
+
+    /** 关注状态接口返回非成功业务 code。 */
+    FollowStatusFailed("USER_FOLLOW_STATUS_FAILED"),
+
+    /** 关注接口返回非成功业务 code。 */
+    FollowUserFailed("USER_FOLLOW_USER_FAILED"),
+
+    /** 取消关注接口返回非成功业务 code。 */
+    UnfollowUserFailed("USER_UNFOLLOW_USER_FAILED"),
+}
+
+private fun UserRepositoryIssue.diagnosticMessage(remoteCode: Int?): String =
+    if (remoteCode == null) code else "$code:$remoteCode"

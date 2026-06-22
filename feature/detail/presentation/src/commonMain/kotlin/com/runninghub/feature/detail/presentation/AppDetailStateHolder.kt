@@ -32,6 +32,12 @@ enum class AppDetailMediaType {
 }
 
 /**
+ * AppDetail 输入字段在 UI 中应使用的控件语义。
+ *
+ * 本类型只描述输入控件类别和运行时服务端选项，不依赖 Compose、Material 组件或平台媒体选择器。
+ * composeApp 负责把这些语义映射为下拉框、分段按钮、文本框或上传控件。
+ */
+/**
  * AppDetail 任务执行进度阶段。
  *
  * 该枚举只表达详情页任务提交和输出轮询的稳定 UI 阶段；具体进度条样式仍由 composeApp

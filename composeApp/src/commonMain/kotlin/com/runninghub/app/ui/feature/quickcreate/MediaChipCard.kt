@@ -26,7 +26,24 @@ import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import org.jetbrains.compose.resources.stringResource
+import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_media_audio_reference
+import runninghub.composeapp.generated.resources.quick_create_media_failed
+import runninghub.composeapp.generated.resources.quick_create_media_image_reference
+import runninghub.composeapp.generated.resources.quick_create_media_processing
+import runninghub.composeapp.generated.resources.quick_create_media_ready
+import runninghub.composeapp.generated.resources.quick_create_media_remove_content_description
+import runninghub.composeapp.generated.resources.quick_create_media_uploading_format
+import runninghub.composeapp.generated.resources.quick_create_media_video_reference
 
+/**
+ * 展示快捷创作素材引用的小卡片。
+ *
+ * @param reference 当前素材引用，包含文件名、媒体类型、上传状态和可选错误语义。
+ * @param onRemove 用户点击移除按钮时触发，调用方负责从页面状态中删除该素材并处理上传任务结果。
+ * @param modifier 外层布局修饰符，默认填满父容器宽度。
+ */
 @Composable
 fun MediaChipCard(
     reference: MediaReference,
@@ -75,14 +92,13 @@ fun MediaChipCard(
 
                 Spacer(Modifier.height(2.dp))
 
+                val mediaTypeText = when (reference.type) {
+                    QuickCreateMediaType.IMAGE -> stringResource(Res.string.quick_create_media_image_reference)
+                    QuickCreateMediaType.VIDEO -> stringResource(Res.string.quick_create_media_video_reference)
+                    QuickCreateMediaType.AUDIO -> stringResource(Res.string.quick_create_media_audio_reference)
+                }
                 val typeLabel = buildString {
-                    append(
-                        when (reference.type) {
-                            QuickCreateMediaType.IMAGE -> "图片参考"
-                            QuickCreateMediaType.VIDEO -> "视频参考"
-                            QuickCreateMediaType.AUDIO -> "音频参考"
-                        }
-                    )
+                    append(mediaTypeText)
                     if (reference.fileSizeBytes > 0) {
                         append(" · ")
                         append(formatFileSize(reference.fileSizeBytes))
@@ -101,11 +117,21 @@ fun MediaChipCard(
 
                 Spacer(Modifier.height(4.dp))
 
+                val uploadErrorText = reference.errorMessage?.asQuickCreateText()
                 val (barColor, statusText) = when (reference.uploadStatus) {
-                    UploadStatus.UPLOADING -> Pair(Primary300, "上传中 ${(reference.uploadProgress * 100).toInt()}%")
-                    UploadStatus.PROCESSING -> Pair(WarningDark, "AI 分析中...")
-                    UploadStatus.DONE -> Pair(SuccessDark, "就绪")
-                    UploadStatus.FAILED -> Pair(ErrorDark, "上传失败")
+                    UploadStatus.UPLOADING -> Pair(
+                        Primary300,
+                        stringResource(
+                            Res.string.quick_create_media_uploading_format,
+                            (reference.uploadProgress * 100).toInt(),
+                        ),
+                    )
+                    UploadStatus.PROCESSING -> Pair(WarningDark, stringResource(Res.string.quick_create_media_processing))
+                    UploadStatus.DONE -> Pair(SuccessDark, stringResource(Res.string.quick_create_media_ready))
+                    UploadStatus.FAILED -> Pair(
+                        ErrorDark,
+                        uploadErrorText ?: stringResource(Res.string.quick_create_media_failed),
+                    )
                 }
 
                 val alpha = if (reference.uploadStatus == UploadStatus.UPLOADING) pulseAlpha else 1f
@@ -157,7 +183,7 @@ fun MediaChipCard(
             ) {
                 Icon(
                     Icons.Default.Close,
-                    contentDescription = "移除",
+                    contentDescription = stringResource(Res.string.quick_create_media_remove_content_description),
                     tint = Neutral500,
                     modifier = Modifier.size(14.dp),
                 )

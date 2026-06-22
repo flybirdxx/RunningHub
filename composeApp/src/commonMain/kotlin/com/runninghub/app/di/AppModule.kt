@@ -12,8 +12,10 @@ import com.runninghub.app.ui.feature.plaza.PlazaScreenModel
 import com.runninghub.app.ui.feature.profile.ProfileScreenModel
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModel
 import com.runninghub.app.ui.feature.search.SearchScreenModel
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationStateHolderFactory
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
+import kotlinx.coroutines.Dispatchers
 import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.module
 
@@ -29,9 +31,23 @@ val appModule = module {
     single<QuickCreateMediaResolver> {
         MediaResolverQuickCreateMediaResolver(get<MediaResolver>())
     }
-    // AC-11：通用历史页已依赖 Task Domain 契约，适配器放在组合根侧连接 QuickCreate Domain。
-    // 这样 QuickCreate Data 不再依赖 shared，后续 shared 历史页退役时只需删除这层兼容桥。
+    // 通用历史页已依赖 Task Domain 契约，迁移期仍用唯一兼容桥连接 QuickCreate 历史源。
+    // 删除条件是 feature:task:data 正式提供完整 GenerationHistoryRepository，而不是只接入 WebApp 历史列表。
     single<GenerationHistoryRepository> { QuickCreateGenerationHistoryRepositoryAdapter(get()) }
+    single {
+        QuickCreatePresentationStateHolderFactory(
+            historyRepository = get(),
+            modelCatalogRepository = get(),
+            generationRepository = get(),
+            feePreviewRepository = get(),
+            inspirationRepository = get(),
+            mediaUploadRepository = get(),
+            projectRepository = get(),
+            mediaResolver = get<QuickCreateMediaResolver>(),
+            draftRepository = get(),
+            ioDispatcher = Dispatchers.Default,
+        )
+    }
 
     factoryOf(::DiscoveryScreenModel)
     factoryOf(::CommunityScreenModel)
@@ -43,19 +59,7 @@ val appModule = module {
     factoryOf(::AppDetailScreenModel)
     factoryOf(::CreatorProfileScreenModel)
     factoryOf(::LoginScreenModel)
-    factory {
-        QuickCreateScreenModel(
-            historyRepository = get(),
-            modelCatalogRepository = get(),
-            generationRepository = get(),
-            feePreviewRepository = get(),
-            inspirationRepository = get(),
-            mediaUploadRepository = get(),
-            projectRepository = get(),
-            mediaResolver = get<QuickCreateMediaResolver>(),
-            draftRepository = get(),
-        )
-    }
+    factoryOf(::QuickCreateScreenModel)
 }
 
 /**

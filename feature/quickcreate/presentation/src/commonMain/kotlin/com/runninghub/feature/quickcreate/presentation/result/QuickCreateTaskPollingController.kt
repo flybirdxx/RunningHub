@@ -3,7 +3,8 @@ package com.runninghub.feature.quickcreate.presentation.result
 import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.feature.quickcreate.presentation.toQuickCreateTaskIssueDisplayMessage
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateTaskIssueError
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -102,11 +103,11 @@ class QuickCreateTaskPollingController(
                     )
                 }
                 is QuickCreateTaskStatus.Failed -> {
-                    val errorMessage = status.errorMessage.toQuickCreateTaskIssueDisplayMessage()
+                    val error = status.errorMessage.toQuickCreateTaskIssueError()
                     it.copy(
                         taskStatus = QuickCreateTaskUiStatus.FAILED,
-                        statusText = QuickCreateTaskStatusText.Custom(errorMessage),
-                        error = errorMessage,
+                        statusText = QuickCreateTaskStatusText.Error(error),
+                        error = error.asQuickCreateUiMessage(),
                     )
                 }
                 is QuickCreateTaskStatus.Cancelled -> it.copy(
@@ -117,7 +118,7 @@ class QuickCreateTaskPollingController(
                 is QuickCreateTaskStatus.Error -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
                     statusText = null,
-                    error = status.message.toQuickCreateTaskIssueDisplayMessage(),
+                    error = status.message.toQuickCreateTaskIssueError().asQuickCreateUiMessage(),
                 )
             }
         }

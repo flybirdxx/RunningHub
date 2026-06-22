@@ -8,6 +8,8 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldExtra
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldOption
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
+import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
@@ -75,7 +77,7 @@ class QuickCreateFeePreviewInteractorTest {
                 selectedImageServiceModel = serviceModel(fields = listOf(requiredOptionField())),
                 imageConfig = ImageConfig(prompt = "green icon"),
                 feePreviewLoading = true,
-                feePreviewError = "旧的计费错误",
+                feePreviewError = QuickCreatePresentationError.FeePreviewFailed.asQuickCreateUiMessage(),
                 estimatedCost = 9.99,
             )
         )

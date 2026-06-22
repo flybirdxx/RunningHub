@@ -10,9 +10,8 @@
 - `SaveableStateHolder` 按 Tab 名称保存可保存 UI 状态，例如滚动位置、输入框这类 `rememberSaveable` 状态。
 - 不可见 Tab 会离开 Composition，其 `LaunchedEffect`、Voyager ScreenModel scope 和页面 Job 会随生命周期释放。
 - QuickCreate 的草稿、上传、计费、生成轮询和历史刷新仍由 `feature:quickcreate:presentation/coordinator` 的 `QuickCreateCoordinator.dispose()` 统一取消，composeApp 的 ScreenModel 只负责在 Voyager 生命周期结束时转发释放动作。
-- `QuickCreateScreenModelTest.dispose cancels active image generation polling` 覆盖页面销毁时取消活跃生成状态流。
-- `QuickCreateScreenModelTest.dispose cancels active media upload` 覆盖页面销毁时取消仍在进行的媒体上传，
-  并验证取消不会把素材推进到上传完成态或触发计费预览请求。
+- `feature:quickcreate:presentation` 的 Coordinator、StateHolder、Polling 和上传测试覆盖各自持有的
+  轮询、上传、草稿、历史和生成状态边界；composeApp 的 QuickCreate ScreenModel 只保留生命周期转发。
 - Android debug 运行图安装了 `NetworkActivityTracker`，logcat 标签为 `RunningHubNetwork`，
   只输出 `started`、`completed` 和 `inFlight` 聚合计数，不输出 URL、Header、Body 或凭据。
 - Android debug 观察器每秒输出一次当前聚合计数；即使稳定窗口内没有新请求，也会保留连续心跳样本。
@@ -27,7 +26,7 @@
 |---|---|
 | 非当前 Tab 不执行轮询、自动刷新或上传 | 非当前 Tab 不再进入 Composition，相关协程随页面离开取消。 |
 | Tab 切换后滚动和输入状态可恢复 | 使用 `SaveableStateHolder` 保存可序列化 UI 状态；长生命周期业务状态通过草稿或仓库恢复。 |
-| 页面离开导航栈后所有 Job 被取消 | 主页面退出时当前 Tab 离开 Composition；QuickCreate 由 ScreenModel/Coordinator 释放，History 的普通历史轮询由 `feature:task:presentation` 持有，`composeApp` Voyager 适配在 `onDispose` 中调用释放入口；QuickCreate 活跃生成状态流和媒体上传已有取消测试。 |
+| 页面离开导航栈后所有 Job 被取消 | 主页面退出时当前 Tab 离开 Composition；QuickCreate 由 ScreenModel/Coordinator 释放，History 的普通历史轮询由 `feature:task:presentation` 持有，`composeApp` Voyager 适配在 `onDispose` 中调用释放入口；QuickCreate 旧应用壳状态机测试已删除，取消语义由 Feature Presentation 按职责分层测试承载。 |
 | 重组不会重复初始化同一个 ScreenModel | `MainTabScreenRegistryTest` 验证同一 Tab 切换返回后仍获得同一个 Screen 实例。 |
 | 每个 Tab 的 Screen 实例和状态所有权明确 | `MainTabScreenRegistry` 集中维护 Tab 到 Screen 的映射；测试验证不同一级 Tab 不共享 Screen，创作 Tab 固定到 `QuickCreateVoyagerScreen`。 |
 | 会话失效清空所有业务页面栈 | 根入口由 `SessionManager.state` 切换登录/主页面，主页面离开后当前业务 Tab 被释放。 |
@@ -41,8 +40,7 @@
 ./gradlew.bat :feature:quickcreate:presentation:testDebugUnitTest --tests "com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryStateHolderTest.dispose cancels polling before next history refresh"
 ./gradlew.bat :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.history.TaskHistoryScreenModelTest" :feature:quickcreate:presentation:testDebugUnitTest --tests "com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryStateHolderTest" checkArchitectureBoundaries :composeApp:assembleDebug
 ./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.navigation.MainTabScreenRegistryTest" --tests "com.runninghub.app.AppRootNavigationPolicyTest"
-./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.dispose cancels active image generation polling" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.second image generation is blocked while current task is active"
-./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.dispose cancels active media upload" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.dispose cancels active image generation polling" --tests "com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModelTest.dispose cancels pending draft autosave"
+./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests "com.runninghub.feature.quickcreate.presentation.coordinator.QuickCreateCoordinatorTest" --tests "com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingControllerTest" --tests "com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadCoordinatorTest"
 ./gradlew.bat --console=plain :core:network:testDebugUnitTest --tests "com.runninghub.core.network.NetworkActivityTrackerTest" :composeApp:compileDebugKotlinAndroid
 ./gradlew.bat --console=plain checkArchitectureBoundaries :core:network:compileKotlinIosSimulatorArm64 :composeApp:compileKotlinIosSimulatorArm64 :composeApp:assembleDebug
 ANDROID_SERIAL=emulator-5554 ./gradlew.bat --console=plain :composeApp:installDebug

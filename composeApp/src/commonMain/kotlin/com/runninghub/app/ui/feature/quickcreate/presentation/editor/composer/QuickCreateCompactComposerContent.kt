@@ -60,6 +60,7 @@ import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.WarningDark
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
+import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateCompactServiceModelLabel
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.quickCreateCompactServiceModelLabel
@@ -198,7 +199,11 @@ internal fun QuickCreateCompactComposer(
                 CompactControlPill(
                     text = quickCreateCompactServiceModelLabel(
                         model = selectedServiceModel,
-                        fallback = if (isImage) uiState.imageConfig.model.displayName else uiState.videoConfig.model.displayName,
+                        fallback = if (isImage) {
+                            uiState.imageConfig.model.label.asImageModelText()
+                        } else {
+                            uiState.videoConfig.model.label.asVideoModelText()
+                        },
                         loading = serviceModelsLoading,
                     ).asCompactModelText(),
                     icon = Icons.Default.AutoAwesome,
@@ -312,7 +317,7 @@ private fun CompactGenerateButton(
     isLoading: Boolean,
     cost: Double,
     feePreviewLoading: Boolean,
-    feePreviewError: String?,
+    feePreviewError: QuickCreateUiMessage?,
     onClick: () -> Unit,
 ) {
     Surface(

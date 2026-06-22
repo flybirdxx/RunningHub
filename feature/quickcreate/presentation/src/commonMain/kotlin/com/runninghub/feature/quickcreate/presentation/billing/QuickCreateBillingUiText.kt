@@ -1,5 +1,6 @@
 package com.runninghub.feature.quickcreate.presentation.billing
 
+import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -46,13 +47,13 @@ sealed interface QuickCreateSendButtonLabel {
  *
  * @param cost 最近一次价格预览得到的现金金额，单位为人民币元；`0.0` 表示无需展示金额。
  * @param feePreviewLoading `true` 表示当前正在确认价格，按钮应提示等待；`false` 表示无进行中的价格请求。
- * @param feePreviewError 最近一次价格预览失败原因；非空时按钮提示价格待确认，避免展示过期金额。
+ * @param feePreviewError 最近一次价格预览失败原因语义；非空时按钮提示价格待确认，避免展示过期金额。
  * @return 可由 composeApp 映射为最终文案的稳定展示状态。
  */
 fun quickCreateSendButtonLabel(
     cost: Double,
     feePreviewLoading: Boolean,
-    feePreviewError: String?,
+    feePreviewError: QuickCreateUiMessage?,
 ): QuickCreateSendButtonLabel =
     when {
         feePreviewLoading -> QuickCreateSendButtonLabel.Confirming

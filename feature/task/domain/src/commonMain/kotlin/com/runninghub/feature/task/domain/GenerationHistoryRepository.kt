@@ -4,8 +4,8 @@ package com.runninghub.feature.task.domain
  * 统一生成历史仓库。
  *
  * 该接口是历史页的 Task Feature Domain 契约。Presentation 只依赖该接口，不直接知道
- * QuickCreate 历史仓库、shared 兼容仓库或远端 API。迁移期可以由 composeApp 组合层提供适配器，
- * 后续 Task Data 模块落地后再替换为正式实现。
+ * QuickCreate 历史仓库、shared 兼容仓库或远端 API。迁移期可以由 composeApp 组合层提供唯一适配器；
+ * 后续 Task Data 模块只有在同时覆盖列表、详情和取消能力后，才能替换该适配器成为正式实现。
  */
 interface GenerationHistoryRepository {
     /**

@@ -3,6 +3,8 @@
 import com.runninghub.feature.model.domain.ApiModelDetail
 import com.runninghub.feature.model.domain.ApiModelSummary
 import com.runninghub.feature.model.domain.LlmModelSummary
+import com.runninghub.feature.model.domain.ModelCatalogException
+import com.runninghub.feature.model.domain.ModelCatalogIssue
 import com.runninghub.feature.model.domain.ModelCatalogRepository
 import com.runninghub.feature.model.data.remote.api.ModelCatalogApi
 import com.runninghub.feature.model.data.remote.dto.LlmModelDto
@@ -36,7 +38,7 @@ class ModelCatalogRepositoryImpl(
             )
             if (response.code != 0) {
                 // Data 层只保留稳定错误语义和服务端 code，避免把远端 msg 直接暴露给 Presentation。
-                error("Model list load failed: code=${response.code}")
+                throw ModelCatalogException(ModelCatalogIssue.StandardListLoadFailed, response.code)
             }
             response.data?.items.orEmpty().map { dto ->
                 endpointRegistry.register(dto.id, dto.rhEndpoint)
@@ -48,8 +50,11 @@ class ModelCatalogRepositoryImpl(
         runCatching {
             val response = api.getStandardModelDetail(modelId)
             // 详情加载失败同样不透传服务端 msg，避免 UI 文案被后端临时诊断信息污染。
-            check(response.code == 0) { "Model detail load failed: code=${response.code}" }
-            val detail = checkNotNull(response.data) { "Model detail missing" }
+            if (response.code != 0) {
+                throw ModelCatalogException(ModelCatalogIssue.StandardDetailLoadFailed, response.code)
+            }
+            val detail = response.data
+                ?: throw ModelCatalogException(ModelCatalogIssue.StandardDetailMissing)
             endpointRegistry.register(detail.id, detail.rhEndpoint)
             detail.toDomain(fieldMapper)
         }
@@ -58,7 +63,9 @@ class ModelCatalogRepositoryImpl(
         runCatching {
             val response = api.listLlmModels()
             // LLM 目录与标准模型目录使用相同错误边界：记录稳定语义，不返回远端 msg。
-            check(response.code == 0) { "LLM model list load failed: code=${response.code}" }
+            if (response.code != 0) {
+                throw ModelCatalogException(ModelCatalogIssue.LlmListLoadFailed, response.code)
+            }
             response.data.orEmpty().map { it.toDomain() }
         }
 }

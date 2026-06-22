@@ -1,6 +1,8 @@
 package com.runninghub.feature.community.data.repository
 
 import com.runninghub.feature.community.data.remote.api.PlazaApi
+import com.runninghub.feature.community.domain.PlazaRepositoryException
+import com.runninghub.feature.community.domain.PlazaRepositoryIssue
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
 import io.ktor.client.engine.mock.respond
@@ -13,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
@@ -29,12 +32,31 @@ class PlazaRepositoryImplTest {
     }
 
     /**
-     * 标签树业务失败时不得把远端 msg 写入异常消息。
+     * Plaza 接口业务失败时输出结构化 issue，不把远端 msg 写入异常消息。
      */
     @Test
-    fun `getTags failure does not expose remote msg as exception message`() = runBlocking {
+    fun `repository failures expose typed issues instead of remote messages`() = runBlocking {
         val remoteMessage = "REMOTE_PLAZA_TAG_REASON"
-        val repository = PlazaRepositoryImpl(
+        val cases = listOf(
+            PlazaRepositoryIssue.TagsLoadFailed to repositoryWithResponse(remoteMessage).getTags(),
+            PlazaRepositoryIssue.CreationsLoadFailed to repositoryWithResponse(remoteMessage).listCreations(),
+            PlazaRepositoryIssue.ShortCategoriesLoadFailed to repositoryWithResponse(remoteMessage).listShortCategories(),
+            PlazaRepositoryIssue.ShortListLoadFailed to repositoryWithResponse(remoteMessage).listShorts(),
+        )
+
+        cases.forEach { (expectedIssue, result) ->
+            assertTrue(result.isFailure)
+            val error = assertIs<PlazaRepositoryException>(result.exceptionOrNull())
+            assertEquals(expectedIssue, error.issue)
+            assertEquals(456, error.remoteCode)
+            val message = assertNotNull(error.message)
+            assertEquals("${expectedIssue.code}:456", message)
+            assertTrue(message != remoteMessage)
+        }
+    }
+
+    private fun repositoryWithResponse(remoteMessage: String): PlazaRepositoryImpl =
+        PlazaRepositoryImpl(
             api = PlazaApi(
                 HttpClient(
                     MockEngine {
@@ -50,13 +72,4 @@ class PlazaRepositoryImplTest {
                 },
             ),
         )
-
-        val result = repository.getTags()
-
-        val error = result.exceptionOrNull()
-        assertTrue(result.isFailure)
-        val message = assertNotNull(error).message
-        assertEquals("PLAZA_TAGS_LOAD_FAILED_CODE_456", message)
-        assertTrue(message != remoteMessage)
     }
-}

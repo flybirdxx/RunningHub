@@ -51,3 +51,42 @@ interface PlazaRepository {
         categoryCode: String? = null,
     ): Result<List<PlazaShortCard>>
 }
+
+/**
+ * Plaza 仓库的结构化失败异常。
+ *
+ * Data 层用该异常表达广场标签、创作列表和短片接口的稳定失败语义；[message] 只保留诊断码，
+ * Presentation 不得把它作为最终用户可见文案展示。
+ *
+ * @property issue Plaza 仓库的稳定失败语义。
+ * @property remoteCode 服务端业务 code；`null` 表示失败来自响应缺字段或本地结构校验。
+ */
+class PlazaRepositoryException(
+    val issue: PlazaRepositoryIssue,
+    val remoteCode: Int? = null,
+) : IllegalStateException(issue.diagnosticMessage(remoteCode))
+
+/**
+ * Plaza 仓库使用的稳定错误语义。
+ *
+ * 这些枚举值只用于上层按类型判断错误和日志分类，不携带服务端 `msg`、底层异常 message
+ * 或最终中文 UI 文案。
+ *
+ * @property code 稳定诊断码，可用于测试断言和日志分类；不得作为最终 UI 文案。
+ */
+enum class PlazaRepositoryIssue(val code: String) {
+    /** Plaza 标签树接口返回非成功业务 code。 */
+    TagsLoadFailed("PLAZA_TAGS_LOAD_FAILED"),
+
+    /** Plaza 创作分页接口返回非成功业务 code。 */
+    CreationsLoadFailed("PLAZA_CREATIONS_LOAD_FAILED"),
+
+    /** Plaza 短片分类接口返回非成功业务 code。 */
+    ShortCategoriesLoadFailed("PLAZA_SHORT_CATEGORIES_LOAD_FAILED"),
+
+    /** Plaza 短片分页接口返回非成功业务 code。 */
+    ShortListLoadFailed("PLAZA_SHORT_LIST_LOAD_FAILED"),
+}
+
+private fun PlazaRepositoryIssue.diagnosticMessage(remoteCode: Int?): String =
+    if (remoteCode == null) code else "$code:$remoteCode"

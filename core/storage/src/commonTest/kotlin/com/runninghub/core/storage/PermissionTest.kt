@@ -19,4 +19,20 @@ class PermissionTest {
         assertEquals(null, Permission.fromKey("android.permission.CAMERA"))
         assertEquals(null, Permission.fromKey("unknown"))
     }
+
+    @Test
+    fun `permissions expose stable text keys instead of display copy`() {
+        assertEquals(PermissionTextKey.MediaImagesDescription, Permission.MediaImages.descriptionKey)
+        assertEquals(PermissionTextKey.MediaImagesRequiredFor, Permission.MediaImages.requiredForKey)
+        assertEquals(PermissionTextKey.MediaVideoDescription, Permission.MediaVideo.descriptionKey)
+        assertEquals(PermissionTextKey.MediaVideoRequiredFor, Permission.MediaVideo.requiredForKey)
+        assertEquals(PermissionTextKey.MediaAudioDescription, Permission.MediaAudio.descriptionKey)
+        assertEquals(PermissionTextKey.MediaAudioRequiredFor, Permission.MediaAudio.requiredForKey)
+        assertEquals(PermissionTextKey.StorageReadDescription, Permission.StorageRead.descriptionKey)
+        assertEquals(PermissionTextKey.StorageReadRequiredFor, Permission.StorageRead.requiredForKey)
+        assertEquals(PermissionTextKey.CameraDescription, Permission.Camera.descriptionKey)
+        assertEquals(PermissionTextKey.CameraRequiredFor, Permission.Camera.requiredForKey)
+        assertEquals(PermissionTextKey.NotificationsDescription, Permission.Notifications.descriptionKey)
+        assertEquals(PermissionTextKey.NotificationsRequiredFor, Permission.Notifications.requiredForKey)
+    }
 }

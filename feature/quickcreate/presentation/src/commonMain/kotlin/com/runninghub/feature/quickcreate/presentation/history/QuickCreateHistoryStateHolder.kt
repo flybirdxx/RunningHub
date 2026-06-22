@@ -2,9 +2,9 @@ package com.runninghub.feature.quickcreate.presentation.history
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryPage
 import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
-import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
+import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.feature.quickcreate.presentation.toQuickCreateDisplayMessage
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateUiMessage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -127,8 +127,8 @@ class QuickCreateHistoryStateHolder(
                     uiState.update { current ->
                         current.copy(
                             historyLoadingMore = false,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.HISTORY_LOAD_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.HistoryLoadFailed,
                             ),
                         )
                     }
@@ -217,8 +217,8 @@ class QuickCreateHistoryStateHolder(
                     uiState.update { state ->
                         state.copy(
                             historyCancellingTaskIds = state.historyCancellingTaskIds - taskId,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.TASK_CANCEL_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.TaskCancelFailed,
                             ),
                         )
                     }
@@ -252,8 +252,8 @@ class QuickCreateHistoryStateHolder(
                     onFailure = { error ->
                         state.copy(
                             historyDetailLoading = false,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.HISTORY_DETAIL_LOAD_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.HistoryDetailLoadFailed,
                             ),
                         )
                     },
@@ -334,8 +334,8 @@ class QuickCreateHistoryStateHolder(
                     uiState.update { state ->
                         state.copy(
                             projectTasksLoading = false,
-                            error = error.toQuickCreateDisplayMessage(
-                                QuickCreateErrorFallbackText.PROJECT_TASK_LIST_LOAD_FAILED,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.ProjectTaskListLoadFailed,
                             ),
                         )
                     }
@@ -389,8 +389,8 @@ class QuickCreateHistoryStateHolder(
             onFailure = { error ->
                 uiState.update { state ->
                     state.copy(
-                        error = error.toQuickCreateDisplayMessage(
-                            QuickCreateErrorFallbackText.HISTORY_REFRESH_FAILED,
+                        error = error.toQuickCreateUiMessage(
+                            QuickCreatePresentationError.HistoryRefreshFailed,
                         ),
                     )
                 }

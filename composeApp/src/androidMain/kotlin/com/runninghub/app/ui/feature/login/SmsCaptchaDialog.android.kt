@@ -37,6 +37,7 @@ import com.runninghub.core.network.RunningHubApiEnvironment
 @Composable
 actual fun SmsCaptchaDialog(
     phone: String,
+    copy: SmsCaptchaCopy,
     onToken: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -62,6 +63,7 @@ actual fun SmsCaptchaDialog(
                 smsCaptchaHtml(
                     tokenCallbackExpression = "window.location.href = '$CAPTCHA_CALLBACK_SCHEME://token?value=' + encodeURIComponent(token || '')",
                     closeCallbackExpression = "window.location.href = '$CAPTCHA_CALLBACK_SCHEME://close'",
+                    copy = copy,
                 ),
                 "text/html",
                 "UTF-8",
@@ -86,7 +88,7 @@ actual fun SmsCaptchaDialog(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("完成图形验证")
+                Text(copy.dialogTitle)
                 AndroidView(
                     factory = { webView },
                     modifier = Modifier
@@ -98,7 +100,7 @@ actual fun SmsCaptchaDialog(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("取消")
+                        Text(copy.dismissAction)
                     }
                 }
             }

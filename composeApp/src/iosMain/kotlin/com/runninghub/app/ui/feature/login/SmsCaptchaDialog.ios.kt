@@ -45,6 +45,7 @@ import platform.darwin.dispatch_get_main_queue
 @Composable
 actual fun SmsCaptchaDialog(
     phone: String,
+    copy: SmsCaptchaCopy,
     onToken: (String?) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -80,6 +81,7 @@ actual fun SmsCaptchaDialog(
                 string = smsCaptchaHtml(
                     tokenCallbackExpression = "window.location.href = '$CAPTCHA_CALLBACK_SCHEME://token?value=' + encodeURIComponent(token || '')",
                     closeCallbackExpression = "window.location.href = '$CAPTCHA_CALLBACK_SCHEME://close'",
+                    copy = copy,
                 ),
                 baseURL = NSURL.URLWithString(smsCaptchaBaseUrl()),
             )
@@ -105,7 +107,7 @@ actual fun SmsCaptchaDialog(
                 modifier = Modifier.padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("完成图形验证")
+                Text(copy.dialogTitle)
                 UIKitView(
                     factory = { webView },
                     modifier = Modifier
@@ -117,7 +119,7 @@ actual fun SmsCaptchaDialog(
                     horizontalArrangement = Arrangement.End,
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("取消")
+                        Text(copy.dismissAction)
                     }
                 }
             }

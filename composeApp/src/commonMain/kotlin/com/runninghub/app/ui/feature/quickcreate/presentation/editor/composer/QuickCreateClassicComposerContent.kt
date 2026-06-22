@@ -79,6 +79,7 @@ import com.runninghub.app.ui.theme.Secondary500
 import com.runninghub.app.util.formatCashAmount
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
+import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
@@ -460,7 +461,7 @@ private fun ServiceModelSummaryRow(
     model: QuickCreateServiceModelUi?,
     loading: Boolean,
     feePreviewLoading: Boolean,
-    feePreviewError: String?,
+    feePreviewError: QuickCreateUiMessage?,
     cost: Double,
     onClick: () -> Unit,
 ) {
@@ -701,7 +702,7 @@ private fun SendButton(
     isLoading: Boolean,
     cost: Double,
     feePreviewLoading: Boolean,
-    feePreviewError: String?,
+    feePreviewError: QuickCreateUiMessage?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {

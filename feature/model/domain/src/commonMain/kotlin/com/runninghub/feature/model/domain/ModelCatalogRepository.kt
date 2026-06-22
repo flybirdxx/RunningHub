@@ -36,3 +36,55 @@ interface ModelCatalogRepository {
      */
     suspend fun listLlmModels(): Result<List<LlmModelSummary>>
 }
+
+/**
+ * 标准模型目录仓库的结构化失败异常。
+ *
+ * Data 层用该异常表达目录接口和 endpoint 回源的稳定失败语义；[message] 只保留诊断码，
+ * Presentation 不得把它作为最终用户可见文案展示。
+ *
+ * @property issue 标准模型目录的稳定失败语义。
+ * @property remoteCode 服务端业务 code；`null` 表示失败来自响应缺字段或本地结构校验。
+ */
+class ModelCatalogException(
+    val issue: ModelCatalogIssue,
+    val remoteCode: Int? = null,
+) : IllegalStateException(issue.diagnosticMessage(remoteCode))
+
+/**
+ * 标准模型目录仓库使用的稳定错误语义。
+ *
+ * 这些枚举值只用于上层按类型判断错误和日志分类，不携带服务端 `msg`、底层异常 message
+ * 或最终中文 UI 文案。
+ *
+ * @property code 稳定诊断码，可用于测试断言和日志分类；不得作为最终 UI 文案。
+ */
+enum class ModelCatalogIssue(val code: String) {
+    /**
+     * 标准模型列表接口返回非成功业务 code。
+     */
+    StandardListLoadFailed("MODEL_CATALOG_STANDARD_LIST_LOAD_FAILED"),
+
+    /**
+     * 标准模型详情接口返回非成功业务 code。
+     */
+    StandardDetailLoadFailed("MODEL_CATALOG_STANDARD_DETAIL_LOAD_FAILED"),
+
+    /**
+     * 标准模型详情接口成功但响应缺少 data。
+     */
+    StandardDetailMissing("MODEL_CATALOG_STANDARD_DETAIL_MISSING"),
+
+    /**
+     * 标准模型详情响应缺少可调用 endpoint。
+     */
+    StandardEndpointMissing("MODEL_CATALOG_STANDARD_ENDPOINT_MISSING"),
+
+    /**
+     * LLM 模型目录接口返回非成功业务 code。
+     */
+    LlmListLoadFailed("MODEL_CATALOG_LLM_LIST_LOAD_FAILED"),
+}
+
+private fun ModelCatalogIssue.diagnosticMessage(remoteCode: Int?): String =
+    if (remoteCode == null) code else "$code:$remoteCode"

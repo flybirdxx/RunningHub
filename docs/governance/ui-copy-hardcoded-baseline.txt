@@ -2,7 +2,4 @@
 # 迁移期既有硬编码 UI 文案基线。新增用户可见文案应优先使用 Compose Resources；
 # 如果此文件中的计数增长，checkLongTermGovernance 会失败。
 # 独立 Presentation 模块中的中文 UI 文案基线；后续应逐步迁移到 Compose Resources 或统一文案端口。
-feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateErrorMessages.kt|28|presentation hardcoded UI copy baseline
-feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt|8|presentation runtime UI text port; move to Compose Resources or injected text provider after QuickCreate UI leaves composeApp
-feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/editor/QuickCreateEditorUiModels.kt|5|presentation hardcoded UI copy baseline
-feature/task/presentation/src/commonMain/kotlin/com/runninghub/feature/task/presentation/TaskHistoryStateHolder.kt|10|presentation hardcoded UI copy baseline; move to Compose Resources or a text provider after History UI leaves composeApp
+# 当前无正数基线；新增用户可见中文硬编码会作为未登记新增文件失败。
