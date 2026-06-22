@@ -103,6 +103,7 @@ import com.runninghub.core.model.Tag
 import com.runninghub.core.model.TagSimple
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogSort
+import com.runninghub.feature.discovery.presentation.CatalogPresentationError
 import com.runninghub.feature.discovery.presentation.DiscoveryUiState
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
@@ -115,6 +116,10 @@ import runninghub.composeapp.generated.resources.discovery_collect_stat_content_
 import runninghub.composeapp.generated.resources.discovery_default_author_name
 import runninghub.composeapp.generated.resources.discovery_empty_apps
 import runninghub.composeapp.generated.resources.discovery_end_of_results
+import runninghub.composeapp.generated.resources.discovery_error_empty_response
+import runninghub.composeapp.generated.resources.discovery_error_load_failed
+import runninghub.composeapp.generated.resources.discovery_error_search_failed
+import runninghub.composeapp.generated.resources.discovery_error_service_unavailable
 import runninghub.composeapp.generated.resources.discovery_home_banner_action
 import runninghub.composeapp.generated.resources.discovery_home_banner_eyebrow
 import runninghub.composeapp.generated.resources.discovery_home_banner_title
@@ -249,7 +254,7 @@ private fun DiscoveryContent(
             return@Scaffold
         }
 
-        val discoveryError = uiState.error
+        val discoveryError = uiState.error?.let { catalogPresentationErrorMessage(it) }
         if (discoveryError != null && uiState.apps.isEmpty()) {
             ErrorState(
                 message = discoveryError,
@@ -405,15 +410,17 @@ private fun InlineSearchResults(
 ) {
     val columns = adaptiveGridColumns(windowSizeClass)
 
+    val searchError = uiState.searchError
+
     Column(modifier = modifier.padding(vertical = Dimens.SpaceSM)) {
         when {
             uiState.isSearching && uiState.searchResults.isEmpty() -> {
                 LoadingIndicator(modifier = Modifier.fillMaxWidth().height(200.dp))
             }
-            uiState.searchError != null && uiState.searchResults.isEmpty() -> {
-                val searchError = uiState.searchError.orEmpty()
+            searchError != null && uiState.searchResults.isEmpty() -> {
+                val searchErrorMessage = catalogPresentationErrorMessage(searchError)
                 ErrorState(
-                    message = searchError,
+                    message = searchErrorMessage,
                     modifier = Modifier.fillMaxWidth().height(200.dp),
                     onRetry = { onLoadMore() },
                 )
@@ -835,6 +842,17 @@ private fun DiscoveryFontScale15Preview() {
 private fun DiscoveryInlineSearchPreview() {
     DiscoveryAdaptivePreview(RhPreviewSpec.Phone360, searchExpanded = true)
 }
+
+@Composable
+private fun catalogPresentationErrorMessage(error: CatalogPresentationError): String =
+    when (error) {
+        CatalogPresentationError.LoadFailed -> stringResource(Res.string.discovery_error_load_failed)
+        CatalogPresentationError.SearchFailed -> stringResource(Res.string.discovery_error_search_failed)
+        CatalogPresentationError.ServiceUnavailable -> stringResource(
+            Res.string.discovery_error_service_unavailable
+        )
+        CatalogPresentationError.EmptyResponse -> stringResource(Res.string.discovery_error_empty_response)
+    }
 
 // region Category Tags + Sort
 

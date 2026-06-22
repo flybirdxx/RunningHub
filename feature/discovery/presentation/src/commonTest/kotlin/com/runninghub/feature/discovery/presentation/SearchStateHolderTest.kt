@@ -6,6 +6,7 @@ import com.runninghub.core.model.CoverMediaType
 import com.runninghub.core.model.PageData
 import com.runninghub.core.model.Tag
 import com.runninghub.core.model.WebApp
+import com.runninghub.feature.discovery.domain.CatalogError
 import com.runninghub.feature.discovery.domain.CatalogQuery
 import com.runninghub.feature.discovery.domain.CatalogSort
 import com.runninghub.feature.discovery.domain.CatalogTagRange
@@ -112,6 +113,19 @@ class SearchStateHolderTest {
 
         assertEquals("latest", stateHolder.uiState.value.query)
         assertEquals(listOf("latest-result"), stateHolder.uiState.value.results.map { it.id })
+    }
+
+    @Test
+    fun `search failure exposes stable presentation error`() = runTest(dispatcher) {
+        val repository = FakeSearchCatalogRepository()
+        repository.enqueueSearchResult(Result.failure(CatalogError.EmptyResponse(operation = "search")))
+        val stateHolder = SearchStateHolder(repository, this)
+
+        stateHolder.search("empty")
+        advanceUntilIdle()
+
+        assertEquals(CatalogPresentationError.EmptyResponse, stateHolder.uiState.value.error)
+        assertEquals(emptyList(), stateHolder.uiState.value.results)
     }
 
     private class FakeSearchCatalogRepository : WebAppCatalogRepository {

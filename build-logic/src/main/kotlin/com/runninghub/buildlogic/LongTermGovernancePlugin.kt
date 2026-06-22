@@ -187,7 +187,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     )
                     requireDocumentSnippets(
                         relativePath = "docs/governance/ui-copy-hardcoded-baseline.txt",
-                        snippets = listOf("filePath|maxMatches|reason", "QuickCreateErrorMessages.kt", "CatalogErrorMessages.kt"),
+                        snippets = listOf("filePath|maxMatches|reason", "QuickCreateErrorMessages.kt", "LoginStateHolder.kt"),
                         violations = violations,
                     )
                     requireDocumentSnippets(

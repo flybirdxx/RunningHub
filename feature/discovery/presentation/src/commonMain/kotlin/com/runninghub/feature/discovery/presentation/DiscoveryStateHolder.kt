@@ -42,8 +42,9 @@ import kotlinx.coroutines.launch
  * `true` 表示允许触发加载更多；`false` 表示服务端分页已到末尾。
  * @property isLoadingMore 是否正在加载主列表下一页。
  * `true` 时必须阻止重复加载更多；`false` 表示可以根据 [hasMore] 决定是否继续分页。
- * @property error 等待页面展示的主列表错误信息。
+ * @property error 等待页面展示的主列表稳定错误语义。
  * `null` 表示当前没有主列表错误；非空通常来自网络或服务端业务错误，可由刷新动作重试。
+ * 该字段不得保存服务端 `msg` 或 [Throwable.message]，最终中文文案由应用壳资源映射。
  * @property isSearchExpanded 搜索框是否展开。
  * `true` 表示页面进入搜索交互态；`false` 表示展示常规发现列表。
  * @property searchQuery 用户当前输入的搜索关键词。
@@ -56,8 +57,9 @@ import kotlinx.coroutines.launch
  * 主列表分页和搜索分页互不共享该值。
  * @property searchHasMore 搜索结果是否还有下一页。
  * `true` 表示允许继续加载搜索结果；`false` 表示当前关键词分页已结束。
- * @property searchError 等待页面展示的搜索错误信息。
+ * @property searchError 等待页面展示的搜索稳定错误语义。
  * `null` 表示当前没有搜索错误；非空时只影响搜索区域，不覆盖主列表错误。
+ * 该字段不得保存服务端 `msg` 或 [Throwable.message]，最终中文文案由应用壳资源映射。
  */
 data class DiscoveryUiState(
     val isLoading: Boolean = true,
@@ -71,14 +73,14 @@ data class DiscoveryUiState(
     val currentPage: Int = 1,
     val hasMore: Boolean = true,
     val isLoadingMore: Boolean = false,
-    val error: String? = null,
+    val error: CatalogPresentationError? = null,
     val isSearchExpanded: Boolean = false,
     val searchQuery: String = "",
     val isSearching: Boolean = false,
     val searchResults: List<WebApp> = emptyList(),
     val searchPage: Int = 1,
     val searchHasMore: Boolean = false,
-    val searchError: String? = null,
+    val searchError: CatalogPresentationError? = null,
 )
 
 private const val PAGE_SIZE = 30
@@ -182,7 +184,11 @@ class DiscoveryStateHolder(
             _uiState.update {
                 it.copy(
                     isLoadingApps = false,
-                    error = if (reset) e.toCatalogErrorMessage("加载失败") else it.error
+                    error = if (reset) {
+                        e.toCatalogPresentationError(CatalogPresentationError.LoadFailed)
+                    } else {
+                        it.error
+                    }
                 )
             }
         }
@@ -400,7 +406,7 @@ class DiscoveryStateHolder(
                         isSearching = false,
                         searchResults = emptyList(),
                         searchHasMore = false,
-                        searchError = e.toCatalogErrorMessage("搜索失败"),
+                        searchError = e.toCatalogPresentationError(CatalogPresentationError.SearchFailed),
                     )
                 }
             }
@@ -439,7 +445,7 @@ class DiscoveryStateHolder(
                 _uiState.update {
                     it.copy(
                         isSearching = false,
-                        searchError = e.toCatalogErrorMessage("搜索失败"),
+                        searchError = e.toCatalogPresentationError(CatalogPresentationError.SearchFailed),
                     )
                 }
             }

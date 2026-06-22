@@ -66,6 +66,7 @@ import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.adaptiveGridColumns
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.core.model.Tag
+import com.runninghub.feature.discovery.presentation.CatalogPresentationError
 import com.runninghub.feature.discovery.presentation.SearchUiState
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
@@ -74,6 +75,10 @@ import runninghub.composeapp.generated.resources.search_back_content_description
 import runninghub.composeapp.generated.resources.search_bar_placeholder
 import runninghub.composeapp.generated.resources.search_empty_results_format
 import runninghub.composeapp.generated.resources.search_end_of_results
+import runninghub.composeapp.generated.resources.discovery_error_empty_response
+import runninghub.composeapp.generated.resources.discovery_error_load_failed
+import runninghub.composeapp.generated.resources.discovery_error_search_failed
+import runninghub.composeapp.generated.resources.discovery_error_service_unavailable
 import runninghub.composeapp.generated.resources.search_hot_content_description
 import runninghub.composeapp.generated.resources.search_hot_tags_title
 import runninghub.composeapp.generated.resources.search_screen_title
@@ -172,8 +177,8 @@ private fun SearchContent(
                 ),
             )
 
-            // SearchUiState 已迁移到独立 presentation 模块，公共可空属性不能跨模块 smart cast。
-            val errorMessage = uiState.error
+            // Presentation 只输出稳定错误语义，应用壳在靠近 UI 的位置映射本地化文案。
+            val errorMessage = uiState.error?.let { catalogPresentationErrorMessage(it) }
 
             when {
                 // 搜索中且尚无结果时只展示加载态，避免旧结果与新请求状态混在一起。
@@ -333,6 +338,17 @@ private fun SearchContent(
         }
     }
 }
+
+@Composable
+private fun catalogPresentationErrorMessage(error: CatalogPresentationError): String =
+    when (error) {
+        CatalogPresentationError.LoadFailed -> stringResource(Res.string.discovery_error_load_failed)
+        CatalogPresentationError.SearchFailed -> stringResource(Res.string.discovery_error_search_failed)
+        CatalogPresentationError.ServiceUnavailable -> stringResource(
+            Res.string.discovery_error_service_unavailable
+        )
+        CatalogPresentationError.EmptyResponse -> stringResource(Res.string.discovery_error_empty_response)
+    }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

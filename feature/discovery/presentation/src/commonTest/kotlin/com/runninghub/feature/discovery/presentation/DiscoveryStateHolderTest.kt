@@ -156,7 +156,7 @@ class DiscoveryStateHolderTest {
         screenModel.loadInitialData()
         advanceUntilIdle()
 
-        assertEquals("目录服务暂时不可用，请稍后重试", screenModel.uiState.value.error)
+        assertEquals(CatalogPresentationError.ServiceUnavailable, screenModel.uiState.value.error)
     }
 
     @Test

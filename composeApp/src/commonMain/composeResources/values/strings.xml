@@ -249,6 +249,10 @@
     <string name="discovery_close_search_content_description">关闭</string>
     <string name="discovery_empty_apps">暂无应用</string>
     <string name="discovery_end_of_results">没有更多了</string>
+    <string name="discovery_error_load_failed">加载失败</string>
+    <string name="discovery_error_search_failed">搜索失败</string>
+    <string name="discovery_error_service_unavailable">目录服务暂时不可用，请稍后重试</string>
+    <string name="discovery_error_empty_response">目录数据暂时为空，请稍后重试</string>
     <string name="discovery_inline_search_hint">输入关键词搜索 AI 应用</string>
     <string name="discovery_search_empty_results_format">未找到 "%1$s" 相关结果</string>
     <string name="discovery_search_results_title">搜索结果</string>

@@ -30,8 +30,9 @@ import kotlinx.coroutines.launch
  * 新关键词搜索成功后重置为 1，加载更多成功后递增；加载更多失败时保持旧页码。
  * @property hasMore 当前关键词是否还有下一页搜索结果。
  * `true` 表示允许触发加载更多；`false` 表示分页已结束。
- * @property error 等待页面展示的搜索错误信息。
+ * @property error 等待页面展示的搜索稳定错误语义。
  * `null` 表示当前没有错误；非空时由页面展示并可通过重新搜索覆盖。
+ * 该字段不得保存服务端 `msg` 或 [Throwable.message]，最终中文文案由应用壳资源映射。
  */
 data class SearchUiState(
     val query: String = "",
@@ -40,7 +41,7 @@ data class SearchUiState(
     val hotTags: List<Tag> = emptyList(),
     val currentPage: Int = 1,
     val hasMore: Boolean = true,
-    val error: String? = null,
+    val error: CatalogPresentationError? = null,
 )
 
 private const val SEARCH_DEBOUNCE_MS = 350L
@@ -212,7 +213,7 @@ class SearchStateHolder(
             _uiState.update {
                 it.copy(
                     isSearching = false,
-                    error = e.toCatalogErrorMessage("搜索失败"),
+                    error = e.toCatalogPresentationError(CatalogPresentationError.SearchFailed),
                 )
             }
         }
