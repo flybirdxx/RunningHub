@@ -226,27 +226,59 @@ enum class VideoAspectRatio(val displayName: String, val apiValue: String) {
 /**
  * 视频生成内置分辨率选项。
  *
- * @property displayName 页面展示文案。
+ * @property label 页面展示语义；最终文案由 composeApp 使用 Compose Resources 映射。
  * @property apiValue 兼容旧生成接口的请求参数值。
  */
-enum class VideoResolution(val displayName: String, val apiValue: String) {
-    RES_480P("480p", "480p"),
-    RES_720P("720p", "720p"),
-    RES_NATIVE_1080P("原生1080p", "native1080p"),
-    RES_1080P("1080p", "1080p"),
-    RES_2K("2K", "2k"),
-    RES_4K("4K", "4k"),
+enum class VideoResolution(val label: VideoResolutionLabel, val apiValue: String) {
+    RES_480P(VideoResolutionLabel.Standard("480p"), "480p"),
+    RES_720P(VideoResolutionLabel.Standard("720p"), "720p"),
+    RES_NATIVE_1080P(VideoResolutionLabel.Native1080p, "native1080p"),
+    RES_1080P(VideoResolutionLabel.Standard("1080p"), "1080p"),
+    RES_2K(VideoResolutionLabel.Standard("2K"), "2k"),
+    RES_4K(VideoResolutionLabel.Standard("4K"), "4k"),
+}
+
+/**
+ * 视频分辨率选项的稳定展示语义。
+ *
+ * 大部分分辨率标签与旧接口参数相近，可以作为运行时标准文本透传；“原生1080p”属于固定中文 UI
+ * 文案，因此单独建模并交给 composeApp 资源层映射，避免 Presentation 枚举继续保存本地化文本。
+ */
+sealed interface VideoResolutionLabel {
+    /**
+     * 标准分辨率文本。
+     *
+     * @property value 不含本地化语义的技术规格标签，例如 `720p`、`2K` 或 `4K`；空字符串不应传入。
+     */
+    data class Standard(val value: String) : VideoResolutionLabel
+
+    /** 原生 1080p 档位，最终展示文案由应用资源层决定。 */
+    data object Native1080p : VideoResolutionLabel
 }
 
 /**
  * 视频生成内置时长选项。
  *
- * @property displayName 页面展示文案。
+ * @property label 页面展示语义；最终文案由 composeApp 使用 Compose Resources 映射。
  * @property seconds 请求接口使用的秒数。
  */
-enum class VideoDuration(val displayName: String, val seconds: Int) {
-    DURATION_5S("5秒", 5),
-    DURATION_10S("10秒", 10),
+enum class VideoDuration(val label: VideoDurationLabel, val seconds: Int) {
+    DURATION_5S(VideoDurationLabel.Seconds5, 5),
+    DURATION_10S(VideoDurationLabel.Seconds10, 10),
+}
+
+/**
+ * 视频时长选项的稳定展示语义。
+ *
+ * [VideoDuration.seconds] 继续作为旧接口请求值和本地计费估算输入；本类型只描述 UI 展示档位，
+ * 让“5秒/10秒”这类中文固定文案在应用资源层集中维护。
+ */
+sealed interface VideoDurationLabel {
+    /** 5 秒视频生成档位。 */
+    data object Seconds5 : VideoDurationLabel
+
+    /** 10 秒视频生成档位。 */
+    data object Seconds10 : VideoDurationLabel
 }
 
 /**

@@ -17,4 +17,11 @@ class QuickCreateEditorUiModelsTest {
         assertEquals(ImageQualityLabel.Medium, ImageQuality.QUALITY_MEDIUM.label)
         assertEquals(ImageQualityLabel.High, ImageQuality.QUALITY_HIGH.label)
     }
+
+    @Test
+    fun `video options expose stable label semantics instead of hardcoded display text`() {
+        assertEquals(VideoResolutionLabel.Native1080p, VideoResolution.RES_NATIVE_1080P.label)
+        assertEquals(VideoDurationLabel.Seconds5, VideoDuration.DURATION_5S.label)
+        assertEquals(VideoDurationLabel.Seconds10, VideoDuration.DURATION_10S.label)
+    }
 }

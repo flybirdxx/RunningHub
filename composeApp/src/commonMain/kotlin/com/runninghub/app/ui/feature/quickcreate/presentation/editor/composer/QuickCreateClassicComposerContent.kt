@@ -610,13 +610,13 @@ private fun QuickParamChipRow(
             )
             CompactParamChip(
                 label = stringResource(Res.string.quick_create_classic_param_size_label),
-                value = config.resolution.displayName,
+                value = config.resolution.label.asVideoResolutionText(),
                 icon = Icons.Default.Tune,
                 onClick = { onVideoResChange(nextQuickCreateValue(resolutions, config.resolution)) },
             )
             CompactParamChip(
                 label = stringResource(Res.string.quick_create_classic_param_duration_label),
-                value = config.duration.displayName,
+                value = config.duration.label.asVideoDurationText(),
                 icon = Icons.Default.Tune,
                 onClick = { onVideoDurationChange(nextQuickCreateValue(durations, config.duration)) },
             )
