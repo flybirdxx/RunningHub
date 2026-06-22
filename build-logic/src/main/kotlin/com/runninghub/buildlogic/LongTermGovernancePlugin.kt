@@ -213,6 +213,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
 
                     checkComposeAppFileSize(violations)
                     checkContextEntryGuard(violations)
+                    checkRetiredSharedCurrentDocsGuard(violations)
                     checkRootBuildScriptSize(violations)
                     checkLegacyAndroidAppGuard(violations)
                     checkProductionTodoGuard(violations)
@@ -357,6 +358,59 @@ class LongTermGovernancePlugin : Plugin<Project> {
         requiredSnippets
             .filterNot { it in text }
             .forEach { snippet -> violations += "AGENTS.md must contain `$snippet`." }
+    }
+
+    /**
+     * 校验当前态事实源不再指向已退役的 `:shared` 治理入口。
+     *
+     * 迁移归档和历史执行流水可以保留旧命令，方便追溯迁移过程；但验收标准、当前状态和
+     * 当前门禁描述必须反映已经退役的模块图，避免后续任务继续调用不存在的 `:shared` 编译任务，
+     * 或要求维护已经删除的 allowlist/baseline 文件。
+     */
+    private fun Project.checkRetiredSharedCurrentDocsGuard(violations: MutableList<String>) {
+        val currentDocuments = mapOf(
+            "doc/RunningHub-KMP-架构迁移验收标准.md" to listOf(
+                "docs/migration/shared-allowlist.txt",
+                "docs/migration/shared-baseline.txt",
+                ":shared:compile",
+                "shared -> 仅作为尚未迁移功能的临时兼容模块",
+                "L1 不要求一次性删除整个 `shared`",
+                "[x] L1 已通过",
+            ),
+            "docs/migration/acceptance.md" to listOf(
+                "docs/migration/shared-allowlist.txt",
+                ":shared:compileKotlinIosSimulatorArm64",
+                "当前工作区仍有已暂存的非证据",
+                "证据仍绑定旧 HEAD",
+            ),
+            "docs/migration/current-state.yaml" to listOf(
+                "docs/migration/shared-allowlist.txt",
+                "docs/migration/shared-baseline.txt",
+                ":shared:compile",
+            ),
+            "build.gradle.kts" to listOf(
+                "shared allowlist",
+            ),
+        )
+
+        currentDocuments.forEach { (relativePath, forbiddenSnippets) ->
+            val file = rootDir.resolve(relativePath)
+            if (!file.isFile) {
+                return@forEach
+            }
+            val text = if (relativePath == "docs/migration/current-state.yaml") {
+                // current-state.yaml 后半部分包含滚动历史流水，旧命令可以保留作追溯；
+                // 这里仅检查顶部当前态和最近验证切片，防止后续任务继续使用已删除入口。
+                file.readLines().take(360).joinToString("\n")
+            } else {
+                file.readText()
+            }
+            forbiddenSnippets
+                .filter { it in text }
+                .forEach { snippet ->
+                    violations += "$relativePath must not describe retired :shared current-state governance with `$snippet`."
+                }
+        }
     }
 
     /**

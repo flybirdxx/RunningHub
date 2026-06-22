@@ -46,13 +46,13 @@
 | QuickCreate Presentation | 较好 | ScreenModel 已变为门面，Coordinator/StateHolder/Interactor 已拆分 |
 | QuickCreate Data | 部分满足 | Data 模块已脱离 `shared`，裸 `println` 和可空 `AuthRepository` 已清理；完整拆分多个实现类可延后到 L1 后 |
 | 创作入口唯一性 | 满足 | 生产创作入口已统一到 `QuickCreateVoyagerScreen`，旧 Create 页面和旧创作 ScreenModel 已从 composeApp 删除 |
-| Shared 退役 | 部分满足 | `shared` 已定义为迁移期兼容模块并由 baseline/allowlist 阻止增长；剩余 Audio、ModelCatalog、ModelInvocation 和旧兼容文件已登记归属与删除条件 |
+| Shared 退役 | 满足 | `:shared` 已从 `settings.gradle.kts` 移除，旧兼容文件和构建脚本已删除；当前门禁直接拒绝重新 include、依赖或跟踪 `shared/` 文件 |
 | 测试 | 部分满足 | Auth、network、QuickCreate 已有关键测试，远端 CI 已开始覆盖 L1 入口，但测试矩阵仍需继续补齐 |
 | CI | 部分满足 | 当前 HEAD 已有 Android CI 与 iOS CI completed/success 运行证据；macOS iOS link/Simulator 因当前环境不可用已按用户要求留存 skipped Markdown 证据 |
 | Android 验证 | 基本满足 | 仓库报告记录 assemble/install 通过，当前 HEAD Android CI 成功，登录态 Tab 网络观察证据已落盘 |
 | iOS 验证 | 部分满足 | 当前 HEAD iOS CI 成功并覆盖 iOS Simulator Kotlin 编译和 framework link；仓库已补齐 iOS Xcode 薄包装工程和 iOS Koin 入口；macOS Xcode build 与 Simulator 人工冒烟当前按 skipped 留存，后续仍需 macOS 环境补验 |
-| 安全存储 | 未满足生产门槛 | 敏感凭据仍存于普通 DataStore |
-| Release | 未满足生产门槛 | Android release 仍未开启 minify |
+| 安全存储 | 部分前置完成 | 生产 `CredentialStore` 已接入 Android Keystore 与 iOS Keychain，并通过迁移包装器清理旧凭据；真机升级回归仍属于 L2 发布验收 |
+| Release | 部分前置完成 | Android release 已开启 minify 与资源压缩并纳入本地门禁；正式签名、安装回归和商店发布仍属于 L2 发布验收 |
 
 ---
 
@@ -104,10 +104,10 @@ feature/*/presentation
 feature/*/data
     -> feature/*/domain
     -> core:network / core:storage / core:model / core:common
-
-shared
-    -> 仅作为尚未迁移功能的临时兼容模块
 ```
+
+已退役的 `:shared` 不属于允许方向；当前模块图中不得重新 include、依赖或导入
+`com.runninghub.shared.*`。
 
 ### 验收标准
 
@@ -117,25 +117,29 @@ shared
 - [ ] 已迁移完成的 Feature Data 不再依赖 `shared`。
 - [ ] `composeApp/commonMain` 不直接依赖 Data 实现。
 - [ ] 不存在 Gradle 模块循环依赖。
-- [ ] `shared` 新增代码由 CI allowlist 阻止，除非任务明确属于遗留维护。
+- [ ] `settings.gradle.kts` 不重新 include 已退役的 `:shared`。
+- [ ] Git 跟踪文件中不再出现 `shared/` 目录。
 
 ### 当前证据
 
 - `feature:quickcreate:data` 已移除 `project(":shared")` 依赖。
 - QuickCreate Data 不再直接使用 `shared` 中的 `GenerationHistoryRepository`，通用历史适配器已迁移到 `composeApp` 组合层。
 - `composeApp/commonMain` 已移除 `project(":shared")`，平台启动层负责装配 Data 实现。
-- `checkArchitectureBoundaries` 已阻止 Domain、Presentation、Feature Data 和 `composeApp/commonMain` 重新引入反向依赖。
+- `settings.gradle.kts` 已移除 `:shared`，最后的 Platform/MD5 兼容文件和构建脚本已删除。
+- `checkArchitectureBoundaries` 已阻止 Domain、Presentation、Feature Data、`composeApp/commonMain`
+  以及已退役 `:shared` 的重新 include、依赖或 Git 跟踪文件回流。
 
 ### 建议门禁文件
 
 ```text
-docs/migration/shared-allowlist.txt
 docs/migration/dependency-rules.md
 ```
 
 CI 应拒绝：
 
 - 已迁移 Feature 新增对 `shared` 的依赖。
+- `settings.gradle.kts` 重新 include 已退役的 `:shared`。
+- Git 索引重新跟踪 `shared/` 文件。
 - Domain 新增 Ktor、Compose、DataStore 或平台依赖。
 - Presentation 新增 Data 实现依赖。
 
@@ -351,20 +355,20 @@ QuickCreateMediaUploadRepositoryImpl
 当前选择第 2 项：`core:designsystem` 已从 `settings.gradle.kts` 删除，等真正迁移主题、
 Token 和通用组件时再重新建立。
 
-### shared
+### 已退役 shared
 
-L1 不要求一次性删除整个 `shared`，但必须满足：
+当前选择是整体退役 `:shared` 模块，而不是继续维护迁移期兼容层。
 
-- [ ] `shared` 被正式定义为兼容模块。
-- [ ] 新 Feature 不再进入 `shared`。
-- [ ] 每个遗留包有目标归属和删除条件。
-- [ ] CI 记录 `shared` 的新增文件数量，默认禁止增长。
-- [ ] 已迁移出去的接口和实现不再保留重复副本。
-- [ ] QuickCreate 从 `shared` 完全脱离。
+必须满足：
 
-当前状态：上述 L1 要求已由 `docs/migration/shared-ownership.md`、
-`docs/migration/shared-baseline.txt` 和 `checkArchitectureBoundaries` 覆盖；
-剩余 `shared` 文件属于 L1 后继续瘦身项。
+- [ ] `settings.gradle.kts` 不包含已退役的 `:shared`。
+- [ ] 生产模块不依赖 `project(":shared")` 或 `projects.shared`。
+- [ ] 源码不导入 `com.runninghub.shared.*`。
+- [ ] Git 索引不再跟踪 `shared/` 文件。
+
+当前状态：上述要求已由 `docs/migration/shared-ownership.md` 和
+`checkArchitectureBoundaries` 覆盖；若未来确实需要恢复兼容层，必须先建立新的迁移任务、
+更新本验收标准和门禁，而不能直接把 `:shared` 加回模块图。
 
 ---
 
@@ -381,7 +385,7 @@ L1 不要求一次性删除整个 `shared`，但必须满足：
 ### Android 验收
 
 ```bash
-./gradlew :shared:compileDebugKotlinAndroid
+./gradlew :composeApp:compileDebugKotlinAndroid
 ./gradlew :composeApp:assembleDebug
 ./gradlew :composeApp:lintDebug
 ./gradlew :composeApp:installDebug
@@ -401,7 +405,6 @@ L1 不要求一次性删除整个 `shared`，但必须满足：
 在 macOS CI 或开发机执行：
 
 ```bash
-./gradlew :shared:compileKotlinIosSimulatorArm64
 ./gradlew :composeApp:compileKotlinIosSimulatorArm64
 ./gradlew :composeApp:linkDebugFrameworkIosSimulatorArm64
 ```
@@ -573,7 +576,7 @@ AC-12 完成安全存储、Release 和生产验收 L2
 [x] Gate G 生命周期与导航
 [x] Gate H Core 与 Shared 收口
 [x] Gate I Android + iOS 编译
-[x] Gate J CI
+[ ] Gate J CI 与当前 HEAD 外部证据封板
 ```
 
 所有项目必须有可追溯证据：
@@ -587,11 +590,11 @@ AC-12 完成安全存储、Release 和生产验收 L2
 ### L2 生产发布
 
 ```text
-[x] L1 已通过
-[ ] Android 安全存储
-[ ] iOS Keychain
-[ ] Release 构建通过
-[ ] R8/资源压缩验证
+[ ] L1 已通过
+[x] Android 安全存储代码路径已接入
+[x] iOS Keychain 代码路径已接入
+[x] Android Release 构建配置已接入本地门禁
+[x] R8/资源压缩配置已验证
 [ ] 敏感日志扫描通过
 [ ] Android 真机回归
 [ ] iOS 真机或 Simulator 回归
@@ -621,6 +624,5 @@ AC-12 完成安全存储、Release 和生产验收 L2
 ```text
 docs/migration/current-state.yaml
 docs/migration/acceptance.md
-docs/migration/shared-allowlist.txt
 docs/migration/adr/
 ```

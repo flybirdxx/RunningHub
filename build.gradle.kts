@@ -24,7 +24,7 @@ kotlin {
  */
 tasks.register("checkArchitectureBoundaries") {
     group = "verification"
-    description = "Checks L1 migration dependency boundaries and shared allowlist."
+    description = "Checks L1 migration dependency boundaries and retired module guards."
 
     doLast {
         val root = rootDir.toPath()
