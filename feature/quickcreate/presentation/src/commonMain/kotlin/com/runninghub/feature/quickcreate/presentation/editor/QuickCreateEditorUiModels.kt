@@ -22,8 +22,8 @@ enum class QuickCreateMediaType {
 /**
  * 上传素材在页面状态中的生命周期状态。
  *
- * 上传流程由 composeApp 中的平台媒体协调器驱动；该枚举作为稳定 UI 契约保存在 feature presentation，
- * 方便编辑器、请求构建和计费预览共享同一状态含义。
+ * 上传流程由 feature presentation 的上传协调器驱动，平台 URI 读取由应用壳适配后注入；
+ * 该枚举作为稳定 UI 契约，方便编辑器、请求构建和计费预览共享同一状态含义。
  */
 enum class UploadStatus {
     /** 本地文件正在读取或上传到远端。 */
@@ -47,7 +47,7 @@ enum class UploadStatus {
  *
  * @property id 客户端生成的稳定 ID，用于列表 key、上传回写和删除操作。
  * @property type 素材媒体类型，决定可匹配的上传字段和请求参数。
- * @property uri 本地或模板素材 URI 字符串；Android/iOS 平台解析由外层 MediaResolver 完成。
+ * @property uri 本地或模板素材 URI 字符串；Android/iOS 平台解析由应用壳注入的媒体读取端口完成。
  * @property displayName 页面展示的文件名或模板素材名。
  * @property fileSizeBytes 本地文件大小，单位为字节；模板远端素材未知时可为 0。
  * @property fieldParamKey 绑定的动态上传字段参数名；`null` 或空字符串表示全局素材。

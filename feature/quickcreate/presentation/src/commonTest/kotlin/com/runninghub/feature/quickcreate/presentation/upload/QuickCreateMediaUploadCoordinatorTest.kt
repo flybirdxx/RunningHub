@@ -1,23 +1,20 @@
-package com.runninghub.app.ui.feature.quickcreate
+package com.runninghub.feature.quickcreate.presentation.upload
 
-import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
-
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-
-import com.runninghub.app.platform.MediaResolver
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
-import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
-import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
-import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QuickCreateMediaUploadCoordinatorTest {
@@ -25,7 +22,7 @@ class QuickCreateMediaUploadCoordinatorTest {
     @Test
     fun `add media references ignores blank inputs`() = runTest {
         val repository = RecordingQuickCreateRepository()
-        val mediaResolver = RecordingMediaResolver()
+        val mediaResolver = RecordingQuickCreateMediaResolver()
         val uiState = MutableStateFlow(QuickCreateUiState())
         val coordinator = createCoordinator(
             repository = repository,
@@ -46,7 +43,7 @@ class QuickCreateMediaUploadCoordinatorTest {
     @Test
     fun `add global media reference uploads without field ownership`() = runTest {
         val repository = RecordingQuickCreateRepository()
-        val mediaResolver = RecordingMediaResolver()
+        val mediaResolver = RecordingQuickCreateMediaResolver()
         val uiState = MutableStateFlow(QuickCreateUiState())
         val coordinator = createCoordinator(
             repository = repository,
@@ -69,7 +66,7 @@ class QuickCreateMediaUploadCoordinatorTest {
     @Test
     fun `add field media reference preserves field ownership after upload`() = runTest {
         val repository = RecordingQuickCreateRepository()
-        val mediaResolver = RecordingMediaResolver()
+        val mediaResolver = RecordingQuickCreateMediaResolver()
         val uiState = MutableStateFlow(QuickCreateUiState())
         val coordinator = createCoordinator(
             repository = repository,
@@ -95,7 +92,7 @@ class QuickCreateMediaUploadCoordinatorTest {
 
     private fun createCoordinator(
         repository: QuickCreationMediaUploadRepository,
-        mediaResolver: MediaResolver,
+        mediaResolver: QuickCreateMediaResolver,
         uiState: MutableStateFlow<QuickCreateUiState>,
         dispatcher: CoroutineDispatcher,
     ): QuickCreateMediaUploadCoordinator =
@@ -103,13 +100,13 @@ class QuickCreateMediaUploadCoordinatorTest {
             mediaUploadRepository = repository,
             mediaResolver = mediaResolver,
             generationRequestFactory = QuickCreateGenerationRequestFactory(),
-            scope = kotlinx.coroutines.CoroutineScope(dispatcher),
+            scope = CoroutineScope(dispatcher),
             uiState = uiState,
             ioDispatcher = dispatcher,
             onFeePreviewRequired = {},
         )
 
-    private class RecordingMediaResolver : MediaResolver {
+    private class RecordingQuickCreateMediaResolver : QuickCreateMediaResolver {
         val readUris = mutableListOf<String>()
         val readRequests: Int
             get() = readUris.size

@@ -31,6 +31,8 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPol
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
+import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadCoordinator
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -96,7 +98,7 @@ internal class QuickCreateCoordinator(
     )
     private val mediaUploadCoordinator = QuickCreateMediaUploadCoordinator(
         mediaUploadRepository = mediaUploadRepository,
-        mediaResolver = mediaResolver,
+        mediaResolver = MediaResolverQuickCreateMediaResolver(mediaResolver),
         generationRequestFactory = generationRequestFactory,
         scope = scope,
         uiState = uiState,
@@ -712,5 +714,21 @@ internal class QuickCreateCoordinator(
         // 计费预览的防抖、旧响应隔离和价格错误映射已下沉到 Interactor；
         // Coordinator 只保留这个统一入口，避免分散在各个参数变更回调中的调用点发生行为漂移。
         feePreviewInteractor.schedule()
+    }
+
+    /**
+     * 把 composeApp 平台媒体读取能力适配为 QuickCreate Presentation 模块的上传端口。
+     *
+     * Android/iOS 的 URI 权限、文件选择器和安全作用域读取仍由应用平台层负责；
+     * feature presentation 只接收平台无关的字节、展示名和文件大小，避免反向依赖 composeApp。
+     */
+    private class MediaResolverQuickCreateMediaResolver(
+        private val mediaResolver: MediaResolver,
+    ) : QuickCreateMediaResolver {
+        override fun readBytes(uri: String): ByteArray = mediaResolver.readBytes(uri)
+
+        override fun getDisplayName(uri: String): String? = mediaResolver.getDisplayName(uri)
+
+        override fun getFileSizeBytes(uri: String): Long = mediaResolver.getFileSizeBytes(uri)
     }
 }

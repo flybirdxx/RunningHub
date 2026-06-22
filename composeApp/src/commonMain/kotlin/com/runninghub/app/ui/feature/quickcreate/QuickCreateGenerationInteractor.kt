@@ -1,24 +1,23 @@
 package com.runninghub.app.ui.feature.quickcreate
 
-import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
-import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
-import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationBlockReason
-
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationBlockReason
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadCoordinator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
-import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 
 /**
  * 协调快捷创作的正式生成提交流程。

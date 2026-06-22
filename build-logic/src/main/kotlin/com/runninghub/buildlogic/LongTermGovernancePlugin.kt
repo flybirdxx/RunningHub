@@ -1296,10 +1296,10 @@ class LongTermGovernancePlugin : Plugin<Project> {
      */
     private fun Project.checkMediaUploadErrorPrivacyGuard(violations: MutableList<String>) {
         val coordinator = rootDir.resolve(
-            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateMediaUploadCoordinator.kt"
+            "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/upload/QuickCreateMediaUploadCoordinator.kt"
         )
         if (!coordinator.isFile) {
-            violations += "QuickCreate media upload coordinator is missing."
+            violations += "QuickCreate media upload coordinator must live in feature:quickcreate:presentation upload boundary."
             return
         }
 
@@ -1313,11 +1313,11 @@ class LongTermGovernancePlugin : Plugin<Project> {
         )
         forbiddenSnippets
             .filter { it in text }
-            .forEach { snippet -> violations += "QuickCreateMediaUploadCoordinator.kt must not expose media displayName in upload error message: `$snippet`." }
+            .forEach { snippet -> violations += "feature quickcreate presentation upload coordinator must not expose media displayName in upload error message: `$snippet`." }
 
         listOf("MEDIA_UPLOAD_FAILED_MESSAGE", "MEDIA_UPLOAD_TIMEOUT_MESSAGE")
             .filterNot { it in text }
-            .forEach { snippet -> violations += "QuickCreateMediaUploadCoordinator.kt must use `$snippet` for sanitized upload errors." }
+            .forEach { snippet -> violations += "feature quickcreate presentation upload coordinator must use `$snippet` for sanitized upload errors." }
     }
 
     /**

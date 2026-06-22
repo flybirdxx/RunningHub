@@ -1,13 +1,10 @@
-package com.runninghub.app.ui.feature.quickcreate
+package com.runninghub.feature.quickcreate.presentation.upload
 
-import com.runninghub.app.platform.MediaResolver
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
-import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
-import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
@@ -27,6 +24,39 @@ private const val UPLOAD_WAIT_MAX_TICKS = 120
 private const val UPLOAD_WAIT_TICK_MILLIS = 500L
 
 /**
+ * 快捷创作上传协调器使用的平台媒体读取端口。
+ *
+ * 该接口位于 feature presentation 模块，避免上传状态机直接依赖 composeApp 的 Android/iOS
+ * `MediaResolver` 实现。应用壳负责把平台选择器返回的 URI 适配到该端口，Coordinator 只处理
+ * 页面状态、上传 Repository 和生成前等待规则。
+ */
+interface QuickCreateMediaResolver {
+    /**
+     * 读取本地媒体 URI 对应的文件内容。
+     *
+     * @param uri 平台媒体选择器返回的 URI 字符串；具体权限和安全作用域由应用壳负责。
+     * @return 上传到远端仓库的原始字节；读取失败时允许抛出异常，由 Coordinator 映射为上传失败状态。
+     */
+    fun readBytes(uri: String): ByteArray
+
+    /**
+     * 读取用于页面展示的媒体名称。
+     *
+     * @param uri 平台媒体选择器返回的 URI 字符串。
+     * @return 可展示文件名；`null` 表示平台无法解析名称，Coordinator 会使用类型和时间戳生成降级名称。
+     */
+    fun getDisplayName(uri: String): String?
+
+    /**
+     * 读取本地媒体大小。
+     *
+     * @param uri 平台媒体选择器返回的 URI 字符串。
+     * @return 文件大小，单位为字节；无法解析时返回 `0`，表示仅隐藏大小展示而不阻塞上传。
+     */
+    fun getFileSizeBytes(uri: String): Long
+}
+
+/**
  * 协调快捷创作页面的媒体选择、上传和待上传素材等待流程。
  *
  * 该 Coordinator 属于 QuickCreate presentation 层，负责把用户选择的本地 URI 转换为页面中的
@@ -39,16 +69,16 @@ private const val UPLOAD_WAIT_TICK_MILLIS = 500L
  * - 上传完成、失败或删除与当前计费请求相关的素材后，通过 [onFeePreviewRequired] 触发计费预览刷新。
  *
  * @param mediaUploadRepository 快捷创作媒体上传仓库，只提供远端媒体上传能力。
- * @param mediaResolver 平台媒体解析器，负责读取 URI 的展示名、大小和字节内容。
+ * @param mediaResolver 平台无关媒体读取端口，负责读取 URI 的展示名、大小和字节内容。
  * @param generationRequestFactory 生成请求构建器，用于判断哪些媒体引用会影响当前生成和计费请求。
  * @param scope 页面生命周期作用域，上传 Job 与等待流程都挂在该作用域下。
  * @param uiState 页面状态流，Coordinator 只更新媒体引用、上传进度和提交阶段状态文案。
  * @param ioDispatcher 读取本地媒体字节使用的调度器，避免阻塞主线程；测试可替换为可控调度器。
  * @param onFeePreviewRequired 当前媒体变化影响计费请求时调用，用于重新安排计费预览。
  */
-internal class QuickCreateMediaUploadCoordinator(
+class QuickCreateMediaUploadCoordinator(
     private val mediaUploadRepository: QuickCreationMediaUploadRepository,
-    private val mediaResolver: MediaResolver,
+    private val mediaResolver: QuickCreateMediaResolver,
     private val generationRequestFactory: QuickCreateGenerationRequestFactory,
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<QuickCreateUiState>,
@@ -116,7 +146,7 @@ internal class QuickCreateMediaUploadCoordinator(
             }
         }
 
-        uploadReference(id, uriString, type, fileName, targetTab)
+        uploadReference(id, uriString, type, targetTab)
     }
 
     /**
@@ -219,7 +249,6 @@ internal class QuickCreateMediaUploadCoordinator(
         id: String,
         uriString: String,
         type: QuickCreateMediaType,
-        fileName: String,
         targetTab: QuickCreateTab,
     ) {
         uploadJobs[id]?.cancel()
