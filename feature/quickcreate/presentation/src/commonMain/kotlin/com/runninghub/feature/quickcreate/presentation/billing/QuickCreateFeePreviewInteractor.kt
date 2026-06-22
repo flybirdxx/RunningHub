@@ -4,6 +4,8 @@ import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
+import com.runninghub.feature.quickcreate.presentation.QuickCreateErrorFallbackText
+import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
@@ -19,7 +21,6 @@ import kotlinx.coroutines.launch
 
 // 计费预览需要等待用户连续编辑结束后再请求，避免每个输入字符都触发远程计费接口。
 private const val FEE_PREVIEW_DEBOUNCE_MS = 500L
-private const val FEE_PREVIEW_NOT_PASSED_ERROR = "余额不足或价格预览未通过"
 
 // 计费预览与正式生成共用请求构建规则；这里仅把已构建请求按媒体类型分发到不同 Repository 入口。
 private sealed interface QuickCreateFeePreviewRequest {
@@ -187,10 +188,10 @@ class QuickCreateFeePreviewInteractor(
      * 生成流程需要提示用户先等待或重新触发预览，而不是暴露底层异常细节。
      */
     fun generateBlockedMessage(error: String?): String =
-        if (error == FEE_PREVIEW_NOT_PASSED_ERROR) {
+        if (error == QuickCreateErrorFallbackText.FEE_PREVIEW_NOT_PASSED) {
             error
         } else {
-            "价格待确认"
+            QuickCreateRuntimeUiText.feePending
         }
 
     private suspend fun previewVideo(
@@ -272,7 +273,7 @@ class QuickCreateFeePreviewInteractor(
             else -> preview.requiredRhAmount
         }
         val previewError = if (!preview.passed || preview.insufficientType != null) {
-            FEE_PREVIEW_NOT_PASSED_ERROR
+            QuickCreateErrorFallbackText.FEE_PREVIEW_NOT_PASSED
         } else {
             null
         }
@@ -294,7 +295,7 @@ class QuickCreateFeePreviewInteractor(
             it.copy(
                 estimatedCost = it.currentLocalEstimatedCost(),
                 feePreviewLoading = false,
-                feePreviewError = error.toQuickCreateDisplayMessage("价格预览失败"),
+                feePreviewError = error.toQuickCreateDisplayMessage(QuickCreateErrorFallbackText.FEE_PREVIEW_FAILED),
                 feePreviewRequestKey = null,
             )
         }

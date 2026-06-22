@@ -30,6 +30,12 @@ fun Throwable.toQuickCreateDisplayMessage(fallbackMessage: String): String =
  * composeApp 或接入注入式 TextProvider 时，可把这些稳定场景继续改为资源 key。
  */
 internal object QuickCreateErrorFallbackText {
+    /** 计费预览请求失败时的页面兜底文案，覆盖网络异常、服务端异常和未知预览失败。 */
+    const val FEE_PREVIEW_FAILED: String = "价格预览失败"
+
+    /** 计费预览明确未通过时的业务拦截文案，覆盖余额不足或价格校验失败。 */
+    const val FEE_PREVIEW_NOT_PASSED: String = "余额不足或价格预览未通过"
+
     /** 灵感标签请求失败时的页面兜底文案，覆盖标签列表初始化流程。 */
     const val INSPIRATION_TAGS_LOAD_FAILED: String = "灵感标签加载失败"
 
@@ -51,8 +57,8 @@ private fun String.toQuickCreateIssueMessageOrNull(): String? =
         QuickCreateTaskIssueCode.TASK_FAILED -> "任务失败"
         QuickCreateTaskIssueCode.TASK_TIMEOUT -> "任务超时"
         QuickCreateTaskIssueCode.TASK_QUERY_FAILED -> "任务查询失败"
-        QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED -> "价格预览失败"
-        QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED -> "余额不足或价格预览未通过"
+        QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED -> QuickCreateErrorFallbackText.FEE_PREVIEW_FAILED
+        QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED -> QuickCreateErrorFallbackText.FEE_PREVIEW_NOT_PASSED
         QuickCreateTaskIssueCode.PREPARE_FAILED -> "任务预提交失败"
         QuickCreateTaskIssueCode.COMMIT_FAILED -> "任务提交失败"
         QuickCreateTaskIssueCode.UNKNOWN_ERROR -> "生成失败，请稍后重试"
