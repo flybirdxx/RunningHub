@@ -4,7 +4,6 @@
 # 独立 Presentation 模块中的中文 UI 文案基线；后续应逐步迁移到 Compose Resources 或统一文案端口。
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateErrorMessages.kt|27|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt|8|presentation runtime UI text port; move to Compose Resources or injected text provider after QuickCreate UI leaves composeApp
-feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/billing/QuickCreateBillingUiText.kt|3|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/billing/QuickCreateFeePreviewInteractor.kt|3|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/draft/QuickCreateDraftUiModel.kt|2|presentation hardcoded UI copy baseline
 feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/editor/QuickCreateEditorUiModels.kt|11|presentation hardcoded UI copy baseline

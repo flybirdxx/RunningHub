@@ -73,6 +73,7 @@ import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.Secondary500
 import com.runninghub.app.util.formatCashAmount
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
@@ -102,6 +103,10 @@ import runninghub.composeapp.generated.resources.quick_create_classic_price_pend
 import runninghub.composeapp.generated.resources.quick_create_classic_price_refreshing
 import runninghub.composeapp.generated.resources.quick_create_classic_restore_draft
 import runninghub.composeapp.generated.resources.quick_create_classic_video_prompt_placeholder
+import runninghub.composeapp.generated.resources.quick_create_send_amount_format
+import runninghub.composeapp.generated.resources.quick_create_send_fee_confirming
+import runninghub.composeapp.generated.resources.quick_create_send_fee_pending
+import runninghub.composeapp.generated.resources.quick_create_send_generate
 
 /**
  * 渲染快捷创作旧版底部编辑器。
@@ -715,10 +720,12 @@ private fun SendButton(
                     )
                 }
                 Spacer(Modifier.width(6.dp))
-                val sendLabel = quickCreateSendButtonLabel(
-                    cost = cost,
-                    feePreviewLoading = feePreviewLoading,
-                    feePreviewError = feePreviewError,
+                val sendLabel = quickCreateSendButtonText(
+                    quickCreateSendButtonLabel(
+                        cost = cost,
+                        feePreviewLoading = feePreviewLoading,
+                        feePreviewError = feePreviewError,
+                    )
                 )
                 if (sendLabel.isNotBlank()) {
                     Text(
@@ -740,3 +747,15 @@ private fun SendButton(
         }
     }
 }
+
+@Composable
+private fun quickCreateSendButtonText(label: QuickCreateSendButtonLabel): String =
+    when (label) {
+        QuickCreateSendButtonLabel.Confirming -> stringResource(Res.string.quick_create_send_fee_confirming)
+        QuickCreateSendButtonLabel.Pending -> stringResource(Res.string.quick_create_send_fee_pending)
+        QuickCreateSendButtonLabel.Generate -> stringResource(Res.string.quick_create_send_generate)
+        is QuickCreateSendButtonLabel.Amount -> stringResource(
+            Res.string.quick_create_send_amount_format,
+            label.cashAmount,
+        )
+    }

@@ -58,6 +58,7 @@ import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.WarningDark
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.quickCreateCompactServiceModelLabel
@@ -74,6 +75,10 @@ import runninghub.composeapp.generated.resources.quick_create_compact_media_coun
 import runninghub.composeapp.generated.resources.quick_create_compact_video_params_summary
 import runninghub.composeapp.generated.resources.quick_create_compact_video_prompt_placeholder
 import runninghub.composeapp.generated.resources.quick_create_compact_video_tab
+import runninghub.composeapp.generated.resources.quick_create_send_amount_format
+import runninghub.composeapp.generated.resources.quick_create_send_fee_confirming
+import runninghub.composeapp.generated.resources.quick_create_send_fee_pending
+import runninghub.composeapp.generated.resources.quick_create_send_generate
 
 /**
  * 渲染快捷创作当前默认启用的紧凑底部输入条。
@@ -334,12 +339,15 @@ private fun CompactGenerateButton(
                     tint = if (enabled) Color.White else Neutral500,
                 )
             }
-            Text(
-                text = quickCreateSendButtonLabel(
+            val sendLabel = quickCreateSendButtonText(
+                quickCreateSendButtonLabel(
                     cost = cost,
                     feePreviewLoading = feePreviewLoading,
                     feePreviewError = feePreviewError,
-                ),
+                )
+            )
+            Text(
+                text = sendLabel,
                 color = if (enabled) Color.White else Neutral500,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -348,6 +356,18 @@ private fun CompactGenerateButton(
         }
     }
 }
+
+@Composable
+private fun quickCreateSendButtonText(label: QuickCreateSendButtonLabel): String =
+    when (label) {
+        QuickCreateSendButtonLabel.Confirming -> stringResource(Res.string.quick_create_send_fee_confirming)
+        QuickCreateSendButtonLabel.Pending -> stringResource(Res.string.quick_create_send_fee_pending)
+        QuickCreateSendButtonLabel.Generate -> stringResource(Res.string.quick_create_send_generate)
+        is QuickCreateSendButtonLabel.Amount -> stringResource(
+            Res.string.quick_create_send_amount_format,
+            label.cashAmount,
+        )
+    }
 
 @Composable
 private fun CompactControlPill(
