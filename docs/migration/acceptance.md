@@ -82,7 +82,7 @@ commonMain Compose Resources，硬编码 UI 文案基线从 12 下调为 0；项
 QuickCreate 历史列表与详情弹窗的最近创作兜底、加载更多、关闭、详情加载/标题和取消任务状态文案也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 3 下调为 0；历史标题、元信息、计费文本、项目名、输出和任务标识仍保持运行时或 Presentation 映射数据。
 QuickCreate 紧凑输入条的图片/视频提示词占位、添加素材无障碍描述、图片/视频 Tab 标签、素材数量格式、字符计数格式、生成按钮无障碍描述和视频参数摘要也已迁入
-commonMain Compose Resources，硬编码 UI 文案基线从 2 下调为 0；素材数量、字符数、模型展示名、参数摘要中的图片比例、费用和发送按钮状态仍保持运行时或 Presentation 映射数据。
+commonMain Compose Resources，硬编码 UI 文案基线从 2 下调为 0；紧凑模型入口的加载态继续改为稳定 `QuickCreateCompactServiceModelLabel.Loading` 并由 composeApp Compose Resources 映射，素材数量、字符数、模型名称、参数摘要中的图片比例、费用和发送按钮状态仍保持运行时或 Presentation 映射数据。
 QuickCreate 旧版编辑器的草稿恢复/丢弃按钮、提示词占位、创作调优/生成无障碍描述、模型和价格降级状态、快捷参数标签、音频开关值和参数 chip 格式也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 2 下调为 0；草稿摘要已改为 Presentation 稳定结构并由 composeApp Compose Resources 映射最终文案；
 图片/视频 Tab 和创作/灵感模式标签已改为 Presentation 稳定键并由 composeApp Compose Resources 映射最终文案；
@@ -90,6 +90,7 @@ commonMain Compose Resources，硬编码 UI 文案基线从 2 下调为 0；草�
 QuickCreate 生成提交和媒体上传等待的运行时状态文案已从 composeApp 协调器迁入 `feature:quickcreate:presentation` 的 `QuickCreateRuntimeUiText` 文案端口，`QuickCreateGenerationInteractor` 与 `QuickCreateMediaUploadCoordinator` 的 composeApp 硬编码 UI 文案基线均下调为 0；生成请求构建器的 Prompt 阻塞原因已从中文 `String` 改为稳定 `QuickCreateGenerationBlockReason`，可见文案暂时集中到同一 `QuickCreateRuntimeUiText` 端口；该文案端口仍登记为中期 Presentation 文案基线，后续随 QuickCreate UI 边界迁移再接入 Compose Resources 或注入式 TextProvider。
 QuickCreate 计费预览拦截和失败 fallback 文案已从 `QuickCreateFeePreviewInteractor` 移到 `QuickCreateRuntimeUiText` 与 `QuickCreateErrorFallbackText`；Interactor 只引用统一文案端口并保留原计费防抖、旧响应隔离和请求指纹行为，对应硬编码 UI 文案基线移除。
 QuickCreate 灵感标签、模板分页和模板详情失败的本地 fallback 文案已从 `QuickCreateInspirationStateHolder` 移到 `QuickCreateErrorFallbackText`，StateHolder 只引用统一错误文案端口；对应硬编码 UI 文案基线移除，测试覆盖未知异常不会透传到页面状态。
+QuickCreate 紧凑模型入口加载文案已从 `QuickCreateServiceModelUiModel` 的中文 `String` 改为稳定 `QuickCreateCompactServiceModelLabel`，由 `QuickCreateCompactComposerContent` 通过 Compose Resources 映射加载态；服务端模型名和本地 fallback 模型名仍作为运行时数据展示，对应硬编码 UI 文案基线从 7 下调到 6。
 QuickCreate `AdaptivePromptTextField` 的右下角字数展示已从字符串模板改为 `charCount.toString()`，确认该项只是运行时动态数字展示而非固定 UI 文案；对应硬编码 UI 文案基线从 1 下调为 0。
 AppDetailScreen 的详情输出/参数区标题、参数数量、返回无障碍描述、应用名兜底、统计标签、粉丝数量格式、简介标题、上传区标题、输入占位、下拉占位、布尔开关、视频输出占位和运行按钮状态文案也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 7 下调为 0；服务端字段识别关键字、输入节点标题/选项、应用标题、作者、任务输出文件名和错误信息仍保持运行时或 Presentation 映射数据。

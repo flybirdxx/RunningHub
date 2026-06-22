@@ -60,6 +60,7 @@ import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.WarningDark
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateCompactServiceModelLabel
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.quickCreateCompactServiceModelLabel
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
@@ -72,6 +73,7 @@ import runninghub.composeapp.generated.resources.quick_create_compact_generate_c
 import runninghub.composeapp.generated.resources.quick_create_compact_image_prompt_placeholder
 import runninghub.composeapp.generated.resources.quick_create_compact_image_tab
 import runninghub.composeapp.generated.resources.quick_create_compact_media_count_format
+import runninghub.composeapp.generated.resources.quick_create_compact_model_loading
 import runninghub.composeapp.generated.resources.quick_create_compact_video_params_summary
 import runninghub.composeapp.generated.resources.quick_create_compact_video_prompt_placeholder
 import runninghub.composeapp.generated.resources.quick_create_compact_video_tab
@@ -198,7 +200,7 @@ internal fun QuickCreateCompactComposer(
                         model = selectedServiceModel,
                         fallback = if (isImage) uiState.imageConfig.model.displayName else uiState.videoConfig.model.displayName,
                         loading = serviceModelsLoading,
-                    ),
+                    ).asCompactModelText(),
                     icon = Icons.Default.AutoAwesome,
                     selected = uiState.activeSheet == QuickCreateSheet.MODEL_PICKER,
                     onClick = onOpenModelSheet,
@@ -367,6 +369,21 @@ private fun quickCreateSendButtonText(label: QuickCreateSendButtonLabel): String
             Res.string.quick_create_send_amount_format,
             label.cashAmount,
         )
+    }
+
+/**
+ * 将 Presentation 层返回的模型标签语义映射为紧凑输入条的最终展示文本。
+ *
+ * 只有加载态属于固定 UI 文案，需要通过 Compose Resources 获取；
+ * 服务端模型名和本地兼容模型名都是运行时业务数据，保持原值可以避免把动态名称误收进资源文件。
+ */
+@Composable
+private fun QuickCreateCompactServiceModelLabel.asCompactModelText(): String =
+    when (this) {
+        QuickCreateCompactServiceModelLabel.Loading ->
+            stringResource(Res.string.quick_create_compact_model_loading)
+        is QuickCreateCompactServiceModelLabel.ModelName -> value
+        is QuickCreateCompactServiceModelLabel.FallbackName -> value
     }
 
 @Composable
