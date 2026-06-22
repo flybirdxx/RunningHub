@@ -48,13 +48,45 @@ enum class QuickCreateTaskIndicator {
 }
 
 /**
+ * 快捷创作任务状态区域的稳定文案来源。
+ *
+ * 该模型只描述状态区域应该使用哪类文案，不保存默认中文文案。默认文案由 composeApp
+ * 映射到 Compose Resources；[Custom] 仅承载轮询控制器或服务端状态流传入的运行时说明。
+ */
+sealed interface QuickCreateTaskStatusText {
+    /**
+     * 使用轮询控制器或服务端状态流给出的运行时状态说明。
+     *
+     * @property value 需要直接展示的进度或失败说明，来源于当前生成流程的状态流。
+     * 空字符串会被原样保留，用于兼容旧状态机已有契约；该值不应包含 Token、Cookie、
+     * API Key 或其他敏感凭据。
+     */
+    data class Custom(
+        val value: String,
+    ) : QuickCreateTaskStatusText
+
+    /** 缺省失败文案，由 composeApp 映射为本地化资源。 */
+    data object Failed : QuickCreateTaskStatusText
+
+    /** 缺省成功文案，由 composeApp 映射为本地化资源。 */
+    data object Success : QuickCreateTaskStatusText
+
+    /** 缺省取消文案，由 composeApp 映射为本地化资源。 */
+    data object Canceled : QuickCreateTaskStatusText
+
+    /** 缺省处理中占位文案，由 composeApp 映射为本地化资源。 */
+    data object Processing : QuickCreateTaskStatusText
+}
+
+/**
  * 快捷创作任务状态的可渲染展示模型。
  *
- * @property text 状态区域展示的中文文案；优先使用调用方传入的服务端/本地进度说明。
+ * @property text 状态区域展示的稳定文案来源；默认状态文案由 composeApp 映射资源，
+ * 运行时补充说明使用 [QuickCreateTaskStatusText.Custom] 原样透传。
  * @property indicator 状态区域的视觉指示类型，决定图标、颜色和进度样式。
  */
 data class QuickCreateTaskStatusDisplay(
-    val text: String,
+    val text: QuickCreateTaskStatusText,
     val indicator: QuickCreateTaskIndicator,
 )
 
@@ -74,22 +106,22 @@ fun quickCreateTaskStatusDisplay(
 ): QuickCreateTaskStatusDisplay =
     when (status) {
         QuickCreateTaskPresentationStatus.FAILED -> QuickCreateTaskStatusDisplay(
-            text = statusText ?: "生成失败",
+            text = statusText?.let(QuickCreateTaskStatusText::Custom) ?: QuickCreateTaskStatusText.Failed,
             indicator = QuickCreateTaskIndicator.Error,
         )
         QuickCreateTaskPresentationStatus.SUCCESS -> QuickCreateTaskStatusDisplay(
-            text = statusText ?: "生成完成",
+            text = statusText?.let(QuickCreateTaskStatusText::Custom) ?: QuickCreateTaskStatusText.Success,
             indicator = QuickCreateTaskIndicator.Success,
         )
         QuickCreateTaskPresentationStatus.CANCELED -> QuickCreateTaskStatusDisplay(
-            text = statusText ?: "任务已取消",
+            text = statusText?.let(QuickCreateTaskStatusText::Custom) ?: QuickCreateTaskStatusText.Canceled,
             indicator = QuickCreateTaskIndicator.Error,
         )
         QuickCreateTaskPresentationStatus.IDLE,
         QuickCreateTaskPresentationStatus.SUBMITTING,
         QuickCreateTaskPresentationStatus.QUEUING,
         QuickCreateTaskPresentationStatus.RUNNING -> QuickCreateTaskStatusDisplay(
-            text = statusText ?: "处理中...",
+            text = statusText?.let(QuickCreateTaskStatusText::Custom) ?: QuickCreateTaskStatusText.Processing,
             indicator = QuickCreateTaskIndicator.Progress,
         )
     }

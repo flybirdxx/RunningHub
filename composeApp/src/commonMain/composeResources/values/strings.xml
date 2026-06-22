@@ -61,6 +61,10 @@
     <string name="quick_create_inspiration_load_more_templates">加载更多模板</string>
     <string name="quick_create_result_clear_action">重新创作</string>
     <string name="quick_create_result_section_title">生成结果</string>
+    <string name="quick_create_task_status_failed">生成失败</string>
+    <string name="quick_create_task_status_success">生成完成</string>
+    <string name="quick_create_task_status_canceled">任务已取消</string>
+    <string name="quick_create_task_status_processing">处理中...</string>
     <string name="app_bar_logo_title">RunningHub</string>
     <string name="app_card_use_count_format">%1$s次使用</string>
     <string name="collapsible_section_collapse_content_description">收起</string>

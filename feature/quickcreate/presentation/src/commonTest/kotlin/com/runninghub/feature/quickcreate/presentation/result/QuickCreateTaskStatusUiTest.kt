@@ -12,7 +12,7 @@ class QuickCreateTaskStatusUiTest {
         )
 
         assertEquals(QuickCreateTaskIndicator.Error, display.indicator)
-        assertEquals("render failed", display.text)
+        assertEquals(QuickCreateTaskStatusText.Custom("render failed"), display.text)
     }
 
     @Test
@@ -23,17 +23,17 @@ class QuickCreateTaskStatusUiTest {
         )
 
         assertEquals(QuickCreateTaskIndicator.Progress, display.indicator)
-        assertEquals("running 42%", display.text)
+        assertEquals(QuickCreateTaskStatusText.Custom("running 42%"), display.text)
     }
 
     @Test
-    fun `cancelled task status uses cancelled terminal text`() {
+    fun `cancelled task status uses stable cancelled text key`() {
         val display = quickCreateTaskStatusDisplay(
             status = QuickCreateTaskPresentationStatus.CANCELED,
             statusText = null,
         )
 
         assertEquals(QuickCreateTaskIndicator.Error, display.indicator)
-        assertEquals("任务已取消", display.text)
+        assertEquals(QuickCreateTaskStatusText.Canceled, display.text)
     }
 }

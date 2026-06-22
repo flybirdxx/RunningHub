@@ -44,11 +44,16 @@ import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.SuccessDark
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskIndicator
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPresentationStatus
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.result.quickCreateTaskStatusDisplay
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_result_clear_action
 import runninghub.composeapp.generated.resources.quick_create_result_section_title
+import runninghub.composeapp.generated.resources.quick_create_task_status_canceled
+import runninghub.composeapp.generated.resources.quick_create_task_status_failed
+import runninghub.composeapp.generated.resources.quick_create_task_status_processing
+import runninghub.composeapp.generated.resources.quick_create_task_status_success
 
 /**
  * 展示快捷创作任务的当前执行状态。
@@ -96,13 +101,23 @@ internal fun QuickCreateTaskStatusArea(status: QuickCreateTaskUiStatus, statusTe
             }
             Spacer(Modifier.height(Dimens.SpaceXL))
             Text(
-                display.text,
+                quickCreateTaskStatusText(display.text),
                 color = Color.White.copy(alpha = 0.7f),
                 fontSize = 15.sp,
             )
         }
     }
 }
+
+@Composable
+private fun quickCreateTaskStatusText(text: QuickCreateTaskStatusText): String =
+    when (text) {
+        QuickCreateTaskStatusText.Canceled -> stringResource(Res.string.quick_create_task_status_canceled)
+        is QuickCreateTaskStatusText.Custom -> text.value
+        QuickCreateTaskStatusText.Failed -> stringResource(Res.string.quick_create_task_status_failed)
+        QuickCreateTaskStatusText.Processing -> stringResource(Res.string.quick_create_task_status_processing)
+        QuickCreateTaskStatusText.Success -> stringResource(Res.string.quick_create_task_status_success)
+    }
 
 private fun QuickCreateTaskUiStatus.toPresentationStatus(): QuickCreateTaskPresentationStatus =
     when (this) {
