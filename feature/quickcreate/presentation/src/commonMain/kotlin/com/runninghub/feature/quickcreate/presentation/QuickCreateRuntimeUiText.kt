@@ -21,6 +21,17 @@ object QuickCreateRuntimeUiText {
     /** 已有活跃生成任务时阻止重复提交的页面错误文案。 */
     val duplicateGeneration: String = "已有生成任务进行中，请等待当前任务结束"
 
+    /** 描述词为空时阻止生成的页面错误文案。 */
+    val promptRequired: String = "请输入描述词"
+
+    /**
+     * 描述词超过当前限制时阻止生成的页面错误文案。
+     *
+     * @param maxChars 允许的最大字符数，单位为 Kotlin 字符数量。
+     * @return 可写入 QuickCreate 页面错误状态的超长提示。
+     */
+    fun promptTooLong(maxChars: Int): String = "描述词不能超过 $maxChars 个字符"
+
     /** 单个素材上传失败后写入媒体引用的短错误文案。 */
     val mediaUploadFailed: String = "素材上传失败"
 

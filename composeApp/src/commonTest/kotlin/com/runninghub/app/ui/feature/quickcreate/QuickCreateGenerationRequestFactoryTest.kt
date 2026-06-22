@@ -2,6 +2,7 @@ package com.runninghub.app.ui.feature.quickcreate
 
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationBlockReason
 
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 
@@ -56,12 +57,12 @@ class QuickCreateGenerationRequestFactoryTest {
         val overLimitResult = factory.buildCurrentGenerationRequest(overLimitPrompt, validateUploads = false)
 
         assertEquals(
-            "请输入描述词",
-            (blankResult as QuickCreateGenerationRequestBuildResult.Blocked).message,
+            QuickCreateGenerationBlockReason.PromptRequired,
+            (blankResult as QuickCreateGenerationRequestBuildResult.Blocked).reason,
         )
         assertEquals(
-            "描述词不能超过 $MAX_PROMPT_CHARS 个字符",
-            (overLimitResult as QuickCreateGenerationRequestBuildResult.Blocked).message,
+            QuickCreateGenerationBlockReason.PromptTooLong(MAX_PROMPT_CHARS),
+            (overLimitResult as QuickCreateGenerationRequestBuildResult.Blocked).reason,
         )
     }
 
@@ -79,7 +80,7 @@ class QuickCreateGenerationRequestFactoryTest {
 
         assertTrue(beforeUploadWait is QuickCreateGenerationRequestBuildResult.ImageReady)
         assertTrue(afterUploadWait is QuickCreateGenerationRequestBuildResult.Blocked)
-        assertTrue(afterUploadWait.message.contains("不能为空"))
+        assertTrue((afterUploadWait.reason as QuickCreateGenerationBlockReason.CustomMessage).message.contains("不能为空"))
     }
 
     @Test

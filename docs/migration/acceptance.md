@@ -87,7 +87,7 @@ QuickCreate 旧版编辑器的草稿恢复/丢弃按钮、提示词占位、创�
 commonMain Compose Resources，硬编码 UI 文案基线从 2 下调为 0；草稿摘要已改为 Presentation 稳定结构并由 composeApp Compose Resources 映射最终文案；
 图片/视频 Tab 和创作/灵感模式标签已改为 Presentation 稳定键并由 composeApp Compose Resources 映射最终文案；
 模型展示名/副标题、价格数值、参数 displayName、数量和发送按钮计费状态仍保持运行时或 Presentation 映射数据。
-QuickCreate 生成提交和媒体上传等待的运行时状态文案已从 composeApp 协调器迁入 `feature:quickcreate:presentation` 的 `QuickCreateRuntimeUiText` 文案端口，`QuickCreateGenerationInteractor` 与 `QuickCreateMediaUploadCoordinator` 的 composeApp 硬编码 UI 文案基线均下调为 0；该文案端口仍登记为中期 Presentation 文案基线，后续随 QuickCreate UI 边界迁移再接入 Compose Resources 或注入式 TextProvider。
+QuickCreate 生成提交和媒体上传等待的运行时状态文案已从 composeApp 协调器迁入 `feature:quickcreate:presentation` 的 `QuickCreateRuntimeUiText` 文案端口，`QuickCreateGenerationInteractor` 与 `QuickCreateMediaUploadCoordinator` 的 composeApp 硬编码 UI 文案基线均下调为 0；生成请求构建器的 Prompt 阻塞原因已从中文 `String` 改为稳定 `QuickCreateGenerationBlockReason`，可见文案暂时集中到同一 `QuickCreateRuntimeUiText` 端口；该文案端口仍登记为中期 Presentation 文案基线，后续随 QuickCreate UI 边界迁移再接入 Compose Resources 或注入式 TextProvider。
 QuickCreate `AdaptivePromptTextField` 的右下角字数展示已从字符串模板改为 `charCount.toString()`，确认该项只是运行时动态数字展示而非固定 UI 文案；对应硬编码 UI 文案基线从 1 下调为 0。
 AppDetailScreen 的详情输出/参数区标题、参数数量、返回无障碍描述、应用名兜底、统计标签、粉丝数量格式、简介标题、上传区标题、输入占位、下拉占位、布尔开关、视频输出占位和运行按钮状态文案也已迁入
 commonMain Compose Resources，硬编码 UI 文案基线从 7 下调为 0；服务端字段识别关键字、输入节点标题/选项、应用标题、作者、任务输出文件名和错误信息仍保持运行时或 Presentation 映射数据。

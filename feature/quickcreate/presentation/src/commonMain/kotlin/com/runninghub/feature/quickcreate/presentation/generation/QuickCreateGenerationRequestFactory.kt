@@ -47,10 +47,11 @@ sealed interface QuickCreateGenerationRequestBuildResult {
     /**
      * 当前输入不能提交生成。
      *
-     * @property message 面向快捷创作页面展示的阻塞原因，由 Presentation 层负责生成。
+     * @property reason 面向快捷创作页面展示的稳定阻塞原因。
+     * 该字段不直接保存中文 UI 文案；应用壳或统一文案端口负责把稳定原因映射为最终展示文本。
      */
     data class Blocked(
-        val message: String,
+        val reason: QuickCreateGenerationBlockReason,
     ) : QuickCreateGenerationRequestBuildResult
 
     /**
@@ -59,6 +60,37 @@ sealed interface QuickCreateGenerationRequestBuildResult {
      * 该状态用于防御异常 Tab 或模型状态组合；调用方通常保持空闲状态而不发起 Repository 调用。
      */
     data object Unavailable : QuickCreateGenerationRequestBuildResult
+}
+
+/**
+ * 快捷创作生成前同步校验失败的稳定原因。
+ *
+ * 请求构建器只负责判断当前状态为何不能生成，不直接返回最终中文文案。
+ * 服务端模型字段校验目前仍由 [QuickCreationServiceSchema] 返回可展示文本，
+ * 因此通过 [CustomMessage] 兼容；Prompt 类固定规则则使用稳定枚举，便于后续统一资源化。
+ */
+sealed interface QuickCreateGenerationBlockReason {
+    /** 描述词为空或只包含空白字符，当前请求不能提交。 */
+    data object PromptRequired : QuickCreateGenerationBlockReason
+
+    /**
+     * 描述词超过当前允许上限。
+     *
+     * @property maxChars 允许的最大字符数，单位为 Kotlin 字符数量；当前由 [MAX_PROMPT_CHARS] 提供。
+     */
+    data class PromptTooLong(
+        val maxChars: Int,
+    ) : QuickCreateGenerationBlockReason
+
+    /**
+     * 兼容动态服务字段或上传字段校验返回的可展示消息。
+     *
+     * @property message 由服务字段 schema 校验生成的阻塞说明，通常包含字段标题或上传约束；
+     * 空字符串不应传入，调用方会原样展示该值。
+     */
+    data class CustomMessage(
+        val message: String,
+    ) : QuickCreateGenerationBlockReason
 }
 
 /**
@@ -84,14 +116,18 @@ class QuickCreateGenerationRequestFactory {
         validateUploads: Boolean,
     ): QuickCreateGenerationRequestBuildResult {
         validateCurrentServiceFields(state)?.let { error ->
-            return QuickCreateGenerationRequestBuildResult.Blocked(error)
+            return QuickCreateGenerationRequestBuildResult.Blocked(
+                QuickCreateGenerationBlockReason.CustomMessage(error),
+            )
         }
         currentPromptError(state)?.let { error ->
             return QuickCreateGenerationRequestBuildResult.Blocked(error)
         }
         if (validateUploads) {
             validateCurrentServiceUploads(state)?.let { error ->
-                return QuickCreateGenerationRequestBuildResult.Blocked(error)
+                return QuickCreateGenerationRequestBuildResult.Blocked(
+                    QuickCreateGenerationBlockReason.CustomMessage(error),
+                )
             }
         }
 
@@ -263,7 +299,7 @@ class QuickCreateGenerationRequestFactory {
             )
         }
 
-    private fun currentPromptError(state: QuickCreateUiState): String? {
+    private fun currentPromptError(state: QuickCreateUiState): QuickCreateGenerationBlockReason? {
         val prompt = when (state.currentTab) {
             QuickCreateTab.IMAGE -> state.imageConfig.prompt.trim()
             QuickCreateTab.VIDEO -> state.videoConfig.prompt.trim()
@@ -273,8 +309,8 @@ class QuickCreateGenerationRequestFactory {
             QuickCreateTab.VIDEO -> state.videoConfig.promptOverLimit
         }
         return when {
-            prompt.isEmpty() -> "请输入描述词"
-            overLimit -> "描述词不能超过 $MAX_PROMPT_CHARS 个字符"
+            prompt.isEmpty() -> QuickCreateGenerationBlockReason.PromptRequired
+            overLimit -> QuickCreateGenerationBlockReason.PromptTooLong(MAX_PROMPT_CHARS)
             else -> null
         }
     }

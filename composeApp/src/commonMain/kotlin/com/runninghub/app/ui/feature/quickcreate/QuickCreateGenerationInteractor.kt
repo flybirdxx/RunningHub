@@ -2,6 +2,7 @@ package com.runninghub.app.ui.feature.quickcreate
 
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
+import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationBlockReason
 
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 
@@ -74,7 +75,7 @@ internal class QuickCreateGenerationInteractor(
             validateUploads = false,
         )) {
             is QuickCreateGenerationRequestBuildResult.Blocked -> {
-                blockGenerate(buildResult.message)
+                blockGenerate(buildResult.reason.toRuntimeMessage())
                 return
             }
             QuickCreateGenerationRequestBuildResult.Unavailable -> return
@@ -123,7 +124,7 @@ internal class QuickCreateGenerationInteractor(
                         blockGenerate(QuickCreateRuntimeUiText.feePending)
                     }
                 }
-                is QuickCreateGenerationRequestBuildResult.Blocked -> blockGenerate(buildResult.message)
+                is QuickCreateGenerationRequestBuildResult.Blocked -> blockGenerate(buildResult.reason.toRuntimeMessage())
                 QuickCreateGenerationRequestBuildResult.Unavailable -> blockGenerate(null)
             }
         }
@@ -188,3 +189,16 @@ internal class QuickCreateGenerationInteractor(
     ): Boolean =
         state.feePreviewRequestKey == requestKey
 }
+
+/**
+ * 将生成前阻塞原因映射为当前运行时文案端口。
+ *
+ * 请求构建器只返回稳定原因，避免纯数据转换层继续拼接最终中文 UI 文案；
+ * 这里仍暂时复用 [QuickCreateRuntimeUiText]，后续可把该端口整体迁到 Compose Resources 或注入式 TextProvider。
+ */
+private fun QuickCreateGenerationBlockReason.toRuntimeMessage(): String =
+    when (this) {
+        is QuickCreateGenerationBlockReason.CustomMessage -> message
+        QuickCreateGenerationBlockReason.PromptRequired -> QuickCreateRuntimeUiText.promptRequired
+        is QuickCreateGenerationBlockReason.PromptTooLong -> QuickCreateRuntimeUiText.promptTooLong(maxChars)
+    }
