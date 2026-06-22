@@ -101,13 +101,30 @@ enum class ImageResolution(val displayName: String, val apiValue: String) {
 /**
  * 图片生成内置质量选项。
  *
- * @property displayName 页面展示文案。
+ * @property label 页面展示语义；最终文案由 composeApp 使用 Compose Resources 映射。
  * @property apiValue 兼容旧生成接口的请求参数值。
  */
-enum class ImageQuality(val displayName: String, val apiValue: String) {
-    QUALITY_LOW("低", "low"),
-    QUALITY_MEDIUM("中", "medium"),
-    QUALITY_HIGH("高", "high"),
+enum class ImageQuality(val label: ImageQualityLabel, val apiValue: String) {
+    QUALITY_LOW(ImageQualityLabel.Low, "low"),
+    QUALITY_MEDIUM(ImageQualityLabel.Medium, "medium"),
+    QUALITY_HIGH(ImageQualityLabel.High, "high"),
+}
+
+/**
+ * 图片质量选项的稳定展示语义。
+ *
+ * 旧接口仍使用 [ImageQuality.apiValue] 提交 `low/medium/high`；本类型只用于 UI 边界映射本地文案，
+ * 避免 feature presentation 模块保存“低/中/高”这类固定中文 UI 字符串。
+ */
+sealed interface ImageQualityLabel {
+    /** 低质量档位，通常用于更低成本或更快生成。 */
+    data object Low : ImageQualityLabel
+
+    /** 中质量档位，是当前本地兼容模型的默认选择。 */
+    data object Medium : ImageQualityLabel
+
+    /** 高质量档位，通常对应更高成本或更精细输出。 */
+    data object High : ImageQualityLabel
 }
 
 /**

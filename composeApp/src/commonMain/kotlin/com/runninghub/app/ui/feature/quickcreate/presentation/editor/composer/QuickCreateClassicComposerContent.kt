@@ -587,7 +587,7 @@ private fun QuickParamChipRow(
             )
             CompactParamChip(
                 label = stringResource(Res.string.quick_create_classic_param_quality_label),
-                value = config.quality.displayName,
+                value = config.quality.label.asImageQualityText(),
                 icon = Icons.Default.Tune,
                 onClick = { onImageQualityChange(nextQuickCreateValue(qualities, config.quality)) },
             )

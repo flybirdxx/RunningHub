@@ -288,30 +288,32 @@ gate_status:
       - "2026-06-22 P8 QuickCreate 项目错误 fallback 继续收口：QuickCreateProjectStateHolder 不再直接传入 6 个项目错误中文兜底，统一复用 QuickCreateErrorFallbackText 的 PROJECT_* 常量；项目错误码映射也复用同一批常量，ProjectStateHolder 硬编码 UI 文案基线移除。"
       - "2026-06-22 P8 QuickCreate 历史错误 fallback 继续收口：QuickCreateHistoryStateHolder 不再直接传入最近历史分页、取消任务、历史详情、项目任务列表和轮询刷新失败中文兜底，统一复用 QuickCreateErrorFallbackText 的 HISTORY/TASK/PROJECT_TASK 常量；历史错误码映射也复用同一批常量，HistoryStateHolder 硬编码 UI 文案基线移除。"
       - "2026-06-22 P8 QuickCreate 任务轮询错误文案继续收口：QuickCreateTaskPollingController 不再维护任务失败、超时、查询失败、计费拦截、预提交和提交失败的私有中文映射，统一调用 QuickCreateErrorMessages.toQuickCreateTaskIssueDisplayMessage；未知远端摘要继续降级为通用生成失败文案，TaskPollingController 硬编码 UI 文案基线移除。"
+      - "2026-06-22 P8 QuickCreate 编辑器本地枚举文案继续收口：ImageQuality 不再保存低/中/高中文 displayName，改为 ImageQualityLabel 稳定语义；QuickCreateClassicComposerContent 通过 composeApp Compose Resources 映射质量 chip 文案，EditorUiModels 硬编码 UI 文案基线从 11 下调到 8。"
       - "2026-06-22 Gate H/P7 shared 模块整体退役：settings.gradle.kts 移除 include(\":shared\")，删除 shared 最后 8 个跟踪文件和过时的增长控制文件，verifyL1Ios 不再编译 shared，checkArchitectureBoundaries 改为直接拒绝 shared include、依赖和跟踪文件回流。"
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza、Detail 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；QuickCreate Project UI 模型的任务数、置顶状态、删除确认和详情行文案已改为稳定语义并由 composeApp 资源映射，QuickCreate ProjectStateHolder、HistoryStateHolder 与 TaskPollingController 的错误 fallback 均已统一复用 QuickCreateErrorMessages/QuickCreateErrorFallbackText，QuickCreate 服务模型未命名/默认分组/参数数量文案已改为稳定语义并由 composeApp 资源映射，QuickCreate 任务状态区 statusText 已改为 QuickCreateTaskStatusText 语义并由资源映射提交、排队、进度、上传等待、成功和取消文案；sharedModule 与 retired shared 模块均已删除，验证码 Web 容器 baseUrl 已跟随 RunningHubApiEnvironment，QuickCreateMediaUploadCoordinator 已迁入 feature:quickcreate:presentation/upload，QuickCreateGenerationInteractor 已迁入 feature:quickcreate:presentation/generation，QuickCreateCoordinator 已迁入 feature:quickcreate:presentation/coordinator，QuickCreateScreenModel 已改为依赖 feature presentation 的 QuickCreateMediaResolver 端口且平台 MediaResolver 适配收口到 AppModule 组合根，当前事实源和长期治理门禁已禁止重新引用旧增长控制文件、shared 编译入口、固定生产验证码源、Login/Detail Presentation 硬编码错误文案或上传错误泄露本地媒体名；下一步继续审查 QuickCreateScreenModel 是否还有非壳层职责，并逐步收缩 QuickCreateErrorMessages、QuickCreateRuntimeUiText 和 EditorUiModels 的剩余 Presentation 文案基线；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza、Detail 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；QuickCreate Project UI 模型的任务数、置顶状态、删除确认和详情行文案已改为稳定语义并由 composeApp 资源映射，QuickCreate ProjectStateHolder、HistoryStateHolder 与 TaskPollingController 的错误 fallback 均已统一复用 QuickCreateErrorMessages/QuickCreateErrorFallbackText，QuickCreate 服务模型未命名/默认分组/参数数量和 ImageQuality 质量档位文案已改为稳定语义并由 composeApp 资源映射，QuickCreate 任务状态区 statusText 已改为 QuickCreateTaskStatusText 语义并由资源映射提交、排队、进度、上传等待、成功和取消文案；sharedModule 与 retired shared 模块均已删除，验证码 Web 容器 baseUrl 已跟随 RunningHubApiEnvironment，QuickCreateMediaUploadCoordinator 已迁入 feature:quickcreate:presentation/upload，QuickCreateGenerationInteractor 已迁入 feature:quickcreate:presentation/generation，QuickCreateCoordinator 已迁入 feature:quickcreate:presentation/coordinator，QuickCreateScreenModel 已改为依赖 feature presentation 的 QuickCreateMediaResolver 端口且平台 MediaResolver 适配收口到 AppModule 组合根，当前事实源和长期治理门禁已禁止重新引用旧增长控制文件、shared 编译入口、固定生产验证码源、Login/Detail Presentation 硬编码错误文案或上传错误泄露本地媒体名；下一步继续审查 QuickCreateScreenModel 是否还有非壳层职责，并逐步收缩 QuickCreateErrorMessages、QuickCreateRuntimeUiText 和 EditorUiModels 的剩余 Presentation 文案基线；其中 RuntimeUiText 可优先从生成入口阻塞语义切入，EditorUiModels 可继续收口视频分辨率/时长或本地模型名；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   current_slice:
-    id: "MID-02-F16-quickcreate-task-polling-error-copy"
+    id: "MID-02-F17-quickcreate-image-quality-labels"
     result: "passed"
     modified_files:
       - "docs/governance/ui-copy-hardcoded-baseline.txt"
       - "docs/migration/acceptance.md"
       - "docs/migration/current-state.yaml"
-      - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateErrorMessages.kt"
-      - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/result/QuickCreateTaskPollingController.kt"
-      - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateErrorMessagesTest.kt"
+      - "composeApp/src/commonMain/composeResources/values/strings.xml"
+      - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateClassicComposerContent.kt"
+      - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/presentation/editor/composer/QuickCreateEditorOptionText.kt"
+      - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/editor/QuickCreateEditorUiModels.kt"
+      - "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/editor/QuickCreateEditorUiModelsTest.kt"
     commands:
-      - "./gradlew.bat --console=plain checkLongTermGovernance # RED: failed after removing QuickCreateTaskPollingController hardcoded UI copy baseline while the file still had 9 matches"
-      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.QuickCreateErrorMessagesTest\" # RED: failed because QuickCreateErrorFallbackText.GENERATION_FAILED and toQuickCreateTaskIssueDisplayMessage did not exist"
-      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingControllerTest\" --tests \"com.runninghub.feature.quickcreate.presentation.QuickCreateErrorMessagesTest\" checkLongTermGovernance"
+      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.editor.QuickCreateEditorUiModelsTest\" checkLongTermGovernance # RED: failed because ImageQualityLabel/label did not exist and EditorUiModels still had 11 matches while baseline allowed 8"
+      - "./gradlew.bat --console=plain :feature:quickcreate:presentation:testDebugUnitTest --tests \"com.runninghub.feature.quickcreate.presentation.editor.QuickCreateEditorUiModelsTest\" :feature:quickcreate:presentation:compileDebugKotlinAndroid :feature:quickcreate:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
     notes:
-      - "QuickCreateTaskPollingController 删除私有任务错误码中文映射，改为调用 QuickCreateErrorMessages.toQuickCreateTaskIssueDisplayMessage。"
-      - "QuickCreateErrorFallbackText 新增 GENERATION_FAILED 常量，UNKNOWN_ERROR 和未知远端摘要共用同一通用生成失败兜底。"
-      - "静态扫描确认 QuickCreateTaskPollingController 已无中文字符串字面量，QuickCreateErrorMessages 仍为 28 个匹配，ui-copy-hardcoded-baseline 移除 TaskPollingController 登记项。"
+      - "ImageQuality.displayName 改为 ImageQuality.label: ImageQualityLabel，旧接口 apiValue、默认质量和本地价格估算不变。"
+      - "QuickCreateClassicComposerContent 使用 QuickCreateEditorOptionText 从 Compose Resources 映射低/中/高质量 chip 文案。"
+      - "静态扫描确认 QuickCreateEditorUiModels 中文字符串字面量从 11 降到 8，ui-copy-hardcoded-baseline 同步下调。"
       - "本轮只做中期架构整理验证；真实 Android/iOS 运行回归和 L1 封板证据仍按用户要求留待后续。"
   modified_files:
     - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt"
