@@ -33,10 +33,24 @@ class CommunityStateHolderTest {
         val tools = stateHolder.uiState.value.tools
 
         assertEquals(tools.map { it.id }.toSet().size, tools.size)
-        assertTrue(tools.all { it.title.isNotBlank() })
-        assertTrue(tools.all { it.description.isNotBlank() })
+        assertTrue(tools.all { it.titleKey.isNotBlank() })
+        assertTrue(tools.all { it.descriptionKey.isNotBlank() })
         assertTrue(tools.all { it.iconName.isNotBlank() })
         assertTrue(tools.all { it.route.isNotBlank() })
+    }
+
+    @Test
+    fun `default tools expose stable text keys instead of localized copy`() {
+        val stateHolder = CommunityStateHolder()
+
+        val toolKeys = stateHolder.uiState.value.tools.associate {
+            it.id to (it.titleKey to it.descriptionKey)
+        }
+
+        assertEquals("audio_gen.title", toolKeys.getValue("audio_gen").first)
+        assertEquals("audio_gen.description", toolKeys.getValue("audio_gen").second)
+        assertEquals("workflow.title", toolKeys.getValue("workflow").first)
+        assertEquals("workflow.description", toolKeys.getValue("workflow").second)
     }
 
     @Test

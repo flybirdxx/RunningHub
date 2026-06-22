@@ -12,10 +12,10 @@ import kotlinx.coroutines.flow.asStateFlow
  *
  * @property id 工具入口稳定 ID，来源于客户端内置目录。
  * 该值用于 LazyGrid key、图标配色和测试去重；不能为空，且同一目录内必须唯一。
- * @property title 用户可见标题，来源于客户端内置文案。
- * 当前仍为硬编码迁移期文案；空字符串不允许进入 UI。
- * @property description 用户可见说明，来源于客户端内置文案。
- * 用于工具卡片摘要展示；空字符串表示配置错误，不应作为正常状态。
+ * @property titleKey 工具标题的稳定文案 key，来源于客户端内置目录。
+ * 该值不是用户可见文案，应用壳负责映射到 Compose Resources；空字符串表示配置错误。
+ * @property descriptionKey 工具说明的稳定文案 key，来源于客户端内置目录。
+ * 该值用于定位工具卡片摘要资源，不得保存中文文案或运行时服务端文本。
  * @property iconName 平台无关的图标语义名，来源于客户端内置目录。
  * Compose 层负责把该名称映射为具体 [ImageVector]，未知名称应降级为通用工具图标。
  * @property route 应用壳后续用于导航的稳定路由标识，来源于客户端内置目录。
@@ -23,8 +23,8 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 data class CommunityTool(
     val id: String,
-    val title: String,
-    val description: String,
+    val titleKey: String,
+    val descriptionKey: String,
     val iconName: String,
     val route: String,
 )
@@ -68,43 +68,43 @@ class CommunityStateHolder {
     private fun defaultTools(): List<CommunityTool> = listOf(
         CommunityTool(
             id = "audio_gen",
-            title = "音频生成",
-            description = "文本转语音、AI 音乐生成与音频处理",
+            titleKey = "audio_gen.title",
+            descriptionKey = "audio_gen.description",
             iconName = "audiotrack",
             route = "audio_generation",
         ),
         CommunityTool(
             id = "steganography",
-            title = "隐写术解码",
-            description = "从图片中提取隐藏的秘密数据",
+            titleKey = "steganography.title",
+            descriptionKey = "steganography.description",
             iconName = "visibility",
             route = "secret_decode",
         ),
         CommunityTool(
             id = "ui_inspector",
-            title = "UI 检视器",
-            description = "查看设备屏幕参数与系统信息",
+            titleKey = "ui_inspector.title",
+            descriptionKey = "ui_inspector.description",
             iconName = "info",
             route = "ui_inspector",
         ),
         CommunityTool(
             id = "color_extract",
-            title = "色彩提取",
-            description = "从图片中提取配色方案与调色板",
+            titleKey = "color_extract.title",
+            descriptionKey = "color_extract.description",
             iconName = "palette",
             route = "color_extract",
         ),
         CommunityTool(
             id = "smart_crop",
-            title = "智能裁切",
-            description = "自动识别主体智能裁切图片",
+            titleKey = "smart_crop.title",
+            descriptionKey = "smart_crop.description",
             iconName = "crop",
             route = "smart_crop",
         ),
         CommunityTool(
             id = "workflow",
-            title = "工作流广场",
-            description = "探索和运行社区分享的工作流",
+            titleKey = "workflow.title",
+            descriptionKey = "workflow.description",
             iconName = "hub",
             route = "workflow_plaza",
         ),

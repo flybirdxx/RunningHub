@@ -238,7 +238,7 @@ gate_status:
       - "本轮按复核建议补强 TAC 图形验证码 HTML：外部脚本改为受控动态加载，脚本加载失败、加载超时和图片解码失败都会进入可重试中文降级状态；SmsCaptchaHtmlTest 已覆盖这些包装层契约。"
       - "本轮按复核建议补强 Release 构建治理：composeApp release 构建启用 R8 minify 和 resource shrink，proguard-rules.pro 移除 shared 时代规则并覆盖迁移后的 com.runninghub serializer/Koin/Ktor 场景，checkArchitectureBoundaries 和 verifyL1Android 已纳入防退化检查。"
       - "本轮按复核建议补强环境配置治理：core/network 暴露 ApiEnvironment，RunningHubApiEnvironment 不再依赖编译期 URL 常量，Android/iOS runtime module 在平台启动层注入当前环境；checkArchitectureBoundaries 已纳入该注入链路自检。"
-      - "2026-06-22 P8 UI 文案资源化中期收缩：Community 页头标题和副标题迁入 composeApp commonMain Compose Resources，CommunityScreen 硬编码 UI 文案基线从 2 下调为 0；工具卡片目录文案仍按 Presentation 模块节奏后续迁移。"
+      - "2026-06-22 P8 UI 文案资源化中期收缩：Community 页头标题和副标题迁入 composeApp commonMain Compose Resources，CommunityScreen 硬编码 UI 文案基线从 2 下调为 0；工具目录标题和说明已在后续切片中改为稳定文案 key 并由应用壳资源化映射。"
       - "2026-06-22 P8 UI 文案资源化继续收缩：QuickCreate 结果页标题/清空结果入口、灵感页空状态/加载更多入口迁入 composeApp commonMain Compose Resources；对应两个叶子 UI 文件硬编码文案基线从 1 下调为 0。"
       - "2026-06-22 P8 通用组件文案资源化继续收缩：AppBarLogo、AppCard、CollapsibleSection、ErrorState 和 SmartAsyncImage 的静态文案、格式化单位和无障碍描述迁入 composeApp commonMain Compose Resources；对应硬编码文案基线均从 1 下调为 0。"
       - "2026-06-22 P8 QuickCreate 模型选择面板文案资源化继续收缩：标题、加载态、空态和关闭按钮无障碍描述迁入 composeApp commonMain Compose Resources；QuickCreateModelSelectorContent 硬编码文案基线从 1 下调为 0，模型名称、分组和副标题仍由 Presentation 状态提供。"
@@ -277,7 +277,7 @@ gate_status:
     remaining: []
 next_action:
   id: "MID-02"
-  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer/QuickCreateClassicComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery 与 Plaza 的部分 Presentation 错误状态已收口为稳定错误枚举；下一步优先处理 Community 工具目录文案或 shared 空壳瘦身；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
+  description: "继续中期框架整理：通用组件、主导航、Creator/Profile/SettingsDialog/Search/Login/AppDetail/Discovery/TaskHistory/Plaza/QuickCreateParams/QuickCreateProject/QuickCreateHistory/QuickCreateCompactComposer 等叶子 UI 文案已完成 Compose Resources 试点，Auth、Discovery、Plaza 与 Community 工具目录的部分 Presentation 文案状态已收口为稳定错误枚举或稳定文案 key；下一步优先处理 shared 空壳瘦身；暂不补 Android/iOS CI 外部证据、Release 或 L1 封板证据。"
 last_verification:
   modified_files:
     - "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/QuickCreateRuntimeUiText.kt"
@@ -721,6 +721,13 @@ last_verification:
     - "docs/governance/ui-copy-hardcoded-baseline.txt"
     - "docs/migration/acceptance.md"
     - "docs/migration/current-state.yaml"
+    - "feature/community/presentation/src/commonMain/kotlin/com/runninghub/feature/community/presentation/CommunityStateHolder.kt"
+    - "feature/community/presentation/src/commonTest/kotlin/com/runninghub/feature/community/presentation/CommunityStateHolderTest.kt"
+    - "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/community/CommunityScreen.kt"
+    - "composeApp/src/commonMain/composeResources/values/strings.xml"
+    - "docs/governance/ui-copy-hardcoded-baseline.txt"
+    - "docs/migration/acceptance.md"
+    - "docs/migration/current-state.yaml"
   commands:
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest --tests \"com.runninghub.feature.auth.presentation.creator.CreatorProfileStateHolderTest\" --tests \"com.runninghub.feature.auth.presentation.profile.ProfileStateHolderTest\" # RED: failed before CreatorProfileError/ProfileError existed"
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest --tests \"com.runninghub.feature.auth.presentation.creator.CreatorProfileStateHolderTest\" --tests \"com.runninghub.feature.auth.presentation.profile.ProfileStateHolderTest\""
@@ -890,6 +897,9 @@ last_verification:
     - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\" # RED: failed before CommunityStateHolder existed"
     - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\""
     - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest :feature:community:presentation:compileDebugKotlinAndroid :feature:community:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
+    - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\" # RED: failed before CommunityTool exposed titleKey/descriptionKey"
+    - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\""
+    - "./gradlew.bat --console=plain :feature:community:presentation:testDebugUnitTest --tests \"com.runninghub.feature.community.presentation.CommunityStateHolderTest\" :feature:community:presentation:compileDebugKotlinAndroid :feature:community:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest --tests \"com.runninghub.feature.auth.presentation.creator.CreatorProfileStateHolderTest\" # RED: failed before CreatorProfileStateHolder existed"
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest --tests \"com.runninghub.feature.auth.presentation.creator.CreatorProfileStateHolderTest\""
     - "./gradlew.bat --console=plain :feature:auth:presentation:testDebugUnitTest :feature:auth:presentation:compileDebugKotlinAndroid :feature:auth:presentation:compileKotlinIosSimulatorArm64 :composeApp:compileDebugKotlinAndroid :composeApp:compileKotlinIosSimulatorArm64 checkArchitectureBoundaries checkLongTermGovernance"
@@ -1269,6 +1279,8 @@ last_verification:
     - "2026-06-22 Community 工具页 Presentation 中期拆分继续推进：新增 CommunityStateHolder、CommunityUiState 和 CommunityTool，把静态工具目录、工具顺序、route/icon 元数据迁入 feature:community:presentation；composeApp CommunityScreenModel 只保留 Voyager/Koin 适配，CommunityScreen 继续负责渲染、图标解析和后续导航。"
     - "2026-06-22 Community 工具页 TDD 验收：先新增 CommunityStateHolderTest 并确认 RED 失败于 CommunityStateHolder 未定义，随后实现 StateHolder 后测试通过；覆盖默认工具顺序、工具 ID 唯一、标题/说明/图标/route 非空，以及 workflow 路由保持 workflow_plaza。"
     - "2026-06-22 下一步中期候选更新：Community 工具页状态已迁出，后续可优先评估 composeApp 大体量 UI 壳体基线是否仍需保留，或选择 UI 文案资源化中可独立收缩的文件。"
+    - "2026-06-22 P8 Community 工具目录文案继续收口：CommunityTool 的 title/description 改为稳定 titleKey/descriptionKey，CommunityScreen 通过 composeApp Compose Resources 映射 6 个工具标题和说明；ui-copy baseline 移除 CommunityStateHolder 的 12 个工具目录文案匹配。"
+    - "2026-06-22 下一步中期候选更新：Community 工具目录文案已资源化，Bohr 只读复核建议下一刀优先删除未接入生产启动图的 sharedModule，并先保留 :shared 模块本身和 Platform/MD5 兼容文件。"
     - "P0-4 图形验证码本轮继续补强：TAC 脚本加载失败和超时会显示可重试降级状态，并由 SmsCaptchaHtmlTest 锁定；真实 WKWebView 加载、ATS/Cookie/同源行为仍需 macOS/iOS 运行证据。"
     - "网络 JSON 本轮按复核建议补强：TokenRefresher 不再用正则截取刷新响应，改用 kotlinx.serialization DTO 解码，新增测试覆盖 JSON unicode escape token。"
     - "安全存储本轮按复核建议前置修复：生产 CredentialStore 已切换到 Android Keystore backed 密文存储和 iOS Keychain，MigratingCredentialStore 负责把旧 Preferences DataStore 凭据逐项迁移并清理；架构门禁会阻止 Android/iOS RuntimeModule 退回普通 Preferences 绑定。"

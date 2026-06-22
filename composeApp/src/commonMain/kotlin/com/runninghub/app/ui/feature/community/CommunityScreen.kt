@@ -35,6 +35,18 @@ import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.community_screen_subtitle
 import runninghub.composeapp.generated.resources.community_screen_title
+import runninghub.composeapp.generated.resources.community_tool_audio_description
+import runninghub.composeapp.generated.resources.community_tool_audio_title
+import runninghub.composeapp.generated.resources.community_tool_color_extract_description
+import runninghub.composeapp.generated.resources.community_tool_color_extract_title
+import runninghub.composeapp.generated.resources.community_tool_smart_crop_description
+import runninghub.composeapp.generated.resources.community_tool_smart_crop_title
+import runninghub.composeapp.generated.resources.community_tool_steganography_description
+import runninghub.composeapp.generated.resources.community_tool_steganography_title
+import runninghub.composeapp.generated.resources.community_tool_ui_inspector_description
+import runninghub.composeapp.generated.resources.community_tool_ui_inspector_title
+import runninghub.composeapp.generated.resources.community_tool_workflow_description
+import runninghub.composeapp.generated.resources.community_tool_workflow_title
 
 /**
  * 社区工具页的 Voyager 入口。
@@ -60,7 +72,8 @@ class CommunityVoyagerScreen : Screen {
  * 渲染社区工具页的可复用内容。
  *
  * 页面标题文案通过 Compose Resources 读取，确保后续多语言和硬编码文案治理能在应用壳统一收口；
- * 工具卡片标题仍来自 [CommunityUiState]，后续应随工具目录迁移节奏再接入资源化文案。
+ * 工具卡片标题和说明由 [CommunityTool] 的稳定 key 映射到 Compose Resources，
+ * Presentation 状态不保存中文 UI 文案。
  *
  * @param modifier 外层布局修饰符，由调用方决定尺寸、测试标签或额外边距；默认不附加约束。
  * @param uiState 社区工具页当前可渲染状态，包含工具入口列表和本地目录准备状态。
@@ -160,6 +173,8 @@ private fun ToolCard(
     onClick: () -> Unit
 ) {
     val iconColor = iconColorForTool(tool.id)
+    val title = communityToolTitle(tool.titleKey)
+    val description = communityToolDescription(tool.descriptionKey)
 
     Card(
         modifier = modifier
@@ -192,7 +207,7 @@ private fun ToolCard(
             }
             Column {
                 Text(
-                    text = tool.title,
+                    text = title,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -201,7 +216,7 @@ private fun ToolCard(
                 )
                 Spacer(Modifier.height(Dimens.SpaceXS))
                 Text(
-                    text = tool.description,
+                    text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 3,
@@ -210,6 +225,28 @@ private fun ToolCard(
             }
         }
     }
+}
+
+@Composable
+private fun communityToolTitle(key: String): String = when (key) {
+    "audio_gen.title" -> stringResource(Res.string.community_tool_audio_title)
+    "steganography.title" -> stringResource(Res.string.community_tool_steganography_title)
+    "ui_inspector.title" -> stringResource(Res.string.community_tool_ui_inspector_title)
+    "color_extract.title" -> stringResource(Res.string.community_tool_color_extract_title)
+    "smart_crop.title" -> stringResource(Res.string.community_tool_smart_crop_title)
+    "workflow.title" -> stringResource(Res.string.community_tool_workflow_title)
+    else -> key
+}
+
+@Composable
+private fun communityToolDescription(key: String): String = when (key) {
+    "audio_gen.description" -> stringResource(Res.string.community_tool_audio_description)
+    "steganography.description" -> stringResource(Res.string.community_tool_steganography_description)
+    "ui_inspector.description" -> stringResource(Res.string.community_tool_ui_inspector_description)
+    "color_extract.description" -> stringResource(Res.string.community_tool_color_extract_description)
+    "smart_crop.description" -> stringResource(Res.string.community_tool_smart_crop_description)
+    "workflow.description" -> stringResource(Res.string.community_tool_workflow_description)
+    else -> key
 }
 
 @Composable
@@ -237,43 +274,43 @@ private fun communityPreviewState(): CommunityUiState = CommunityUiState(
     tools = listOf(
         CommunityTool(
             id = "audio_gen",
-            title = "Audio Generation",
-            description = "Generate voice, music, and short sound effects from text prompts.",
+            titleKey = "audio_gen.title",
+            descriptionKey = "audio_gen.description",
             iconName = "audiotrack",
             route = "audio_generation",
         ),
         CommunityTool(
             id = "steganography",
-            title = "Secret Decode",
-            description = "Extract hidden data from images without breaking the compact card layout.",
+            titleKey = "steganography.title",
+            descriptionKey = "steganography.description",
             iconName = "visibility",
             route = "secret_decode",
         ),
         CommunityTool(
             id = "ui_inspector",
-            title = "UI Inspector",
-            description = "Inspect screen metrics, insets, and display details across devices.",
+            titleKey = "ui_inspector.title",
+            descriptionKey = "ui_inspector.description",
             iconName = "info",
             route = "ui_inspector",
         ),
         CommunityTool(
             id = "color_extract",
-            title = "Palette Extractor",
-            description = "Build reusable palettes from reference imagery.",
+            titleKey = "color_extract.title",
+            descriptionKey = "color_extract.description",
             iconName = "palette",
             route = "color_extract",
         ),
         CommunityTool(
             id = "smart_crop",
-            title = "Smart Crop",
-            description = "Keep the subject centered while adapting aspect ratios.",
+            titleKey = "smart_crop.title",
+            descriptionKey = "smart_crop.description",
             iconName = "crop",
             route = "smart_crop",
         ),
         CommunityTool(
             id = "workflow",
-            title = "Workflow Plaza",
-            description = "Browse reusable community workflows and starter presets.",
+            titleKey = "workflow.title",
+            descriptionKey = "workflow.description",
             iconName = "hub",
             route = "workflow_plaza",
         ),
