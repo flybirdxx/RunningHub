@@ -1,9 +1,9 @@
 package com.runninghub.feature.quickcreate.presentation.result
 
 import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
-import com.runninghub.feature.quickcreate.domain.QuickCreateTaskIssueCode
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.toQuickCreateTaskIssueDisplayMessage
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.collect
@@ -102,7 +102,7 @@ class QuickCreateTaskPollingController(
                     )
                 }
                 is QuickCreateTaskStatus.Failed -> {
-                    val errorMessage = status.errorMessage.toQuickCreateTaskDisplayMessage()
+                    val errorMessage = status.errorMessage.toQuickCreateTaskIssueDisplayMessage()
                     it.copy(
                         taskStatus = QuickCreateTaskUiStatus.FAILED,
                         statusText = QuickCreateTaskStatusText.Custom(errorMessage),
@@ -117,7 +117,7 @@ class QuickCreateTaskPollingController(
                 is QuickCreateTaskStatus.Error -> it.copy(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
                     statusText = null,
-                    error = status.message.toQuickCreateTaskDisplayMessage(),
+                    error = status.message.toQuickCreateTaskIssueDisplayMessage(),
                 )
             }
         }
@@ -147,23 +147,3 @@ private fun QuickCreateResultItem.toQuickCreateResultMediaType(): QuickCreateRes
         QuickCreateResultMediaType.IMAGE
     }
 }
-
-/**
- * 将 Domain/Data 返回的稳定任务错误码映射为页面可展示文案。
- *
- * Data 层只负责返回 [QuickCreateTaskIssueCode] 这类稳定错误码，不生成最终中文 UI 文案。
- * 未识别的非空字符串可能来自远端 `msg/message` 或内部异常消息，统一降级为通用失败提示，
- * 避免服务端原始摘要直接进入页面。
- */
-private fun String.toQuickCreateTaskDisplayMessage(): String =
-    when (this) {
-        QuickCreateTaskIssueCode.TASK_FAILED -> "任务失败"
-        QuickCreateTaskIssueCode.TASK_TIMEOUT -> "任务超时"
-        QuickCreateTaskIssueCode.TASK_QUERY_FAILED -> "任务查询失败"
-        QuickCreateTaskIssueCode.FEE_PREVIEW_FAILED -> "价格预览失败"
-        QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED -> "余额不足或价格预览未通过"
-        QuickCreateTaskIssueCode.PREPARE_FAILED -> "任务预提交失败"
-        QuickCreateTaskIssueCode.COMMIT_FAILED -> "任务提交失败"
-        QuickCreateTaskIssueCode.UNKNOWN_ERROR -> "生成失败，请稍后重试"
-        else -> "生成失败，请稍后重试"
-    }

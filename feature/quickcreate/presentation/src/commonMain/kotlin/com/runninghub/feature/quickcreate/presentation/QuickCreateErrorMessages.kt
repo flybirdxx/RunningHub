@@ -36,6 +36,9 @@ internal object QuickCreateErrorFallbackText {
     /** 计费预览明确未通过时的业务拦截文案，覆盖余额不足或价格校验失败。 */
     const val FEE_PREVIEW_NOT_PASSED: String = "余额不足或价格预览未通过"
 
+    /** 生成任务未知失败时的通用兜底文案，覆盖远端摘要、内部异常和未识别任务错误码。 */
+    const val GENERATION_FAILED: String = "生成失败，请稍后重试"
+
     /** 灵感标签请求失败时的页面兜底文案，覆盖标签列表初始化流程。 */
     const val INSPIRATION_TAGS_LOAD_FAILED: String = "灵感标签加载失败"
 
@@ -94,7 +97,7 @@ private fun String.toQuickCreateIssueMessageOrNull(): String? =
         QuickCreateTaskIssueCode.FEE_PREVIEW_BLOCKED -> QuickCreateErrorFallbackText.FEE_PREVIEW_NOT_PASSED
         QuickCreateTaskIssueCode.PREPARE_FAILED -> "任务预提交失败"
         QuickCreateTaskIssueCode.COMMIT_FAILED -> "任务提交失败"
-        QuickCreateTaskIssueCode.UNKNOWN_ERROR -> "生成失败，请稍后重试"
+        QuickCreateTaskIssueCode.UNKNOWN_ERROR -> QuickCreateErrorFallbackText.GENERATION_FAILED
         QuickCreateRepositoryIssueCode.API_KEY_MISSING -> "请先登录后再上传素材"
         QuickCreateRepositoryIssueCode.MEDIA_UPLOAD_FAILED -> "素材上传失败"
         QuickCreateRepositoryIssueCode.MEDIA_UPLOAD_EMPTY_URL -> "素材上传成功但缺少远端地址"
@@ -130,3 +133,15 @@ private fun String.toQuickCreateIssueMessageOrNull(): String? =
 
 private fun String.toQuickCreateIssueMessage(fallbackMessage: String): String =
     toQuickCreateIssueMessageOrNull() ?: fallbackMessage
+
+/**
+ * 将任务轮询返回的错误码或异常摘要映射为统一页面错误文案。
+ *
+ * 轮询控制器只应处理任务状态转换，不应维护第二套任务错误码中文文案；这里复用
+ * [toQuickCreateIssueMessageOrNull] 的稳定错误码映射，并对未知字符串统一降级，防止服务端
+ * `msg/message` 或内部异常摘要直接进入页面。
+ *
+ * @return 可写入轮询区域 `statusText` 和页面 `error` 的安全展示文案。
+ */
+internal fun String.toQuickCreateTaskIssueDisplayMessage(): String =
+    toQuickCreateIssueMessage(QuickCreateErrorFallbackText.GENERATION_FAILED)
