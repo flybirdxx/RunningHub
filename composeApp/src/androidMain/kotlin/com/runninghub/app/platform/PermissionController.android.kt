@@ -1,11 +1,13 @@
 package com.runninghub.app.platform
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.content.ContextWrapper
 import android.net.Uri
 import android.provider.Settings
 import androidx.activity.ComponentActivity
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -14,8 +16,6 @@ import androidx.lifecycle.lifecycleScope
 import com.nareshchocha.filepickerlibrary.FilePickerResultContracts
 import com.nareshchocha.filepickerlibrary.models.DocumentFilePickerConfig
 import com.nareshchocha.filepickerlibrary.models.FilePickerResult
-import com.nareshchocha.filepickerlibrary.models.PickMediaConfig
-import com.nareshchocha.filepickerlibrary.models.PickMediaType
 import com.runninghub.app.ui.component.MediaType
 import com.runninghub.core.storage.Permission
 import com.runninghub.core.storage.PermissionStatus
@@ -78,18 +78,28 @@ private class PermissionControllerImpl(
         }
     }
 
+    private val visualMediaDocumentLauncher = activity.activityResultRegistry.register(
+        "rh_visual_media_document_picker",
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        handleVisualMediaResult(
+            resultCode = result.resultCode,
+            intent = result.data,
+        )
+    }
+
     private val mediaImageLauncher = activity.activityResultRegistry.register(
-        "rh_media_image_fp",
-        FilePickerResultContracts.PickMedia()
-    ) { result: FilePickerResult ->
-        handleMediaResult(result)
+        "rh_media_image_picker",
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        handleVisualMediaUri(uri)
     }
 
     private val mediaVideoLauncher = activity.activityResultRegistry.register(
-        "rh_media_video_fp",
-        FilePickerResultContracts.PickMedia()
-    ) { result: FilePickerResult ->
-        handleMediaResult(result)
+        "rh_media_video_picker",
+        ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        handleVisualMediaUri(uri)
     }
 
     private val mediaAudioLauncher = activity.activityResultRegistry.register(
@@ -97,6 +107,45 @@ private class PermissionControllerImpl(
         FilePickerResultContracts.PickDocumentFile()
     ) { result: FilePickerResult ->
         handleMediaResult(result)
+    }
+
+    private fun handleVisualMediaResult(
+        resultCode: Int,
+        intent: Intent?,
+    ) {
+        if (resultCode != Activity.RESULT_OK) {
+            pendingMediaDeniedCallback?.invoke()
+            pendingMediaCallback = null
+            pendingMediaDeniedCallback = null
+            pendingMediaType = null
+            return
+        }
+        handleVisualMediaUri(intent.firstVisualMediaUri())
+    }
+
+    private fun handleVisualMediaUri(uri: Uri?) {
+        try {
+            if (uri != null) {
+                try {
+                    activity.contentResolver.takePersistableUriPermission(
+                        uri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    )
+                } catch (error: SecurityException) {
+                    ignorePersistableGrantFailure(error)
+                }
+                pendingMediaCallback?.invoke(uri.toString())
+            } else {
+                pendingMediaDeniedCallback?.invoke()
+            }
+        } catch (error: Exception) {
+            handleMediaPickerFailure(error)
+            pendingMediaDeniedCallback?.invoke()
+        } finally {
+            pendingMediaCallback = null
+            pendingMediaDeniedCallback = null
+            pendingMediaType = null
+        }
     }
 
     private fun handleMediaResult(result: FilePickerResult) {
@@ -142,14 +191,10 @@ private class PermissionControllerImpl(
 
         when (mediaType) {
             MediaType.IMAGE -> {
-                mediaImageLauncher.launch(
-                    PickMediaConfig(mPickMediaType = PickMediaType.ImageOnly)
-                )
+                launchVisualMediaPicker(mediaType)
             }
             MediaType.VIDEO -> {
-                mediaVideoLauncher.launch(
-                    PickMediaConfig(mPickMediaType = PickMediaType.VideoOnly)
-                )
+                launchVisualMediaPicker(mediaType)
             }
             MediaType.AUDIO -> {
                 scope.launch {
@@ -179,6 +224,27 @@ private class PermissionControllerImpl(
                 mMimeTypes = listOf("audio/*"),
             )
         )
+    }
+
+    private fun launchVisualMediaPicker(mediaType: MediaType) {
+        try {
+            when (mediaType) {
+                MediaType.IMAGE -> mediaImageLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+                MediaType.VIDEO -> mediaVideoLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.VideoOnly)
+                )
+                MediaType.AUDIO -> Unit
+            }
+        } catch (error: RuntimeException) {
+            handleMediaPickerFailure(error)
+            launchVisualMediaDocumentPicker(mediaType.visualMimeType())
+        }
+    }
+
+    private fun launchVisualMediaDocumentPicker(mimeType: String) {
+        visualMediaDocumentLauncher.launch(createVisualMediaDocumentIntent(mimeType))
     }
 
     private fun launchMediaPicker(type: MediaType) {
@@ -259,3 +325,20 @@ private tailrec fun Context.findComponentActivity(): ComponentActivity? =
         is ContextWrapper -> baseContext.findComponentActivity()
         else -> null
     }
+
+private fun createVisualMediaDocumentIntent(mimeType: String): Intent =
+    Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+        addCategory(Intent.CATEGORY_OPENABLE)
+        type = mimeType
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+    }
+
+private fun Intent?.firstVisualMediaUri(): Uri? =
+    this?.data ?: this?.clipData?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.uri
+
+private fun MediaType.visualMimeType(): String = when (this) {
+    MediaType.IMAGE -> "image/*"
+    MediaType.VIDEO -> "video/*"
+    MediaType.AUDIO -> "*/*"
+}

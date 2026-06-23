@@ -35,6 +35,7 @@ import runninghub.composeapp.generated.resources.smart_async_image_error
  * @param modifier 外层布局修饰符，用于控制尺寸、宽高比或列表布局。
  * @param contentScale 图片裁剪方式，默认裁剪填充容器。
  * @param shape 图片和占位内容的裁剪形状。
+ * @param onImageAspectRatioResolved 图片加载成功后的原始宽高比回调；`null` 或非法尺寸不会触发。
  */
 @Composable
 fun SmartAsyncImage(
@@ -43,6 +44,7 @@ fun SmartAsyncImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
     shape: Shape = RoundedCornerShape(Dimens.RadiusMD),
+    onImageAspectRatioResolved: (Float) -> Unit = {},
 ) {
     var isLoading by remember { mutableStateOf(false) }
     var isError by remember { mutableStateOf(false) }
@@ -69,6 +71,15 @@ fun SmartAsyncImage(
                         is AsyncImagePainter.State.Success -> {
                             isLoading = false
                             isError = false
+                            val size = state.painter.intrinsicSize
+                            if (
+                                size.width.isFinite() &&
+                                size.height.isFinite() &&
+                                size.width > 0f &&
+                                size.height > 0f
+                            ) {
+                                onImageAspectRatioResolved(size.width / size.height)
+                            }
                         }
                         else -> {}
                     }

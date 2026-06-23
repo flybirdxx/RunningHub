@@ -56,7 +56,14 @@ val appModule = module {
     factoryOf(::PlazaScreenModel)
     factoryOf(::ProfileScreenModel)
     factoryOf(::SearchScreenModel)
-    factoryOf(::AppDetailScreenModel)
+    factory {
+        AppDetailScreenModel(
+            webAppCatalogRepository = get(),
+            webAppTaskRepository = get(),
+            mediaResolver = get(),
+            ioDispatcher = Dispatchers.Default,
+        )
+    }
     factoryOf(::CreatorProfileScreenModel)
     factoryOf(::LoginScreenModel)
     factoryOf(::QuickCreateScreenModel)

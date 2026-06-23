@@ -171,7 +171,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                                 mediaPermission = Permission.MediaImages,
                                 mediaType = MediaType.IMAGE,
                                 onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
-                                onPermissionDenied = { pendingPermission = Permission.MediaImages },
+                                onPermissionDenied = {},
                             )
                         },
                         onLaunchVideoPicker = {
@@ -179,7 +179,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                                 mediaPermission = Permission.MediaVideo,
                                 mediaType = MediaType.VIDEO,
                                 onSuccess = { uriString -> currentScreenModel.pickVideoReference(uriString) },
-                                onPermissionDenied = { pendingPermission = Permission.MediaVideo },
+                                onPermissionDenied = {},
                             )
                         },
                         onLaunchAudioPicker = {
@@ -292,7 +292,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                                     onSuccess = { uriString ->
                                         currentScreenModel.pickImageReferenceForField(uriString, fieldParamKey)
                                     },
-                                    onPermissionDenied = { pendingPermission = Permission.MediaImages },
+                                    onPermissionDenied = {},
                                 )
                                 QuickCreateMediaType.VIDEO -> controller.pickMedia(
                                     mediaPermission = Permission.MediaVideo,
@@ -300,7 +300,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                                     onSuccess = { uriString ->
                                         currentScreenModel.pickVideoReferenceForField(uriString, fieldParamKey)
                                     },
-                                    onPermissionDenied = { pendingPermission = Permission.MediaVideo },
+                                    onPermissionDenied = {},
                                 )
                                 QuickCreateMediaType.AUDIO -> controller.pickMedia(
                                     mediaPermission = Permission.MediaAudio,

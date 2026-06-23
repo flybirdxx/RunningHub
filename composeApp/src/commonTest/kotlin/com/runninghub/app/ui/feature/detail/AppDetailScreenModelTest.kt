@@ -1,5 +1,6 @@
 package com.runninghub.app.ui.feature.detail
 
+import com.runninghub.app.di.appModule
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.core.model.AppDetail
 import com.runninghub.core.model.Author
@@ -31,6 +32,8 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import org.koin.dsl.koinApplication
+import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -114,6 +117,28 @@ class AppDetailScreenModelTest {
         advanceUntilIdle()
 
         assertEquals(1, catalogRepository.getAppDetailCalls)
+    }
+
+    @Test
+    fun `app module resolves AppDetailScreenModel without external dispatcher binding`() {
+        val koinApp = koinApplication(createEagerInstances = false) {
+            modules(
+                appModule,
+                module {
+                    single<WebAppCatalogRepository> { FakeWebAppCatalogRepository() }
+                    single<WebAppTaskRepository> { FakeWebAppTaskRepository() }
+                    single<MediaResolver> { FakeMediaResolver() }
+                },
+            )
+        }
+
+        try {
+            val screenModel = koinApp.koin.get<AppDetailScreenModel>()
+
+            assertEquals(true, screenModel.uiState.value.isLoading)
+        } finally {
+            koinApp.close()
+        }
     }
 
     @Test

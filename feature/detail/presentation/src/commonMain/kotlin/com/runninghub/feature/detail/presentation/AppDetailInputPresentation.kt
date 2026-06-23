@@ -48,7 +48,8 @@ sealed interface AppDetailInputControl {
     /**
      * 普通文本输入框。
      *
-     * @property multiline `true` 表示字段配置声明多行输入，UI 应至少展示多行文本框；`false` 表示单行输入。
+     * @property multiline `true` 表示字段配置或默认文本需要多行输入，UI 应至少展示多行文本框；
+     * `false` 表示短文本输入。
      */
     data class Text(
         val multiline: Boolean,
@@ -183,13 +184,7 @@ private fun InputNode.inputControl(): AppDetailInputControl {
         }
         "INT" -> AppDetailInputControl.IntegerText
         "FLOAT" -> AppDetailInputControl.DecimalText
-        "STRING" -> {
-            if (options.isNotEmpty()) {
-                AppDetailInputControl.Dropdown(options)
-            } else {
-                AppDetailInputControl.Text(multiline = fieldData?.contains("multiline", ignoreCase = true) == true)
-            }
-        }
+        "STRING", "TEXT" -> AppDetailInputControl.Text(multiline = isTextInputMultiline())
         else -> {
             if (options.isNotEmpty()) {
                 AppDetailInputControl.Dropdown(options)
@@ -200,22 +195,67 @@ private fun InputNode.inputControl(): AppDetailInputControl {
     }
 }
 
+private fun InputNode.isTextInputMultiline(): Boolean =
+    fieldData?.contains("multiline", ignoreCase = true) == true ||
+        fieldValue.orEmpty().contains('\n') ||
+        fieldValue.orEmpty().length >= APP_DETAIL_MULTILINE_TEXT_THRESHOLD
+
 private fun InputNode.mediaType(): AppDetailMediaType? {
     val type = fieldType.uppercase()
     val label = listOfNotNull(fieldName, nodeName, description, descriptionEn)
         .joinToString(" ")
         .lowercase()
+    val value = fieldValue.orEmpty().lowercase()
     return when {
         type == "IMAGE" || type == "IMAGE_UPLOAD" -> AppDetailMediaType.IMAGE
+        type == "VIDEO" || type == "VIDEO_UPLOAD" -> AppDetailMediaType.VIDEO
+        type == "AUDIO" || type == "AUDIO_UPLOAD" -> AppDetailMediaType.AUDIO
         label.containsAny(APP_DETAIL_VIDEO_LABEL_HINTS) -> AppDetailMediaType.VIDEO
+        label.containsAll(APP_DETAIL_UPLOAD_LABEL_HINTS, APP_DETAIL_VIDEO_MEDIA_HINTS) -> AppDetailMediaType.VIDEO
+        value.endsWithAny(APP_DETAIL_VIDEO_FILE_SUFFIXES) -> AppDetailMediaType.VIDEO
         label.containsAny(APP_DETAIL_AUDIO_LABEL_HINTS) -> AppDetailMediaType.AUDIO
+        label.containsAll(APP_DETAIL_UPLOAD_LABEL_HINTS, APP_DETAIL_AUDIO_MEDIA_HINTS) -> AppDetailMediaType.AUDIO
         label.containsAny(APP_DETAIL_IMAGE_LABEL_HINTS) -> AppDetailMediaType.IMAGE
+        label.containsAll(APP_DETAIL_UPLOAD_LABEL_HINTS, APP_DETAIL_IMAGE_MEDIA_HINTS) -> AppDetailMediaType.IMAGE
         else -> null
     }
 }
 
 private fun String.containsAny(hints: List<String>): Boolean =
     hints.any { hint -> contains(hint) }
+
+private fun String.containsAll(firstHints: List<String>, secondHints: List<String>): Boolean =
+    containsAny(firstHints) && containsAny(secondHints)
+
+private fun String.endsWithAny(suffixes: List<String>): Boolean =
+    substringBefore('?').substringBefore('#').trim().let { value ->
+        suffixes.any { suffix -> value.endsWith(suffix) }
+    }
+
+private val APP_DETAIL_UPLOAD_LABEL_HINTS = listOf(
+    "\u4e0a\u4f20",
+    "upload",
+)
+
+private val APP_DETAIL_VIDEO_MEDIA_HINTS = listOf(
+    "\u89c6\u9891",
+    "\u5f55\u50cf",
+    "video",
+)
+
+private val APP_DETAIL_AUDIO_MEDIA_HINTS = listOf(
+    "\u97f3\u9891",
+    "\u97f3\u4e50",
+    "audio",
+    "music",
+)
+
+private val APP_DETAIL_IMAGE_MEDIA_HINTS = listOf(
+    "\u56fe\u7247",
+    "\u56fe\u50cf",
+    "image",
+    "photo",
+)
 
 private val APP_DETAIL_VIDEO_LABEL_HINTS = listOf(
     "\u4e0a\u4f20\u89c6\u9891",
@@ -239,3 +279,14 @@ private val APP_DETAIL_IMAGE_LABEL_HINTS = listOf(
     "upload image",
     "image upload",
 )
+
+private val APP_DETAIL_VIDEO_FILE_SUFFIXES = listOf(
+    ".mp4",
+    ".mov",
+    ".m4v",
+    ".avi",
+    ".mkv",
+    ".webm",
+)
+
+private const val APP_DETAIL_MULTILINE_TEXT_THRESHOLD = 80

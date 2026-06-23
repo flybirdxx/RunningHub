@@ -15,6 +15,12 @@ class AppDetailInputPresentationTest {
                 inputNode(nodeId = "int", fieldType = "INT"),
                 inputNode(nodeId = "float", fieldType = "FLOAT"),
                 inputNode(nodeId = "string-options", fieldType = "STRING", fieldData = "[\"Red\",\"Blue\"]"),
+                inputNode(
+                    nodeId = "long-string",
+                    fieldType = "STRING",
+                    fieldValue = "0-2秒\n镜头从包装金属扣特写开始。高级光线在五金边缘流动，粉绿撞色纹理清晰可见。",
+                    fieldData = "[\"示例一\",\"示例二\"]",
+                ),
                 inputNode(nodeId = "multiline", fieldType = "STRING", fieldData = "multiline"),
                 inputNode(nodeId = "unknown", fieldType = "CUSTOM"),
             ),
@@ -26,7 +32,8 @@ class AppDetailInputPresentationTest {
         assertEquals(AppDetailInputControl.BooleanSwitch, rows.singleControl("switch-empty"))
         assertEquals(AppDetailInputControl.IntegerText, rows.singleControl("int"))
         assertEquals(AppDetailInputControl.DecimalText, rows.singleControl("float"))
-        assertEquals(AppDetailInputControl.Dropdown(listOf("Red", "Blue")), rows.singleControl("string-options"))
+        assertEquals(AppDetailInputControl.Text(multiline = false), rows.singleControl("string-options"))
+        assertEquals(AppDetailInputControl.Text(multiline = true), rows.singleControl("long-string"))
         assertEquals(AppDetailInputControl.Text(multiline = true), rows.singleControl("multiline"))
         assertEquals(AppDetailInputControl.Text(multiline = false), rows.singleControl("unknown"))
     }
@@ -37,6 +44,12 @@ class AppDetailInputPresentationTest {
             inputNodes = listOf(
                 inputNode(nodeId = "image-type", fieldType = "IMAGE_UPLOAD"),
                 inputNode(nodeId = "video-label", fieldName = "video", description = "上传视频"),
+                inputNode(
+                    nodeId = "people-video-label",
+                    fieldName = "input_video",
+                    fieldValue = "57ed948f9b0b2abe924919d6e76f301492ea2ad9cea391c1bf24bd0cc66785e9.mp4",
+                    description = "上传人物视频（双人或单人）",
+                ),
                 inputNode(nodeId = "audio-label", fieldName = "audio", descriptionEn = "Upload audio file"),
                 inputNode(nodeId = "image-label", fieldName = "cover", descriptionEn = "image upload"),
             ),
@@ -45,6 +58,7 @@ class AppDetailInputPresentationTest {
 
         assertEquals(AppDetailInputControl.MediaUpload(AppDetailMediaType.IMAGE), rows.singleControl("image-type"))
         assertEquals(AppDetailInputControl.MediaUpload(AppDetailMediaType.VIDEO), rows.singleControl("video-label"))
+        assertEquals(AppDetailInputControl.MediaUpload(AppDetailMediaType.VIDEO), rows.singleControl("people-video-label"))
         assertEquals(AppDetailInputControl.MediaUpload(AppDetailMediaType.AUDIO), rows.singleControl("audio-label"))
         assertEquals(AppDetailInputControl.MediaUpload(AppDetailMediaType.IMAGE), rows.singleControl("image-label"))
     }
