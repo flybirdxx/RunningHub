@@ -2,10 +2,12 @@ package com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -17,13 +19,13 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.CropFree
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
@@ -35,17 +37,21 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateCatThumbnail
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateDesignTokens
 import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
+import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateCompactServiceModelLabel
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.quickCreateCompactServiceModelLabel
@@ -71,8 +77,10 @@ import runninghub.composeapp.generated.resources.quick_create_send_generate
 /**
  * 渲染快捷创作当前默认启用的设计稿版底部输入条。
  *
- * 组件只负责提示词、素材缩略图、模型入口、参数入口和生成按钮的可视化；模型选择、
+ * 组件只负责提示词、已选素材预览、模型入口、参数入口和生成按钮的可视化；模型选择、
  * 媒体选择、参数编辑和任务提交仍通过回调交给 ScreenModel，避免 Composable 直接触碰业务逻辑。
+ * 空输入时右侧主按钮承担图片上传入口；输入非空或已有素材时，上方只展示已选素材和紧邻的追加入口。
+ * 已选图片优先使用本地 URI 做即时预览，避免远端上传地址暂不可读时出现空缩略图。
  *
  * @param uiState 快捷创作页面状态，用于读取当前 Sheet、计费预览和本地参数摘要。
  * @param isImage 当前是否处于图片创作；`false` 表示视频创作。
@@ -115,103 +123,90 @@ internal fun QuickCreateCompactComposer(
     onOpenParamsSheet: () -> Unit,
     onGenerate: () -> Unit,
 ) {
-    Surface(
+    val hasPrompt = prompt.isNotBlank()
+    val showMediaUploadStrip = hasPrompt || mediaReferences.isNotEmpty()
+
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
             .imePadding()
             .navigationBarsPadding()
             .padding(bottom = 12.dp),
-        color = QuickCreateDesignTokens.Panel,
-        shape = RoundedCornerShape(18.dp),
-        border = BorderStroke(
-            1.dp,
-            if (overLimit) Color(0xFFF87171) else QuickCreateDesignTokens.Stroke,
-        ),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            CompactPromptField(
-                prompt = prompt,
-                onPromptChange = onPromptChange,
-                placeholder = if (isImage) {
-                    stringResource(Res.string.quick_create_compact_image_prompt_placeholder)
-                } else {
-                    stringResource(Res.string.quick_create_compact_video_prompt_placeholder)
-                },
+        if (showMediaUploadStrip) {
+            CompactMediaUploadStrip(
+                mediaReferences = mediaReferences,
+                onAdd = onLaunchImagePicker,
+                onRemove = onRemoveMedia,
             )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        }
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            color = QuickCreateDesignTokens.Panel,
+            shape = RoundedCornerShape(18.dp),
+            border = BorderStroke(
+                1.dp,
+                if (overLimit) Color(0xFFF87171) else QuickCreateDesignTokens.Stroke,
+            ),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                CompactMediaThumb(
-                    mediaReferences = mediaReferences,
-                    onAdd = onLaunchImagePicker,
-                    onRemove = onRemoveMedia,
-                )
-                CompactControlPill(
-                    modifier = Modifier.weight(1.25f),
-                    text = quickCreateCompactServiceModelLabel(
-                        model = selectedServiceModel,
-                        fallback = if (isImage) {
-                            uiState.imageConfig.model.label.asImageModelText()
-                        } else {
-                            uiState.videoConfig.model.label.asVideoModelText()
-                        },
-                        loading = serviceModelsLoading,
-                    ).asCompactModelText(),
-                    selected = uiState.activeSheet == QuickCreateSheet.MODEL_PICKER,
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.AutoAwesome,
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp),
-                            tint = QuickCreateDesignTokens.Text,
-                        )
+                CompactPromptField(
+                    prompt = prompt,
+                    onPromptChange = onPromptChange,
+                    placeholder = if (isImage) {
+                        stringResource(Res.string.quick_create_compact_image_prompt_placeholder)
+                    } else {
+                        stringResource(Res.string.quick_create_compact_video_prompt_placeholder)
                     },
-                    onClick = onOpenModelSheet,
                 )
-                CompactControlPill(
-                    modifier = Modifier.weight(1f),
-                    text = compactParamsSummary(uiState, isImage),
-                    selected = uiState.activeSheet == QuickCreateSheet.PARAMS,
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.CropFree,
-                            contentDescription = null,
-                            modifier = Modifier.size(15.dp),
-                            tint = QuickCreateDesignTokens.Text,
-                        )
-                    },
-                    onClick = onOpenParamsSheet,
-                )
-                Surface(
-                    onClick = onOpenParamsSheet,
-                    shape = CircleShape,
-                    color = Color(0xFF24252A),
-                    border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
-                    modifier = Modifier.size(36.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Icon(
-                            imageVector = Icons.Default.Tune,
-                            contentDescription = null,
-                            modifier = Modifier.size(18.dp),
-                            tint = QuickCreateDesignTokens.Text,
-                        )
-                    }
+                    CompactControlPill(
+                        text = quickCreateCompactServiceModelLabel(
+                            model = selectedServiceModel,
+                            fallback = if (isImage) {
+                                uiState.imageConfig.model.label.asImageModelText()
+                            } else {
+                                uiState.videoConfig.model.label.asVideoModelText()
+                            },
+                            loading = serviceModelsLoading,
+                        ).asCompactModelText(),
+                        selected = uiState.activeSheet == QuickCreateSheet.MODEL_PICKER,
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.AutoAwesome,
+                                contentDescription = null,
+                                modifier = Modifier.size(15.dp),
+                                tint = QuickCreateDesignTokens.Text,
+                            )
+                        },
+                        onClick = onOpenModelSheet,
+                    )
+                    CompactControlPill(
+                        text = compactParamsSummary(uiState, isImage),
+                        selected = uiState.activeSheet == QuickCreateSheet.PARAMS,
+                        onClick = onOpenParamsSheet,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    CompactGenerateButton(
+                        hasPrompt = hasPrompt,
+                        enabled = if (hasPrompt) canGenerate else !isTaskActive,
+                        isLoading = isTaskActive,
+                        cost = uiState.estimatedCost,
+                        feePreviewLoading = uiState.feePreviewLoading,
+                        feePreviewError = uiState.feePreviewError,
+                        onGenerate = onGenerate,
+                        onAddMedia = onLaunchImagePicker,
+                    )
                 }
-                CompactGenerateButton(
-                    enabled = canGenerate,
-                    isLoading = isTaskActive,
-                    cost = uiState.estimatedCost,
-                    feePreviewLoading = uiState.feePreviewLoading,
-                    feePreviewError = uiState.feePreviewError,
-                    onClick = onGenerate,
-                )
             }
         }
     }
@@ -259,38 +254,141 @@ private fun CompactPromptField(
 }
 
 @Composable
-private fun CompactMediaThumb(
+private fun CompactMediaUploadStrip(
     mediaReferences: List<MediaReference>,
     onAdd: () -> Unit,
     onRemove: (String) -> Unit,
 ) {
-    val firstMedia = mediaReferences.firstOrNull()
-    Surface(
-        onClick = {
-            if (firstMedia == null) onAdd()
-        },
-        shape = RoundedCornerShape(10.dp),
-        color = Color.Transparent,
-        modifier = Modifier.size(36.dp),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(116.dp)
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box {
-            QuickCreateCatThumbnail(modifier = Modifier.matchParentSize())
-            if (firstMedia != null) {
-                Surface(
-                    onClick = { onRemove(firstMedia.id) },
-                    shape = CircleShape,
-                    color = Color(0xFF1B1730),
-                    border = BorderStroke(1.dp, QuickCreateDesignTokens.Text),
+        mediaReferences.forEach { reference ->
+            CompactMediaPreviewSlot(
+                reference = reference,
+                onRemove = onRemove,
+                modifier = Modifier.size(108.dp),
+            )
+        }
+        CompactMediaAddSlot(
+            onAdd = onAdd,
+            modifier = Modifier.size(108.dp),
+        )
+    }
+}
+
+@Composable
+private fun CompactMediaPreviewSlot(
+    reference: MediaReference,
+    onRemove: (String) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val previewModel = reference.uri.takeIf { it.isNotBlank() }
+        ?: reference.remoteUrl?.takeIf { it.isNotBlank() }
+
+    Surface(
+        shape = RoundedCornerShape(16.dp),
+        color = QuickCreateDesignTokens.PanelStrong,
+        modifier = modifier,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (reference.type == QuickCreateMediaType.IMAGE && previewModel != null) {
+                AsyncImage(
+                    model = previewModel,
+                    contentDescription = null,
                     modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .size(16.dp),
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = stringResource(
-                            Res.string.quick_create_compact_remove_media_content_description,
+                        .matchParentSize()
+                        .padding(2.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                    contentScale = ContentScale.Crop,
+                )
+            } else {
+                QuickCreateCatThumbnail(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .padding(2.dp)
+                        .clip(RoundedCornerShape(14.dp)),
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(2.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(
+                        Brush.verticalGradient(
+                            listOf(Color.Transparent, Color(0x33000000)),
                         ),
-                        modifier = Modifier.padding(2.dp),
+                    ),
+            )
+            if (reference.uploadStatus == UploadStatus.UPLOADING) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color.Black.copy(alpha = 0.16f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        color = QuickCreateDesignTokens.Text,
+                        strokeWidth = 2.dp,
+                    )
+                }
+            }
+            Surface(
+                onClick = { onRemove(reference.id) },
+                shape = CircleShape,
+                color = Color(0xDD11151A),
+                border = BorderStroke(1.dp, Color.White.copy(alpha = 0.32f)),
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .size(22.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(
+                        Res.string.quick_create_compact_remove_media_content_description,
+                    ),
+                    modifier = Modifier.padding(2.dp),
+                    tint = QuickCreateDesignTokens.Text,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactMediaAddSlot(
+    onAdd: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onAdd,
+        shape = RoundedCornerShape(16.dp),
+        color = Color(0xFF17131F),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Purple.copy(alpha = 0.54f)),
+        modifier = modifier,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Surface(
+                shape = CircleShape,
+                color = QuickCreateDesignTokens.Purple.copy(alpha = 0.24f),
+                border = BorderStroke(1.dp, QuickCreateDesignTokens.Purple.copy(alpha = 0.72f)),
+                modifier = Modifier.size(38.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = stringResource(
+                            Res.string.quick_create_compact_add_media_content_description,
+                        ),
+                        modifier = Modifier.size(22.dp),
                         tint = QuickCreateDesignTokens.Text,
                     )
                 }
@@ -303,9 +401,9 @@ private fun CompactMediaThumb(
 private fun CompactControlPill(
     text: String,
     selected: Boolean,
-    icon: @Composable () -> Unit,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    icon: (@Composable () -> Unit)? = null,
 ) {
     Surface(
         onClick = onClick,
@@ -322,7 +420,7 @@ private fun CompactControlPill(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            icon()
+            icon?.invoke()
             Text(
                 text = text,
                 color = QuickCreateDesignTokens.Text,
@@ -330,7 +428,7 @@ private fun CompactControlPill(
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f, fill = false),
+                modifier = Modifier.widthIn(max = if (icon == null) 104.dp else 132.dp),
             )
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
@@ -344,21 +442,30 @@ private fun CompactControlPill(
 
 @Composable
 private fun CompactGenerateButton(
+    hasPrompt: Boolean,
     enabled: Boolean,
     isLoading: Boolean,
     cost: Double,
     feePreviewLoading: Boolean,
     feePreviewError: QuickCreateUiMessage?,
-    onClick: () -> Unit,
+    onGenerate: () -> Unit,
+    onAddMedia: () -> Unit,
 ) {
+    val buttonClick = if (hasPrompt) onGenerate else onAddMedia
+    val buttonShape = if (hasPrompt) RoundedCornerShape(18.dp) else CircleShape
+    val buttonModifier = if (hasPrompt) {
+        Modifier
+            .height(36.dp)
+            .widthIn(min = 68.dp)
+    } else {
+        Modifier.size(36.dp)
+    }
     Surface(
-        onClick = if (enabled && !isLoading) onClick else { {} },
+        onClick = if (enabled && !isLoading) buttonClick else { {} },
         enabled = enabled || isLoading,
         color = Color.Transparent,
-        shape = RoundedCornerShape(18.dp),
-        modifier = Modifier
-            .height(36.dp)
-            .widthIn(min = 68.dp),
+        shape = buttonShape,
+        modifier = buttonModifier,
     ) {
         Row(
             modifier = Modifier
@@ -366,9 +473,9 @@ private fun CompactGenerateButton(
                     Brush.horizontalGradient(
                         listOf(Color(0xFF7556F6), Color(0xFF9B61FF)),
                     ),
-                    RoundedCornerShape(18.dp),
+                    buttonShape,
                 )
-                .padding(horizontal = 12.dp),
+                .padding(horizontal = if (hasPrompt) 12.dp else 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
@@ -378,6 +485,15 @@ private fun CompactGenerateButton(
                     color = QuickCreateDesignTokens.Text,
                     strokeWidth = 2.dp,
                 )
+            } else if (!hasPrompt) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = stringResource(
+                        Res.string.quick_create_compact_add_media_content_description,
+                    ),
+                    modifier = Modifier.size(18.dp),
+                    tint = QuickCreateDesignTokens.Text,
+                )
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
@@ -386,19 +502,21 @@ private fun CompactGenerateButton(
                     tint = QuickCreateDesignTokens.Text,
                 )
             }
-            Text(
-                text = quickCreateSendButtonText(
-                    quickCreateSendButtonLabel(
-                        cost = cost,
-                        feePreviewLoading = feePreviewLoading,
-                        feePreviewError = feePreviewError,
+            if (hasPrompt) {
+                Text(
+                    text = quickCreateSendButtonText(
+                        quickCreateSendButtonLabel(
+                            cost = cost,
+                            feePreviewLoading = feePreviewLoading,
+                            feePreviewError = feePreviewError,
+                        ),
                     ),
-                ),
-                color = QuickCreateDesignTokens.Text,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 1,
-            )
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }

@@ -70,6 +70,7 @@ class ApiModelFieldMapper(private val json: Json) {
             maxUploadSizeBytes = obj.long("maxUploadSize") ?: obj.long("maxSize"),
             acceptFormats = obj.acceptFormats(),
             visible = obj.boolean("visible") ?: true,
+            rawConfigJson = obj.toString(),
         )
     }
 

@@ -33,51 +33,78 @@ class QuickCreateModelCatalogInteractor(
     /**
      * 加载图片与视频服务模型目录，并在刷新后修正当前选中模型。
      *
-     * 若新目录中仍存在同一 `bindingId + skuId` 的模型，会切换到最新返回的规范对象并保留用户已填参数；
-     * 若原模型不存在，则回退到列表首项并使用新模型默认参数，避免生成请求继续携带过期服务字段。
+     * 流程分两段执行：先读取本地缓存并尽快回写 UI，避免打开模型 sheet 时等待远端接口；
+     * 随后后台强制刷新远端目录，成功后再用最新模型覆盖缓存展示。若新目录中仍存在同一
+     * `bindingId + skuId` 的模型，会切换到最新返回的规范对象并保留用户已填参数；若原模型不存在，
+     * 则回退到列表首项并使用新模型默认参数，避免生成请求继续携带过期服务字段。
      */
     fun loadServiceModels() {
         scope.launch {
             uiState.update { it.copy(serviceModelsLoading = true) }
 
+            val shouldRefreshAfterCachedDisplay =
+                modelCatalogRepository.hasCachedModels(QuickCreationServiceKind.IMAGE) ||
+                    modelCatalogRepository.hasCachedModels(QuickCreationServiceKind.VIDEO)
             val imageModels = modelCatalogRepository.getModels(QuickCreationServiceKind.IMAGE)
             val videoModels = modelCatalogRepository.getModels(QuickCreationServiceKind.VIDEO)
 
-            uiState.update { state ->
-                val images = imageModels.getOrElse { emptyList() }
-                val videos = videoModels.getOrElse { emptyList() }
-                val selectedImage = state.selectedImageServiceModel
-                    ?.let { selected -> images.firstOrNull { it.matchesServiceIdentity(selected) } }
-                    ?: images.firstOrNull()
-                val selectedVideo = state.selectedVideoServiceModel
-                    ?.let { selected -> videos.firstOrNull { it.matchesServiceIdentity(selected) } }
-                    ?: videos.firstOrNull()
-                val imageItems = images.toQuickCreateServiceModelUiItems(selectedImage)
-                val videoItems = videos.toQuickCreateServiceModelUiItems(selectedVideo)
-
-                state.copy(
-                    serviceModelsLoading = false,
-                    serviceImageModels = images,
-                    serviceVideoModels = videos,
-                    selectedImageServiceModel = selectedImage,
-                    selectedVideoServiceModel = selectedVideo,
-                    serviceImageModelItems = imageItems,
-                    serviceVideoModelItems = videoItems,
-                    selectedImageServiceModelUi = imageItems.firstOrNull { it.selected },
-                    selectedVideoServiceModelUi = videoItems.firstOrNull { it.selected },
-                    imageServiceParams = if (hasSameServiceIdentity(selectedImage, state.selectedImageServiceModel)) {
-                        state.imageServiceParams
-                    } else {
-                        QuickCreationServiceSchema.defaultParams(selectedImage)
-                    },
-                    videoServiceParams = if (hasSameServiceIdentity(selectedVideo, state.selectedVideoServiceModel)) {
-                        state.videoServiceParams
-                    } else {
-                        QuickCreationServiceSchema.defaultParams(selectedVideo)
-                    },
-                )
-            }
+            applyLoadedModels(
+                imageModels = imageModels.getOrElse { emptyList() },
+                videoModels = videoModels.getOrElse { emptyList() },
+                loading = false,
+            )
             onFeePreviewRequired()
+
+            if (!shouldRefreshAfterCachedDisplay) return@launch
+            val refreshedImageModels = modelCatalogRepository.refreshModels(QuickCreationServiceKind.IMAGE)
+            val refreshedVideoModels = modelCatalogRepository.refreshModels(QuickCreationServiceKind.VIDEO)
+            if (refreshedImageModels.isSuccess || refreshedVideoModels.isSuccess) {
+                applyLoadedModels(
+                    imageModels = refreshedImageModels.getOrElse { uiState.value.serviceImageModels },
+                    videoModels = refreshedVideoModels.getOrElse { uiState.value.serviceVideoModels },
+                    loading = false,
+                )
+                onFeePreviewRequired()
+            }
+        }
+    }
+
+    private fun applyLoadedModels(
+        imageModels: List<QuickCreationServiceModel>,
+        videoModels: List<QuickCreationServiceModel>,
+        loading: Boolean,
+    ) {
+        uiState.update { state ->
+            val selectedImage = state.selectedImageServiceModel
+                ?.let { selected -> imageModels.firstOrNull { it.matchesServiceIdentity(selected) } }
+                ?: imageModels.firstOrNull()
+            val selectedVideo = state.selectedVideoServiceModel
+                ?.let { selected -> videoModels.firstOrNull { it.matchesServiceIdentity(selected) } }
+                ?: videoModels.firstOrNull()
+            val imageItems = imageModels.toQuickCreateServiceModelUiItems(selectedImage)
+            val videoItems = videoModels.toQuickCreateServiceModelUiItems(selectedVideo)
+
+            state.copy(
+                serviceModelsLoading = loading,
+                serviceImageModels = imageModels,
+                serviceVideoModels = videoModels,
+                selectedImageServiceModel = selectedImage,
+                selectedVideoServiceModel = selectedVideo,
+                serviceImageModelItems = imageItems,
+                serviceVideoModelItems = videoItems,
+                selectedImageServiceModelUi = imageItems.firstOrNull { it.selected },
+                selectedVideoServiceModelUi = videoItems.firstOrNull { it.selected },
+                imageServiceParams = if (hasSameServiceIdentity(selectedImage, state.selectedImageServiceModel)) {
+                    state.imageServiceParams
+                } else {
+                    QuickCreationServiceSchema.defaultParams(selectedImage)
+                },
+                videoServiceParams = if (hasSameServiceIdentity(selectedVideo, state.selectedVideoServiceModel)) {
+                    state.videoServiceParams
+                } else {
+                    QuickCreationServiceSchema.defaultParams(selectedVideo)
+                },
+            )
         }
     }
 

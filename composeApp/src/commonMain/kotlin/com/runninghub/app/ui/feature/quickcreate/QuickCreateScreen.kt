@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalMaterial3Api::class)
-
 package com.runninghub.app.ui.feature.quickcreate
 
 import androidx.compose.animation.*
@@ -9,8 +7,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.VolumeOff
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -38,6 +35,7 @@ import com.runninghub.app.ui.feature.quickcreate.presentation.history.QuickCreat
 import com.runninghub.app.ui.feature.quickcreate.presentation.history.QuickCreateHistoryDetailDialog
 import com.runninghub.app.ui.feature.quickcreate.presentation.inspiration.QuickCreateInspirationArea
 import com.runninghub.app.ui.feature.quickcreate.presentation.modelselector.QuickCreateModelSheet
+import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateCreateProjectAction
 import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateProjectDetailDialog
 import com.runninghub.app.ui.theme.*
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
@@ -57,8 +55,6 @@ import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
 import runninghub.composeapp.generated.resources.quick_create_top_bar_menu_content_description
-import runninghub.composeapp.generated.resources.quick_create_top_bar_mute_content_description
-import runninghub.composeapp.generated.resources.quick_create_top_bar_support_content_description
 
 /**
  * 快捷创作页面在 Voyager 导航中的入口。
@@ -116,6 +112,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     selectedMode = uiState.currentMode,
                     onModeSelected = screenModel::switchMode,
                     onBack = null,
+                    onCreateProject = screenModel::createProject,
                 )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -126,14 +123,6 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             onHistoryItemSelected = screenModel::selectHistoryOutput,
                             onLoadMoreHistory = screenModel::loadMoreQuickCreationHistory,
                             onCancelHistoryTask = screenModel::cancelHistoryTask,
-                            onProjectSelected = screenModel::selectProject,
-                            onClearSelectedProject = screenModel::clearSelectedProject,
-                            onLoadMoreProjects = screenModel::loadMoreQuickCreationProjects,
-                            onToggleProjectPin = screenModel::toggleProjectPin,
-                            onCreateProject = screenModel::createProject,
-                            onRenameProject = screenModel::renameProject,
-                            onDeleteProject = screenModel::deleteProject,
-                            onShowProjectDetail = screenModel::selectProjectDetail,
                         )
                         QuickCreateMode.INSPIRATION -> QuickCreateInspirationArea(
                             uiState = uiState,
@@ -265,6 +254,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         onVideoServiceModelSelected = {
                             screenModel.updateVideoServiceModel(it)
                         },
+                        onTabSwitch = screenModel::switchTab,
                     )
                     QuickCreateSheet.PARAMS -> QuickCreateParamsSheet(
                         visible = true,
@@ -343,16 +333,20 @@ private fun QuickCreateTopBar(
     selectedMode: QuickCreateMode,
     onModeSelected: (QuickCreateMode) -> Unit,
     onBack: (() -> Unit)?,
+    onCreateProject: (String) -> Unit,
 ) {
-    TopAppBar(
-        modifier = Modifier.statusBarsPadding(),
-        title = {
-            ModeSwitch(
-                selectedMode = selectedMode,
-                onModeSelected = onModeSelected,
-            )
-        },
-        navigationIcon = {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .background(DarkBackground),
+    ) {
+        // 左侧菜单、中间模式切换和右侧创建入口必须彼此覆盖定位，避免 `+` 显隐改变中间 tab 的测量中心。
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 8.dp),
+        ) {
             if (onBack != null) {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -374,38 +368,32 @@ private fun QuickCreateTopBar(
                     )
                 }
             }
-        },
-        actions = {
-            IconButton(onClick = {}) {
-                Icon(
-                    Icons.Default.Call,
-                    contentDescription = stringResource(
-                        Res.string.quick_create_top_bar_support_content_description,
-                    ),
-                    tint = Color.White.copy(alpha = 0.86f),
-                )
+        }
+        ModeSwitch(
+            selectedMode = selectedMode,
+            onModeSelected = onModeSelected,
+            modifier = Modifier.align(Alignment.Center),
+        )
+        if (selectedMode == QuickCreateMode.CREATION) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 12.dp),
+            ) {
+                QuickCreateCreateProjectAction(onCreateProject = onCreateProject)
             }
-            IconButton(onClick = {}) {
-                Icon(
-                    Icons.AutoMirrored.Filled.VolumeOff,
-                    contentDescription = stringResource(
-                        Res.string.quick_create_top_bar_mute_content_description,
-                    ),
-                    tint = Color.White.copy(alpha = 0.86f),
-                )
-            }
-        },
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkBackground),
-    )
+        }
+    }
 }
 
 @Composable
 private fun ModeSwitch(
     selectedMode: QuickCreateMode,
     onModeSelected: (QuickCreateMode) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.wrapContentWidth(),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -440,14 +428,6 @@ private fun CreationScrollableArea(
     onHistoryItemSelected: (String) -> Unit,
     onLoadMoreHistory: () -> Unit,
     onCancelHistoryTask: (String) -> Unit,
-    onProjectSelected: (String) -> Unit,
-    onClearSelectedProject: () -> Unit,
-    onLoadMoreProjects: () -> Unit,
-    onToggleProjectPin: (String) -> Unit,
-    onCreateProject: (String) -> Unit,
-    onRenameProject: (String, String) -> Unit,
-    onDeleteProject: (String) -> Unit,
-    onShowProjectDetail: (String) -> Unit,
 ) {
     val hasConversation = uiState.imageConfig.prompt.isNotBlank() ||
         uiState.videoConfig.prompt.isNotBlank() ||
@@ -465,14 +445,6 @@ private fun CreationScrollableArea(
             onHistoryItemSelected = onHistoryItemSelected,
             onLoadMoreHistory = onLoadMoreHistory,
             onCancelHistoryTask = onCancelHistoryTask,
-            onProjectSelected = onProjectSelected,
-            onClearSelectedProject = onClearSelectedProject,
-            onLoadMoreProjects = onLoadMoreProjects,
-            onToggleProjectPin = onToggleProjectPin,
-            onCreateProject = onCreateProject,
-            onRenameProject = onRenameProject,
-            onDeleteProject = onDeleteProject,
-            onShowProjectDetail = onShowProjectDetail,
         )
     }
 }
@@ -501,6 +473,7 @@ private fun QuickCreatePreviewContent(
                     selectedMode = uiState.currentMode,
                     onModeSelected = {},
                     onBack = null,
+                    onCreateProject = {},
                 )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
@@ -511,14 +484,6 @@ private fun QuickCreatePreviewContent(
                             onHistoryItemSelected = {},
                             onLoadMoreHistory = {},
                             onCancelHistoryTask = {},
-                            onProjectSelected = {},
-                            onClearSelectedProject = {},
-                            onLoadMoreProjects = {},
-                            onToggleProjectPin = {},
-                            onCreateProject = {},
-                            onRenameProject = { _, _ -> },
-                            onDeleteProject = {},
-                            onShowProjectDetail = {},
                         )
                         QuickCreateMode.INSPIRATION -> QuickCreateInspirationArea(
                             uiState = uiState,

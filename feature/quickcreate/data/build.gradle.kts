@@ -16,6 +16,7 @@ kotlin {
             implementation(projects.core.network)
             implementation(projects.core.storage)
             implementation(projects.feature.auth.domain)
+            implementation(projects.feature.model.domain)
             implementation(projects.feature.quickcreate.domain)
 
             implementation(libs.kotlinx.coroutines.core)

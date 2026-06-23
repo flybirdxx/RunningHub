@@ -2,6 +2,11 @@
 
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.auth.domain.AuthRepository
+import com.runninghub.feature.model.domain.ApiModelDetail
+import com.runninghub.feature.model.domain.ApiModelField
+import com.runninghub.feature.model.domain.ApiModelFieldType
+import com.runninghub.feature.model.domain.ApiModelSummary
+import com.runninghub.feature.model.domain.ModelCatalogRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.data.remote.api.QuickCreateApi
 import com.runninghub.feature.quickcreate.data.remote.dto.*
@@ -28,10 +33,17 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationProject
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectPage
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldOption
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationServicePricing
 import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationUploadMediaKind
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.domain.VideoModel
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -90,6 +102,9 @@ private val quickCreationParamJson = Json {
     ignoreUnknownKeys = true
     explicitNulls = false
 }
+
+private const val STANDARD_MODEL_CATALOG_PAGE_SIZE = 30
+private const val STANDARD_MODEL_CATALOG_MAX_PAGES = 20
 
 private fun JsonElement.asParamString(): String? =
     (this as? JsonPrimitive)?.jsonPrimitive?.contentOrNull
@@ -342,11 +357,14 @@ private val ImageGenerationRequest.hasQuickCreationIdentity: Boolean
  * @param credentialStore 凭据读取边界，用于在请求前获取当前 API Key。
  * @param authRepository 认证仓库；当服务端返回 Token 失效时用于刷新后重试一次。
  * 该依赖必须由 DI 提供，避免生产运行时因缺少刷新能力而把可恢复的 401/TOKEN_INVALID 直接暴露为失败。
+ * @param modelCatalogRepository 标准模型目录仓库，用于按 SKU 补齐 `/api/sku/list` 与 `/api/sku/detail`
+ * 的脱敏摘要、字段结构和价格展示信息；`null` 只作为旧测试或接口不可用时的降级路径。
  */
 class QuickCreateRepositoryImpl(
     private val quickCreateApi: QuickCreateApi,
     private val credentialStore: CredentialStore,
     private val authRepository: AuthRepository,
+    private val modelCatalogRepository: ModelCatalogRepository? = null,
 ) : QuickCreationTaskHistoryRepository,
     QuickCreationFeePreviewRepository,
     QuickCreationGenerationRepository,
@@ -1469,7 +1487,31 @@ class QuickCreateRepositoryImpl(
     }
 
     override suspend fun getModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> =
+        loadModels(kind = kind, forceRefresh = false)
+
+    override suspend fun hasCachedModels(kind: QuickCreationServiceKind): Boolean =
+        loadCachedStandardModelCatalog(modelCatalogRepository)
+            .toQuickCreationServiceModels(kind)
+            .isNotEmpty()
+
+    override suspend fun refreshModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> =
+        loadModels(kind = kind, forceRefresh = true)
+
+    private suspend fun loadModels(
+        kind: QuickCreationServiceKind,
+        forceRefresh: Boolean,
+    ): Result<List<QuickCreationServiceModel>> =
         runCatching {
+            val cachedStandardModels = loadCachedStandardModelCatalog(modelCatalogRepository)
+                .toQuickCreationServiceModels(kind)
+            catalogDebug(
+                "loadModels kind=$kind forceRefresh=$forceRefresh cached=${cachedStandardModels.size} " +
+                    "cachedTypes=${cachedStandardModels.serviceModelTypeDistributionLog()}",
+            )
+            if (!forceRefresh && cachedStandardModels.isNotEmpty()) {
+                return@runCatching cachedStandardModels
+            }
+
             // Repository 边界只接受领域类别，远端 categoryId 在 Data 层统一映射和记录。
             val categoryId = kind.toRemoteCategoryId()
             val response = quickCreateApi.getQuickCreationModels(listOf(categoryId))
@@ -1477,8 +1519,49 @@ class QuickCreateRepositoryImpl(
             if (response.code != 0) {
                 throw response.toRepositoryException(QuickCreateRepositoryIssueCode.MODEL_LIST_LOAD_FAILED)
             }
-            QuickCreationModelMapper.flatten(categoryId, response.data?.categories?.get(categoryId).orEmpty())
+            val quickCreationModels = QuickCreationModelMapper.flatten(
+                fallbackCategoryId = categoryId,
+                models = response.data?.categories?.get(categoryId).orEmpty(),
+            )
+            catalogDebug(
+                "quickCreation category=$categoryId count=${quickCreationModels.size} " +
+                    "types=${quickCreationModels.serviceModelTypeDistributionLog()}",
+            )
+            enrichWithStandardModelCatalog(
+                models = quickCreationModels,
+                kind = kind,
+                forceRefresh = forceRefresh || cachedStandardModels.isEmpty(),
+            )
         }
+
+    private suspend fun enrichWithStandardModelCatalog(
+        models: List<QuickCreationServiceModel>,
+        kind: QuickCreationServiceKind,
+        forceRefresh: Boolean,
+    ): List<QuickCreationServiceModel> {
+        val repository = modelCatalogRepository ?: return models
+        val standardSummaries = loadStandardModelCatalog(repository, forceRefresh)
+        catalogDebug(
+            "standardCatalog kind=$kind forceRefresh=$forceRefresh count=${standardSummaries.size} " +
+                "types=${standardSummaries.apiModelTypeDistributionLog()}",
+        )
+        val summaryById = standardSummaries.associateBy { it.id }
+
+        val quickCreationModels = coroutineScope {
+            models.map { model ->
+                async {
+                    // `/api/qc/v2/models` 仍提供可提交的 bindingId；标准模型详情只用于补齐
+                    // `/api/sku/detail` 的脱敏字段、类型、来源和价格展示，不把 endpoint 暴露给 Presentation。
+                    val detail = repository.getStandardModelDetail(model.skuId).getOrNull()
+                    model.withStandardModelMetadata(summaryById[model.skuId], detail)
+                }
+            }.awaitAll()
+        }
+        return mergeStandardServiceModels(
+            quickCreationModels = quickCreationModels,
+            standardModels = standardSummaries.toQuickCreationServiceModels(kind),
+        )
+    }
 
     override suspend fun listQuickCreationHistory(
         page: Int,
@@ -1592,4 +1675,192 @@ private fun QuickCreationServiceKind.toRemoteCategoryId(): String =
     when (this) {
         QuickCreationServiceKind.IMAGE -> "IMAGE"
         QuickCreationServiceKind.VIDEO -> "VIDEO"
+    }
+
+private suspend fun loadCachedStandardModelCatalog(
+    repository: ModelCatalogRepository?,
+): List<ApiModelSummary> {
+    repository ?: return emptyList()
+    val models = mutableListOf<ApiModelSummary>()
+    for (page in 1..STANDARD_MODEL_CATALOG_MAX_PAGES) {
+        val pageModels = repository.getCachedStandardModels(
+            page = page,
+            size = STANDARD_MODEL_CATALOG_PAGE_SIZE,
+        )
+        catalogDebug("cachedStandard page=$page size=${pageModels.size}")
+        if (pageModels.isEmpty()) {
+            break
+        }
+        models += pageModels
+        if (pageModels.size < STANDARD_MODEL_CATALOG_PAGE_SIZE) {
+            break
+        }
+    }
+    return models.distinctBy { it.id }
+}
+
+private suspend fun loadStandardModelCatalog(
+    repository: ModelCatalogRepository,
+    forceRefresh: Boolean,
+): List<ApiModelSummary> {
+    val models = mutableListOf<ApiModelSummary>()
+    for (page in 1..STANDARD_MODEL_CATALOG_MAX_PAGES) {
+        val pageModels = if (forceRefresh) {
+            repository.refreshStandardModels(
+                page = page,
+                size = STANDARD_MODEL_CATALOG_PAGE_SIZE,
+            )
+        } else {
+            repository.listStandardModels(
+                page = page,
+                size = STANDARD_MODEL_CATALOG_PAGE_SIZE,
+            )
+        }.getOrNull().orEmpty()
+        catalogDebug(
+            "standardPage forceRefresh=$forceRefresh page=$page size=${pageModels.size} " +
+                "types=${pageModels.apiModelTypeDistributionLog()}",
+        )
+
+        if (pageModels.isEmpty()) {
+            break
+        }
+        models += pageModels
+        if (pageModels.size < STANDARD_MODEL_CATALOG_PAGE_SIZE) {
+            break
+        }
+    }
+    return models.distinctBy { it.id }
+}
+
+private fun catalogDebug(message: String) {
+    quickCreateDataDebugLog("ModelCatalog", message)
+}
+
+private fun List<ApiModelSummary>.toQuickCreationServiceModels(
+    kind: QuickCreationServiceKind,
+): List<QuickCreationServiceModel> =
+    filter { it.belongsToQuickCreationKind(kind) }
+        .map { it.toQuickCreationServiceModel(kind) }
+
+private fun ApiModelSummary.belongsToQuickCreationKind(kind: QuickCreationServiceKind): Boolean {
+    val typeText = type.orEmpty().lowercase()
+    val isNonImageOutput = typeText.contains("video") ||
+        typeText.contains("audio") ||
+        typeText.contains("music") ||
+        typeText.contains("3d")
+    val isImage = typeText.contains("image") && !isNonImageOutput
+    return when (kind) {
+        QuickCreationServiceKind.IMAGE -> isImage
+        // 当前快捷创作只有图片/视频两个入口；标准模型目录中的视频、音频和 3D 都先归入非图片目录，
+        // 这样模型选择 sheet 的视频、音频、3D 筛选不会因为旧 quickcreate 目录缺项而空白。
+        QuickCreationServiceKind.VIDEO -> !isImage
+    }
+}
+
+private fun List<ApiModelSummary>.apiModelTypeDistributionLog(): String =
+    map { it.type?.takeIf { type -> type.isNotBlank() } ?: "unknown" }
+        .toDistributionLog()
+
+private fun List<QuickCreationServiceModel>.serviceModelTypeDistributionLog(): String =
+    map { it.apiType?.takeIf { type -> type.isNotBlank() } ?: "unknown" }
+        .toDistributionLog()
+
+private fun List<String>.toDistributionLog(): String =
+    groupingBy { it }
+        .eachCount()
+        .entries
+        .sortedByDescending { it.value }
+        .take(8)
+        .joinToString(prefix = "[", postfix = "]") { "${it.key}:${it.value}" }
+
+private fun ApiModelSummary.toQuickCreationServiceModel(
+    kind: QuickCreationServiceKind,
+): QuickCreationServiceModel =
+    QuickCreationServiceModel(
+        categoryId = kind.toRemoteCategoryId(),
+        groupName = groupName,
+        // 标准目录模型没有 quickcreate bindingId；这里使用 skuId 形成稳定 UI 身份。
+        // 真正提交标准模型时仍应走 ModelInvocationRepository，而不是旧 quickcreate binding 路由。
+        bindingId = id,
+        skuId = id,
+        name = name.ifBlank { id },
+        description = null,
+        apiType = type,
+        apiSource = source,
+        fields = emptyList(),
+        pricing = QuickCreationServicePricing(priceSummaryRaw = priceSummary),
+    )
+
+private fun mergeStandardServiceModels(
+    quickCreationModels: List<QuickCreationServiceModel>,
+    standardModels: List<QuickCreationServiceModel>,
+): List<QuickCreationServiceModel> {
+    val quickSkuIds = quickCreationModels.map { it.skuId }.toSet()
+    return quickCreationModels + standardModels.filterNot { it.skuId in quickSkuIds }
+}
+
+private fun QuickCreationServiceModel.withStandardModelMetadata(
+    summary: ApiModelSummary?,
+    detail: ApiModelDetail?,
+): QuickCreationServiceModel {
+    if (summary == null && detail == null) return this
+    val standardFields = detail
+        ?.fields
+        ?.takeIf { it.isNotEmpty() }
+        ?.map { it.toQuickCreationServiceField() }
+        ?: fields
+    val standardPrice = detail?.priceSummary?.takeIf { it.isNotBlank() }
+        ?: summary?.priceSummary?.takeIf { it.isNotBlank() }
+
+    return copy(
+        groupName = detail?.groupName?.takeIf { it.isNotBlank() }
+            ?: summary?.groupName?.takeIf { it.isNotBlank() }
+            ?: groupName,
+        name = detail?.name?.takeIf { it.isNotBlank() }
+            ?: summary?.name?.takeIf { it.isNotBlank() }
+            ?: name,
+        apiType = detail?.type?.takeIf { it.isNotBlank() }
+            ?: summary?.type?.takeIf { it.isNotBlank() }
+            ?: apiType,
+        apiSource = detail?.source?.takeIf { it.isNotBlank() }
+            ?: summary?.source?.takeIf { it.isNotBlank() }
+            ?: apiSource,
+        fields = standardFields,
+        pricing = pricing.withStandardPriceSummary(standardPrice),
+    )
+}
+
+private fun ApiModelField.toQuickCreationServiceField(): QuickCreationServiceField =
+    QuickCreationServiceField(
+        fieldKey = fieldKey,
+        paramKey = paramKey,
+        fieldType = type.name,
+        required = required,
+        defaultValue = defaultValue,
+        options = options.map { option ->
+            QuickCreationServiceFieldOption(label = option.label, value = option.value)
+        },
+        maxUploadCount = maxUploadCount ?: maxInputCount,
+        maxUploadSize = maxUploadSizeBytes,
+        multipleInputs = multipleInputs,
+        uploadMediaKind = type.toQuickCreationUploadMediaKind(),
+        visible = visible,
+        rawInputExtraJson = rawConfigJson,
+    )
+
+private fun QuickCreationServicePricing?.withStandardPriceSummary(
+    priceSummary: String?,
+): QuickCreationServicePricing? =
+    when {
+        priceSummary.isNullOrBlank() -> this
+        this == null -> QuickCreationServicePricing(priceSummaryRaw = priceSummary)
+        else -> copy(priceSummaryRaw = priceSummary)
+    }
+
+private fun ApiModelFieldType.toQuickCreationUploadMediaKind(): QuickCreationUploadMediaKind? =
+    when (this) {
+        ApiModelFieldType.IMAGE -> QuickCreationUploadMediaKind.IMAGE
+        ApiModelFieldType.VIDEO -> QuickCreationUploadMediaKind.VIDEO
+        ApiModelFieldType.AUDIO -> QuickCreationUploadMediaKind.AUDIO
+        else -> null
     }

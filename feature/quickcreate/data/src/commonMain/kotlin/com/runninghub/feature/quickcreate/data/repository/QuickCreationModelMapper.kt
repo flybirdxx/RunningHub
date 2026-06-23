@@ -102,6 +102,7 @@ internal object QuickCreationModelMapper {
             // skuInputExtraJson 是远端序列化细节，只在 Data 层用于解析字段元数据和媒体类型。
             uploadMediaKind = inferUploadMediaKind(fieldType, key, mappedApiParamKey, extraJson, extra?.acceptFormats.orEmpty()),
             inputExtra = extra,
+            rawInputExtraJson = extraJson,
         )
     }
 
@@ -180,9 +181,10 @@ internal object QuickCreationModelMapper {
             ?: return null
         val childFieldType = stringValue("fieldType") ?: stringValue("type") ?: stringValue("inputType")
         val childParamKey = stringValue("mappedApiParamKey") ?: stringValue("paramKey")
-        val childExtra = this["skuInputExtraJson"]
-            ?.stringValue()
+        val childExtraRaw = this["skuInputExtraJson"]?.stringValue()
+        val childExtra = childExtraRaw
             ?.let { value -> runCatching { inputExtraJson.parseToJsonElement(value) }.getOrNull() as? JsonObject }
+        val conditionRaw = rawVisibilityConditionJson()
         return QuickCreationServiceFieldInputChild(
             fieldKey = key,
             paramKey = childParamKey ?: key,
@@ -205,6 +207,8 @@ internal object QuickCreationModelMapper {
             ),
             options = optionsValue(),
             visibleWhen = visibleWhen(),
+            rawInputExtraJson = childExtraRaw,
+            rawVisibilityConditionJson = conditionRaw,
         )
     }
 
@@ -235,6 +239,11 @@ internal object QuickCreationModelMapper {
             ?: emptyList()
         return QuickCreationServiceFieldVisibilityCondition(fieldKey = fieldKey, values = values)
     }
+
+    private fun JsonObject.rawVisibilityConditionJson(): String? =
+        (this["showWhen"] ?: this["visibleWhen"] ?: this["dependsOn"])
+            ?.toString()
+            ?.takeIf { it.isNotBlank() }
 
     private fun JsonObject.acceptFormats(): List<String> {
         val accept = this["accept"] ?: return emptyList()

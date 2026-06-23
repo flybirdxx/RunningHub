@@ -72,6 +72,8 @@ data class ApiModelDetail(
  * @property maxUploadSizeBytes 上传字段最大文件大小，单位字节；`null` 表示不限制。
  * @property acceptFormats 可接受文件扩展名或 MIME 片段；空集合表示不限制或接口未返回。
  * @property visible 字段是否可见；`true` 表示可渲染给用户，`false` 表示隐藏字段不应展示。
+ * @property rawConfigJson 服务端字段原始 JSON。
+ * `null` 表示没有可保留的原始字段配置；该值仅供后续动态 UI 增量解析，不应直接展示给用户。
  */
 data class ApiModelField(
     val fieldKey: String,
@@ -95,6 +97,7 @@ data class ApiModelField(
     val maxUploadSizeBytes: Long? = null,
     val acceptFormats: List<String> = emptyList(),
     val visible: Boolean = true,
+    val rawConfigJson: String? = null,
 )
 
 /**

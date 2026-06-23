@@ -39,7 +39,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateProjectStrip
 import com.runninghub.app.ui.theme.DarkOutlineVariant
 import com.runninghub.app.ui.theme.DarkSurface
 import com.runninghub.app.ui.theme.DarkSurfaceVariant
@@ -59,27 +58,18 @@ import runninghub.composeapp.generated.resources.quick_create_history_detail_loa
 import runninghub.composeapp.generated.resources.quick_create_history_detail_loading_title
 import runninghub.composeapp.generated.resources.quick_create_history_detail_title
 import runninghub.composeapp.generated.resources.quick_create_history_load_more
-import runninghub.composeapp.generated.resources.quick_create_history_recent_title
 
 /**
  * 展示快捷创作默认页的历史列表区域。
  *
- * 历史区域同时承载“项目筛选条 + 当前筛选下的历史任务列表”，因此在 UI 拆分阶段
- * 保留对 project 子区域的组合关系。分页、取消任务和项目变更仍通过回调交给
- * ScreenModel/StateHolder，避免列表渲染层直接触碰 Repository。
+ * 历史区域只渲染当前状态中的任务列表、取消入口和加载更多入口。项目筛选入口已经从默认页移除，
+ * 新建项目入口由页面顶栏承载；分页和取消任务仍通过回调交给 ScreenModel/StateHolder，
+ * 避免列表渲染层直接触碰 Repository。
  *
- * @param uiState 快捷创作页面状态，当前读取项目筛选、历史列表、分页和取消任务状态。
+ * @param uiState 快捷创作页面状态，当前读取历史列表、分页、加载和取消任务状态。
  * @param onHistoryItemSelected 用户点击历史输出时触发，参数为 outputId。
  * @param onLoadMoreHistory 用户请求加载更多历史任务时触发。
  * @param onCancelHistoryTask 用户请求取消未结束任务时触发，参数为 taskId。
- * @param onProjectSelected 用户选择项目筛选时触发，参数为项目 ID。
- * @param onClearSelectedProject 用户切回最近创作时触发。
- * @param onLoadMoreProjects 用户请求加载更多项目时触发。
- * @param onToggleProjectPin 用户切换项目置顶状态时触发，参数为项目 ID。
- * @param onCreateProject 用户确认新建项目时触发。
- * @param onRenameProject 用户确认重命名项目时触发，参数依次为项目 ID 和新名称。
- * @param onDeleteProject 用户确认删除项目时触发，参数为项目 ID。
- * @param onShowProjectDetail 用户请求查看项目详情时触发，参数为项目 ID。
  */
 @Composable
 internal fun QuickCreateHistoryArea(
@@ -87,61 +77,12 @@ internal fun QuickCreateHistoryArea(
     onHistoryItemSelected: (String) -> Unit,
     onLoadMoreHistory: () -> Unit,
     onCancelHistoryTask: (String) -> Unit,
-    onProjectSelected: (String) -> Unit,
-    onClearSelectedProject: () -> Unit,
-    onLoadMoreProjects: () -> Unit,
-    onToggleProjectPin: (String) -> Unit,
-    onCreateProject: (String) -> Unit,
-    onRenameProject: (String, String) -> Unit,
-    onDeleteProject: (String) -> Unit,
-    onShowProjectDetail: (String) -> Unit,
 ) {
-    val selectedProject = uiState.projects.firstOrNull { it.projectId == uiState.selectedProjectId }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(Dimens.SpaceMD),
         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
     ) {
-        item {
-            QuickCreateProjectStrip(
-                projects = uiState.projects,
-                isLoading = uiState.projectsLoading,
-                isLoadingMore = uiState.projectsLoadingMore,
-                hasMore = uiState.projectsHasMore,
-                selectedProjectId = uiState.selectedProjectId,
-                pinningIds = uiState.projectPinningIds,
-                mutatingIds = uiState.projectMutatingIds,
-                onProjectSelected = onProjectSelected,
-                onClearSelectedProject = onClearSelectedProject,
-                onLoadMoreProjects = onLoadMoreProjects,
-                onToggleProjectPin = onToggleProjectPin,
-                onCreateProject = onCreateProject,
-                onRenameProject = onRenameProject,
-                onDeleteProject = onDeleteProject,
-                onShowProjectDetail = onShowProjectDetail,
-            )
-            Spacer(Modifier.height(Dimens.SpaceSM))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    selectedProject?.name ?: stringResource(Res.string.quick_create_history_recent_title),
-                    color = Color.White.copy(alpha = 0.82f),
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                if (uiState.historyLoading || uiState.projectTasksLoading) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = Primary300,
-                    )
-                }
-            }
-        }
-
         items(uiState.historyItems, key = { it.taskId }) { item ->
             HistoryItemRow(
                 item = item,

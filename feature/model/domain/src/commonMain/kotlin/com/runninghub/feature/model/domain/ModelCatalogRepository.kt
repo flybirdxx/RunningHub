@@ -22,6 +22,41 @@ interface ModelCatalogRepository {
     ): Result<List<ApiModelSummary>>
 
     /**
+     * 只读取本地缓存中的标准模型列表。
+     *
+     * 该方法不会访问网络，适合页面首次打开时快速显示上一次成功同步的模型目录。
+     * 空集合表示本地还没有该查询条件缓存，调用方可以再触发 [refreshStandardModels]。
+     *
+     * @param search 搜索关键字，必须与刷新时的查询条件一致。
+     * @param page 页码，从 1 开始。
+     * @param size 每页数量，单位为条。
+     * @return 本地已脱敏的模型摘要列表；空集合表示缓存不存在或无法解析。
+     */
+    suspend fun getCachedStandardModels(
+        search: String = "",
+        page: Int = 1,
+        size: Int = 30,
+    ): List<ApiModelSummary> = emptyList()
+
+    /**
+     * 通过接口刷新标准模型列表并更新本地缓存。
+     *
+     * 该方法始终尝试请求 `/api/sku/list`，适合页面已经展示缓存后进行后台同步。
+     * 失败时通过 [Result.failure] 返回，调用方可继续保留旧缓存。
+     *
+     * @param search 搜索关键字，空字符串表示默认标准模型目录。
+     * @param page 页码，从 1 开始。
+     * @param size 每页数量，单位为条。
+     * @return 成功时返回最新远端模型摘要，并已写入本地缓存。
+     */
+    suspend fun refreshStandardModels(
+        search: String = "",
+        page: Int = 1,
+        size: Int = 30,
+    ): Result<List<ApiModelSummary>> =
+        listStandardModels(search = search, page = page, size = size)
+
+    /**
      * 查询标准模型详情。
      *
      * @param modelId 标准模型 SKU ID，必须来自目录列表或历史记录。

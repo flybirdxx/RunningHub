@@ -32,6 +32,19 @@ class ModelCatalogRepositoryMapperTest {
     }
 
     @Test
+    fun `maps sku summary category metadata from tags`() {
+        val summary = SkuSummaryDto(
+            id = "sku-video",
+            name = "Seedance Video",
+            tags = listOf("text-to-video", "bytedance", "Seedance2.0", "最近上新"),
+        ).toDomain()
+
+        assertEquals("text-to-video", summary.type)
+        assertEquals("bytedance", summary.source)
+        assertEquals("Seedance2.0", summary.groupName)
+    }
+
+    @Test
     fun `maps sku detail with parsed fields`() {
         val registry = ModelEndpointRegistry()
         val detail = SkuDetailDto(

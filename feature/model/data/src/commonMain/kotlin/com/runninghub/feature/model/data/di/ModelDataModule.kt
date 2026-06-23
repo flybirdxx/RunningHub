@@ -18,6 +18,6 @@ import org.koin.dsl.module
 val modelDataModule = module {
     single { ModelCatalogApi(get()) }
     single { ModelEndpointRegistry() }
-    single<ModelCatalogRepository> { ModelCatalogRepositoryImpl(get(), get(), get()) }
+    single<ModelCatalogRepository> { ModelCatalogRepositoryImpl(get(), get(), get(), get()) }
     single<ModelInvocationRepository> { ModelInvocationRepositoryImpl(get(), get(), get(), get()) }
 }

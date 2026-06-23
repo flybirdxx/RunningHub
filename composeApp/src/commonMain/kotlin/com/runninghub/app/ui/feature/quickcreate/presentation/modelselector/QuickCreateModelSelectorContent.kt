@@ -39,6 +39,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,12 +58,13 @@ import com.runninghub.app.ui.feature.quickcreate.QuickCreateDesignTokens
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateModelGlyph
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheetHandle
 import com.runninghub.app.ui.feature.quickcreate.presentation.asServiceModelText
+import com.runninghub.app.ui.feature.quickcreate.quickCreateDebugLog
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_model_selector_apply
-import runninghub.composeapp.generated.resources.quick_create_model_selector_audio_group
 import runninghub.composeapp.generated.resources.quick_create_model_selector_empty
 import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_3d
 import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_all
@@ -70,16 +72,15 @@ import runninghub.composeapp.generated.resources.quick_create_model_selector_fil
 import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_image
 import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_recent
 import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_video
-import runninghub.composeapp.generated.resources.quick_create_model_selector_high_quality
-import runninghub.composeapp.generated.resources.quick_create_model_selector_image_group
 import runninghub.composeapp.generated.resources.quick_create_model_selector_loading
-import runninghub.composeapp.generated.resources.quick_create_model_selector_official_stable
 import runninghub.composeapp.generated.resources.quick_create_model_selector_path_format
 import runninghub.composeapp.generated.resources.quick_create_model_selector_search_placeholder
 import runninghub.composeapp.generated.resources.quick_create_model_selector_selected_label
 import runninghub.composeapp.generated.resources.quick_create_model_selector_title
 import runninghub.composeapp.generated.resources.quick_create_model_selector_unknown_price
 import runninghub.composeapp.generated.resources.quick_create_model_selector_video_group
+
+private const val RECENT_GROUP_MARKER = "\u6700\u8fd1\u4e0a\u65b0"
 
 /**
  * 展示设计稿版快捷创作服务端模型选择面板。
@@ -95,11 +96,12 @@ internal fun QuickCreateModelSheet(
     onDismiss: () -> Unit,
     onImageServiceModelSelected: (String) -> Unit,
     onVideoServiceModelSelected: (String) -> Unit,
+    onTabSwitch: (QuickCreateTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val models = if (isImage) uiState.serviceImageModelItems else uiState.serviceVideoModelItems
+    val models = (uiState.serviceImageModelItems + uiState.serviceVideoModelItems)
+        .distinctBy { it.identityKey }
     val selectedModel = if (isImage) uiState.selectedImageServiceModelUi else uiState.selectedVideoServiceModelUi
-    val onSelect = if (isImage) onImageServiceModelSelected else onVideoServiceModelSelected
     var query by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf(ModelFilter.ALL) }
     val filteredModels = models
@@ -110,10 +112,34 @@ internal fun QuickCreateModelSheet(
                 append(model.source.groupName.orEmpty())
                 append(' ')
                 append(model.source.bindingId)
+                append(' ')
+                append(model.source.skuId)
+                append(' ')
+                append(model.source.apiType.orEmpty())
+                append(' ')
+                append(model.source.apiSource.orEmpty())
             }
             query.isBlank() || text.contains(query, ignoreCase = true)
         }
-        .filter { selectedFilter.accepts(it, isImage) }
+        .filter { selectedFilter.accepts(it) }
+    LaunchedEffect(
+        visible,
+        isImage,
+        selectedFilter,
+        models.size,
+        filteredModels.size,
+        uiState.serviceImageModelItems.size,
+        uiState.serviceVideoModelItems.size,
+    ) {
+        if (visible) {
+            quickCreateDebugLog(
+                tag = "ModelSheet",
+                message = "tab=${if (isImage) "IMAGE" else "VIDEO"} filter=$selectedFilter " +
+                    "image=${uiState.serviceImageModelItems.size} video=${uiState.serviceVideoModelItems.size} " +
+                    "combined=${models.size} filtered=${filteredModels.size} types=${models.typeDistributionLog()}",
+            )
+        }
+    }
 
     AnimatedVisibility(
         visible = visible,
@@ -154,8 +180,18 @@ internal fun QuickCreateModelSheet(
                         filteredModels.isEmpty() -> EmptyText()
                         else -> ModelList(
                             models = filteredModels,
-                            isImage = isImage,
-                            onSelect = onSelect,
+                            onSelect = { model ->
+                                when (model.targetTab()) {
+                                    QuickCreateTab.IMAGE -> {
+                                        if (!isImage) onTabSwitch(QuickCreateTab.IMAGE)
+                                        onImageServiceModelSelected(model.identityKey)
+                                    }
+                                    QuickCreateTab.VIDEO -> {
+                                        if (isImage) onTabSwitch(QuickCreateTab.VIDEO)
+                                        onVideoServiceModelSelected(model.identityKey)
+                                    }
+                                }
+                            },
                         )
                     }
                 }
@@ -260,8 +296,7 @@ private fun ModelFilterRow(selectedFilter: ModelFilter, onSelect: (ModelFilter) 
 @Composable
 private fun ModelList(
     models: List<QuickCreateServiceModelUi>,
-    isImage: Boolean,
-    onSelect: (String) -> Unit,
+    onSelect: (QuickCreateServiceModelUi) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
@@ -270,18 +305,13 @@ private fun ModelList(
         models.groupBy { it.groupTitle.asServiceModelText() }
             .forEach { (groupTitle, groupModels) ->
                 GroupHeader(
-                    title = if (isImage) {
-                        stringResource(Res.string.quick_create_model_selector_image_group)
-                    } else {
-                        groupTitle.ifBlank { stringResource(Res.string.quick_create_model_selector_video_group) }
-                    },
+                    title = groupTitle.ifBlank { stringResource(Res.string.quick_create_model_selector_video_group) },
                     count = groupModels.size,
                 )
                 groupModels.forEach { model ->
                     ServiceModelListRow(
                         model = model,
-                        isImage = isImage,
-                        onClick = { onSelect(model.identityKey) },
+                        onClick = { onSelect(model) },
                     )
                 }
             }
@@ -312,7 +342,6 @@ private fun GroupHeader(title: String, count: Int) {
 @Composable
 private fun ServiceModelListRow(
     model: QuickCreateServiceModelUi,
-    isImage: Boolean,
     onClick: () -> Unit,
 ) {
     val selected = model.selected
@@ -328,7 +357,7 @@ private fun ServiceModelListRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            ModelGlyphForKind(isImage = isImage)
+            ModelGlyphForKind(model = model)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -342,11 +371,9 @@ private fun ServiceModelListRow(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    CapabilityTag(text = if (isImage) "image-to-image" else "reference-to-video")
-                    CapabilityTag(
-                        text = stringResource(Res.string.quick_create_model_selector_official_stable),
-                        muted = true,
-                    )
+                    modelCapabilityTags(model).forEachIndexed { index, tag ->
+                        CapabilityTag(text = tag, muted = index > 0)
+                    }
                 }
                 Text(
                     text = stringResource(
@@ -395,13 +422,25 @@ private fun ServiceModelListRow(
 }
 
 @Composable
-private fun ModelGlyphForKind(isImage: Boolean) {
+private fun ModelGlyphForKind(model: QuickCreateServiceModelUi) {
+    val icon = when {
+        model.matchesAudioCapability() -> Icons.Default.AudioFile
+        model.matches3dCapability() -> Icons.Default.ViewInAr
+        model.targetTab() == QuickCreateTab.IMAGE -> Icons.Default.Image
+        else -> Icons.Default.Movie
+    }
+    val accent = when {
+        model.matchesAudioCapability() -> Color(0xFF7B5FF4)
+        model.matches3dCapability() -> Color(0xFF5E63D7)
+        model.targetTab() == QuickCreateTab.IMAGE -> QuickCreateDesignTokens.Purple
+        else -> Color(0xFF5B4BD4)
+    }
     QuickCreateModelGlyph(
         modifier = Modifier.size(52.dp),
-        accent = if (isImage) QuickCreateDesignTokens.Purple else Color(0xFF5B4BD4),
+        accent = accent,
     ) {
         Icon(
-            imageVector = if (isImage) Icons.Default.Image else Icons.Default.Movie,
+            imageVector = icon,
             contentDescription = null,
             tint = QuickCreateDesignTokens.Text,
             modifier = Modifier.size(27.dp),
@@ -532,9 +571,18 @@ private fun EmptyText() {
 
 @Composable
 private fun modelPriceText(model: QuickCreateServiceModelUi): String =
-    model.source.pricing?.flatPriceRaw
+    model.source.pricing?.priceSummaryRaw
+        ?: model.source.pricing?.flatPriceRaw
         ?: model.source.pricing?.dimensionPricingRaw
         ?: stringResource(Res.string.quick_create_model_selector_unknown_price)
+
+private fun modelCapabilityTags(model: QuickCreateServiceModelUi): List<String> =
+    buildList {
+        model.source.apiType?.cleanCapabilityTag()?.let(::add)
+        model.source.apiSource?.cleanCapabilityTag()?.let(::add)
+    }.ifEmpty {
+        model.inferredCapabilityTags()
+    }.distinct().take(2)
 
 private enum class ModelFilter {
     ALL,
@@ -565,13 +613,105 @@ private enum class ModelFilter {
             RECENT -> stringResource(Res.string.quick_create_model_selector_filter_recent)
         }
 
-    fun accepts(model: QuickCreateServiceModelUi, isImage: Boolean): Boolean =
+    fun accepts(model: QuickCreateServiceModelUi): Boolean =
         when (this) {
             ALL -> true
-            IMAGE -> isImage
-            VIDEO -> !isImage
-            AUDIO -> false
-            THREE_D -> false
-            RECENT -> true
+            IMAGE -> model.targetTab() == QuickCreateTab.IMAGE
+            VIDEO -> model.matchesVideoCapability()
+            AUDIO -> model.matchesAudioCapability()
+            THREE_D -> model.matches3dCapability()
+            RECENT -> model.source.groupName?.contains(RECENT_GROUP_MARKER) == true ||
+                model.source.name.contains(RECENT_GROUP_MARKER)
         }
 }
+
+private fun QuickCreateServiceModelUi.targetTab(): QuickCreateTab =
+    if (source.categoryId.equals("VIDEO", ignoreCase = true) ||
+        source.apiType.normalizedCapabilityText().isNonImageOutputCapability()
+    ) {
+        QuickCreateTab.VIDEO
+    } else {
+        QuickCreateTab.IMAGE
+    }
+
+private fun QuickCreateServiceModelUi.matchesVideoCapability(): Boolean =
+    capabilitySearchText().let { text ->
+        text.contains("video") ||
+            text.contains("\u89c6\u9891") ||
+            (
+                source.categoryId.equals("VIDEO", ignoreCase = true) &&
+                    !matchesAudioCapability() &&
+                    !matches3dCapability()
+                )
+    }
+
+private fun QuickCreateServiceModelUi.matchesAudioCapability(): Boolean =
+    capabilitySearchText().let { text ->
+        text.contains("audio") ||
+            text.contains("music") ||
+            text.contains("suno") ||
+            text.contains("\u97f3\u9891") ||
+            text.contains("\u97f3\u4e50")
+    }
+
+private fun QuickCreateServiceModelUi.matches3dCapability(): Boolean =
+    capabilitySearchText().contains("3d")
+
+private fun QuickCreateServiceModelUi.inferredCapabilityTags(): List<String> {
+    val text = capabilitySearchText()
+    val explicitTag = listOf(
+        "multi-image-to-3d",
+        "image-to-3d",
+        "text-to-3d",
+        "reference-to-video",
+        "image-to-video",
+        "text-to-video",
+        "image-to-image",
+        "text-to-image",
+        "text-to-audio",
+        "image-to-audio",
+    ).firstOrNull(text::contains)
+
+    return listOf(
+        explicitTag ?: when {
+            matches3dCapability() -> "image-to-3d"
+            matchesAudioCapability() -> "text-to-audio"
+            matchesVideoCapability() -> "text-to-video"
+            else -> "text-to-image"
+        },
+    )
+}
+
+private fun String.cleanCapabilityTag(): String? =
+    trim()
+        .takeIf { it.isNotBlank() }
+        ?.takeUnless { it.equals("unknown", ignoreCase = true) }
+
+private fun QuickCreateServiceModelUi.capabilitySearchText(): String =
+    buildString {
+        append(source.categoryId)
+        append(' ')
+        append(source.apiType.orEmpty())
+        append(' ')
+        append(source.groupName.orEmpty())
+        append(' ')
+        append(source.name)
+    }.lowercase()
+
+private fun String?.normalizedCapabilityText(): String =
+    orEmpty().lowercase()
+
+private fun String.isNonImageOutputCapability(): Boolean =
+    contains("video") ||
+        contains("audio") ||
+        contains("music") ||
+        contains("3d")
+
+private fun List<QuickCreateServiceModelUi>.typeDistributionLog(): String =
+    map { it.source.apiType?.takeIf { type -> type.isNotBlank() } ?: "unknown" }
+        .groupingBy { it }
+        .eachCount()
+        .entries
+        .sortedByDescending { it.value }
+        .take(8)
+        .joinToString(prefix = "[", postfix = "]") { "${it.key}:${it.value}" }

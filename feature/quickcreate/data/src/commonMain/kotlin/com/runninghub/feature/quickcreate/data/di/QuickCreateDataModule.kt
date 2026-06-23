@@ -24,7 +24,7 @@ import org.koin.dsl.module
 val quickCreateDataModule = module {
     single<QuickCreateDraftRepository> { QuickCreateDraftRepositoryImpl(get(), get()) }
     single { QuickCreateApi(get(), get()) }
-    single { QuickCreateRepositoryImpl(get(), get(), get()) }
+    single { QuickCreateRepositoryImpl(get(), get(), get(), get()) }
     single<QuickCreationFeePreviewRepository> { get<QuickCreateRepositoryImpl>() }
     single<QuickCreationGenerationRepository> { get<QuickCreateRepositoryImpl>() }
     single<QuickCreationInspirationRepository> { get<QuickCreateRepositoryImpl>() }

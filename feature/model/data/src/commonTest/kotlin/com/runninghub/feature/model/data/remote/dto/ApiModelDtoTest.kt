@@ -78,6 +78,38 @@ class ApiModelDtoTest {
     }
 
     @Test
+    fun `sku list response parses mixed tag formats`() {
+        val response = json.decodeFromString<BaseResponseDto<SkuListPageDto>>(
+            """
+            {
+              "code": 0,
+              "msg": "success",
+              "data": {
+                "records": [
+                  {
+                    "id": 2044235717485551618,
+                    "name": "Seedance Video",
+                    "tags": [
+                      "text-to-video|bytedance",
+                      { "name": "Seedance2.0" },
+                      { "tagName": "最近上新" }
+                    ]
+                  }
+                ],
+                "total": 1
+              }
+            }
+            """.trimIndent()
+        )
+
+        val record = assertNotNull(response.data).items.single()
+        assertEquals(
+            listOf("text-to-video", "bytedance", "Seedance2.0", "最近上新"),
+            record.tags,
+        )
+    }
+
+    @Test
     fun `sku detail response keeps endpoint and input config json`() {
         val response = json.decodeFromString<BaseResponseDto<SkuDetailDto>>(
             """

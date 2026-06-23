@@ -33,6 +33,10 @@ enum class QuickCreationServiceKind {
  * Data 层会按中文名、通用名、AI 名和 SKU 顺序兜底；空字符串不应进入 Domain。
  * @property description 服务说明文本。
  * `null` 表示服务端未提供说明；空字符串应在 Data 层归一化为 `null`。
+ * @property apiType 标准 API 模型类型，例如 `text-to-image`、`image-to-image` 或 `text-to-video`。
+ * `null` 表示 quick-creation 目录或标准模型详情暂未提供；Presentation 可按字段做弱兜底展示。
+ * @property apiSource 标准 API 模型来源或供应方，例如 `rh-ai`、`openai` 或 `bytedance`。
+ * `null` 表示服务端未提供来源；该值只用于展示和本地筛选，不参与提交参数。
  * @property fields 服务模型声明的动态输入字段。
  * 顺序保留服务端返回顺序；空列表表示该服务没有动态字段，只使用基础提示词和固定参数。
  * @property pricing 服务模型的计费摘要。
@@ -45,6 +49,8 @@ data class QuickCreationServiceModel(
     val skuId: String,
     val name: String,
     val description: String?,
+    val apiType: String? = null,
+    val apiSource: String? = null,
     val fields: List<QuickCreationServiceField>,
     val pricing: QuickCreationServicePricing? = null,
 )
@@ -64,6 +70,8 @@ data class QuickCreationServiceModel(
  * `null` 表示没有固定价格；该字段可能包含服务端格式化后的金额或点数。
  * @property dimensionPricingRaw 维度计价原始文本。
  * `null` 表示没有维度计价信息；调用方不在客户端解析复杂计价公式。
+ * @property priceSummaryRaw 标准 API 模型列表或详情返回的价格摘要。
+ * `null` 表示标准模型接口未返回价格；该字段仅用于目录展示，最终扣费仍以 fee-preview 为准。
  * @property discountPercent 折扣百分比，单位为百分比点。
  * `null` 表示无折扣信息；有效值通常在 0 到 100 之间。
  * @property isFree 目录层是否标记为免费。
@@ -81,6 +89,7 @@ data class QuickCreationServicePricing(
     val paidPriceKind: String? = null,
     val flatPriceRaw: String? = null,
     val dimensionPricingRaw: String? = null,
+    val priceSummaryRaw: String? = null,
     val discountPercent: Int? = null,
     val isFree: Boolean = false,
     val freeRemaining: Int = 0,
@@ -92,8 +101,8 @@ data class QuickCreationServicePricing(
  * 快捷创作服务模型的输入字段声明。
  *
  * 该模型位于 Domain 层，描述字段身份、默认值、可见性、上传约束和已解析的附加元数据。
- * Data 层负责把远端 `skuInputExtraJson` 等协议字段解析为 [inputExtra] 和 [uploadMediaKind]，
- * 因此本模型不保存原始 JSON，避免 Presentation 或 Domain 规则继续依赖序列化细节。
+ * Data 层负责把远端 `skuInputExtraJson` 等协议字段解析为 [inputExtra] 和 [uploadMediaKind]。
+ * 原始 JSON 仅作为后续动态 UI 增量补齐的脱敏配置快照保留，Presentation 不应直接展示。
  *
  * @property fieldKey 服务字段的原始字段 key，用于兼容模板和旧接口返回。
  * 空字符串不应进入 Domain；模板别名解析会同时兼容该值和 [paramKey]。
@@ -119,6 +128,8 @@ data class QuickCreationServicePricing(
  * `null` 表示服务端没有可解析附加配置。
  * @property visible 字段是否对用户可见。
  * `true` 表示可参与 UI 展示；`false` 表示隐藏字段，仅可能携带默认值参与请求。
+ * @property rawInputExtraJson 服务端字段附加配置原始 JSON。
+ * `null` 表示服务端未返回附加配置；该值只用于后续动态表单解析，不参与当前提交拼接。
  */
 data class QuickCreationServiceField(
     val fieldKey: String,
@@ -133,6 +144,7 @@ data class QuickCreationServiceField(
     val uploadMediaKind: QuickCreationUploadMediaKind? = null,
     val inputExtra: QuickCreationServiceFieldExtra? = null,
     val visible: Boolean = true,
+    val rawInputExtraJson: String? = null,
 )
 
 /**
@@ -191,6 +203,10 @@ data class QuickCreationServiceFieldExtra(
  * @property uploadMediaKind Data 层推断出的上传媒体类型；`null` 表示无法确定。
  * @property options 子字段选项列表；空列表表示不是选项字段。
  * @property visibleWhen 子字段激活条件；`null` 表示只要父字段可见就激活。
+ * @property rawInputExtraJson 子字段附加配置原始 JSON。
+ * `null` 表示服务端未返回子字段附加配置；该值只用于后续动态表单解析。
+ * @property rawVisibilityConditionJson 子字段条件配置原始 JSON。
+ * `null` 表示服务端未返回条件配置；该值只用于后续动态表单解析。
  */
 data class QuickCreationServiceFieldInputChild(
     val fieldKey: String,
@@ -208,6 +224,8 @@ data class QuickCreationServiceFieldInputChild(
     val uploadMediaKind: QuickCreationUploadMediaKind? = null,
     val options: List<QuickCreationServiceFieldOption> = emptyList(),
     val visibleWhen: QuickCreationServiceFieldVisibilityCondition? = null,
+    val rawInputExtraJson: String? = null,
+    val rawVisibilityConditionJson: String? = null,
 )
 
 /**

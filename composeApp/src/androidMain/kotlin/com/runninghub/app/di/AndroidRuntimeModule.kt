@@ -13,6 +13,7 @@ import com.runninghub.core.network.installRunningHubNetworkActivityTracking
 import com.runninghub.core.storage.BalanceCache
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.core.storage.MigratingCredentialStore
+import com.runninghub.core.storage.ModelCatalogCacheStore
 import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.core.storage.PreferencesSettingsStore
 import com.runninghub.core.storage.QuickCreateDraftStore
@@ -65,6 +66,7 @@ val androidRuntimeModule = module {
     }
     single<BalanceCache> { get<PreferencesSettingsStore>() }
     single<QuickCreateDraftStore> { get<PreferencesSettingsStore>() }
+    single<ModelCatalogCacheStore> { get<PreferencesSettingsStore>() }
     single<PermissionStateStore> { createPermissionDataStore() }
     // SessionManager 保持可注入单例，由根 App 观察状态并决定 Login/Main 入口。
     single { SessionManager(get()) }

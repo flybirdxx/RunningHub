@@ -21,7 +21,8 @@ class PreferencesSettingsStore(
     private val dataStore: DataStore<Preferences>,
 ) : CredentialStore,
     BalanceCache,
-    QuickCreateDraftStore {
+    QuickCreateDraftStore,
+    ModelCatalogCacheStore {
 
     companion object {
         // 这些凭据键只用于读取和清理 L1 迁移前的旧数据；新凭据写入必须进入平台安全存储。
@@ -32,6 +33,8 @@ class PreferencesSettingsStore(
         private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
         private val KEY_LAST_KNOWN_COINS = stringPreferencesKey("last_known_coins")
         private val KEY_QUICK_CREATE_DRAFT = stringPreferencesKey("quick_create_draft")
+        private const val KEY_MODEL_CATALOG_LIST_PREFIX = "model_catalog_standard_list_"
+        private const val KEY_MODEL_CATALOG_DETAIL_PREFIX = "model_catalog_standard_detail_"
     }
 
     override suspend fun getApiKey(): String? =
@@ -112,6 +115,20 @@ class PreferencesSettingsStore(
 
     override suspend fun clearQuickCreateDraft() {
         dataStore.edit { it.remove(KEY_QUICK_CREATE_DRAFT) }
+    }
+
+    override suspend fun getStandardModelList(cacheKey: String): String? =
+        dataStore.data.map { it[stringPreferencesKey(KEY_MODEL_CATALOG_LIST_PREFIX + cacheKey)] }.first()
+
+    override suspend fun saveStandardModelList(cacheKey: String, json: String) {
+        dataStore.edit { it[stringPreferencesKey(KEY_MODEL_CATALOG_LIST_PREFIX + cacheKey)] = json }
+    }
+
+    override suspend fun getStandardModelDetail(modelId: String): String? =
+        dataStore.data.map { it[stringPreferencesKey(KEY_MODEL_CATALOG_DETAIL_PREFIX + modelId)] }.first()
+
+    override suspend fun saveStandardModelDetail(modelId: String, json: String) {
+        dataStore.edit { it[stringPreferencesKey(KEY_MODEL_CATALOG_DETAIL_PREFIX + modelId)] = json }
     }
 
     override suspend fun clearAll() {

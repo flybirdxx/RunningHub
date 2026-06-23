@@ -248,6 +248,48 @@ internal fun QuickCreateProjectStrip(
 }
 
 /**
+ * 渲染快捷创作顶栏里的新建项目入口。
+ *
+ * 该入口复用项目区的新建弹窗，位置由调用方决定；确认后仍只把已裁剪的项目名称回传给
+ * ScreenModel，保持项目创建逻辑不进入 Composable。
+ *
+ * @param onCreateProject 用户确认新建项目时触发，参数为已裁剪的项目名称。
+ */
+@Composable
+internal fun QuickCreateCreateProjectAction(
+    onCreateProject: (String) -> Unit,
+) {
+    var createDialogVisible by remember { mutableStateOf(false) }
+
+    IconButton(
+        onClick = { createDialogVisible = true },
+        modifier = Modifier.size(32.dp),
+    ) {
+        Icon(
+            Icons.Default.Add,
+            contentDescription = stringResource(
+                Res.string.quick_create_project_create_content_description,
+            ),
+            tint = Primary300,
+            modifier = Modifier.size(18.dp),
+        )
+    }
+
+    if (createDialogVisible) {
+        ProjectNameDialog(
+            title = stringResource(Res.string.quick_create_project_create_title),
+            initialName = "",
+            confirmText = stringResource(Res.string.quick_create_project_create_confirm),
+            onDismiss = { createDialogVisible = false },
+            onConfirm = { name ->
+                createDialogVisible = false
+                onCreateProject(name)
+            },
+        )
+    }
+}
+
+/**
  * 展示项目详情弹窗。
  *
  * 详情数据由外层状态提供，弹窗自身不触发加载；这样可以让 ProjectStateHolder 统一控制

@@ -8,9 +8,14 @@ import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
 import kotlinx.serialization.descriptors.SerialDescriptor
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 
 /**
  * 标准模型 SKU 列表查询请求。
@@ -132,6 +137,57 @@ object FlexibleStringSerializer : KSerializer<String> {
 }
 
 /**
+ * 把服务端不稳定的标签字段统一解码为字符串列表。
+ *
+ * `/api/sku/list` 的分类信息在不同响应里可能是 `tags` 字符串、数组或对象数组。
+ * Data 层在这里统一拆分为脱敏标签值，供 Repository 推导图片、视频、音频和 3D 分类。
+ */
+object FlexibleStringListSerializer : KSerializer<List<String>> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("FlexibleStringList", PrimitiveKind.STRING)
+
+    /**
+     * 解码标签列表。`null` 表示服务端未提供分类标签，返回空集合。
+     */
+    override fun deserialize(decoder: Decoder): List<String> {
+        val jsonDecoder = decoder as? JsonDecoder ?: return decoder.decodeString().splitTagText()
+        return jsonDecoder.decodeJsonElement().toTagStrings()
+    }
+
+    /**
+     * 序列化测试和缓存写出的标签列表。
+     */
+    override fun serialize(encoder: Encoder, value: List<String>) {
+        encoder.encodeString(value.joinToString("|"))
+    }
+}
+
+private fun JsonElement.toTagStrings(): List<String> =
+    when (this) {
+        JsonNull -> emptyList()
+        is JsonPrimitive -> contentOrNull.orEmpty().splitTagText()
+        is JsonArray -> flatMap { it.toTagStrings() }
+        is JsonObject -> listOfNotNull(
+            stringTag("name")
+                ?: stringTag("tagName")
+                ?: stringTag("label")
+                ?: stringTag("value")
+                ?: stringTag("code")
+        ).flatMap { it.splitTagText() }
+    }
+
+private fun JsonObject.stringTag(key: String): String? =
+    (this[key] as? JsonPrimitive)
+        ?.jsonPrimitive
+        ?.contentOrNull
+        ?.takeIf { it.isNotBlank() }
+
+private fun String.splitTagText(): List<String> =
+    split("|", ",")
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+
+/**
  * 标准模型 SKU 列表项 DTO。
  *
  * @property id SKU 稳定标识，来源于服务端；允许数字或字符串协议值，经 [FlexibleStringSerializer]
@@ -142,6 +198,8 @@ object FlexibleStringSerializer : KSerializer<String> {
  * @property type 服务端模型类型标识；`null` 表示目录响应未提供类型。
  * @property groupName 服务端分组名称；`null` 表示未提供分组，客户端不应自行推断分组。
  * @property source 模型来源或供应方标识；`null` 表示服务端未返回来源信息。
+ * @property tags 服务端模型标签，可能携带 `text-to-video`、`text-to-audio`、`image-to-3D` 等
+ * 分类线索；空集合表示服务端未返回标签或标签不可解析。
  * @property price 原始价格字段，来源于服务端，可能是数字或字符串；空字符串表示服务端未提供价格。
  * @property priceSummary 服务端可直接展示的价格摘要；`null` 时 Repository 回退使用 [price]。
  * @property rhEndpoint 标准模型调用 endpoint，属于 Data 层路由细节；`null` 表示列表响应未提供，
@@ -156,6 +214,8 @@ data class SkuSummaryDto(
     val type: String? = null,
     val groupName: String? = null,
     val source: String? = null,
+    @Serializable(with = FlexibleStringListSerializer::class)
+    val tags: List<String> = emptyList(),
     @Serializable(with = FlexibleStringSerializer::class)
     val price: String = "",
     val priceSummary: String? = null,
@@ -182,6 +242,7 @@ data class SkuDetailRequestDto(
  * @property type 服务端模型类型标识；`null` 表示详情响应未提供类型。
  * @property groupName 服务端分组名称；`null` 表示未提供分组。
  * @property source 模型来源或供应方标识；`null` 表示服务端未返回来源信息。
+ * @property tags 服务端模型标签，可能携带分类、供应方和产品线信息；空集合表示详情未返回标签。
  * @property price 原始价格字段，可能是数字或字符串；空字符串表示服务端未提供价格。
  * @property priceSummary 服务端可直接展示的价格摘要；`null` 时 Repository 回退使用 [price]。
  * @property rhEndpoint 标准模型调用 endpoint，来源于详情接口；空字符串表示服务端缺失路由，
@@ -199,6 +260,8 @@ data class SkuDetailDto(
     val type: String? = null,
     val groupName: String? = null,
     val source: String? = null,
+    @Serializable(with = FlexibleStringListSerializer::class)
+    val tags: List<String> = emptyList(),
     @Serializable(with = FlexibleStringSerializer::class)
     val price: String = "",
     val priceSummary: String? = null,

@@ -96,8 +96,6 @@ import runninghub.composeapp.generated.resources.quick_create_classic_draft_vide
 import runninghub.composeapp.generated.resources.quick_create_classic_generate_button_label
 import runninghub.composeapp.generated.resources.quick_create_classic_generate_content_description
 import runninghub.composeapp.generated.resources.quick_create_classic_image_prompt_placeholder
-import runninghub.composeapp.generated.resources.quick_create_classic_model_loading
-import runninghub.composeapp.generated.resources.quick_create_classic_model_loading_subtitle
 import runninghub.composeapp.generated.resources.quick_create_classic_param_audio_label
 import runninghub.composeapp.generated.resources.quick_create_classic_param_chip_format
 import runninghub.composeapp.generated.resources.quick_create_classic_param_count_label
@@ -486,7 +484,6 @@ private fun ServiceModelSummaryRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = when {
-                        loading -> stringResource(Res.string.quick_create_classic_model_loading)
                         model != null -> model.displayName.asServiceModelText()
                         else -> stringResource(Res.string.quick_create_classic_default_model)
                     },
@@ -496,7 +493,6 @@ private fun ServiceModelSummaryRow(
                     maxLines = 1,
                 )
                 val subtitle = when {
-                    loading -> stringResource(Res.string.quick_create_classic_model_loading_subtitle)
                     model != null -> model.subtitle.asServiceModelText()
                     else -> stringResource(Res.string.quick_create_classic_default_model_subtitle)
                 }
