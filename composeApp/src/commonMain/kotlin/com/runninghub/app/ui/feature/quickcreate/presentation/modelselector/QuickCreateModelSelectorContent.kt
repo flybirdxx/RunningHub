@@ -6,67 +6,86 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Movie
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.app.ui.theme.DarkOutlineVariant
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.Neutral100
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Neutral500
-import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.app.ui.feature.quickcreate.QuickCreateDesignTokens
+import com.runninghub.app.ui.feature.quickcreate.QuickCreateModelGlyph
+import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheetHandle
 import com.runninghub.app.ui.feature.quickcreate.presentation.asServiceModelText
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
-import runninghub.composeapp.generated.resources.quick_create_model_selector_close_content_description
+import runninghub.composeapp.generated.resources.quick_create_model_selector_apply
+import runninghub.composeapp.generated.resources.quick_create_model_selector_audio_group
 import runninghub.composeapp.generated.resources.quick_create_model_selector_empty
+import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_3d
+import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_all
+import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_audio
+import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_image
+import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_recent
+import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_video
+import runninghub.composeapp.generated.resources.quick_create_model_selector_high_quality
+import runninghub.composeapp.generated.resources.quick_create_model_selector_image_group
 import runninghub.composeapp.generated.resources.quick_create_model_selector_loading
+import runninghub.composeapp.generated.resources.quick_create_model_selector_official_stable
+import runninghub.composeapp.generated.resources.quick_create_model_selector_path_format
+import runninghub.composeapp.generated.resources.quick_create_model_selector_search_placeholder
+import runninghub.composeapp.generated.resources.quick_create_model_selector_selected_label
 import runninghub.composeapp.generated.resources.quick_create_model_selector_title
+import runninghub.composeapp.generated.resources.quick_create_model_selector_unknown_price
+import runninghub.composeapp.generated.resources.quick_create_model_selector_video_group
 
 /**
- * 展示快捷创作的服务端模型选择面板。
+ * 展示设计稿版快捷创作服务端模型选择面板。
  *
- * 该组件属于 modelselector 子区域，只读取 [QuickCreateUiState] 中已经加载好的模型列表、
- * 当前选中模型和加载状态。模型选择通过回调交给 ScreenModel/ModelCatalogInteractor，
- * 组件自身不发起网络请求，也不写入当前创作配置。
- * 面板标题、加载态、空态和关闭按钮无障碍描述使用 Compose Resources；模型名称、
- * 分组和副标题来自 Presentation 状态，避免 UI 层重新理解服务端模型目录语义。
- *
- * @param visible 是否显示模型选择面板，`true` 时播放底部进入动画。
- * @param isImage 当前是否处于图片创作 tab；`true` 读取图片模型，`false` 读取视频模型。
- * @param uiState 快捷创作页面状态，提供模型列表、选中项和加载态。
- * @param onDismiss 用户关闭面板时触发。
- * @param onImageServiceModelSelected 用户选择图片服务端模型时触发，参数为 UI 模型身份键。
- * @param onVideoServiceModelSelected 用户选择视频服务端模型时触发，参数为 UI 模型身份键。
- * @param modifier 外层调用方用于控制面板定位的修饰符。
+ * 面板只消费 [QuickCreateUiState] 中已经加载好的模型目录，搜索过滤与分类筛选属于本地临时 UI 状态；
+ * 模型点击只通过回调更新 ScreenModel 中的选中项，底部“套用”负责关闭弹层，避免选择动作绕过状态层。
  */
 @Composable
 internal fun QuickCreateModelSheet(
@@ -79,7 +98,22 @@ internal fun QuickCreateModelSheet(
     modifier: Modifier = Modifier,
 ) {
     val models = if (isImage) uiState.serviceImageModelItems else uiState.serviceVideoModelItems
+    val selectedModel = if (isImage) uiState.selectedImageServiceModelUi else uiState.selectedVideoServiceModelUi
     val onSelect = if (isImage) onImageServiceModelSelected else onVideoServiceModelSelected
+    var query by remember { mutableStateOf("") }
+    var selectedFilter by remember { mutableStateOf(ModelFilter.ALL) }
+    val filteredModels = models
+        .filter { model ->
+            val text = buildString {
+                append(model.source.name)
+                append(' ')
+                append(model.source.groupName.orEmpty())
+                append(' ')
+                append(model.source.bindingId)
+            }
+            query.isBlank() || text.contains(query, ignoreCase = true)
+        }
+        .filter { selectedFilter.accepts(it, isImage) }
 
     AnimatedVisibility(
         visible = visible,
@@ -89,175 +123,455 @@ internal fun QuickCreateModelSheet(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = Dimens.RadiusXL, topEnd = Dimens.RadiusXL),
-            color = DarkSurface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            color = QuickCreateDesignTokens.PanelStrong,
+            border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(bottom = Dimens.SpaceLG),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
-                ModelSheetHeader(
-                    title = stringResource(Res.string.quick_create_model_selector_title),
-                    onDismiss = onDismiss,
+                QuickCreateSheetHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
+                Text(
+                    text = stringResource(Res.string.quick_create_model_selector_title),
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.padding(top = 28.dp, bottom = 18.dp),
                 )
+                ModelSearchField(query = query, onQueryChange = { query = it })
+                ModelFilterRow(selectedFilter = selectedFilter, onSelect = { selectedFilter = it })
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 420.dp)
-                        .padding(horizontal = Dimens.SpaceLG),
+                        .heightIn(max = 520.dp)
+                        .padding(top = 16.dp, bottom = 12.dp),
                 ) {
                     when {
-                        uiState.serviceModelsLoading -> Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = Dimens.SpaceLG),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
-                        ) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Primary300,
-                                strokeWidth = 2.dp,
-                            )
-                            Text(
-                                stringResource(Res.string.quick_create_model_selector_loading),
-                                fontSize = 13.sp,
-                                color = Neutral400,
-                            )
-                        }
-                        models.isEmpty() -> Text(
-                            stringResource(Res.string.quick_create_model_selector_empty),
-                            fontSize = 13.sp,
-                            color = Neutral500,
-                            lineHeight = 18.sp,
-                            modifier = Modifier.padding(vertical = Dimens.SpaceLG),
+                        uiState.serviceModelsLoading -> LoadingRow()
+                        filteredModels.isEmpty() -> EmptyText()
+                        else -> ModelList(
+                            models = filteredModels,
+                            isImage = isImage,
+                            onSelect = onSelect,
                         )
-                        else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
-                            // 保留服务端分组顺序，避免客户端重排导致运营配置的模型优先级失效。
-                            models
-                                .groupBy { it.groupTitle }
-                                .forEach { (groupTitle, groupModels) ->
-                                    item {
-                                        Text(
-                                            text = groupTitle.asServiceModelText(),
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.SemiBold,
-                                            color = Primary300,
-                                            modifier = Modifier.padding(top = Dimens.SpaceSM),
-                                        )
-                                    }
-                                    items(groupModels) { model ->
-                                        ServiceModelListRow(
-                                            model = model,
-                                            onClick = { onSelect(model.identityKey) },
-                                        )
-                                    }
-                                }
-                        }
                     }
+                }
+                SelectedModelBar(
+                    model = selectedModel,
+                    onApply = onDismiss,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelSearchField(query: String, onQueryChange: (String) -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(44.dp),
+        shape = RoundedCornerShape(13.dp),
+        color = Color(0xFF1B2028),
+        border = BorderStroke(1.dp, Color(0xFF414652)),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = Color(0xFFB8BAC3),
+                modifier = Modifier.size(22.dp),
+            )
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
+                if (query.isEmpty()) {
+                    Text(
+                        text = stringResource(Res.string.quick_create_model_selector_search_placeholder),
+                        color = Color(0xFFA2A4AD),
+                        fontSize = 14.sp,
+                        maxLines = 1,
+                    )
+                }
+                BasicTextField(
+                    value = query,
+                    onValueChange = onQueryChange,
+                    textStyle = TextStyle(
+                        color = QuickCreateDesignTokens.Text,
+                        fontSize = 14.sp,
+                    ),
+                    cursorBrush = SolidColor(QuickCreateDesignTokens.Purple),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ModelFilterRow(selectedFilter: ModelFilter, onSelect: (ModelFilter) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp)
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        ModelFilter.entries.forEach { filter ->
+            val active = filter == selectedFilter
+            Surface(
+                onClick = { onSelect(filter) },
+                shape = RoundedCornerShape(9.dp),
+                color = if (active) Color(0x9939285B) else Color(0xFF1B1E23),
+                border = BorderStroke(
+                    1.dp,
+                    if (active) QuickCreateDesignTokens.Purple else Color(0xFF454853),
+                ),
+                modifier = Modifier.height(32.dp),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    filter.icon?.let { icon ->
+                        Icon(
+                            imageVector = icon,
+                            contentDescription = null,
+                            tint = if (active) QuickCreateDesignTokens.PurpleSoft else Color(0xFFD7D8DE),
+                            modifier = Modifier.size(15.dp),
+                        )
+                    }
+                    Text(
+                        text = filter.label(),
+                        color = if (active) QuickCreateDesignTokens.PurpleSoft else Color(0xFFD7D8DE),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
                 }
             }
         }
     }
 }
 
-/**
- * 渲染模型选择面板顶部栏。
- *
- * 标题由上层传入，便于调用方使用资源化文案；关闭按钮的无障碍描述在此处读取资源，
- * 与按钮图标保持同一可访问语义。
- *
- * @param title 面板标题，通常来自 Compose Resources。
- * @param onDismiss 用户点击关闭按钮时触发。
- */
 @Composable
-private fun ModelSheetHeader(title: String, onDismiss: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = Dimens.SpaceSM, start = Dimens.SpaceLG, end = Dimens.SpaceLG, bottom = Dimens.SpaceSM),
-        verticalAlignment = Alignment.CenterVertically,
+private fun ModelList(
+    models: List<QuickCreateServiceModelUi>,
+    isImage: Boolean,
+    onSelect: (String) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = Neutral100,
-        )
-        Spacer(Modifier.weight(1f))
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier.size(28.dp),
-        ) {
-            Icon(
-                Icons.Default.Close,
-                contentDescription = stringResource(
-                    Res.string.quick_create_model_selector_close_content_description,
-                ),
-                tint = Neutral500,
-                modifier = Modifier.size(18.dp),
-            )
-        }
+        models.groupBy { it.groupTitle.asServiceModelText() }
+            .forEach { (groupTitle, groupModels) ->
+                GroupHeader(
+                    title = if (isImage) {
+                        stringResource(Res.string.quick_create_model_selector_image_group)
+                    } else {
+                        groupTitle.ifBlank { stringResource(Res.string.quick_create_model_selector_video_group) }
+                    },
+                    count = groupModels.size,
+                )
+                groupModels.forEach { model ->
+                    ServiceModelListRow(
+                        model = model,
+                        isImage = isImage,
+                        onClick = { onSelect(model.identityKey) },
+                    )
+                }
+            }
     }
 }
 
-/**
- * 渲染服务端模型列表中的单行模型。
- *
- * 模型展示名称、分组和副标题均由 Presentation 层映射完成；本组件只根据选中状态渲染颜色、
- * 边框和勾选图标，不生成新的用户可见业务文案。
- *
- * @param model 已映射为 UI 形态的服务端模型条目。
- * @param onClick 用户点击该模型行时触发。
- */
+@Composable
+private fun GroupHeader(title: String, count: Int) {
+    Row(
+        verticalAlignment = Alignment.Bottom,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        modifier = Modifier.padding(top = 2.dp),
+    ) {
+        Text(
+            text = title,
+            color = QuickCreateDesignTokens.Text,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Black,
+        )
+        Text(
+            text = count.toString(),
+            color = QuickCreateDesignTokens.Dim,
+            fontSize = 11.sp,
+        )
+    }
+}
+
 @Composable
 private fun ServiceModelListRow(
     model: QuickCreateServiceModelUi,
+    isImage: Boolean,
     onClick: () -> Unit,
 ) {
     val selected = model.selected
     Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Dimens.RadiusSM),
-        color = if (selected) Primary300.copy(alpha = 0.10f) else DarkSurfaceVariant,
-        border = BorderStroke(1.dp, if (selected) Primary300 else DarkOutlineVariant),
         onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(11.dp),
+        color = Color(0xFF15191E),
+        border = BorderStroke(1.dp, Color(0xFF3A3D46)),
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(Dimens.SpaceMD),
+            modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
+            ModelGlyphForKind(isImage = isImage)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
                 Text(
                     text = model.displayName.asServiceModelText(),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = if (selected) Primary300 else Neutral100,
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
                     maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                val subtitle = model.subtitle.asServiceModelText()
-                subtitle.takeIf { it.isNotBlank() }?.let {
-                    Text(
-                        text = it,
-                        fontSize = 11.sp,
-                        color = Neutral500,
-                        maxLines = 1,
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    CapabilityTag(text = if (isImage) "image-to-image" else "reference-to-video")
+                    CapabilityTag(
+                        text = stringResource(Res.string.quick_create_model_selector_official_stable),
+                        muted = true,
+                    )
+                }
+                Text(
+                    text = stringResource(
+                        Res.string.quick_create_model_selector_path_format,
+                        model.source.bindingId.ifBlank { model.source.skuId },
+                    ),
+                    color = Color(0xFF90929A),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Text(
+                text = modelPriceText(model),
+                color = Color(0xFFC9CAD1),
+                fontSize = 14.sp,
+                maxLines = 1,
+            )
+            Box(
+                modifier = Modifier
+                    .size(22.dp)
+                    .background(
+                        if (selected) QuickCreateDesignTokens.Purple else Color.Transparent,
+                        CircleShape,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (selected) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        tint = Color(0xFF090A0D),
+                        modifier = Modifier.size(15.dp),
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.CheckBoxOutlineBlank,
+                        contentDescription = null,
+                        tint = Color(0xFFC5C7D0),
+                        modifier = Modifier.size(22.dp),
                     )
                 }
             }
-            if (selected) {
+        }
+    }
+}
+
+@Composable
+private fun ModelGlyphForKind(isImage: Boolean) {
+    QuickCreateModelGlyph(
+        modifier = Modifier.size(52.dp),
+        accent = if (isImage) QuickCreateDesignTokens.Purple else Color(0xFF5B4BD4),
+    ) {
+        Icon(
+            imageVector = if (isImage) Icons.Default.Image else Icons.Default.Movie,
+            contentDescription = null,
+            tint = QuickCreateDesignTokens.Text,
+            modifier = Modifier.size(27.dp),
+        )
+    }
+}
+
+@Composable
+private fun CapabilityTag(text: String, muted: Boolean = false) {
+    Surface(
+        shape = RoundedCornerShape(9.dp),
+        color = if (muted) Color(0xFF22252B) else Color(0xFF2A2240),
+        border = BorderStroke(1.dp, if (muted) Color(0xFF535761) else QuickCreateDesignTokens.Purple),
+    ) {
+        Text(
+            text = text,
+            color = if (muted) Color(0xFFBEC0C7) else QuickCreateDesignTokens.PurpleSoft,
+            fontSize = 10.sp,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun SelectedModelBar(model: QuickCreateServiceModelUi?, onApply: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(11.dp),
+        color = Color(0xF515191E),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+    ) {
+        Row(
+            modifier = Modifier.padding(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            QuickCreateModelGlyph(modifier = Modifier.size(48.dp)) {
                 Icon(
-                    Icons.Default.Check,
+                    imageVector = Icons.Default.Image,
                     contentDescription = null,
-                    tint = Primary300,
-                    modifier = Modifier.size(16.dp),
+                    tint = QuickCreateDesignTokens.Text,
+                    modifier = Modifier.size(25.dp),
                 )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    text = stringResource(Res.string.quick_create_model_selector_selected_label),
+                    color = Color(0xFFB8BAC3),
+                    fontSize = 11.sp,
+                )
+                Text(
+                    text = model?.displayName?.asServiceModelText().orEmpty(),
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = model?.let {
+                        stringResource(
+                            Res.string.quick_create_model_selector_path_format,
+                            it.source.bindingId.ifBlank { it.source.skuId },
+                        )
+                    }.orEmpty(),
+                    color = Color(0xFF90929A),
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Surface(
+                onClick = onApply,
+                shape = RoundedCornerShape(12.dp),
+                color = Color.Transparent,
+                modifier = Modifier.height(42.dp).width(110.dp),
+            ) {
+                Box(
+                    modifier = Modifier.background(
+                        Brush.horizontalGradient(listOf(Color(0xFF7556F6), Color(0xFF9B61FF))),
+                        RoundedCornerShape(12.dp),
+                    ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = stringResource(Res.string.quick_create_model_selector_apply),
+                        color = QuickCreateDesignTokens.Text,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun LoadingRow() {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(18.dp),
+            color = QuickCreateDesignTokens.Purple,
+            strokeWidth = 2.dp,
+        )
+        Text(
+            text = stringResource(Res.string.quick_create_model_selector_loading),
+            color = QuickCreateDesignTokens.Muted,
+            fontSize = 13.sp,
+        )
+    }
+}
+
+@Composable
+private fun EmptyText() {
+    Text(
+        text = stringResource(Res.string.quick_create_model_selector_empty),
+        color = QuickCreateDesignTokens.Muted,
+        fontSize = 13.sp,
+        lineHeight = 18.sp,
+        modifier = Modifier.padding(vertical = 20.dp),
+    )
+}
+
+@Composable
+private fun modelPriceText(model: QuickCreateServiceModelUi): String =
+    model.source.pricing?.flatPriceRaw
+        ?: model.source.pricing?.dimensionPricingRaw
+        ?: stringResource(Res.string.quick_create_model_selector_unknown_price)
+
+private enum class ModelFilter {
+    ALL,
+    IMAGE,
+    VIDEO,
+    AUDIO,
+    THREE_D,
+    RECENT;
+
+    val icon: androidx.compose.ui.graphics.vector.ImageVector?
+        get() = when (this) {
+            ALL -> null
+            IMAGE -> Icons.Default.Image
+            VIDEO -> Icons.Default.Movie
+            AUDIO -> Icons.Default.AudioFile
+            THREE_D -> Icons.Default.ViewInAr
+            RECENT -> Icons.Default.Schedule
+        }
+
+    @Composable
+    fun label(): String =
+        when (this) {
+            ALL -> stringResource(Res.string.quick_create_model_selector_filter_all)
+            IMAGE -> stringResource(Res.string.quick_create_model_selector_filter_image)
+            VIDEO -> stringResource(Res.string.quick_create_model_selector_filter_video)
+            AUDIO -> stringResource(Res.string.quick_create_model_selector_filter_audio)
+            THREE_D -> stringResource(Res.string.quick_create_model_selector_filter_3d)
+            RECENT -> stringResource(Res.string.quick_create_model_selector_filter_recent)
+        }
+
+    fun accepts(model: QuickCreateServiceModelUi, isImage: Boolean): Boolean =
+        when (this) {
+            ALL -> true
+            IMAGE -> isImage
+            VIDEO -> !isImage
+            AUDIO -> false
+            THREE_D -> false
+            RECENT -> true
+        }
 }

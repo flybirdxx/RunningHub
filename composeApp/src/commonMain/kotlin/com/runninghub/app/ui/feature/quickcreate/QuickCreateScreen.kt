@@ -7,7 +7,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.VolumeOff
@@ -40,8 +39,6 @@ import com.runninghub.app.ui.feature.quickcreate.presentation.history.QuickCreat
 import com.runninghub.app.ui.feature.quickcreate.presentation.inspiration.QuickCreateInspirationArea
 import com.runninghub.app.ui.feature.quickcreate.presentation.modelselector.QuickCreateModelSheet
 import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateProjectDetailDialog
-import com.runninghub.app.ui.feature.quickcreate.presentation.result.QuickCreateResultArea
-import com.runninghub.app.ui.feature.quickcreate.presentation.result.QuickCreateTaskStatusArea
 import com.runninghub.app.ui.theme.*
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.fields.quickCreationServiceFieldUiItems
@@ -50,15 +47,16 @@ import com.runninghub.core.storage.PermissionStateStore
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.navigationLabel
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
+import runninghub.composeapp.generated.resources.quick_create_top_bar_menu_content_description
 import runninghub.composeapp.generated.resources.quick_create_top_bar_mute_content_description
 import runninghub.composeapp.generated.resources.quick_create_top_bar_support_content_description
 
@@ -263,11 +261,9 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         onDismiss = screenModel::closeActiveSheet,
                         onImageServiceModelSelected = {
                             screenModel.updateImageServiceModel(it)
-                            screenModel.closeActiveSheet()
                         },
                         onVideoServiceModelSelected = {
                             screenModel.updateVideoServiceModel(it)
-                            screenModel.closeActiveSheet()
                         },
                     )
                     QuickCreateSheet.PARAMS -> QuickCreateParamsSheet(
@@ -284,6 +280,10 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         onToggleRealistic = screenModel::toggleRealisticMode,
                         onImageSeedChange = screenModel::updateImageSeed,
                         onVideoSeedChange = screenModel::updateVideoSeed,
+                        onImageRatioChange = screenModel::updateImageAspectRatio,
+                        onImageResChange = screenModel::updateImageResolution,
+                        onImageQualityChange = screenModel::updateImageQuality,
+                        onImageCountChange = screenModel::updateImageCount,
                         onServiceUploadFieldClick = { mediaType, fieldParamKey ->
                             when (mediaType) {
                                 QuickCreateMediaType.IMAGE -> controller.pickMedia(
@@ -364,7 +364,15 @@ private fun QuickCreateTopBar(
                     )
                 }
             } else {
-                Spacer(Modifier.size(48.dp))
+                IconButton(onClick = {}) {
+                    Icon(
+                        Icons.Default.Menu,
+                        contentDescription = stringResource(
+                            Res.string.quick_create_top_bar_menu_content_description,
+                        ),
+                        tint = Color.White.copy(alpha = 0.9f),
+                    )
+                }
             }
         },
         actions = {
@@ -441,18 +449,18 @@ private fun CreationScrollableArea(
     onDeleteProject: (String) -> Unit,
     onShowProjectDetail: (String) -> Unit,
 ) {
-    // 展示优先级保持为“最新结果 > 活跃任务 > 历史列表”：
-    // 生成完成后结果需要覆盖轮询状态；任务未结束时不展示历史，避免用户误以为当前任务已回到空闲态。
-    when {
-        uiState.results.isNotEmpty() -> QuickCreateResultArea(
-            results = uiState.results,
-            onClear = onClearResults,
+    val hasConversation = uiState.imageConfig.prompt.isNotBlank() ||
+        uiState.videoConfig.prompt.isNotBlank() ||
+        uiState.results.isNotEmpty() ||
+        uiState.taskStatus != QuickCreateTaskUiStatus.IDLE
+
+    if (hasConversation) {
+        QuickCreateConversationArea(
+            uiState = uiState,
+            onClearResults = onClearResults,
         )
-        uiState.taskStatus != QuickCreateTaskUiStatus.IDLE -> QuickCreateTaskStatusArea(
-            status = uiState.taskStatus,
-            statusText = uiState.statusText,
-        )
-        else -> QuickCreateHistoryArea(
+    } else {
+        QuickCreateHistoryArea(
             uiState = uiState,
             onHistoryItemSelected = onHistoryItemSelected,
             onLoadMoreHistory = onLoadMoreHistory,

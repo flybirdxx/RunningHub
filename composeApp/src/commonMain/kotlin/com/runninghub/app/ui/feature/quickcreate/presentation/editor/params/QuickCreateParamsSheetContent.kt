@@ -6,7 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,88 +18,95 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.runninghub.app.ui.feature.quickcreate.QuickCreateDesignTokens
+import com.runninghub.app.ui.feature.quickcreate.QuickCreateModelGlyph
+import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheetHandle
+import com.runninghub.app.ui.feature.quickcreate.presentation.asServiceModelText
+import com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer.asImageModelText
+import com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer.asImageQualityText
+import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
+import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
+import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer.asImageModelText
-import com.runninghub.app.ui.feature.quickcreate.presentation.upload.QuickCreateServiceUploadFieldPicker
-import com.runninghub.app.ui.theme.DarkOutlineVariant
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.Neutral100
-import com.runninghub.app.ui.theme.Neutral200
-import com.runninghub.app.ui.theme.Neutral300
-import com.runninghub.app.ui.theme.Neutral500
-import com.runninghub.app.ui.theme.Primary300
-import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldControlType
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldUi
-import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceUploadHint
-import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceUploadMediaType
-import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
-import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_params_aspect_ratio_key
+import runninghub.composeapp.generated.resources.quick_create_params_aspect_ratio_title
 import runninghub.composeapp.generated.resources.quick_create_params_close_content_description
-import runninghub.composeapp.generated.resources.quick_create_params_local_models_title
-import runninghub.composeapp.generated.resources.quick_create_params_realistic_mode
-import runninghub.composeapp.generated.resources.quick_create_params_seed_label
-import runninghub.composeapp.generated.resources.quick_create_params_seed_random_placeholder
-import runninghub.composeapp.generated.resources.quick_create_params_service_params_title
+import runninghub.composeapp.generated.resources.quick_create_params_common_title
+import runninghub.composeapp.generated.resources.quick_create_params_count_key
+import runninghub.composeapp.generated.resources.quick_create_params_count_title
+import runninghub.composeapp.generated.resources.quick_create_params_done
+import runninghub.composeapp.generated.resources.quick_create_params_endpoint_label
+import runninghub.composeapp.generated.resources.quick_create_params_endpoint_value
+import runninghub.composeapp.generated.resources.quick_create_params_model_label
+import runninghub.composeapp.generated.resources.quick_create_params_quality_key
+import runninghub.composeapp.generated.resources.quick_create_params_quality_recommended_format
+import runninghub.composeapp.generated.resources.quick_create_params_quality_title
+import runninghub.composeapp.generated.resources.quick_create_params_resolution_key
+import runninghub.composeapp.generated.resources.quick_create_params_resolution_title
+import runninghub.composeapp.generated.resources.quick_create_params_restore_defaults
 import runninghub.composeapp.generated.resources.quick_create_params_sheet_title
-import runninghub.composeapp.generated.resources.quick_create_params_upload_formats_format
-import runninghub.composeapp.generated.resources.quick_create_params_upload_hint_separator
-import runninghub.composeapp.generated.resources.quick_create_params_upload_max_count_format
-import runninghub.composeapp.generated.resources.quick_create_params_upload_max_size_format
+import runninghub.composeapp.generated.resources.quick_create_params_changed_count_format
 
 /**
- * 展示当前快捷创作入口使用的“更多参数”底部面板。
+ * 展示设计稿版快捷创作参数底部面板。
  *
- * 该组件属于 editor/params 子区域，只负责把 [QuickCreateUiState] 中的图片或视频参数映射为
- * 可编辑表单。模型选择、动态字段值、上传字段点击和媒体移除均通过回调回到 ScreenModel，
- * 组件自身不读取存储、不发起网络请求，也不直接调用平台媒体选择器。
+ * 该组件只渲染图片创作常用参数和当前服务模型摘要，参数变更通过回调回到 ScreenModel；
+ * 服务端动态字段在本轮 UI 重构中不直接展开，避免把远端字段表单与设计图中的常用参数面板混杂。
  *
- * @param visible 是否显示底部面板，`true` 时从底部进入。
- * @param isImage 当前是否编辑图片创作参数；`false` 表示编辑视频参数。
- * @param uiState 快捷创作页面状态，提供当前本地参数、媒体引用和 Seed。
- * @param serviceFields 当前图片或视频服务端模型已经映射好的动态字段 UI 列表。
- * @param onDismiss 用户关闭面板时触发。
- * @param onImageModelSelected 用户选择本地兼容图片模型时触发。
- * @param onImageServiceParamChange 图片服务端动态字段变更回调。
- * @param onVideoServiceParamChange 视频服务端动态字段变更回调。
- * @param onToggleRealistic 用户切换视频真人模式时触发。
- * @param onImageSeedChange 图片 Seed 变更回调，`null` 表示随机 Seed。
- * @param onVideoSeedChange 视频 Seed 变更回调，`null` 表示随机 Seed。
- * @param onServiceUploadFieldClick 用户点击服务端上传字段时触发，调用方负责权限和平台选择器。
- * @param onRemoveMedia 用户移除字段素材时触发。
- * @param modifier 外层调用方用于控制面板定位的修饰符。
+ * @param visible 是否显示底部面板。
+ * @param isImage 当前是否编辑图片创作；`false` 时仍展示模型摘要和当前视频配置的只读降级面板。
+ * @param uiState 快捷创作页面状态。
+ * @param serviceFields 当前服务端动态字段列表，本设计稿版暂不直接渲染，仅保留参数以维持调用契约。
+ * @param onDismiss 关闭面板回调。
+ * @param onImageModelSelected 本地兼容图片模型选择回调，本设计稿中不直接展示本地模型列表。
+ * @param onImageServiceParamChange 图片服务动态字段变更回调，本设计稿中不直接触发。
+ * @param onVideoServiceParamChange 视频服务动态字段变更回调，本设计稿中不直接触发。
+ * @param onToggleRealistic 视频真人模式切换回调，本设计稿中不直接触发。
+ * @param onImageSeedChange 图片 Seed 变更回调，本设计稿中不直接触发。
+ * @param onVideoSeedChange 视频 Seed 变更回调，本设计稿中不直接触发。
+ * @param onServiceUploadFieldClick 字段级上传回调，本设计稿中不直接触发。
+ * @param onRemoveMedia 移除字段素材回调，本设计稿中不直接触发。
+ * @param onImageRatioChange 图片宽高比变更回调。
+ * @param onImageResChange 图片分辨率变更回调。
+ * @param onImageQualityChange 图片质量变更回调。
+ * @param onImageCountChange 图片生成数量变更回调。
+ * @param modifier 外层定位修饰符。
  */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 internal fun QuickCreateParamsSheet(
     visible: Boolean,
     isImage: Boolean,
@@ -114,6 +121,10 @@ internal fun QuickCreateParamsSheet(
     onVideoSeedChange: (Int?) -> Unit = {},
     onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit = { _, _ -> },
     onRemoveMedia: (String) -> Unit = {},
+    onImageRatioChange: (ImageAspectRatio) -> Unit = {},
+    onImageResChange: (ImageResolution) -> Unit = {},
+    onImageQualityChange: (ImageQuality) -> Unit = {},
+    onImageCountChange: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
@@ -124,49 +135,314 @@ internal fun QuickCreateParamsSheet(
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = Dimens.RadiusXL, topEnd = Dimens.RadiusXL),
-            color = DarkSurface,
+            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+            color = QuickCreateDesignTokens.PanelStrong,
+            border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(bottom = Dimens.SpaceLG),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
-                ParamsSheetHeader(
-                    title = stringResource(Res.string.quick_create_params_sheet_title),
-                    onDismiss = onDismiss,
-                )
-                Box(
+                QuickCreateSheetHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
+                ParamsSheetHeader(onDismiss = onDismiss)
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 420.dp)
-                        .padding(horizontal = Dimens.SpaceLG),
+                        .heightIn(max = 560.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
-                    if (isImage) {
-                        ImageParamsContent(
-                            models = ImageModel.entries,
-                            selected = uiState.imageConfig.model,
-                            serviceFields = serviceFields,
-                            mediaReferences = uiState.imageConfig.mediaReferences,
-                            seed = uiState.imageConfig.seed,
-                            onSelect = onImageModelSelected,
-                            onServiceParamChange = onImageServiceParamChange,
-                            onServiceUploadFieldClick = onServiceUploadFieldClick,
-                            onRemoveMedia = onRemoveMedia,
-                            onSeedChange = onImageSeedChange,
-                        )
-                    } else {
-                        VideoParamsContent(
-                            serviceFields = serviceFields,
-                            mediaReferences = uiState.videoConfig.mediaReferences,
-                            realistic = uiState.videoConfig.realisticMode,
-                            seed = uiState.videoConfig.seed,
-                            onServiceParamChange = onVideoServiceParamChange,
-                            onServiceUploadFieldClick = onServiceUploadFieldClick,
-                            onRemoveMedia = onRemoveMedia,
-                            onRealisticToggle = onToggleRealistic,
-                            onSeedChange = onVideoSeedChange,
+                    ModelSummaryCard(uiState = uiState, isImage = isImage)
+                    CommonSectionTitle()
+                    ImageCommonParamsGrid(
+                        uiState = uiState,
+                        onImageRatioChange = onImageRatioChange,
+                        onImageResChange = onImageResChange,
+                        onImageQualityChange = onImageQualityChange,
+                        onImageCountChange = onImageCountChange,
+                    )
+                    ParamsActionBar(
+                        changedCount = calculateChangedCount(uiState),
+                        onRestoreDefaults = {
+                            val defaults = uiState.imageConfig.model
+                            onImageRatioChange(defaults.defaultAspectRatio)
+                            onImageResChange(defaults.defaultResolution)
+                            onImageQualityChange(defaults.defaultQuality)
+                            onImageCountChange(1)
+                        },
+                        onDone = onDismiss,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ParamsSheetHeader(onDismiss: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 22.dp, bottom = 18.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(Res.string.quick_create_params_sheet_title),
+            color = QuickCreateDesignTokens.Text,
+            fontSize = 22.sp,
+            fontWeight = FontWeight.Black,
+        )
+        Spacer(Modifier.weight(1f))
+        IconButton(
+            onClick = onDismiss,
+            modifier = Modifier.size(34.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Default.Close,
+                contentDescription = stringResource(Res.string.quick_create_params_close_content_description),
+                tint = Color(0xFFC9CAD2),
+                modifier = Modifier.size(28.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModelSummaryCard(uiState: QuickCreateUiState, isImage: Boolean) {
+    val selectedServiceModel = if (isImage) {
+        uiState.selectedImageServiceModelUi
+    } else {
+        uiState.selectedVideoServiceModelUi
+    }
+    val modelName = selectedServiceModel?.displayName?.asServiceModelText()
+        ?: uiState.imageConfig.model.label.asImageModelText()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF15181D),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+    ) {
+        Row(
+            modifier = Modifier.padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            QuickCreateModelGlyph(modifier = Modifier.size(48.dp)) {
+                Icon(
+                    imageVector = Icons.Default.ViewInAr,
+                    contentDescription = null,
+                    tint = QuickCreateDesignTokens.Text,
+                    modifier = Modifier.size(26.dp),
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = modelName,
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(Res.string.quick_create_params_model_label),
+                    color = QuickCreateDesignTokens.Muted,
+                    fontSize = 12.sp,
+                )
+            }
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(Res.string.quick_create_params_endpoint_value),
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 13.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(Res.string.quick_create_params_endpoint_label),
+                    color = QuickCreateDesignTokens.Muted,
+                    fontSize = 12.sp,
+                )
+            }
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                contentDescription = null,
+                tint = QuickCreateDesignTokens.Text,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CommonSectionTitle() {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 4.dp, height = 18.dp)
+                .background(QuickCreateDesignTokens.Purple, RoundedCornerShape(2.dp)),
+        )
+        Text(
+            text = stringResource(Res.string.quick_create_params_common_title),
+            color = QuickCreateDesignTokens.Text,
+            fontSize = 16.sp,
+            fontWeight = FontWeight.Black,
+        )
+    }
+}
+
+@Composable
+private fun ImageCommonParamsGrid(
+    uiState: QuickCreateUiState,
+    onImageRatioChange: (ImageAspectRatio) -> Unit,
+    onImageResChange: (ImageResolution) -> Unit,
+    onImageQualityChange: (ImageQuality) -> Unit,
+    onImageCountChange: (Int) -> Unit,
+) {
+    val imageConfig = uiState.imageConfig
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ParamCard(
+                title = stringResource(Res.string.quick_create_params_aspect_ratio_title),
+                keyName = stringResource(Res.string.quick_create_params_aspect_ratio_key),
+                modifier = Modifier.weight(1f),
+            ) {
+                SegmentedControl(
+                    items = listOf(
+                        ImageAspectRatio.RATIO_1_1,
+                        ImageAspectRatio.RATIO_9_16,
+                        ImageAspectRatio.RATIO_16_9,
+                    ),
+                    selected = imageConfig.aspectRatio,
+                    label = { it.displayName },
+                    onSelect = onImageRatioChange,
+                )
+            }
+            ParamCard(
+                title = stringResource(Res.string.quick_create_params_resolution_title),
+                keyName = stringResource(Res.string.quick_create_params_resolution_key),
+                modifier = Modifier.weight(1f),
+            ) {
+                SegmentedControl(
+                    items = listOf(
+                        ImageResolution.RES_1K,
+                        ImageResolution.RES_2K,
+                        ImageResolution.RES_4K,
+                    ),
+                    selected = imageConfig.resolution,
+                    label = { it.displayName },
+                    onSelect = onImageResChange,
+                )
+            }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            ParamCard(
+                title = stringResource(Res.string.quick_create_params_count_title),
+                keyName = stringResource(Res.string.quick_create_params_count_key),
+                modifier = Modifier.weight(1f),
+            ) {
+                CountStepper(
+                    count = imageConfig.count,
+                    onChange = onImageCountChange,
+                )
+            }
+            ParamCard(
+                title = stringResource(Res.string.quick_create_params_quality_title),
+                keyName = stringResource(Res.string.quick_create_params_quality_key),
+                modifier = Modifier.weight(1f),
+            ) {
+                QualityDropdown(quality = imageConfig.quality)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ParamCard(
+    title: String,
+    keyName: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = modifier.height(96.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF13161B),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = title,
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Black,
+                )
+                Spacer(Modifier.width(8.dp))
+                Surface(
+                    color = Color(0xFF282A30),
+                    shape = RoundedCornerShape(5.dp),
+                ) {
+                    Text(
+                        text = keyName,
+                        color = Color(0xFFC7C8CF),
+                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                Icon(
+                    imageVector = Icons.Default.RestartAlt,
+                    contentDescription = null,
+                    tint = Color(0xFFC7C8CF),
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+            content()
+        }
+    }
+}
+
+@Composable
+private fun <T> SegmentedControl(
+    items: List<T>,
+    selected: T,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(34.dp),
+        shape = RoundedCornerShape(9.dp),
+        color = Color(0xFF1C1E23),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+    ) {
+        Row {
+            items.forEach { item ->
+                val active = item == selected
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelect(item) },
+                    color = if (active) Color(0xAA5A4590) else Color.Transparent,
+                    shape = RoundedCornerShape(8.dp),
+                    border = BorderStroke(
+                        1.dp,
+                        if (active) QuickCreateDesignTokens.Purple else Color.Transparent,
+                    ),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = label(item),
+                            color = if (active) QuickCreateDesignTokens.PurpleSoft else Color(0xFFD2D3D8),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
                         )
                     }
                 }
@@ -176,28 +452,60 @@ internal fun QuickCreateParamsSheet(
 }
 
 @Composable
-private fun ParamsSheetHeader(title: String, onDismiss: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = Dimens.SpaceSM, start = Dimens.SpaceLG, end = Dimens.SpaceLG, bottom = Dimens.SpaceSM),
-        verticalAlignment = Alignment.CenterVertically,
+private fun CountStepper(count: Int, onChange: (Int) -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(34.dp),
+        shape = RoundedCornerShape(9.dp),
+        color = Color(0xFF1C1E23),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
     ) {
-        Text(
-            text = title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Bold,
-            color = Neutral100,
-        )
-        Spacer(Modifier.weight(1f))
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier.size(28.dp),
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
+            IconButton(onClick = { onChange((count - 1).coerceAtLeast(1)) }, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Default.Remove, contentDescription = null, tint = Color(0xFFD2D3D8))
+            }
+            Text(
+                text = count.toString(),
+                color = QuickCreateDesignTokens.Text,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            IconButton(onClick = { onChange((count + 1).coerceAtMost(4)) }, modifier = Modifier.size(28.dp)) {
+                Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFFD2D3D8))
+            }
+        }
+    }
+}
+
+@Composable
+private fun QualityDropdown(quality: ImageQuality) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(34.dp),
+        shape = RoundedCornerShape(9.dp),
+        color = Color(0xFF1C1E23),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(
+                    Res.string.quick_create_params_quality_recommended_format,
+                    quality.label.asImageQualityText(),
+                ),
+                color = Color(0xFFD2D3D8),
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
             Icon(
-                Icons.Default.Close,
-                contentDescription = stringResource(Res.string.quick_create_params_close_content_description),
-                tint = Neutral500,
+                imageVector = Icons.Default.KeyboardArrowDown,
+                contentDescription = null,
+                tint = Color(0xFFD2D3D8),
                 modifier = Modifier.size(18.dp),
             )
         }
@@ -205,400 +513,82 @@ private fun ParamsSheetHeader(title: String, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun ImageParamsContent(
-    models: List<ImageModel>,
-    selected: ImageModel,
-    serviceFields: List<QuickCreationServiceFieldUi>,
-    mediaReferences: List<MediaReference>,
-    seed: Int?,
-    onSelect: (ImageModel) -> Unit,
-    onServiceParamChange: (String, String) -> Unit,
-    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
-    onRemoveMedia: (String) -> Unit,
-    onSeedChange: (Int?) -> Unit,
+private fun ParamsActionBar(
+    changedCount: Int,
+    onRestoreDefaults: () -> Unit,
+    onDone: () -> Unit,
 ) {
-    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-        serviceFields
-            .takeIf { it.isNotEmpty() }
-            ?.let { fields ->
-                ServiceFieldOptionsContent(
-                    fields = fields,
-                    mediaReferences = mediaReferences,
-                    onParamChange = onServiceParamChange,
-                    onUploadFieldClick = onServiceUploadFieldClick,
-                    onRemoveMedia = onRemoveMedia,
-                )
-                Spacer(Modifier.height(Dimens.SpaceXL))
+    Surface(
+        modifier = Modifier.fillMaxWidth().padding(top = 80.dp),
+        shape = RoundedCornerShape(14.dp),
+        color = Color(0xFF15171B),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(QuickCreateDesignTokens.Purple, CircleShape),
+            )
+            Text(
+                text = stringResource(Res.string.quick_create_params_changed_count_format, changedCount),
+                color = QuickCreateDesignTokens.Text,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.weight(1f),
+            )
+            Surface(
+                onClick = onRestoreDefaults,
+                shape = RoundedCornerShape(18.dp),
+                color = Color(0xFF24252A),
+                border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+                modifier = Modifier.height(40.dp),
+            ) {
+                Box(modifier = Modifier.padding(horizontal = 22.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = stringResource(Res.string.quick_create_params_restore_defaults),
+                        color = Color(0xFFC8C9CF),
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
-
-        Text(
-            text = stringResource(Res.string.quick_create_params_local_models_title),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Primary300,
-            modifier = Modifier.padding(bottom = Dimens.SpaceSM),
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
-            models.forEach { model ->
-                val isSelected = model == selected
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(Dimens.RadiusSM),
-                    color = if (isSelected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
-                    border = BorderStroke(1.dp, if (isSelected) Primary300 else DarkOutlineVariant),
-                    onClick = { onSelect(model) },
+            Surface(
+                onClick = onDone,
+                shape = RoundedCornerShape(18.dp),
+                color = Color.Transparent,
+                modifier = Modifier.height(40.dp).weight(0.8f),
+            ) {
+                Box(
+                    modifier = Modifier.background(
+                        Brush.horizontalGradient(listOf(Color(0xFF7556F6), Color(0xFF9B61FF))),
+                        RoundedCornerShape(18.dp),
+                    ),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(Dimens.SpaceMD),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = model.label.asImageModelText(),
-                            fontSize = 13.sp,
-                            fontWeight = if (isSelected) FontWeight.Medium else FontWeight.Normal,
-                            color = if (isSelected) Primary300 else Neutral200,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (isSelected) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = null,
-                                tint = Primary300,
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    }
+                    Text(
+                        text = stringResource(Res.string.quick_create_params_done),
+                        color = QuickCreateDesignTokens.Text,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Black,
+                    )
                 }
             }
         }
-
-        Spacer(Modifier.height(Dimens.SpaceXL))
-        SeedInput(seed = seed, onSeedChange = onSeedChange)
     }
 }
 
-@Composable
-private fun VideoParamsContent(
-    serviceFields: List<QuickCreationServiceFieldUi>,
-    mediaReferences: List<MediaReference>,
-    realistic: Boolean,
-    seed: Int?,
-    onServiceParamChange: (String, String) -> Unit,
-    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
-    onRemoveMedia: (String) -> Unit,
-    onRealisticToggle: () -> Unit,
-    onSeedChange: (Int?) -> Unit,
-) {
-    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-        serviceFields
-            .takeIf { it.isNotEmpty() }
-            ?.let { fields ->
-                ServiceFieldOptionsContent(
-                    fields = fields,
-                    mediaReferences = mediaReferences,
-                    onParamChange = onServiceParamChange,
-                    onUploadFieldClick = onServiceUploadFieldClick,
-                    onRemoveMedia = onRemoveMedia,
-                )
-                Spacer(Modifier.height(Dimens.SpaceXL))
-            }
-
-        ToggleChip(
-            label = stringResource(Res.string.quick_create_params_realistic_mode),
-            enabled = realistic,
-            onClick = onRealisticToggle,
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        Spacer(Modifier.height(Dimens.SpaceLG))
-        SeedInput(seed = seed, onSeedChange = onSeedChange)
-    }
-}
-
-/**
- * 渲染服务端动态字段表单。
- *
- * 表单根据上游已映射好的 UI 字段选择选项控件、文本输入或上传字段入口。字段值通过
- * [onParamChange] 回传给 ScreenModel，由上层统一保存到图片/视频服务端参数 Map；
- * 上传字段只触发回调，不直接执行权限请求或文件上传，确保 Presentation 子组件保持平台无关。
- *
- * @param fields 已经过滤为可渲染的字段 UI 模型，顺序来自服务端配置。
- * @param mediaReferences 当前创作配置中的媒体引用，用于展示字段级上传素材。
- * @param onParamChange 字段值变更回调。
- * @param onUploadFieldClick 用户点击上传字段时触发。
- * @param onRemoveMedia 用户移除字段素材时触发。
- */
-@Composable
-internal fun ServiceFieldOptionsContent(
-    fields: List<QuickCreationServiceFieldUi>,
-    mediaReferences: List<MediaReference>,
-    onParamChange: (String, String) -> Unit,
-    onUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
-    onRemoveMedia: (String) -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
-        Text(
-            text = stringResource(Res.string.quick_create_params_service_params_title),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Primary300,
-        )
-        fields.forEach { field ->
-            ServiceFieldInput(
-                field = field,
-                mediaReferences = mediaReferences,
-                onParamChange = onParamChange,
-                onUploadFieldClick = onUploadFieldClick,
-                onRemoveMedia = onRemoveMedia,
-            )
-        }
-    }
-}
-
-@Composable
-private fun ServiceFieldInput(
-    field: QuickCreationServiceFieldUi,
-    mediaReferences: List<MediaReference>,
-    onParamChange: (String, String) -> Unit,
-    onUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
-    onRemoveMedia: (String) -> Unit,
-) {
-    Column(
-        modifier = Modifier.padding(start = if (field.indentLevel > 0) Dimens.SpaceMD else 0.dp),
-        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
-    ) {
-        Text(
-            text = field.title,
-            fontSize = 12.sp,
-            color = Neutral300,
-        )
-        field.description?.let { description ->
-            Text(
-                text = description,
-                fontSize = 11.sp,
-                color = Neutral500,
-            )
-        }
-        when (field.controlType) {
-            QuickCreationServiceFieldControlType.OPTIONS -> ServiceFieldOptions(
-                field = field,
-                onParamChange = onParamChange,
-            )
-            QuickCreationServiceFieldControlType.TEXT -> ServiceFieldTextInput(
-                field = field,
-                onParamChange = onParamChange,
-            )
-            QuickCreationServiceFieldControlType.UPLOAD -> QuickCreateServiceUploadFieldPicker(
-                paramKey = field.paramKey,
-                // 动态字段模型已迁入 feature presentation；composeApp 迁移期只把稳定媒体枚举
-                // 转换为当前上传组件仍在使用的页面状态枚举，避免新模块反向依赖应用层类型。
-                mediaType = field.uploadMediaType.toAppMediaType(),
-                hint = quickCreateServiceUploadHintText(field.uploadHint),
-                mediaReferences = mediaReferences,
-                onUploadFieldClick = onUploadFieldClick,
-                onRemoveMedia = onRemoveMedia,
-            )
-        }
-        field.childFields.forEach { child ->
-            ServiceFieldInput(
-                field = child,
-                mediaReferences = mediaReferences,
-                onParamChange = onParamChange,
-                onUploadFieldClick = onUploadFieldClick,
-                onRemoveMedia = onRemoveMedia,
-            )
-        }
-    }
-}
-
-@Composable
-private fun quickCreateServiceUploadHintText(hint: QuickCreationServiceUploadHint): String {
-    if (!hint.hasConstraints()) return ""
-
-    val parts = buildList {
-        if (hint.acceptFormats.isNotEmpty()) {
-            add(
-                stringResource(
-                    Res.string.quick_create_params_upload_formats_format,
-                    hint.acceptFormats.joinToString("/"),
-                )
-            )
-        }
-        hint.maxUploadCount?.let { maxCount ->
-            add(stringResource(Res.string.quick_create_params_upload_max_count_format, maxCount))
-        }
-        hint.maxUploadSizeMegabytes?.let { maxSize ->
-            add(stringResource(Res.string.quick_create_params_upload_max_size_format, maxSize))
-        }
-    }
-    return parts.joinToString(stringResource(Res.string.quick_create_params_upload_hint_separator))
-}
-
-private fun QuickCreationServiceUploadMediaType?.toAppMediaType(): QuickCreateMediaType? =
-    when (this) {
-        QuickCreationServiceUploadMediaType.IMAGE -> QuickCreateMediaType.IMAGE
-        QuickCreationServiceUploadMediaType.VIDEO -> QuickCreateMediaType.VIDEO
-        QuickCreationServiceUploadMediaType.AUDIO -> QuickCreateMediaType.AUDIO
-        null -> null
-    }
-
-@Composable
-private fun ServiceFieldOptions(
-    field: QuickCreationServiceFieldUi,
-    onParamChange: (String, String) -> Unit,
-) {
-    Row(
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
-    ) {
-        field.options.forEach { option ->
-            Surface(
-                shape = RoundedCornerShape(Dimens.RadiusSM),
-                color = if (option.selected) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
-                border = BorderStroke(1.dp, if (option.selected) Primary300 else DarkOutlineVariant),
-                onClick = { onParamChange(field.paramKey, option.value) },
-            ) {
-                Text(
-                    text = option.label,
-                    modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 7.dp),
-                    fontSize = 12.sp,
-                    fontWeight = if (option.selected) FontWeight.Medium else FontWeight.Normal,
-                    color = if (option.selected) Primary300 else Neutral200,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ServiceFieldTextInput(
-    field: QuickCreationServiceFieldUi,
-    onParamChange: (String, String) -> Unit,
-) {
-    var text by remember(field.paramKey, field.textValue) { mutableStateOf(field.textValue) }
-    OutlinedTextField(
-        value = text,
-        onValueChange = { value ->
-            val constrained = field.constrainTextInput(value)
-            text = constrained
-            onParamChange(field.paramKey, constrained)
-        },
-        singleLine = true,
-        placeholder = { Text(field.placeholder, color = Neutral500, fontSize = 12.sp) },
-        shape = RoundedCornerShape(Dimens.RadiusSM),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            cursorColor = Primary300,
-            focusedBorderColor = Primary300,
-            unfocusedBorderColor = DarkSurfaceVariant,
-            focusedContainerColor = DarkSurfaceVariant,
-            unfocusedContainerColor = DarkSurfaceVariant,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    )
-    field.textLimitCounter?.let { counter ->
-        Text(
-            text = counter,
-            fontSize = 10.sp,
-            color = Neutral500,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
-/**
- * 渲染 Seed 输入框。
- *
- * Seed 是生成任务的可选确定性参数，空值表示交给服务端随机；组件只做整数解析，
- * 不在 UI 层校验服务端支持范围，避免和生成请求工厂中的业务规则分叉。
- *
- * @param seed 当前 Seed；`null` 表示随机。
- * @param onSeedChange Seed 变更回调，无法解析为整数时传出 `null`。
- */
-@Composable
-internal fun SeedInput(seed: Int?, onSeedChange: (Int?) -> Unit) {
-    var text by remember(seed) { mutableStateOf(seed?.toString() ?: "") }
-
-    Text(
-        text = stringResource(Res.string.quick_create_params_seed_label),
-        fontSize = 12.sp,
-        fontWeight = FontWeight.SemiBold,
-        color = Primary300,
-        modifier = Modifier.padding(bottom = Dimens.SpaceSM),
-    )
-    OutlinedTextField(
-        value = text,
-        onValueChange = { newVal ->
-            text = newVal
-            val num = newVal.toIntOrNull()
-            onSeedChange(num)
-        },
-        placeholder = {
-            Text(
-                stringResource(Res.string.quick_create_params_seed_random_placeholder),
-                color = Neutral500,
-                fontSize = 13.sp,
-            )
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(Dimens.RadiusSM),
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            cursorColor = Primary300,
-            focusedBorderColor = Primary300,
-            unfocusedBorderColor = DarkSurfaceVariant,
-            focusedContainerColor = DarkSurfaceVariant,
-            unfocusedContainerColor = DarkSurfaceVariant,
-        ),
-        modifier = Modifier.fillMaxWidth(),
-    )
-}
-
-/**
- * 渲染参数面板中的二元开关。
- *
- * 该控件只表达当前开关状态和点击事件，具体状态含义由调用方决定，例如真人模式或生成音频。
- *
- * @param label 展示给用户的开关名称。
- * @param enabled `true` 表示该选项已开启，`false` 表示未开启。
- * @param onClick 用户点击开关时触发。
- * @param modifier 外层布局修饰符。
- */
-@Composable
-internal fun ToggleChip(
-    label: String,
-    enabled: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(Dimens.RadiusSM),
-        color = if (enabled) Primary300.copy(alpha = 0.1f) else DarkSurfaceVariant,
-        border = BorderStroke(1.dp, if (enabled) Primary300 else DarkOutlineVariant),
-        onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = Dimens.SpaceSM),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Icon(
-                if (enabled) Icons.Default.Check else Icons.Default.Add,
-                contentDescription = null,
-                tint = if (enabled) Primary300 else Neutral500,
-                modifier = Modifier.size(12.dp),
-            )
-            Text(
-                text = label,
-                fontSize = 12.sp,
-                fontWeight = if (enabled) FontWeight.Medium else FontWeight.Normal,
-                color = if (enabled) Primary300 else Neutral200,
-            )
-        }
-    }
+private fun calculateChangedCount(uiState: QuickCreateUiState): Int {
+    val config = uiState.imageConfig
+    val model = config.model
+    var count = 0
+    if (config.aspectRatio != model.defaultAspectRatio) count += 1
+    if (config.resolution != model.defaultResolution) count += 1
+    if (config.quality != model.defaultQuality) count += 1
+    if (config.count != 1) count += 1
+    return count.coerceAtLeast(0)
 }
