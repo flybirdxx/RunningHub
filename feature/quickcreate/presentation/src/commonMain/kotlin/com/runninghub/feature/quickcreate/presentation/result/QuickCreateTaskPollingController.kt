@@ -2,6 +2,7 @@ package com.runninghub.feature.quickcreate.presentation.result
 
 import com.runninghub.feature.quickcreate.domain.QuickCreateResultItem
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
+import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.toQuickCreateTaskIssueError
@@ -54,6 +55,8 @@ class QuickCreateTaskPollingController(
         uiState.update {
             it.copy(
                 results = emptyList(),
+                submittedPrompt = "",
+                conversationItems = emptyList(),
                 taskStatus = QuickCreateTaskUiStatus.IDLE,
                 statusText = null,
             )
@@ -67,17 +70,17 @@ class QuickCreateTaskPollingController(
         var refreshHistory = false
         uiState.update {
             when (status) {
-                is QuickCreateTaskStatus.Submitting -> it.copy(
+                is QuickCreateTaskStatus.Submitting -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
                     statusText = QuickCreateTaskStatusText.SubmittingTask,
                     error = null,
                 )
-                is QuickCreateTaskStatus.Queuing -> it.copy(
+                is QuickCreateTaskStatus.Queuing -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.QUEUING,
                     statusText = QuickCreateTaskStatusText.Queuing,
                     error = null,
                 )
-                is QuickCreateTaskStatus.Running -> it.copy(
+                is QuickCreateTaskStatus.Running -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.RUNNING,
                     statusText = QuickCreateTaskStatusText.Running(status.progress),
                     error = null,
@@ -95,7 +98,7 @@ class QuickCreateTaskPollingController(
                         )
                     }
                     refreshHistory = true
-                    it.copy(
+                    it.withLatestTaskDisplay(
                         taskStatus = QuickCreateTaskUiStatus.SUCCESS,
                         statusText = QuickCreateTaskStatusText.Success,
                         error = null,
@@ -104,18 +107,18 @@ class QuickCreateTaskPollingController(
                 }
                 is QuickCreateTaskStatus.Failed -> {
                     val error = status.errorMessage.toQuickCreateTaskIssueError()
-                    it.copy(
+                    it.withLatestTaskDisplay(
                         taskStatus = QuickCreateTaskUiStatus.FAILED,
                         statusText = QuickCreateTaskStatusText.Error(error),
                         error = error.asQuickCreateUiMessage(),
                     )
                 }
-                is QuickCreateTaskStatus.Cancelled -> it.copy(
+                is QuickCreateTaskStatus.Cancelled -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.CANCELED,
                     statusText = QuickCreateTaskStatusText.Canceled,
                     error = null,
                 )
-                is QuickCreateTaskStatus.Error -> it.copy(
+                is QuickCreateTaskStatus.Error -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
                     statusText = null,
                     error = status.message.toQuickCreateTaskIssueError().asQuickCreateUiMessage(),
@@ -127,6 +130,39 @@ class QuickCreateTaskPollingController(
         }
     }
 }
+
+private fun QuickCreateUiState.withLatestTaskDisplay(
+    taskStatus: QuickCreateTaskUiStatus,
+    statusText: QuickCreateTaskStatusText?,
+    error: QuickCreateUiMessage?,
+    results: List<QuickCreateResultUi> = this.results,
+): QuickCreateUiState =
+    copy(
+        taskStatus = taskStatus,
+        statusText = statusText,
+        error = error,
+        results = results,
+        conversationItems = conversationItems.updateLatestTaskDisplay(
+            taskStatus = taskStatus,
+            statusText = statusText,
+            results = results,
+        ),
+    )
+
+private fun List<QuickCreateConversationItemUi>.updateLatestTaskDisplay(
+    taskStatus: QuickCreateTaskUiStatus,
+    statusText: QuickCreateTaskStatusText?,
+    results: List<QuickCreateResultUi>,
+): List<QuickCreateConversationItemUi> =
+    if (isEmpty()) {
+        this
+    } else {
+        dropLast(1) + last().copy(
+            taskStatus = taskStatus,
+            statusText = statusText,
+            results = results,
+        )
+    }
 
 /**
  * 将 Domain 层任务输出映射为 Presentation 层稳定媒体类型。

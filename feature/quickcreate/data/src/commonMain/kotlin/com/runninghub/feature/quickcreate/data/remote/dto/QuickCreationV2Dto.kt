@@ -3,6 +3,10 @@
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
+import kotlin.math.roundToInt
 
 @Serializable
 data class QuickCreationEnvelopeDto<T>(
@@ -171,6 +175,11 @@ data class QuickCreationTaskRecordDto(
     @SerialName("taskId") val taskId: String,
     @SerialName("taskStatus") val taskStatus: String,
     @SerialName("taskCostTime") val taskCostTime: String? = null,
+    @SerialName("progress") val progress: JsonElement? = null,
+    @SerialName("taskProgress") val taskProgress: JsonElement? = null,
+    @SerialName("progressPercent") val progressPercent: JsonElement? = null,
+    @SerialName("percent") val percent: JsonElement? = null,
+    @SerialName("process") val process: JsonElement? = null,
     @SerialName("taskType") val taskType: String? = null,
     @SerialName("skuId") val skuId: String? = null,
     @SerialName("bindingId") val bindingId: String? = null,
@@ -181,6 +190,33 @@ data class QuickCreationTaskRecordDto(
 ) {
     val isRunning: Boolean
         get() = taskStatus == "QUEUED" || taskStatus == "RUNNING" || taskStatus == "PROCESSING"
+}
+
+/**
+ * 从任务列表记录中读取并归一化远端进度。
+ *
+ * V2 列表接口在不同环境中出现过多种进度字段名和值形态；这里集中兼容，避免 Presentation 层理解远端协议。
+ * 返回 `null` 表示服务端没有提供可用进度，UI 应展示不带百分比的运行中状态。
+ */
+internal fun QuickCreationTaskRecordDto.normalizedProgressPercent(): Int? =
+    listOf(progress, taskProgress, progressPercent, percent, process)
+        .firstNotNullOfOrNull { it?.asProgressPercentOrNull() }
+
+private fun JsonElement.asProgressPercentOrNull(): Int? {
+    val primitive = this as? JsonPrimitive ?: return null
+    val numericValue = primitive.doubleOrNull
+        ?: primitive.contentOrNull
+            ?.trim()
+            ?.removeSuffix("%")
+            ?.trim()
+            ?.toDoubleOrNull()
+        ?: return null
+    val percentValue = if (numericValue in 0.0..1.0) {
+        numericValue * 100
+    } else {
+        numericValue
+    }
+    return percentValue.roundToInt().coerceIn(0, 100)
 }
 
 @Serializable

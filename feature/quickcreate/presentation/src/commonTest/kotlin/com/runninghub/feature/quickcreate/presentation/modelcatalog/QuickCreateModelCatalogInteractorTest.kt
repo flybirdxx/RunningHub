@@ -33,7 +33,7 @@ class QuickCreateModelCatalogInteractorTest {
         assertFalse(state.value.serviceModelsLoading)
         assertEquals("全能图片G-2.0-官方版", state.value.selectedImageServiceModel?.name)
         assertEquals("binding-1", state.value.selectedImageServiceModel?.bindingId)
-        assertEquals("G-2.0", state.value.selectedImageServiceModelUi?.compactName)
+        assertEquals("全能图片 G-2.0", state.value.selectedImageServiceModelUi?.compactName)
         assertEquals(
             QuickCreateServiceModelSubtitle.GroupAndParameterCount("全能图片", 2),
             state.value.selectedImageServiceModelUi?.subtitle,

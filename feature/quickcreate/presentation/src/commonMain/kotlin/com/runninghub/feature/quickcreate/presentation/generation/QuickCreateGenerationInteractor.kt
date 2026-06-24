@@ -9,9 +9,11 @@ import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateConversationItemUi
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadCoordinator
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadException
@@ -86,11 +88,22 @@ class QuickCreateGenerationInteractor(
 
         generationJob = scope.launch {
             uiState.update {
-                it.copy(
+                // 提交后的展示气泡使用点击瞬间的快照；编辑草稿立即清空，避免输入框继续持有旧提示词和焦点。
+                val promptSnapshot = submitSnapshot.submittedPromptSnapshot()
+                val parameterSnapshot = submitSnapshot.quickCreateGenerationParameterSnapshot()
+                it.clearSubmittedPromptDraft(submitSnapshot.currentTab).copy(
+                    submittedPrompt = promptSnapshot,
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
                     statusText = QuickCreateTaskStatusText.SubmittingTask,
                     error = null,
                     results = emptyList(),
+                    conversationItems = it.conversationItems + QuickCreateConversationItemUi(
+                        prompt = promptSnapshot,
+                        aspectRatio = parameterSnapshot.aspectRatio,
+                        resolution = parameterSnapshot.resolution,
+                        taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
+                        statusText = QuickCreateTaskStatusText.SubmittingTask,
+                    ),
                 )
             }
             var requestSnapshot = submitSnapshot
@@ -173,6 +186,7 @@ class QuickCreateGenerationInteractor(
                 taskStatus = QuickCreateTaskUiStatus.IDLE,
                 statusText = null,
                 error = error,
+                conversationItems = it.conversationItems.releaseLatestActiveTask(),
             )
         }
     }
@@ -189,6 +203,33 @@ class QuickCreateGenerationInteractor(
         requestKey: String,
     ): Boolean =
         state.feePreviewRequestKey == requestKey
+}
+
+private fun QuickCreateUiState.submittedPromptSnapshot(): String =
+    when (currentTab) {
+        QuickCreateTab.IMAGE -> imageConfig.prompt
+        QuickCreateTab.VIDEO -> videoConfig.prompt
+    }.trim()
+
+private fun QuickCreateUiState.clearSubmittedPromptDraft(tab: QuickCreateTab): QuickCreateUiState =
+    when (tab) {
+        QuickCreateTab.IMAGE -> copy(imageConfig = imageConfig.copy(prompt = ""))
+        QuickCreateTab.VIDEO -> copy(videoConfig = videoConfig.copy(prompt = ""))
+    }
+
+private fun List<QuickCreateConversationItemUi>.releaseLatestActiveTask(): List<QuickCreateConversationItemUi> {
+    val latest = lastOrNull() ?: return this
+    val shouldRelease = latest.taskStatus == QuickCreateTaskUiStatus.SUBMITTING ||
+        latest.taskStatus == QuickCreateTaskUiStatus.QUEUING ||
+        latest.taskStatus == QuickCreateTaskUiStatus.RUNNING
+    if (!shouldRelease) {
+        return this
+    }
+    return dropLast(1) + latest.copy(
+        taskStatus = QuickCreateTaskUiStatus.IDLE,
+        statusText = null,
+        results = emptyList(),
+    )
 }
 
 /**

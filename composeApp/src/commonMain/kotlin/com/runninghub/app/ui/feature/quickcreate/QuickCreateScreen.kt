@@ -1,6 +1,8 @@
 package com.runninghub.app.ui.feature.quickcreate
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -13,7 +15,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
@@ -22,6 +26,7 @@ import cafe.adriel.voyager.core.screen.uniqueScreenKey
 import cafe.adriel.voyager.koin.koinScreenModel
 import com.runninghub.app.ui.component.MediaType
 import com.runninghub.app.platform.PermissionController
+import com.runninghub.app.platform.SystemBackHandler
 import com.runninghub.app.platform.rememberPermissionController
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.adaptive.RhAdaptivePreview
@@ -31,7 +36,6 @@ import com.runninghub.app.ui.adaptive.previewQuickCreateUiState
 import com.runninghub.app.ui.component.PermissionBottomSheet
 import com.runninghub.app.ui.feature.quickcreate.presentation.editor.QuickCreateEditorPanel
 import com.runninghub.app.ui.feature.quickcreate.presentation.editor.params.QuickCreateParamsSheet
-import com.runninghub.app.ui.feature.quickcreate.presentation.history.QuickCreateHistoryArea
 import com.runninghub.app.ui.feature.quickcreate.presentation.history.QuickCreateHistoryDetailDialog
 import com.runninghub.app.ui.feature.quickcreate.presentation.inspiration.QuickCreateInspirationArea
 import com.runninghub.app.ui.feature.quickcreate.presentation.modelselector.QuickCreateModelSheet
@@ -55,6 +59,7 @@ import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
 import runninghub.composeapp.generated.resources.quick_create_top_bar_menu_content_description
+import kotlin.math.roundToInt
 
 /**
  * 快捷创作页面在 Voyager 导航中的入口。
@@ -84,6 +89,70 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
 
     var pendingPermission by remember { mutableStateOf<Permission?>(null) }
     val errorText = uiState.error?.asQuickCreateText()
+    val activeBusinessSheetVisible = uiState.activeSheet != null && uiState.showCreationInput
+    var lastActiveSheet by remember { mutableStateOf<QuickCreateSheet?>(null) }
+    val renderedSheet = uiState.activeSheet ?: lastActiveSheet
+    var availableContentHeightPx by remember { mutableFloatStateOf(0f) }
+    var sheetHeightPx by remember { mutableFloatStateOf(0f) }
+    // QuickCreateScreen 位于 MainScreen 的 Scaffold 内容区内；该高度已扣除手机底部 BottomBar。
+    // 因此阈值按“设备屏幕高度 - BottomBar 高度”的一半计算，避免 sheet 自身高度变化影响收起手感。
+    val sheetDismissThresholdPx = if (availableContentHeightPx > 0f) {
+        availableContentHeightPx / 2f
+    } else if (sheetHeightPx > 0f) {
+        sheetHeightPx / 2f
+    } else {
+        Float.MAX_VALUE
+    }
+    var sheetDragOffsetPx by remember { mutableFloatStateOf(0f) }
+    var sheetDragging by remember { mutableStateOf(false) }
+    val animatedSheetDragOffsetPx by animateFloatAsState(
+        targetValue = sheetDragOffsetPx,
+        animationSpec = if (sheetDragging) snap() else tween(durationMillis = 180),
+        label = "QuickCreateSheetDragOffset",
+    )
+
+    LaunchedEffect(uiState.activeSheet) {
+        uiState.activeSheet?.let { lastActiveSheet = it }
+    }
+
+    LaunchedEffect(activeBusinessSheetVisible) {
+        if (activeBusinessSheetVisible) {
+            sheetDragging = false
+            sheetDragOffsetPx = 0f
+        } else {
+            delay(180)
+            sheetDragging = false
+            sheetDragOffsetPx = 0f
+            lastActiveSheet = null
+        }
+    }
+
+    SystemBackHandler(enabled = activeBusinessSheetVisible) {
+        screenModel.closeActiveSheet()
+    }
+
+    fun startSheetDrag() {
+        sheetDragging = true
+    }
+
+    fun dragSheet(deltaPx: Float) {
+        val maxDragOffsetPx = if (sheetHeightPx > 0f) sheetHeightPx else Float.MAX_VALUE
+        sheetDragOffsetPx = (sheetDragOffsetPx + deltaPx).coerceIn(0f, maxDragOffsetPx)
+    }
+
+    fun endSheetDrag() {
+        sheetDragging = false
+        if (sheetDragOffsetPx >= sheetDismissThresholdPx) {
+            screenModel.closeActiveSheet()
+        } else {
+            sheetDragOffsetPx = 0f
+        }
+    }
+
+    fun cancelSheetDrag() {
+        sheetDragging = false
+        sheetDragOffsetPx = 0f
+    }
 
     uiState.error?.let { error ->
         // 错误提示由页面状态驱动展示，但自动清理需要等待 3 秒后回调最新 ScreenModel。
@@ -97,6 +166,9 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .onGloballyPositioned { coordinates ->
+                availableContentHeightPx = coordinates.size.height.toFloat()
+            }
             .background(DarkBackground)
     ) {
         Box(
@@ -119,10 +191,6 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     when (uiState.currentMode) {
                         QuickCreateMode.CREATION -> CreationScrollableArea(
                             uiState = uiState,
-                            onClearResults = screenModel::clearResults,
-                            onHistoryItemSelected = screenModel::selectHistoryOutput,
-                            onLoadMoreHistory = screenModel::loadMoreQuickCreationHistory,
-                            onCancelHistoryTask = screenModel::cancelHistoryTask,
                         )
                         QuickCreateMode.INSPIRATION -> QuickCreateInspirationArea(
                             uiState = uiState,
@@ -221,12 +289,19 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
         }
 
         AnimatedVisibility(
-            visible = uiState.activeSheet != null && uiState.showCreationInput,
+            visible = activeBusinessSheetVisible,
             enter = slideInVertically { it } + fadeIn(animationSpec = tween(220)),
             exit = slideOutVertically { it } + fadeOut(animationSpec = tween(160)),
             modifier = Modifier.align(Alignment.BottomCenter),
         ) {
-            Box(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .onGloballyPositioned { coordinates ->
+                        sheetHeightPx = coordinates.size.height.toFloat()
+                    }
+                    .offset { IntOffset(x = 0, y = animatedSheetDragOffsetPx.roundToInt()) },
+            ) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -242,7 +317,9 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                 } else {
                     uiState.selectedVideoServiceModel.quickCreationServiceFieldUiItems(uiState.videoServiceParams)
                 }
-                when (uiState.activeSheet) {
+                // activeSheet 清空后仍保留上一份内容给 AnimatedVisibility 执行退出动画，
+                // 否则拖拽或返回关闭时内部内容会先变成空，视觉上像是瞬间消失。
+                when (renderedSheet) {
                     QuickCreateSheet.MODEL_PICKER -> QuickCreateModelSheet(
                         visible = true,
                         isImage = uiState.currentTab == QuickCreateTab.IMAGE,
@@ -255,6 +332,10 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             screenModel.updateVideoServiceModel(it)
                         },
                         onTabSwitch = screenModel::switchTab,
+                        onSheetDragStart = ::startSheetDrag,
+                        onSheetDrag = ::dragSheet,
+                        onSheetDragEnd = ::endSheetDrag,
+                        onSheetDragCancel = ::cancelSheetDrag,
                     )
                     QuickCreateSheet.PARAMS -> QuickCreateParamsSheet(
                         visible = true,
@@ -303,6 +384,10 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             }
                         },
                         onRemoveMedia = screenModel::removeMediaReference,
+                        onSheetDragStart = ::startSheetDrag,
+                        onSheetDrag = ::dragSheet,
+                        onSheetDragEnd = ::endSheetDrag,
+                        onSheetDragCancel = ::cancelSheetDrag,
                     )
                     null -> Unit
                 }
@@ -424,28 +509,18 @@ private fun ModeSwitch(
 @Composable
 private fun CreationScrollableArea(
     uiState: QuickCreateUiState,
-    onClearResults: () -> Unit,
-    onHistoryItemSelected: (String) -> Unit,
-    onLoadMoreHistory: () -> Unit,
-    onCancelHistoryTask: (String) -> Unit,
 ) {
-    val hasConversation = uiState.imageConfig.prompt.isNotBlank() ||
-        uiState.videoConfig.prompt.isNotBlank() ||
+    val hasConversation = uiState.conversationItems.isNotEmpty() ||
+        uiState.submittedPrompt.isNotBlank() ||
         uiState.results.isNotEmpty() ||
         uiState.taskStatus != QuickCreateTaskUiStatus.IDLE
 
     if (hasConversation) {
         QuickCreateConversationArea(
             uiState = uiState,
-            onClearResults = onClearResults,
         )
     } else {
-        QuickCreateHistoryArea(
-            uiState = uiState,
-            onHistoryItemSelected = onHistoryItemSelected,
-            onLoadMoreHistory = onLoadMoreHistory,
-            onCancelHistoryTask = onCancelHistoryTask,
-        )
+        Spacer(modifier = Modifier.fillMaxSize())
     }
 }
 
@@ -480,10 +555,6 @@ private fun QuickCreatePreviewContent(
                     when (uiState.currentMode) {
                         QuickCreateMode.CREATION -> CreationScrollableArea(
                             uiState = uiState,
-                            onClearResults = {},
-                            onHistoryItemSelected = {},
-                            onLoadMoreHistory = {},
-                            onCancelHistoryTask = {},
                         )
                         QuickCreateMode.INSPIRATION -> QuickCreateInspirationArea(
                             uiState = uiState,

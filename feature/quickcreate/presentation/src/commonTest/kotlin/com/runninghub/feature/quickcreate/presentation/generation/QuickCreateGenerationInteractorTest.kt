@@ -10,6 +10,7 @@ import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
 import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
+import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
@@ -51,7 +52,39 @@ class QuickCreateGenerationInteractorTest {
         assertEquals(0, repository.imageGenerateCalls)
         assertEquals(0, repository.videoGenerateCalls)
         assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
+        assertEquals("", uiState.value.submittedPrompt)
         assertEquals(QuickCreateRuntimeUiText.FeeConfirming.asQuickCreateUiMessage(), uiState.value.error)
+    }
+
+    @Test
+    fun `generate stores submitted prompt snapshot and clears editable prompt after submit validation passes`() = runTest {
+        val repository = RecordingGenerationRepository()
+        val initialState = QuickCreateUiState(
+            imageConfig = ImageConfig(prompt = "  green icon  "),
+        )
+        val request = (
+            QuickCreateGenerationRequestFactory()
+                .buildCurrentGenerationRequest(initialState, validateUploads = true)
+                as QuickCreateGenerationRequestBuildResult.ImageReady
+            ).request
+        val uiState = MutableStateFlow(
+            initialState.copy(feePreviewRequestKey = request.quickCreateFeeRequestKey())
+        )
+        val interactor = createInteractor(
+            generationRepository = repository,
+            uiState = uiState,
+            scope = this,
+        )
+
+        interactor.generate()
+        runCurrent()
+
+        assertEquals(1, repository.imageGenerateCalls)
+        assertEquals("green icon", uiState.value.submittedPrompt)
+        assertEquals("", uiState.value.imageConfig.prompt)
+        assertEquals(1, uiState.value.conversationItems.size)
+        assertEquals("green icon", uiState.value.conversationItems.single().prompt)
+        assertEquals(QuickCreateTaskUiStatus.SUBMITTING, uiState.value.conversationItems.single().taskStatus)
     }
 
     private fun createInteractor(

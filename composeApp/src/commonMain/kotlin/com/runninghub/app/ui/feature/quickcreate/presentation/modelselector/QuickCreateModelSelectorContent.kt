@@ -87,6 +87,7 @@ private const val RECENT_GROUP_MARKER = "\u6700\u8fd1\u4e0a\u65b0"
  *
  * 面板只消费 [QuickCreateUiState] 中已经加载好的模型目录，搜索过滤与分类筛选属于本地临时 UI 状态；
  * 模型点击只通过回调更新 ScreenModel 中的选中项，底部“套用”负责关闭弹层，避免选择动作绕过状态层。
+ * 顶部手柄只上报拖拽过程，真正的 sheet 位移和收起判定由页面边界统一处理。
  */
 @Composable
 internal fun QuickCreateModelSheet(
@@ -98,6 +99,10 @@ internal fun QuickCreateModelSheet(
     onVideoServiceModelSelected: (String) -> Unit,
     onTabSwitch: (QuickCreateTab) -> Unit,
     modifier: Modifier = Modifier,
+    onSheetDragStart: () -> Unit = {},
+    onSheetDrag: (Float) -> Unit = {},
+    onSheetDragEnd: () -> Unit = {},
+    onSheetDragCancel: () -> Unit = {},
 ) {
     val models = (uiState.serviceImageModelItems + uiState.serviceVideoModelItems)
         .distinctBy { it.identityKey }
@@ -159,7 +164,13 @@ internal fun QuickCreateModelSheet(
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
-                QuickCreateSheetHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
+                QuickCreateSheetHandle(
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    onDragStart = onSheetDragStart,
+                    onDrag = onSheetDrag,
+                    onDragEnd = onSheetDragEnd,
+                    onDragCancel = onSheetDragCancel,
+                )
                 Text(
                     text = stringResource(Res.string.quick_create_model_selector_title),
                     color = QuickCreateDesignTokens.Text,

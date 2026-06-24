@@ -321,18 +321,11 @@ private fun imageQuickCreationParams(
     config: ImageConfig,
     serviceParams: Map<String, String>,
 ): Map<String, String> =
-    buildMap {
-        put("aspectRatio", config.aspectRatio.apiValue)
-        put("resolution", config.resolution.apiValue)
-        put("quality", config.quality.apiValue)
-
-        putAll(QuickCreationServiceSchema.defaultParams(model, serviceParams))
-        putAll(
-            serviceParams
-                .filterKeys { key -> key in QuickCreationServiceSchema.activeParamKeys(model, serviceParams) }
-                .filterValues { it.isNotBlank() }
-        )
-    }
+    imageQuickCreationEffectiveParams(
+        model = model,
+        config = config,
+        serviceParams = serviceParams,
+    )
 
 private fun imageQuickCreationListParams(
     model: QuickCreationServiceModel?,
@@ -351,18 +344,11 @@ private fun videoQuickCreationParams(
     config: VideoConfig,
     serviceParams: Map<String, String>,
 ): Map<String, String> =
-    buildMap {
-        put("aspectRatio", config.aspectRatio.apiValue)
-        put("resolution", config.resolution.apiValue)
-        put("duration", config.duration.seconds.toString())
-
-        putAll(QuickCreationServiceSchema.defaultParams(model, serviceParams))
-        putAll(
-            serviceParams
-                .filterKeys { key -> key in QuickCreationServiceSchema.activeParamKeys(model, serviceParams) }
-                .filterValues { it.isNotBlank() }
-        )
-    }
+    videoQuickCreationEffectiveParams(
+        model = model,
+        config = config,
+        serviceParams = serviceParams,
+    )
 
 private fun videoQuickCreationListParams(
     model: QuickCreationServiceModel?,

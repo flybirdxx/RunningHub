@@ -7,6 +7,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldExtra
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldOption
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationServicePricing
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
@@ -70,6 +71,55 @@ class QuickCreateFeePreviewInteractorTest {
     }
 
     @Test
+    fun `service model price summary is used as local image fallback before fee preview is available`() = runTest {
+        val repository = FakeFeePreviewRepository()
+        val state = MutableStateFlow(
+            QuickCreateUiState(
+                selectedImageServiceModel = serviceModel(
+                    fields = emptyList(),
+                    pricing = QuickCreationServicePricing(priceSummaryRaw = "¥0.0600/次"),
+                ),
+                imageConfig = ImageConfig(prompt = ""),
+            )
+        )
+        val interactor = createInteractor(repository = repository, state = state, scope = this)
+
+        interactor.schedule()
+        runCurrent()
+
+        assertEquals(0, repository.feePreviewRequests.size)
+        assertEquals(0.06, state.value.estimatedCost)
+        assertFalse(state.value.feePreviewLoading)
+        assertNull(state.value.feePreviewError)
+    }
+
+    @Test
+    fun `service model price summary remains display price after successful fee preview`() = runTest {
+        val repository = FakeFeePreviewRepository().apply {
+            imageFeePreviewResult = Result.success(feePreview(requiredCashAmount = 0.76))
+        }
+        val state = MutableStateFlow(
+            QuickCreateUiState(
+                selectedImageServiceModel = serviceModel(
+                    fields = emptyList(),
+                    pricing = QuickCreationServicePricing(priceSummaryRaw = "¥0.0600/次"),
+                ),
+                imageConfig = ImageConfig(prompt = "cat"),
+            )
+        )
+        val interactor = createInteractor(repository = repository, state = state, scope = this)
+
+        interactor.schedule()
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(listOf("cat"), repository.feePreviewRequests.map { it.prompt })
+        assertEquals(0.06, state.value.estimatedCost)
+        assertFalse(state.value.feePreviewLoading)
+        assertNull(state.value.feePreviewError)
+    }
+
+    @Test
     fun `required service field skips fee preview request without exposing generation block message`() = runTest {
         val repository = FakeFeePreviewRepository()
         val state = MutableStateFlow(
@@ -114,7 +164,10 @@ class QuickCreateFeePreviewInteractorTest {
             cashCurrency = "CNY",
         )
 
-    private fun serviceModel(fields: List<QuickCreationServiceField>): QuickCreationServiceModel =
+    private fun serviceModel(
+        fields: List<QuickCreationServiceField>,
+        pricing: QuickCreationServicePricing? = null,
+    ): QuickCreationServiceModel =
         QuickCreationServiceModel(
             categoryId = "IMAGE",
             groupName = "图片生成",
@@ -123,6 +176,7 @@ class QuickCreateFeePreviewInteractorTest {
             name = "测试模型",
             description = null,
             fields = fields,
+            pricing = pricing,
         )
 
     private fun requiredOptionField(): QuickCreationServiceField =

@@ -18,7 +18,18 @@ class QuickCreateServiceModelUiModelTest {
         assertEquals(listOf("binding-1|sku-1", "binding-2|sku-2"), items.map { it.identityKey })
         assertFalse(items.first().selected)
         assertTrue(items.last().selected)
-        assertEquals("G-2.0", items.last().compactName)
+        assertEquals("全能图片 G-2.0", items.last().compactName)
+    }
+
+    @Test
+    fun `service model ui normalizes all power image G2 route names for compact entry`() {
+        val textToImage = serviceModel(name = "全能图片G-2-文生图-官方稳定版").toQuickCreateServiceModelUi()
+        val imageToImage = serviceModel(name = "全能图片G-2-图生图-官方稳定版").toQuickCreateServiceModelUi()
+        val lowPrice = serviceModel(name = "全能图片G-2.0-文生图-低价渠道版").toQuickCreateServiceModelUi()
+
+        assertEquals("全能图片 G-2.0", textToImage.compactName)
+        assertEquals("全能图片 G-2.0", imageToImage.compactName)
+        assertEquals("全能图片 G-2.0", lowPrice.compactName)
     }
 
     @Test
@@ -37,6 +48,7 @@ class QuickCreateServiceModelUiModelTest {
     @Test
     fun `compact label keeps selected or fallback model while catalog is loading`() {
         val model = serviceModel(name = "示例模型").toQuickCreateServiceModelUi()
+        val g2Model = serviceModel(name = "全能图片G-2-文生图-官方稳定版").toQuickCreateServiceModelUi()
 
         assertEquals(
             QuickCreateCompactServiceModelLabel.ModelName("示例模型"),
@@ -45,6 +57,10 @@ class QuickCreateServiceModelUiModelTest {
         assertEquals(
             QuickCreateCompactServiceModelLabel.ModelName("示例模型"),
             quickCreateCompactServiceModelLabel(model, fallback = "本地", loading = false),
+        )
+        assertEquals(
+            QuickCreateCompactServiceModelLabel.ModelName("全能图片 G-2.0"),
+            quickCreateCompactServiceModelLabel(g2Model, fallback = "全能图片 G-2.0", loading = false),
         )
         assertEquals(
             QuickCreateCompactServiceModelLabel.FallbackName("本地"),

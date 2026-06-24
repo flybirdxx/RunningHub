@@ -109,6 +109,93 @@ class QuickCreateTaskPollingControllerTest {
     }
 
     @Test
+    fun `collect keeps success terminal state when success has no outputs`() = runTest {
+        val uiState = MutableStateFlow(
+            QuickCreateUiState(
+                taskStatus = QuickCreateTaskUiStatus.RUNNING,
+                statusText = QuickCreateTaskStatusText.Running(progressPercent = 96),
+            )
+        )
+        var successCallbacks = 0
+        val controller = QuickCreateTaskPollingController(
+            uiState = uiState,
+            onTaskQueued = {},
+            onTaskSucceeded = { successCallbacks += 1 },
+        )
+
+        controller.collect(
+            flowOf(
+                QuickCreateTaskStatus.Success(
+                    taskId = "task-empty-output",
+                    results = emptyList(),
+                )
+            )
+        )
+
+        assertEquals(1, successCallbacks)
+        assertEquals(QuickCreateTaskUiStatus.SUCCESS, uiState.value.taskStatus)
+        assertEquals(QuickCreateTaskStatusText.Success, uiState.value.statusText)
+        assertEquals(emptyList(), uiState.value.results)
+    }
+
+    @Test
+    fun `collect success updates latest conversation item without replacing previous items`() = runTest {
+        val previousResult = QuickCreateResultUi(
+            url = "https://example.com/old.png",
+            type = "png",
+            mediaType = QuickCreateResultMediaType.IMAGE,
+        )
+        val uiState = MutableStateFlow(
+            QuickCreateUiState(
+                submittedPrompt = "new prompt",
+                taskStatus = QuickCreateTaskUiStatus.RUNNING,
+                statusText = QuickCreateTaskStatusText.Running(progressPercent = 0),
+                conversationItems = listOf(
+                    QuickCreateConversationItemUi(
+                        prompt = "old prompt",
+                        taskStatus = QuickCreateTaskUiStatus.SUCCESS,
+                        statusText = QuickCreateTaskStatusText.Success,
+                        results = listOf(previousResult),
+                    ),
+                    QuickCreateConversationItemUi(
+                        prompt = "new prompt",
+                        taskStatus = QuickCreateTaskUiStatus.RUNNING,
+                        statusText = QuickCreateTaskStatusText.Running(progressPercent = 0),
+                    ),
+                ),
+            )
+        )
+        val controller = QuickCreateTaskPollingController(
+            uiState = uiState,
+            onTaskQueued = {},
+            onTaskSucceeded = {},
+        )
+
+        controller.collect(
+            flowOf(
+                QuickCreateTaskStatus.Success(
+                    taskId = "task-2",
+                    results = listOf(
+                        QuickCreateResultItem(
+                            url = "https://example.com/new.png",
+                            type = "png",
+                        )
+                    ),
+                )
+            )
+        )
+
+        val items = uiState.value.conversationItems
+        assertEquals(2, items.size)
+        assertEquals("old prompt", items[0].prompt)
+        assertEquals(listOf(previousResult), items[0].results)
+        assertEquals(QuickCreateTaskUiStatus.SUCCESS, items[0].taskStatus)
+        assertEquals("new prompt", items[1].prompt)
+        assertEquals(QuickCreateTaskUiStatus.SUCCESS, items[1].taskStatus)
+        assertEquals(listOf("https://example.com/new.png"), items[1].results.map { it.url })
+    }
+
+    @Test
     fun `collect maps unknown error to generic message and clears transient status text`() = runTest {
         val uiState = MutableStateFlow(
             QuickCreateUiState(
@@ -174,11 +261,26 @@ class QuickCreateTaskPollingControllerTest {
                 taskStatus = QuickCreateTaskUiStatus.SUCCESS,
                 statusText = QuickCreateTaskStatusText.Success,
                 error = QuickCreatePresentationError.GenerationFailed.asQuickCreateUiMessage(),
+                submittedPrompt = "green icon",
                 results = listOf(
                     QuickCreateResultUi(
                         url = "https://example.com/result.png",
                         type = "png",
                         mediaType = QuickCreateResultMediaType.IMAGE,
+                    )
+                ),
+                conversationItems = listOf(
+                    QuickCreateConversationItemUi(
+                        prompt = "green icon",
+                        taskStatus = QuickCreateTaskUiStatus.SUCCESS,
+                        statusText = QuickCreateTaskStatusText.Success,
+                        results = listOf(
+                            QuickCreateResultUi(
+                                url = "https://example.com/result.png",
+                                type = "png",
+                                mediaType = QuickCreateResultMediaType.IMAGE,
+                            )
+                        ),
                     )
                 ),
             )
@@ -194,7 +296,9 @@ class QuickCreateTaskPollingControllerTest {
 
         assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
         assertEquals(null, uiState.value.statusText)
+        assertEquals("", uiState.value.submittedPrompt)
         assertEquals(emptyList(), uiState.value.results)
+        assertEquals(emptyList(), uiState.value.conversationItems)
         assertEquals(QuickCreatePresentationError.GenerationFailed.asQuickCreateUiMessage(), uiState.value.error)
     }
 }

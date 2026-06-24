@@ -74,14 +74,15 @@ private fun mapResults(results: List<QuickCreateResultDto>?): List<QuickCreateRe
     } ?: emptyList()
 
 private fun mapQuickCreationOutputs(outputs: List<QuickCreationOutputDto>): List<QuickCreateResultItem> =
-    outputs.map { output ->
+    outputs.mapNotNull { output ->
+        val fileUrl = output.fileUrl.takeIf { it.isNotBlank() } ?: return@mapNotNull null
         val sizeParts = output.outputSize
             ?.split("x", "X")
             ?.takeIf { it.size == 2 }
 
         QuickCreateResultItem(
-            url = output.fileUrl,
-            type = output.outputType ?: inferResultType(output.fileUrl),
+            url = fileUrl,
+            type = output.outputType ?: inferResultType(fileUrl),
             thumbnailUrl = output.filePreviewUrl,
             width = sizeParts?.getOrNull(0)?.toIntOrNull(),
             height = sizeParts?.getOrNull(1)?.toIntOrNull(),
@@ -105,6 +106,8 @@ private val quickCreationParamJson = Json {
 
 private const val STANDARD_MODEL_CATALOG_PAGE_SIZE = 30
 private const val STANDARD_MODEL_CATALOG_MAX_PAGES = 20
+private const val QUICK_CREATION_POLL_PAGE_SIZE = 50
+private const val QUICK_CREATION_POLL_MAX_PAGES = 5
 
 private fun JsonElement.asParamString(): String? =
     (this as? JsonPrimitive)?.jsonPrimitive?.contentOrNull
@@ -135,6 +138,25 @@ private fun QuickCreationTaskPageDto.toHistoryPage(): QuickCreationHistoryPage =
         total = total.asIntOrZero(),
         items = records.ifEmpty { list }.map { it.toHistoryItem() },
     )
+
+private val QuickCreationTaskPageDto.taskRecords: List<QuickCreationTaskRecordDto>
+    get() = records.ifEmpty { list }
+
+private fun QuickCreationTaskPageDto.hasMorePages(
+    currentPage: Int,
+    requestedPageSize: Int,
+): Boolean {
+    hasNext?.let { return it }
+    val totalPages = pages.asIntOrZero()
+    if (totalPages > 0) {
+        return currentPage < totalPages
+    }
+    val totalItems = total.asIntOrZero()
+    if (totalItems > 0) {
+        return currentPage * requestedPageSize < totalItems
+    }
+    return taskRecords.size >= requestedPageSize
+}
 
 private fun QuickCreationProjectPageDto.toProjectPage(): QuickCreationProjectPage =
     QuickCreationProjectPage(
@@ -298,27 +320,32 @@ private fun pollQuickCreationTaskStatus(
     var attempts = 0
     val maxAttempts = 120
     while (attempts < maxAttempts) {
-        val page = api.listQuickCreationTasks(page = 1, size = 10)
+        val lookup = findQuickCreationTaskRecord(api = api, taskId = taskId)
         attempts++
 
-        if (page.code != 0) {
-            // 任务轮询失败只向上游暴露稳定错误码，避免远端 msg/message 直接进入页面状态。
-            emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.TASK_QUERY_FAILED))
-            return@flow
+        val record = when (lookup) {
+            QuickCreationTaskRecordLookup.QueryFailed -> {
+                // 任务轮询失败只向上游暴露稳定错误码，避免远端 msg/message 直接进入页面状态。
+                emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.TASK_QUERY_FAILED))
+                return@flow
+            }
+            QuickCreationTaskRecordLookup.Missing -> {
+                emit(QuickCreateTaskStatus.Queuing(taskId))
+                delay(2000)
+                continue
+            }
+            is QuickCreationTaskRecordLookup.Found -> lookup.record
         }
 
-        val record = page.data?.list?.firstOrNull { it.taskId == taskId }
-        if (record == null) {
-            emit(QuickCreateTaskStatus.Queuing(taskId))
-            delay(2000)
-            continue
-        }
-
-        val status: QuickCreateTaskStatus = when (record.taskStatus) {
+        val normalizedStatus = record.taskStatus.trim().uppercase()
+        val status: QuickCreateTaskStatus = when (normalizedStatus) {
             "SUCCESS" -> QuickCreateTaskStatus.Success(taskId, mapQuickCreationOutputs(record.outputList))
             "FAILED", "FAILURE", "ERROR" -> QuickCreateTaskStatus.Failed(taskId, QuickCreateTaskIssueCode.TASK_FAILED)
             "CANCELED", "CANCELLED" -> QuickCreateTaskStatus.Cancelled(taskId)
-            "RUNNING", "PROCESSING" -> QuickCreateTaskStatus.Running(taskId, 0)
+            "RUNNING", "PROCESSING" -> QuickCreateTaskStatus.Running(
+                taskId = taskId,
+                progress = record.normalizedProgressPercent() ?: 0,
+            )
             else -> QuickCreateTaskStatus.Queuing(taskId)
         }
 
@@ -329,6 +356,41 @@ private fun pollQuickCreationTaskStatus(
         delay(2000)
     }
     emit(QuickCreateTaskStatus.Error(QuickCreateTaskIssueCode.TASK_TIMEOUT))
+}
+
+private sealed interface QuickCreationTaskRecordLookup {
+    data class Found(val record: QuickCreationTaskRecordDto) : QuickCreationTaskRecordLookup
+    data object Missing : QuickCreationTaskRecordLookup
+    data object QueryFailed : QuickCreationTaskRecordLookup
+}
+
+/**
+ * 在快捷创作任务列表中按页查找刚提交的任务。
+ *
+ * 生成接口只返回 taskId，轮询端必须从历史分页中反查记录。真实账号任务多时目标任务未必位于第一页，
+ * 因此每轮轮询最多向后扫描少量页面，避免把后台已经成功的任务误判为客户端超时。
+ */
+private suspend fun findQuickCreationTaskRecord(
+    api: QuickCreateApi,
+    taskId: String,
+): QuickCreationTaskRecordLookup {
+    var pageIndex = 1
+    while (pageIndex <= QUICK_CREATION_POLL_MAX_PAGES) {
+        val page = api.listQuickCreationTasks(page = pageIndex, size = QUICK_CREATION_POLL_PAGE_SIZE)
+        if (page.code != 0) {
+            return QuickCreationTaskRecordLookup.QueryFailed
+        }
+
+        val data = page.data ?: return QuickCreationTaskRecordLookup.Missing
+        data.taskRecords.firstOrNull { it.taskId == taskId }?.let { record ->
+            return QuickCreationTaskRecordLookup.Found(record)
+        }
+        if (!data.hasMorePages(currentPage = pageIndex, requestedPageSize = QUICK_CREATION_POLL_PAGE_SIZE)) {
+            return QuickCreationTaskRecordLookup.Missing
+        }
+        pageIndex += 1
+    }
+    return QuickCreationTaskRecordLookup.Missing
 }
 
 /**

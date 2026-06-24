@@ -12,6 +12,7 @@ import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateIn
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailUiItem
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectUiItem
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateConversationItemUi
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultUi
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
@@ -24,7 +25,8 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * 网络请求、DataStore、平台 URI 权限和远程任务轮询都应由外部协作者通过不可变 `copy` 回写。
  *
  * 状态不变量：
- * - [estimatedCost] 优先展示服务端计费预览成功后的价格；预览不可用或失败时回退到当前配置的本地估算。
+ * - [estimatedCost] 优先展示当前服务模型的目录价格；目录价格缺失时使用服务端计费预览价格，
+ *   预览不可用或失败时回退到当前配置的本地估算。
  * - [selectedImageServiceModelUi] 与 [selectedImageServiceModel] 应描述同一个图片服务模型。
  * - [selectedVideoServiceModelUi] 与 [selectedVideoServiceModel] 应描述同一个视频服务模型。
  * - [historyItems] 在选中项目时表示项目任务，否则表示最近历史。
@@ -37,17 +39,24 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * 默认对象表示用户尚未输入图片创作内容；其中素材引用只保存跨平台字符串和远程 URL，不持有平台文件对象。
  * @property videoConfig 视频编辑区输入和本地参数。
  * 默认对象表示用户尚未输入视频创作内容；其中时长、分辨率和开关会参与计费预览与生成请求。
+ * @property submittedPrompt 当前主生成任务已经提交的提示词快照。
+ * 空字符串表示用户仍在编辑且尚未点击生成，或当前结果已被清理；非空值只在生成入口通过提交前校验后写入。
+ * 该字段与 [imageConfig] / [videoConfig] 中的输入草稿分离，避免用户打字时提前在显示区生成对话气泡。
  * @property taskStatus 当前页面主生成任务状态。
- * [QuickCreateTaskUiStatus.IDLE] 表示没有提交中的任务；非空闲状态由生成和轮询流程回写。
+ * [QuickCreateTaskUiStatus.IDLE] 表示没有提交中的任务；非空闲状态由生成和轮询流程回写。该字段表示最新任务，
+ * 对话区历史应读取 [conversationItems]，不能用它推断所有旧任务状态。
  * @property statusText 生成、上传或轮询阶段展示的辅助状态文案语义。
  * `null` 表示当前没有需要固定展示的阶段说明；非空值由 composeApp 映射为本地化资源或受控运行时说明，
  * 本字段不得保存 Token、Cookie、API Key、密码等敏感数据，也不得作为持久任务状态来源。
  * @property results 最近一次成功生成或轮询得到的输出结果。
  * 顺序来自生成流程或服务端输出顺序；空集合表示当前没有可展示结果。
+ * @property conversationItems 当前页面生命周期内已经提交的生成会话条目。
+ * 顺序按提交时间从旧到新排列；新任务追加到末尾，轮询只更新末尾条目。空集合表示没有任何提交过的任务。
  * @property error 等待页面展示的一次性错误提示语义。
  * `null` 表示没有待展示错误；非空时由 UI 展示后通过对应事件清理，避免重组重复提示。
  * 新增场景必须写入稳定语义，不得直接保存最终中文文案或远端异常摘要。
- * @property estimatedCost 当前生成入口展示的价格，单位为 RunningHub 业务余额或现金金额。
+ * @property estimatedCost 当前生成入口展示的价格，单位为人民币元或 RunningHub 业务余额。
+ * 选中服务模型存在目录价格时该值来自目录价格摘要；否则来自服务端计费预览或本地兼容估算。
  * `0.0` 表示免费、尚未计算或本地默认估算为零；不允许为负数。
  * @property feePreviewLoading 是否正在执行计费预览请求。
  * `true` 表示生成入口应避免提交并展示等待状态；`false` 表示当前没有进行中的计费预览。
@@ -140,9 +149,11 @@ data class QuickCreateUiState(
     val currentTab: QuickCreateTab = QuickCreateTab.IMAGE,
     val imageConfig: ImageConfig = ImageConfig(),
     val videoConfig: VideoConfig = VideoConfig(),
+    val submittedPrompt: String = "",
     val taskStatus: QuickCreateTaskUiStatus = QuickCreateTaskUiStatus.IDLE,
     val statusText: QuickCreateTaskStatusText? = null,
     val results: List<QuickCreateResultUi> = emptyList(),
+    val conversationItems: List<QuickCreateConversationItemUi> = emptyList(),
     val error: QuickCreateUiMessage? = null,
     val estimatedCost: Double = 0.0,
     val feePreviewLoading: Boolean = false,

@@ -4,7 +4,11 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 
 private const val COMPACT_ALL_PURPOSE_IMAGE_NO_SPACE = "\u5168\u80fd\u56fe\u7247G-2.0"
 private const val COMPACT_ALL_PURPOSE_IMAGE_WITH_SPACE = "\u5168\u80fd\u56fe\u7247 G-2.0"
+private const val COMPACT_ALL_PURPOSE_IMAGE_G2_LEGACY_NO_SPACE = "\u5168\u80fd\u56fe\u7247G-2"
+private const val COMPACT_ALL_PURPOSE_IMAGE_G2_LEGACY_WITH_SPACE = "\u5168\u80fd\u56fe\u7247 G-2"
+private const val COMPACT_ALL_PURPOSE_IMAGE_G2_LABEL = "\u5168\u80fd\u56fe\u7247 G-2.0"
 private const val COMPACT_OFFICIAL_SUFFIX = "\u5b98\u65b9\u7248"
+private const val COMPACT_OFFICIAL_STABLE_SUFFIX = "\u5b98\u65b9\u7a33\u5b9a\u7248"
 
 /**
  * 快捷创作服务端模型在 Presentation 层使用的 UI 模型。
@@ -241,11 +245,19 @@ fun quickCreateCompactServiceModelLabel(
         else -> QuickCreateCompactServiceModelLabel.FallbackName(fallback)
     }
 
-private fun String.toQuickCreateCompactServiceModelLabel(): String =
+private fun String.toQuickCreateCompactServiceModelLabel(): String {
     // 这里处理的是服务端模型名称的运行时规整，不是本地 UI 文案；
-    // 使用转义常量保留既有兼容规则，同时避免治理门禁把它误判为硬编码展示文案。
-    replace(COMPACT_ALL_PURPOSE_IMAGE_NO_SPACE, "G-2.0")
-        .replace(COMPACT_ALL_PURPOSE_IMAGE_WITH_SPACE, "G-2.0")
+    // G-2 服务端会在缓存和远端目录之间返回 “G-2.0 / G-2-文生图 / G-2-图生图”
+    // 等不同命名，底部紧凑入口必须统一到本地兜底同款短名，避免异步刷新时标签跳变。
+    if (startsWith(COMPACT_ALL_PURPOSE_IMAGE_NO_SPACE) ||
+        startsWith(COMPACT_ALL_PURPOSE_IMAGE_WITH_SPACE) ||
+        startsWith(COMPACT_ALL_PURPOSE_IMAGE_G2_LEGACY_NO_SPACE) ||
+        startsWith(COMPACT_ALL_PURPOSE_IMAGE_G2_LEGACY_WITH_SPACE)
+    ) {
+        return COMPACT_ALL_PURPOSE_IMAGE_G2_LABEL
+    }
+    return replace(COMPACT_OFFICIAL_STABLE_SUFFIX, "")
         .replace(COMPACT_OFFICIAL_SUFFIX, "")
         .trim(' ', '-', '·')
         .take(18)
+}

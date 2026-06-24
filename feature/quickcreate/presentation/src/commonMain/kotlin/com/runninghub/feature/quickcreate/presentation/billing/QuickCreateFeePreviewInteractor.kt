@@ -3,6 +3,7 @@ package com.runninghub.feature.quickcreate.presentation.billing
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationServicePricing
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
@@ -255,10 +256,24 @@ class QuickCreateFeePreviewInteractor(
         }
 
     private fun QuickCreateUiState.currentLocalEstimatedCost(): Double =
+        currentServiceCatalogEstimatedCost()
+            ?: if (currentTab == QuickCreateTab.IMAGE) {
+                imageConfig.estimatedCost
+            } else {
+                videoConfig.estimatedCost
+            }
+
+    private fun QuickCreateUiState.currentServiceCatalogEstimatedCost(): Double? =
         if (currentTab == QuickCreateTab.IMAGE) {
-            imageConfig.estimatedCost
+            selectedImageServiceModel
+                ?.pricing
+                .quickCreateCashAmountOrNull()
+                ?.let { serviceUnitPrice -> serviceUnitPrice * imageConfig.count }
         } else {
-            videoConfig.estimatedCost
+            selectedVideoServiceModel
+                ?.pricing
+                .quickCreateCashAmountOrNull()
+                ?.let { serviceUnitPrice -> serviceUnitPrice * videoConfig.count }
         }
 
     private fun clearFeePreviewState() {
@@ -283,7 +298,11 @@ class QuickCreateFeePreviewInteractor(
         // 余额不足时保留本地估价，避免失败的服务端预览把按钮价格改成一个不可提交的价格。
         uiState.update {
             it.copy(
-                estimatedCost = if (previewError == null) previewCost else it.currentLocalEstimatedCost(),
+                estimatedCost = if (previewError == null) {
+                    it.currentServiceCatalogEstimatedCost() ?: previewCost
+                } else {
+                    it.currentLocalEstimatedCost()
+                },
                 feePreviewLoading = false,
                 feePreviewError = previewError,
                 feePreviewRequestKey = if (previewError == null) requestKey else null,
@@ -303,3 +322,26 @@ class QuickCreateFeePreviewInteractor(
         }
     }
 }
+
+/**
+ * 从服务模型目录价格摘要中提取可用于本地展示的现金单价。
+ *
+ * 服务端 fee-preview 仍然是最终计费事实；该解析结果只在请求尚未构建、预览失败或预览未返回时，
+ * 作为生成按钮的临时价格展示，避免回退到旧的本地兼容模型价格。
+ */
+internal fun QuickCreationServicePricing?.quickCreateCashAmountOrNull(): Double? {
+    if (this == null) return null
+    if (isFree || isTimeFree || freeRemaining > 0) return 0.0
+
+    return listOf(priceSummaryRaw, flatPriceRaw, dimensionPricingRaw)
+        .asSequence()
+        .mapNotNull { raw -> raw?.quickCreateFirstPositiveNumberOrNull() }
+        .firstOrNull()
+}
+
+private fun String.quickCreateFirstPositiveNumberOrNull(): Double? =
+    Regex("""\d+(?:\.\d+)?""")
+        .find(this)
+        ?.value
+        ?.toDoubleOrNull()
+        ?.takeIf { it >= 0.0 }

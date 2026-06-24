@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -31,6 +30,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -52,6 +53,7 @@ import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendBu
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.generation.quickCreateGenerationParameterSnapshot
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateCompactServiceModelLabel
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.quickCreateCompactServiceModelLabel
@@ -79,7 +81,7 @@ import runninghub.composeapp.generated.resources.quick_create_send_generate
  *
  * 组件只负责提示词、已选素材预览、模型入口、参数入口和生成按钮的可视化；模型选择、
  * 媒体选择、参数编辑和任务提交仍通过回调交给 ScreenModel，避免 Composable 直接触碰业务逻辑。
- * 空输入时右侧主按钮承担图片上传入口；输入非空或已有素材时，上方只展示已选素材和紧邻的追加入口。
+ * 空输入时右侧主按钮承担图片上传入口；已有素材时，上方只展示已选素材和紧邻的追加入口。
  * 已选图片优先使用本地 URI 做即时预览，避免远端上传地址暂不可读时出现空缩略图。
  *
  * @param uiState 快捷创作页面状态，用于读取当前 Sheet、计费预览和本地参数摘要。
@@ -124,13 +126,20 @@ internal fun QuickCreateCompactComposer(
     onGenerate: () -> Unit,
 ) {
     val hasPrompt = prompt.isNotBlank()
-    val showMediaUploadStrip = hasPrompt || mediaReferences.isNotEmpty()
+    val showMediaUploadStrip = mediaReferences.isNotEmpty()
+    val focusManager = LocalFocusManager.current
+
+    LaunchedEffect(isTaskActive) {
+        if (isTaskActive) {
+            // 生成提交后输入框内容会被清空，这里同步释放焦点，避免输入法继续把输入条顶到高位。
+            focusManager.clearFocus(force = true)
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
-            .imePadding()
             .navigationBarsPadding()
             .padding(bottom = 12.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -276,6 +285,7 @@ private fun CompactMediaUploadStrip(
         }
         CompactMediaAddSlot(
             onAdd = onAdd,
+            framed = mediaReferences.isNotEmpty(),
             modifier = Modifier.size(108.dp),
         )
     }
@@ -292,7 +302,7 @@ private fun CompactMediaPreviewSlot(
 
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = QuickCreateDesignTokens.PanelStrong,
+        color = Color.Transparent,
         modifier = modifier,
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -366,33 +376,50 @@ private fun CompactMediaPreviewSlot(
 @Composable
 private fun CompactMediaAddSlot(
     onAdd: () -> Unit,
+    framed: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    if (!framed) {
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center,
+        ) {
+            CompactMediaAddCircle(onAdd = onAdd)
+        }
+        return
+    }
+
     Surface(
         onClick = onAdd,
         shape = RoundedCornerShape(16.dp),
-        color = Color(0xFF17131F),
+        color = Color.Transparent,
         border = BorderStroke(1.dp, QuickCreateDesignTokens.Purple.copy(alpha = 0.54f)),
         modifier = modifier,
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Surface(
-                shape = CircleShape,
-                color = QuickCreateDesignTokens.Purple.copy(alpha = 0.24f),
-                border = BorderStroke(1.dp, QuickCreateDesignTokens.Purple.copy(alpha = 0.72f)),
-                modifier = Modifier.size(38.dp),
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(
-                            Res.string.quick_create_compact_add_media_content_description,
-                        ),
-                        modifier = Modifier.size(22.dp),
-                        tint = QuickCreateDesignTokens.Text,
-                    )
-                }
-            }
+            CompactMediaAddCircle(onAdd = onAdd)
+        }
+    }
+}
+
+@Composable
+private fun CompactMediaAddCircle(onAdd: () -> Unit) {
+    Surface(
+        onClick = onAdd,
+        shape = CircleShape,
+        color = QuickCreateDesignTokens.Purple.copy(alpha = 0.24f),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Purple.copy(alpha = 0.72f)),
+        modifier = Modifier.size(38.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = stringResource(
+                    Res.string.quick_create_compact_add_media_content_description,
+                ),
+                modifier = Modifier.size(22.dp),
+                tint = QuickCreateDesignTokens.Text,
+            )
         }
     }
 }
@@ -550,10 +577,11 @@ private fun QuickCreateCompactServiceModelLabel.asCompactModelText(): String =
 @Composable
 private fun compactParamsSummary(uiState: QuickCreateUiState, isImage: Boolean): String =
     if (isImage) {
+        val parameterSnapshot = uiState.quickCreateGenerationParameterSnapshot()
         stringResource(
             Res.string.quick_create_compact_image_params_format,
-            uiState.imageConfig.aspectRatio.displayName,
-            uiState.imageConfig.resolution.displayName,
+            parameterSnapshot.aspectRatio,
+            parameterSnapshot.resolution,
         )
     } else {
         stringResource(Res.string.quick_create_compact_video_params_summary)

@@ -22,15 +22,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,6 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -50,60 +47,61 @@ import com.runninghub.app.ui.feature.quickcreate.QuickCreateModelGlyph
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheetHandle
 import com.runninghub.app.ui.feature.quickcreate.presentation.asServiceModelText
 import com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer.asImageModelText
-import com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer.asImageQualityText
+import com.runninghub.app.ui.feature.quickcreate.presentation.upload.QuickCreateServiceUploadFieldPicker
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
 import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
 import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldControlType
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldUi
+import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceUploadMediaType
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
-import runninghub.composeapp.generated.resources.quick_create_params_aspect_ratio_key
-import runninghub.composeapp.generated.resources.quick_create_params_aspect_ratio_title
 import runninghub.composeapp.generated.resources.quick_create_params_close_content_description
 import runninghub.composeapp.generated.resources.quick_create_params_common_title
-import runninghub.composeapp.generated.resources.quick_create_params_count_key
-import runninghub.composeapp.generated.resources.quick_create_params_count_title
 import runninghub.composeapp.generated.resources.quick_create_params_done
+import runninghub.composeapp.generated.resources.quick_create_params_empty_parameters
 import runninghub.composeapp.generated.resources.quick_create_params_endpoint_label
 import runninghub.composeapp.generated.resources.quick_create_params_endpoint_value
 import runninghub.composeapp.generated.resources.quick_create_params_model_label
-import runninghub.composeapp.generated.resources.quick_create_params_quality_key
-import runninghub.composeapp.generated.resources.quick_create_params_quality_recommended_format
-import runninghub.composeapp.generated.resources.quick_create_params_quality_title
-import runninghub.composeapp.generated.resources.quick_create_params_resolution_key
-import runninghub.composeapp.generated.resources.quick_create_params_resolution_title
-import runninghub.composeapp.generated.resources.quick_create_params_restore_defaults
+import runninghub.composeapp.generated.resources.quick_create_params_parameter_count_format
 import runninghub.composeapp.generated.resources.quick_create_params_sheet_title
-import runninghub.composeapp.generated.resources.quick_create_params_changed_count_format
+import runninghub.composeapp.generated.resources.quick_create_params_upload_formats_format
+import runninghub.composeapp.generated.resources.quick_create_params_upload_hint_separator
+import runninghub.composeapp.generated.resources.quick_create_params_upload_max_count_format
+import runninghub.composeapp.generated.resources.quick_create_params_upload_max_size_format
 
 /**
  * 展示设计稿版快捷创作参数底部面板。
  *
- * 该组件只渲染图片创作常用参数和当前服务模型摘要，参数变更通过回调回到 ScreenModel；
- * 服务端动态字段在本轮 UI 重构中不直接展开，避免把远端字段表单与设计图中的常用参数面板混杂。
+ * 该组件渲染当前模型声明的全部可用服务字段，参数变更通过回调回到 ScreenModel。
+ * 不再使用客户端硬编码参数兜底：模型有字段才显示，没有字段就展示空态。
  *
  * @param visible 是否显示底部面板。
  * @param isImage 当前是否编辑图片创作；`false` 时仍展示模型摘要和当前视频配置的只读降级面板。
  * @param uiState 快捷创作页面状态。
- * @param serviceFields 当前服务端动态字段列表，本设计稿版暂不直接渲染，仅保留参数以维持调用契约。
+ * @param serviceFields 当前服务端动态字段列表，已按当前参数解析可见性和 child 激活状态。
  * @param onDismiss 关闭面板回调。
  * @param onImageModelSelected 本地兼容图片模型选择回调，本设计稿中不直接展示本地模型列表。
- * @param onImageServiceParamChange 图片服务动态字段变更回调，本设计稿中不直接触发。
- * @param onVideoServiceParamChange 视频服务动态字段变更回调，本设计稿中不直接触发。
+ * @param onImageServiceParamChange 图片服务动态字段变更回调。
+ * @param onVideoServiceParamChange 视频服务动态字段变更回调。
  * @param onToggleRealistic 视频真人模式切换回调，本设计稿中不直接触发。
  * @param onImageSeedChange 图片 Seed 变更回调，本设计稿中不直接触发。
  * @param onVideoSeedChange 视频 Seed 变更回调，本设计稿中不直接触发。
- * @param onServiceUploadFieldClick 字段级上传回调，本设计稿中不直接触发。
- * @param onRemoveMedia 移除字段素材回调，本设计稿中不直接触发。
+ * @param onServiceUploadFieldClick 字段级上传回调。
+ * @param onRemoveMedia 移除字段素材回调。
  * @param onImageRatioChange 图片宽高比变更回调。
  * @param onImageResChange 图片分辨率变更回调。
  * @param onImageQualityChange 图片质量变更回调。
  * @param onImageCountChange 图片生成数量变更回调。
  * @param modifier 外层定位修饰符。
+ * @param onSheetDragStart 用户按住顶部手柄开始拖动时触发。
+ * @param onSheetDrag 顶部手柄拖动中的纵向像素变化，正数表示向下。
+ * @param onSheetDragEnd 用户松手结束拖动时触发。
+ * @param onSheetDragCancel 手柄拖动被系统取消时触发。
  */
 @Composable
 @Suppress("UNUSED_PARAMETER")
@@ -126,6 +124,10 @@ internal fun QuickCreateParamsSheet(
     onImageQualityChange: (ImageQuality) -> Unit = {},
     onImageCountChange: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
+    onSheetDragStart: () -> Unit = {},
+    onSheetDrag: (Float) -> Unit = {},
+    onSheetDragEnd: () -> Unit = {},
+    onSheetDragCancel: () -> Unit = {},
 ) {
     AnimatedVisibility(
         visible = visible,
@@ -145,7 +147,13 @@ internal fun QuickCreateParamsSheet(
                     .navigationBarsPadding()
                     .padding(horizontal = 16.dp, vertical = 10.dp),
             ) {
-                QuickCreateSheetHandle(modifier = Modifier.align(Alignment.CenterHorizontally))
+                QuickCreateSheetHandle(
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    onDragStart = onSheetDragStart,
+                    onDrag = onSheetDrag,
+                    onDragEnd = onSheetDragEnd,
+                    onDragCancel = onSheetDragCancel,
+                )
                 ParamsSheetHeader(onDismiss = onDismiss)
                 Column(
                     modifier = Modifier
@@ -156,22 +164,26 @@ internal fun QuickCreateParamsSheet(
                 ) {
                     ModelSummaryCard(uiState = uiState, isImage = isImage)
                     CommonSectionTitle()
-                    ImageCommonParamsGrid(
-                        uiState = uiState,
-                        onImageRatioChange = onImageRatioChange,
-                        onImageResChange = onImageResChange,
-                        onImageQualityChange = onImageQualityChange,
-                        onImageCountChange = onImageCountChange,
+                    ServiceParamsSection(
+                        serviceFields = serviceFields,
+                        mediaReferences = if (isImage) {
+                            uiState.imageConfig.mediaReferences
+                        } else {
+                            uiState.videoConfig.mediaReferences
+                        },
+                        isImage = isImage,
+                        onParamChange = { paramKey, value ->
+                            if (isImage) {
+                                onImageServiceParamChange(paramKey, value)
+                            } else {
+                                onVideoServiceParamChange(paramKey, value)
+                            }
+                        },
+                        onServiceUploadFieldClick = onServiceUploadFieldClick,
+                        onRemoveMedia = onRemoveMedia,
                     )
                     ParamsActionBar(
-                        changedCount = calculateChangedCount(uiState),
-                        onRestoreDefaults = {
-                            val defaults = uiState.imageConfig.model
-                            onImageRatioChange(defaults.defaultAspectRatio)
-                            onImageResChange(defaults.defaultResolution)
-                            onImageQualityChange(defaults.defaultQuality)
-                            onImageCountChange(1)
-                        },
+                        parameterCount = serviceFields.visibleFieldCount(),
                         onDone = onDismiss,
                     )
                 }
@@ -297,69 +309,212 @@ private fun CommonSectionTitle() {
 }
 
 @Composable
-private fun ImageCommonParamsGrid(
-    uiState: QuickCreateUiState,
-    onImageRatioChange: (ImageAspectRatio) -> Unit,
-    onImageResChange: (ImageResolution) -> Unit,
-    onImageQualityChange: (ImageQuality) -> Unit,
-    onImageCountChange: (Int) -> Unit,
+private fun ServiceParamsSection(
+    serviceFields: List<QuickCreationServiceFieldUi>,
+    mediaReferences: List<MediaReference>,
+    isImage: Boolean,
+    onParamChange: (String, String) -> Unit,
+    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
+    onRemoveMedia: (String) -> Unit,
 ) {
-    val imageConfig = uiState.imageConfig
+    val flattenedFields = serviceFields.flattenServiceFields()
+        .filterNot { field -> field.isPromptParameterField() }
+    if (flattenedFields.isEmpty()) {
+        EmptyParamsCard()
+        return
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ParamCard(
-                title = stringResource(Res.string.quick_create_params_aspect_ratio_title),
-                keyName = stringResource(Res.string.quick_create_params_aspect_ratio_key),
-                modifier = Modifier.weight(1f),
-            ) {
-                SegmentedControl(
-                    items = listOf(
-                        ImageAspectRatio.RATIO_1_1,
-                        ImageAspectRatio.RATIO_9_16,
-                        ImageAspectRatio.RATIO_16_9,
-                    ),
-                    selected = imageConfig.aspectRatio,
-                    label = { it.displayName },
-                    onSelect = onImageRatioChange,
-                )
-            }
-            ParamCard(
-                title = stringResource(Res.string.quick_create_params_resolution_title),
-                keyName = stringResource(Res.string.quick_create_params_resolution_key),
-                modifier = Modifier.weight(1f),
-            ) {
-                SegmentedControl(
-                    items = listOf(
-                        ImageResolution.RES_1K,
-                        ImageResolution.RES_2K,
-                        ImageResolution.RES_4K,
-                    ),
-                    selected = imageConfig.resolution,
-                    label = { it.displayName },
-                    onSelect = onImageResChange,
-                )
-            }
+        flattenedFields.forEach { field ->
+            ServiceParamCard(
+                field = field,
+                mediaReferences = mediaReferences,
+                isImage = isImage,
+                onParamChange = onParamChange,
+                onServiceUploadFieldClick = onServiceUploadFieldClick,
+                onRemoveMedia = onRemoveMedia,
+            )
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            ParamCard(
-                title = stringResource(Res.string.quick_create_params_count_title),
-                keyName = stringResource(Res.string.quick_create_params_count_key),
-                modifier = Modifier.weight(1f),
-            ) {
-                CountStepper(
-                    count = imageConfig.count,
-                    onChange = onImageCountChange,
-                )
-            }
-            ParamCard(
-                title = stringResource(Res.string.quick_create_params_quality_title),
-                keyName = stringResource(Res.string.quick_create_params_quality_key),
-                modifier = Modifier.weight(1f),
-            ) {
-                QualityDropdown(quality = imageConfig.quality)
+    }
+}
+
+@Composable
+private fun EmptyParamsCard() {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = Color(0xFF13161B),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+    ) {
+        Text(
+            text = stringResource(Res.string.quick_create_params_empty_parameters),
+            color = QuickCreateDesignTokens.Muted,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
+        )
+    }
+}
+
+@Composable
+private fun ServiceParamCard(
+    field: QuickCreationServiceFieldUi,
+    mediaReferences: List<MediaReference>,
+    isImage: Boolean,
+    onParamChange: (String, String) -> Unit,
+    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
+    onRemoveMedia: (String) -> Unit,
+) {
+    ParamCard(
+        title = field.title,
+        keyName = field.paramKey,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        when (field.controlType) {
+            QuickCreationServiceFieldControlType.OPTIONS -> ServiceOptionsControl(
+                field = field,
+                onParamChange = onParamChange,
+            )
+            QuickCreationServiceFieldControlType.TEXT -> ServiceTextControl(
+                field = field,
+                onParamChange = onParamChange,
+            )
+            QuickCreationServiceFieldControlType.UPLOAD -> ServiceUploadControl(
+                field = field,
+                mediaReferences = mediaReferences,
+                isImage = isImage,
+                onServiceUploadFieldClick = onServiceUploadFieldClick,
+                onRemoveMedia = onRemoveMedia,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ServiceOptionsControl(
+    field: QuickCreationServiceFieldUi,
+    onParamChange: (String, String) -> Unit,
+) {
+    if (field.options.isEmpty()) {
+        Text(
+            text = field.textValue,
+            color = Color(0xFFD2D3D8),
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        return
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        field.options.chunked(3).forEach { rowOptions ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowOptions.forEach { option ->
+                    Surface(
+                        modifier = Modifier.weight(1f).height(34.dp),
+                        onClick = { onParamChange(field.paramKey, option.value) },
+                        color = if (option.selected) Color(0xAA5A4590) else Color(0xFF1C1E23),
+                        shape = RoundedCornerShape(8.dp),
+                        border = BorderStroke(
+                            1.dp,
+                            if (option.selected) QuickCreateDesignTokens.Purple else QuickCreateDesignTokens.Stroke,
+                        ),
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = option.label.ifBlank { option.value },
+                                color = if (option.selected) {
+                                    QuickCreateDesignTokens.PurpleSoft
+                                } else {
+                                    Color(0xFFD2D3D8)
+                                },
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 8.dp),
+                            )
+                        }
+                    }
+                }
+                repeat(3 - rowOptions.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
             }
         }
     }
+}
+
+@Composable
+private fun ServiceTextControl(
+    field: QuickCreationServiceFieldUi,
+    onParamChange: (String, String) -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth().height(38.dp),
+        shape = RoundedCornerShape(9.dp),
+        color = Color(0xFF1C1E23),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            BasicTextField(
+                value = field.textValue,
+                onValueChange = { value ->
+                    onParamChange(field.paramKey, field.constrainTextInput(value))
+                },
+                singleLine = true,
+                textStyle = androidx.compose.ui.text.TextStyle(
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
+                cursorBrush = SolidColor(QuickCreateDesignTokens.Purple),
+                modifier = Modifier.weight(1f),
+                decorationBox = { innerTextField ->
+                    Box(contentAlignment = Alignment.CenterStart) {
+                        if (field.textValue.isBlank()) {
+                            Text(
+                                text = field.placeholder,
+                                color = QuickCreateDesignTokens.Muted,
+                                fontSize = 13.sp,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        innerTextField()
+                    }
+                },
+            )
+            field.textLimitCounter?.let { counter ->
+                Text(
+                    text = counter,
+                    color = QuickCreateDesignTokens.Muted,
+                    fontSize = 11.sp,
+                    modifier = Modifier.padding(start = 8.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ServiceUploadControl(
+    field: QuickCreationServiceFieldUi,
+    mediaReferences: List<MediaReference>,
+    isImage: Boolean,
+    onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
+    onRemoveMedia: (String) -> Unit,
+) {
+    QuickCreateServiceUploadFieldPicker(
+        paramKey = field.paramKey,
+        mediaType = field.uploadMediaType.toQuickCreateMediaType(fallbackToImage = isImage),
+        hint = field.uploadHint.asUploadHintText(),
+        mediaReferences = mediaReferences,
+        onUploadFieldClick = onServiceUploadFieldClick,
+        onRemoveMedia = onRemoveMedia,
+    )
 }
 
 @Composable
@@ -370,7 +525,7 @@ private fun ParamCard(
     content: @Composable () -> Unit,
 ) {
     Surface(
-        modifier = modifier.height(96.dp),
+        modifier = modifier.heightIn(min = 96.dp),
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFF13161B),
         border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
@@ -399,12 +554,6 @@ private fun ParamCard(
                     )
                 }
                 Spacer(Modifier.weight(1f))
-                Icon(
-                    imageVector = Icons.Default.RestartAlt,
-                    contentDescription = null,
-                    tint = Color(0xFFC7C8CF),
-                    modifier = Modifier.size(18.dp),
-                )
             }
             content()
         }
@@ -412,114 +561,12 @@ private fun ParamCard(
 }
 
 @Composable
-private fun <T> SegmentedControl(
-    items: List<T>,
-    selected: T,
-    label: (T) -> String,
-    onSelect: (T) -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().height(34.dp),
-        shape = RoundedCornerShape(9.dp),
-        color = Color(0xFF1C1E23),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
-    ) {
-        Row {
-            items.forEach { item ->
-                val active = item == selected
-                Surface(
-                    modifier = Modifier.weight(1f),
-                    onClick = { onSelect(item) },
-                    color = if (active) Color(0xAA5A4590) else Color.Transparent,
-                    shape = RoundedCornerShape(8.dp),
-                    border = BorderStroke(
-                        1.dp,
-                        if (active) QuickCreateDesignTokens.Purple else Color.Transparent,
-                    ),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = label(item),
-                            color = if (active) QuickCreateDesignTokens.PurpleSoft else Color(0xFFD2D3D8),
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Bold,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CountStepper(count: Int, onChange: (Int) -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().height(34.dp),
-        shape = RoundedCornerShape(9.dp),
-        color = Color(0xFF1C1E23),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 18.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            IconButton(onClick = { onChange((count - 1).coerceAtLeast(1)) }, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Default.Remove, contentDescription = null, tint = Color(0xFFD2D3D8))
-            }
-            Text(
-                text = count.toString(),
-                color = QuickCreateDesignTokens.Text,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Bold,
-            )
-            IconButton(onClick = { onChange((count + 1).coerceAtMost(4)) }, modifier = Modifier.size(28.dp)) {
-                Icon(Icons.Default.Add, contentDescription = null, tint = Color(0xFFD2D3D8))
-            }
-        }
-    }
-}
-
-@Composable
-private fun QualityDropdown(quality: ImageQuality) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().height(34.dp),
-        shape = RoundedCornerShape(9.dp),
-        color = Color(0xFF1C1E23),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(
-                    Res.string.quick_create_params_quality_recommended_format,
-                    quality.label.asImageQualityText(),
-                ),
-                color = Color(0xFFD2D3D8),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
-            )
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = null,
-                tint = Color(0xFFD2D3D8),
-                modifier = Modifier.size(18.dp),
-            )
-        }
-    }
-}
-
-@Composable
 private fun ParamsActionBar(
-    changedCount: Int,
-    onRestoreDefaults: () -> Unit,
+    parameterCount: Int,
     onDone: () -> Unit,
 ) {
     Surface(
-        modifier = Modifier.fillMaxWidth().padding(top = 80.dp),
+        modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
         shape = RoundedCornerShape(14.dp),
         color = Color(0xFF15171B),
         border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
@@ -535,33 +582,17 @@ private fun ParamsActionBar(
                     .background(QuickCreateDesignTokens.Purple, CircleShape),
             )
             Text(
-                text = stringResource(Res.string.quick_create_params_changed_count_format, changedCount),
+                text = stringResource(Res.string.quick_create_params_parameter_count_format, parameterCount),
                 color = QuickCreateDesignTokens.Text,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Black,
                 modifier = Modifier.weight(1f),
             )
             Surface(
-                onClick = onRestoreDefaults,
-                shape = RoundedCornerShape(18.dp),
-                color = Color(0xFF24252A),
-                border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
-                modifier = Modifier.height(40.dp),
-            ) {
-                Box(modifier = Modifier.padding(horizontal = 22.dp), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = stringResource(Res.string.quick_create_params_restore_defaults),
-                        color = Color(0xFFC8C9CF),
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold,
-                    )
-                }
-            }
-            Surface(
                 onClick = onDone,
                 shape = RoundedCornerShape(18.dp),
                 color = Color.Transparent,
-                modifier = Modifier.height(40.dp).weight(0.8f),
+                modifier = Modifier.height(40.dp).weight(0.55f),
             ) {
                 Box(
                     modifier = Modifier.background(
@@ -582,13 +613,44 @@ private fun ParamsActionBar(
     }
 }
 
-private fun calculateChangedCount(uiState: QuickCreateUiState): Int {
-    val config = uiState.imageConfig
-    val model = config.model
-    var count = 0
-    if (config.aspectRatio != model.defaultAspectRatio) count += 1
-    if (config.resolution != model.defaultResolution) count += 1
-    if (config.quality != model.defaultQuality) count += 1
-    if (config.count != 1) count += 1
-    return count.coerceAtLeast(0)
+@Composable
+private fun com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceUploadHint.asUploadHintText(): String =
+    listOfNotNull(
+        acceptFormats.takeIf { it.isNotEmpty() }?.joinToString(", ")?.let { formats ->
+            stringResource(Res.string.quick_create_params_upload_formats_format, formats)
+        },
+        maxUploadCount?.let { count ->
+            stringResource(Res.string.quick_create_params_upload_max_count_format, count)
+        },
+        maxUploadSizeMegabytes?.let { size ->
+            stringResource(Res.string.quick_create_params_upload_max_size_format, size)
+        },
+    ).joinToString(stringResource(Res.string.quick_create_params_upload_hint_separator))
+
+private fun QuickCreationServiceUploadMediaType?.toQuickCreateMediaType(
+    fallbackToImage: Boolean,
+): QuickCreateMediaType? =
+    when (this) {
+        QuickCreationServiceUploadMediaType.IMAGE -> QuickCreateMediaType.IMAGE
+        QuickCreationServiceUploadMediaType.VIDEO -> QuickCreateMediaType.VIDEO
+        QuickCreationServiceUploadMediaType.AUDIO -> QuickCreateMediaType.AUDIO
+        null -> if (fallbackToImage) QuickCreateMediaType.IMAGE else null
+    }
+
+private fun List<QuickCreationServiceFieldUi>.flattenServiceFields(): List<QuickCreationServiceFieldUi> =
+    flatMap { field ->
+        listOf(field) + field.childFields.flattenServiceFields()
+    }
+
+private fun List<QuickCreationServiceFieldUi>.visibleFieldCount(): Int =
+    flattenServiceFields()
+        .count { field -> !field.isPromptParameterField() }
+
+private fun QuickCreationServiceFieldUi.isPromptParameterField(): Boolean {
+    val normalizedKey = paramKey.trim().lowercase()
+    return normalizedKey == "prompt" ||
+        normalizedKey == "text" ||
+        normalizedKey == "input" ||
+        normalizedKey == "positiveprompt" ||
+        normalizedKey == "positive_prompt"
 }

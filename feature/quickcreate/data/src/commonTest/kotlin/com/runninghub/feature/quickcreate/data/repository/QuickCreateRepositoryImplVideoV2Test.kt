@@ -203,6 +203,288 @@ class QuickCreateRepositoryImplVideoV2Test {
     }
 
     @Test
+    fun `quick creation polling maps v2 running progress`() = runTest {
+        var taskListCalls = 0
+        val engine = MockEngine { request ->
+            val response = when (request.url.encodedPath) {
+                QuickCreateApi.QC_FEE_PREVIEW -> """
+                    {"code":0,"msg":"success","data":{"passed":true,"requiredCashAmount":0.76,"cashCurrency":"CNY"}}
+                """
+                QuickCreateApi.QC_PREPARE -> """
+                    {"code":0,"msg":"success","data":{"prepareToken":"image-token","ttlSeconds":120,"skuId":"image-sku"}}
+                """
+                QuickCreateApi.QC_COMMIT -> """
+                    {"code":0,"msg":"success","data":{"taskId":"image-task-progress","skuId":"image-sku","taskStatus":"QUEUED","cashAmount":0.76}}
+                """
+                QuickCreateApi.QC_TASK_LIST -> {
+                    taskListCalls += 1
+                    if (taskListCalls == 1) {
+                        """
+                            {
+                              "code": 0,
+                              "msg": "success",
+                              "data": {
+                                "page": 1,
+                                "size": 10,
+                                "total": 1,
+                                "list": [
+                                  {
+                                    "taskId": "image-task-progress",
+                                    "taskStatus": "RUNNING",
+                                    "progress": "42%"
+                                  }
+                                ]
+                              }
+                            }
+                        """
+                    } else {
+                        """
+                            {
+                              "code": 0,
+                              "msg": "success",
+                              "data": {
+                                "page": 1,
+                                "size": 10,
+                                "total": 1,
+                                "list": [
+                                  {
+                                    "taskId": "image-task-progress",
+                                    "taskStatus": "SUCCESS",
+                                    "outputList": [
+                                      {
+                                        "id": "out-1",
+                                        "outputType": "png",
+                                        "fileUrl": "https://example.com/result.png"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            }
+                        """
+                    }
+                }
+                else -> """{"code":404,"msg":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "image-binding:image-sku",
+                aspectRatio = "16:9",
+                resolution = "2k",
+                quality = "medium",
+                quickCreationCategoryId = "IMAGE",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+            )
+        ).toList()
+
+        val running = assertIs<QuickCreateTaskStatus.Running>(statuses[2])
+        assertEquals(42, running.progress)
+        assertIs<QuickCreateTaskStatus.Success>(statuses.last())
+    }
+
+    @Test
+    fun `quick creation polling filters blank output urls from success results`() = runBlocking {
+        val engine = MockEngine { request ->
+            val response = when (request.url.encodedPath) {
+                QuickCreateApi.QC_FEE_PREVIEW -> """
+                    {"code":0,"msg":"success","data":{"passed":true,"requiredCashAmount":0.06,"cashCurrency":"CNY"}}
+                """
+                QuickCreateApi.QC_PREPARE -> """
+                    {"code":0,"msg":"success","data":{"prepareToken":"image-token","ttlSeconds":120,"skuId":"image-sku"}}
+                """
+                QuickCreateApi.QC_COMMIT -> """
+                    {"code":0,"msg":"success","data":{"taskId":"image-task-empty-url","skuId":"image-sku","taskStatus":"QUEUED","cashAmount":0.06}}
+                """
+                QuickCreateApi.QC_TASK_LIST -> """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "page": 1,
+                        "size": 10,
+                        "total": 1,
+                        "list": [
+                          {
+                            "taskId": "image-task-empty-url",
+                            "taskStatus": "SUCCESS",
+                            "outputList": [
+                              {
+                                "id": "out-blank",
+                                "outputType": "png",
+                                "fileUrl": ""
+                              },
+                              {
+                                "id": "out-valid",
+                                "outputType": "png",
+                                "fileUrl": "https://example.com/result.png"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                """
+                else -> """{"code":404,"msg":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "image-binding:image-sku",
+                aspectRatio = "1:1",
+                resolution = "1k",
+                quality = "medium",
+                quickCreationCategoryId = "IMAGE",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+            )
+        ).toList()
+
+        val success = assertIs<QuickCreateTaskStatus.Success>(statuses.last())
+        assertEquals(listOf("https://example.com/result.png"), success.results.map { it.url })
+    }
+
+    @Test
+    fun `quick creation polling searches following pages before timing out missing first page record`() = runTest {
+        val paths = mutableListOf<String>()
+        val requestedPages = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            val response = when (path) {
+                QuickCreateApi.QC_FEE_PREVIEW -> """
+                    {"code":0,"msg":"success","data":{"passed":true,"requiredCashAmount":0.06,"cashCurrency":"CNY"}}
+                """
+                QuickCreateApi.QC_PREPARE -> """
+                    {"code":0,"msg":"success","data":{"prepareToken":"image-token","ttlSeconds":120,"skuId":"image-sku"}}
+                """
+                QuickCreateApi.QC_COMMIT -> """
+                    {"code":0,"msg":"success","data":{"taskId":"image-task-page-2","skuId":"image-sku","taskStatus":"QUEUED","cashAmount":0.06}}
+                """
+                QuickCreateApi.QC_TASK_LIST -> {
+                    val page = request.body.toRequestBodyText()
+                        .let { body -> Regex("\\\"page\\\"\\s*:\\s*(\\d+)").find(body)?.groupValues?.get(1) }
+                        ?: "1"
+                    requestedPages += page
+                    if (page == "1") {
+                        """
+                            {
+                              "code": 0,
+                              "msg": "success",
+                              "data": {
+                                "page": 1,
+                                "size": 50,
+                                "total": 51,
+                                "pages": 2,
+                                "list": [
+                                  {
+                                    "taskId": "another-task",
+                                    "taskStatus": "SUCCESS",
+                                    "outputList": []
+                                  }
+                                ]
+                              }
+                            }
+                        """
+                    } else {
+                        """
+                            {
+                              "code": 0,
+                              "msg": "success",
+                              "data": {
+                                "page": 2,
+                                "size": 50,
+                                "total": 51,
+                                "pages": 2,
+                                "list": [
+                                  {
+                                    "taskId": "image-task-page-2",
+                                    "taskStatus": "SUCCESS",
+                                    "outputList": [
+                                      {
+                                        "id": "out-1",
+                                        "outputType": "png",
+                                        "fileUrl": "https://example.com/page-2-result.png"
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            }
+                        """
+                    }
+                }
+                else -> """{"code":404,"msg":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        val statuses = repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "image-binding:image-sku",
+                aspectRatio = "1:1",
+                resolution = "1k",
+                quality = "medium",
+                quickCreationCategoryId = "IMAGE",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+            )
+        ).toList()
+
+        assertEquals(listOf("1", "2"), requestedPages)
+        assertEquals(2, paths.count { it == QuickCreateApi.QC_TASK_LIST })
+        val success = assertIs<QuickCreateTaskStatus.Success>(statuses.last())
+        assertEquals(listOf("https://example.com/page-2-result.png"), success.results.map { it.url })
+    }
+
+    @Test
     fun `image generation re-prepares when commit reports expired prepare token`() = runBlocking {
         val paths = mutableListOf<String>()
         var commitCalls = 0
@@ -572,6 +854,13 @@ class QuickCreateRepositoryImplVideoV2Test {
         val timeout = assertIs<QuickCreateTaskStatus.Error>(statuses.last())
         assertEquals(QuickCreateTaskIssueCode.TASK_TIMEOUT, timeout.message)
     }
+
+    private fun Any.toRequestBodyText(): String =
+        when (this) {
+            is io.ktor.http.content.OutgoingContent.ByteArrayContent -> bytes().decodeToString()
+            is io.ktor.http.content.TextContent -> text
+            else -> toString()
+        }
 
     @Test
     fun `legacy openapi polling stops when query task is cancelled`() = runBlocking {

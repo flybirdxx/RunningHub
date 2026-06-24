@@ -3,6 +3,7 @@ package com.runninghub.app.ui.feature.quickcreate
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.size
@@ -10,6 +11,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -18,6 +21,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,16 +82,51 @@ internal fun QuickCreateGlassPanel(
 /**
  * 底部弹层顶部的拖拽条。
  *
- * 该元素只是视觉层级提示，不绑定拖拽手势；真实展开/收起仍由调用方的 Sheet 状态控制。
+ * 视觉上仍保持一条短横，但触控热区会放大到更容易按住的范围。组件自身不决定是否关闭 sheet，
+ * 只把手势生命周期和纵向拖动距离回传给调用方，由外层根据拖动幅度实时绘制 sheet 偏移并决定回弹或收起。
+ *
+ * @param modifier 外层布局修饰符，通常由 sheet 内容传入居中对齐。
+ * @param onDragStart 用户按住手柄开始拖动时触发。
+ * @param onDrag 用户拖动手柄时触发，参数为本次纵向拖动像素；正数表示向下。
+ * @param onDragEnd 用户松手结束拖动时触发。
+ * @param onDragCancel 拖动被系统取消时触发。
  */
 @Composable
-internal fun QuickCreateSheetHandle(modifier: Modifier = Modifier) {
+internal fun QuickCreateSheetHandle(
+    modifier: Modifier = Modifier,
+    onDragStart: () -> Unit = {},
+    onDrag: (Float) -> Unit = {},
+    onDragEnd: () -> Unit = {},
+    onDragCancel: () -> Unit = {},
+) {
+    val latestDragStart by rememberUpdatedState(onDragStart)
+    val latestDrag by rememberUpdatedState(onDrag)
+    val latestDragEnd by rememberUpdatedState(onDragEnd)
+    val latestDragCancel by rememberUpdatedState(onDragCancel)
+
     Box(
         modifier = modifier
-            .size(width = 42.dp, height = 4.dp)
-            .clip(RoundedCornerShape(2.dp))
-            .background(Color.White.copy(alpha = 0.42f)),
-    )
+            .size(width = 72.dp, height = 22.dp)
+            .pointerInput(Unit) {
+                detectVerticalDragGestures(
+                    onDragStart = { latestDragStart() },
+                    onDragEnd = latestDragEnd,
+                    onDragCancel = latestDragCancel,
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        latestDrag(dragAmount)
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            modifier = Modifier
+                .size(width = 42.dp, height = 4.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(Color.White.copy(alpha = 0.42f)),
+        )
+    }
 }
 
 /**

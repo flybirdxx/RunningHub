@@ -72,3 +72,30 @@ data class QuickCreateResultUi(
     val height: Int? = null,
     val duration: Int? = null,
 )
+
+/**
+ * 快捷创作中间对话区的一次生成条目。
+ *
+ * 对话区需要保留本次页面生命周期内已经提交过的所有任务；每个条目绑定点击发送时的提示词快照、
+ * 任务阶段和该任务返回的结果列表。最新任务由生成流程追加到列表末尾，轮询控制器只更新最后一个条目，
+ * 从而避免新任务覆盖旧任务。
+ *
+ * @property prompt 点击生成时保存的提示词快照。
+ * 空字符串表示该条目由兼容旧状态构造或提交参数没有可展示提示词；UI 不应显示空提示词气泡。
+ * @property taskStatus 该条目的生成阶段。
+ * [QuickCreateTaskUiStatus.IDLE] 表示不需要展示任务卡；非空闲状态会展示对应占位、结果或错误状态。
+ * @property aspectRatio 点击生成时保存的宽高比协议值，例如 `16:9`；`null` 表示旧状态缺少参数快照。
+ * @property resolution 点击生成时保存的分辨率协议值，例如 `2K`；`null` 表示旧状态缺少参数快照。
+ * @property statusText 该条目的辅助状态语义。
+ * `null` 表示没有额外阶段说明；运行态通常携带进度，终态可为空以避免在结果图上重复贴文字。
+ * @property results 该条目已经返回的输出结果。
+ * 空列表表示仍在生成、失败/取消或服务端成功但暂未返回可展示输出。
+ */
+data class QuickCreateConversationItemUi(
+    val prompt: String,
+    val taskStatus: QuickCreateTaskUiStatus,
+    val aspectRatio: String? = null,
+    val resolution: String? = null,
+    val statusText: QuickCreateTaskStatusText? = null,
+    val results: List<QuickCreateResultUi> = emptyList(),
+)

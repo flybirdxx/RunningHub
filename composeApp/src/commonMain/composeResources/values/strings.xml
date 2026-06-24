@@ -435,11 +435,14 @@
     <string name="quick_create_params_quality_title">质量</string>
     <string name="quick_create_params_quality_key">quality</string>
     <string name="quick_create_params_quality_recommended_format">%1$s（推荐）</string>
+    <string name="quick_create_params_empty_parameters">当前模型没有可配置参数</string>
+    <string name="quick_create_params_parameter_count_format">%1$d 个可配置参数</string>
     <string name="quick_create_params_changed_count_format">%1$d 项已改动</string>
     <string name="quick_create_params_restore_defaults">恢复默认</string>
     <string name="quick_create_params_done">完成</string>
     <string name="quick_create_creation_user_prompt_fallback">把这张图改成赛博霓虹海报</string>
     <string name="quick_create_creation_status_time">09:41</string>
+    <string name="quick_create_creation_generating">生成中</string>
     <string name="quick_create_creation_generating_format">生成中 · %1$d%%</string>
     <string name="quick_create_creation_completed_label">已完成</string>
     <string name="quick_create_creation_result_title">玫瑰霓虹海报</string>
