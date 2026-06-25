@@ -44,9 +44,9 @@ import com.runninghub.app.ui.theme.ErrorDark
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.SuccessDark
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskIndicator
-import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPresentationStatus
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.result.quickCreateTaskStatusDisplay
+import com.runninghub.feature.quickcreate.presentation.result.toQuickCreateTaskPresentationStatus
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_result_clear_action
@@ -71,9 +71,7 @@ import runninghub.composeapp.generated.resources.quick_create_task_status_upload
  */
 @Composable
 internal fun QuickCreateTaskStatusArea(status: QuickCreateTaskUiStatus, statusText: QuickCreateTaskStatusText?) {
-    // 迁移期 composeApp 仍持有旧 UiState 枚举；结果展示规则已经下沉到 feature presentation，
-    // 这里只保留无业务分支的薄转换，避免 Composable 继续维护任务文案映射。
-    val display = quickCreateTaskStatusDisplay(status.toPresentationStatus(), statusText)
+    val display = quickCreateTaskStatusDisplay(status.toQuickCreateTaskPresentationStatus(), statusText)
     val indicatorColor = when (display.indicator) {
         QuickCreateTaskIndicator.Progress -> Primary300
         QuickCreateTaskIndicator.Success -> SuccessDark
@@ -134,17 +132,6 @@ private fun quickCreateTaskStatusText(text: QuickCreateTaskStatusText): String =
             Res.string.quick_create_task_status_uploading_media_format,
             text.pendingCount,
         )
-    }
-
-private fun QuickCreateTaskUiStatus.toPresentationStatus(): QuickCreateTaskPresentationStatus =
-    when (this) {
-        QuickCreateTaskUiStatus.IDLE -> QuickCreateTaskPresentationStatus.IDLE
-        QuickCreateTaskUiStatus.SUBMITTING -> QuickCreateTaskPresentationStatus.SUBMITTING
-        QuickCreateTaskUiStatus.QUEUING -> QuickCreateTaskPresentationStatus.QUEUING
-        QuickCreateTaskUiStatus.RUNNING -> QuickCreateTaskPresentationStatus.RUNNING
-        QuickCreateTaskUiStatus.SUCCESS -> QuickCreateTaskPresentationStatus.SUCCESS
-        QuickCreateTaskUiStatus.FAILED -> QuickCreateTaskPresentationStatus.FAILED
-        QuickCreateTaskUiStatus.CANCELED -> QuickCreateTaskPresentationStatus.CANCELED
     }
 
 /**

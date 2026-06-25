@@ -151,3 +151,21 @@ fun quickCreateTaskStatusDisplay(
             indicator = QuickCreateTaskIndicator.Progress,
         )
     }
+
+/**
+ * 将页面状态流中的任务阶段转换为结果展示规则使用的稳定阶段。
+ *
+ * 生成 Interactor 和轮询控制器写入 [QuickCreateTaskUiStatus]，结果区域只需要
+ * [QuickCreateTaskPresentationStatus] 来选择文案与视觉指示。映射集中在 Presentation 模块，
+ * 避免 composeApp 叶子组件或测试各自维护一份状态对应关系。
+ */
+fun QuickCreateTaskUiStatus.toQuickCreateTaskPresentationStatus(): QuickCreateTaskPresentationStatus =
+    when (this) {
+        QuickCreateTaskUiStatus.IDLE -> QuickCreateTaskPresentationStatus.IDLE
+        QuickCreateTaskUiStatus.SUBMITTING -> QuickCreateTaskPresentationStatus.SUBMITTING
+        QuickCreateTaskUiStatus.QUEUING -> QuickCreateTaskPresentationStatus.QUEUING
+        QuickCreateTaskUiStatus.RUNNING -> QuickCreateTaskPresentationStatus.RUNNING
+        QuickCreateTaskUiStatus.SUCCESS -> QuickCreateTaskPresentationStatus.SUCCESS
+        QuickCreateTaskUiStatus.FAILED -> QuickCreateTaskPresentationStatus.FAILED
+        QuickCreateTaskUiStatus.CANCELED -> QuickCreateTaskPresentationStatus.CANCELED
+    }
