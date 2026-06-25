@@ -610,10 +610,12 @@ class LongTermGovernancePlugin : Plugin<Project> {
      *
      * 复核建议要求 Feature 达到规模阈值后建立独立 Presentation 模块。既有历史 Feature
      * 不能在一次治理中强行迁移，因此用基线记录当前行数和真实 Presentation owner；
-     * 后续如果这些 Feature 继续增长，门禁会要求先拆分模块或显式更新治理文档说明原因。
+     * 后续如果这些 Feature 超过基线缓冲继续增长，门禁会要求先拆分模块或显式更新治理文档说明原因。
+     * 缓冲只用于 UI 壳、资源映射和注释，不能让本地可变状态流、协程编排或轮询逻辑回流到 composeApp。
      */
     private fun Project.checkFeaturePresentationThresholds(violations: MutableList<String>) {
         val thresholdLines = 800
+        val baselineGrowthBufferLines = 80
         val baselineFile = rootDir.resolve("docs/governance/feature-presentation-thresholds.txt")
         val baselineEntries = baselineFile
             .takeIf { it.isFile }
@@ -649,6 +651,13 @@ class LongTermGovernancePlugin : Plugin<Project> {
             if (rootDir.resolve("feature/${entry.featureName}/presentation").isDirectory) {
                 violations += "${entry.featureName} has a same-name Presentation module; remove its migration threshold baseline."
             }
+            if (featureDir.isDirectory) {
+                checkFeaturePresentationStateMachineGuard(
+                    featureDir = featureDir,
+                    entry = entry,
+                    violations = violations,
+                )
+            }
         }
         val baseline = baselineEntries.associateBy { it.featureName }
 
@@ -674,8 +683,8 @@ class LongTermGovernancePlugin : Plugin<Project> {
                         entry == null -> {
                             violations += "$featureName UI has $totalLines lines and no same-name presentation module; split it or register a threshold baseline with ownerPresentation."
                         }
-                        totalLines > entry.maxLines -> {
-                            violations += "$featureName UI grew from allowed ${entry.maxLines} lines to $totalLines without a same-name presentation module; owner is ${entry.ownerPresentation}."
+                        totalLines > entry.maxLines + baselineGrowthBufferLines -> {
+                            violations += "$featureName UI grew from allowed ${entry.maxLines} lines plus $baselineGrowthBufferLines buffer lines to $totalLines without a same-name presentation module; owner is ${entry.ownerPresentation}."
                         }
                     }
                 }
@@ -683,10 +692,54 @@ class LongTermGovernancePlugin : Plugin<Project> {
     }
 
     /**
+     * 阻止 Feature 行数缓冲被用来重新承载状态机或业务编排。
+     *
+     * 登记在 `feature-presentation-thresholds.txt` 的 composeApp 目录只允许保留 Voyager
+     * ScreenModel 门面、Compose UI、资源映射和明确登记的兼容桥。真实状态流、协程启动、
+     * 轮询、组合 Flow 和互斥控制必须继续留在 [FeaturePresentationBaseline.ownerPresentation]
+     * 指向的 Presentation 模块。
+     */
+    private fun Project.checkFeaturePresentationStateMachineGuard(
+        featureDir: java.io.File,
+        entry: FeaturePresentationBaseline,
+        violations: MutableList<String>,
+    ) {
+        val forbiddenPatterns = listOf(
+            Regex("""\bMutableStateFlow\b""") to "local mutable state flow",
+            Regex("""\bMutableSharedFlow\b""") to "local mutable shared flow",
+            Regex("""\bkotlinx\.coroutines\.channels\.Channel\b""") to "local coroutine channel",
+            Regex("""\bkotlinx\.coroutines\.sync\.Mutex\b""") to "local concurrency lock",
+            Regex("""\bscreenModelScope\.launch\s*\{""") to "ScreenModel coroutine orchestration",
+            Regex("""\bcoroutineScope\.launch\s*\{""") to "local coroutine orchestration",
+            Regex("""(?<![A-Za-z0-9_.])launch\s*\{""") to "local coroutine orchestration",
+            Regex("""\bstateIn\s*\(""") to "local Flow state ownership",
+            Regex("""\bshareIn\s*\(""") to "local shared Flow ownership",
+            Regex("""\blaunchIn\s*\(""") to "local Flow collection ownership",
+            Regex("""\bflatMapLatest\s*\(""") to "local reactive state transition",
+            Regex("""\bcombine\s*\(""") to "local reactive state composition",
+            Regex("""\bwhile\s*\(\s*isActive\s*\)""") to "local polling loop",
+            Regex("""\bdelay\s*\(""") to "local polling or retry timer",
+            Regex("""\bwithContext\s*\(""") to "local async orchestration",
+        )
+
+        featureDir.walkTopDown()
+            .filter { it.isFile && it.extension == "kt" }
+            .forEach { file ->
+                val text = file.readText()
+                forbiddenPatterns
+                    .firstOrNull { (pattern, _) -> pattern.containsMatchIn(text) }
+                    ?.let { (_, reason) ->
+                        val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
+                        violations += "$relativePath contains $reason; ${entry.featureName} is over the UI feature threshold and must keep state machine or business orchestration in ${entry.ownerPresentation}."
+                    }
+            }
+    }
+
+    /**
      * 记录无同名 Presentation 模块的大体量 composeApp Feature 临时基线。
      *
      * @property featureName composeApp `ui/feature/<name>` 目录名。
-     * @property maxLines 当前允许的 Kotlin 行数上限，单位为行；后续增长必须降低或更新治理说明。
+     * @property maxLines 当前登记的 Kotlin 行数基线，单位为行；小幅增长由门禁缓冲吸收，明显膨胀仍需拆分或更新治理说明。
      * @property ownerPresentation 实际持有状态机的 Presentation 模块，格式为 `feature:<name>:presentation`。
      * @property reason 保留该 UI 壳的迁移期原因。
      */

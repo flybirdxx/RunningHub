@@ -80,6 +80,7 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
+import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.component.AppBarLogo
 import com.runninghub.app.ui.component.AppCard
 import com.runninghub.app.ui.component.AppSearchBar
@@ -182,6 +183,7 @@ private fun DiscoveryContent(
     onLoadMore: () -> Unit = {},
 ) {
     val windowSizeClass = rememberWindowSizeClass()
+    val windowInfo = LocalRhWindowInfo.current
     val gridSpacing: Dp = adaptiveGridSpacing(windowSizeClass)
     val appBarHeight = adaptiveAppBarHeight(windowSizeClass)
     val borderColor = MaterialTheme.colorScheme.outlineVariant
@@ -274,7 +276,9 @@ private fun DiscoveryContent(
         ) {
              LazyVerticalGrid(
                 state = gridState,
-                columns = GridCells.Adaptive(minSize = 180.dp),
+                // 360dp 设备如果继续用 180dp 作为最小列宽，会在包含间距后退成单列，
+                // 单张竖图卡片接近整屏高度；这里复用窗口信息中的 feed 列宽，让常见手机保持两列密度。
+                columns = GridCells.Adaptive(minSize = windowInfo.feedGridMinCardWidth),
                 contentPadding = PaddingValues(
                     start = padding.calculateStartPadding(LayoutDirection.Ltr),
                     end = padding.calculateEndPadding(LayoutDirection.Ltr),
@@ -344,6 +348,7 @@ private fun DiscoveryContent(
                     ) { idx ->
                         AppGridCard(
                             app = uiState.apps[idx],
+                            statsLimit = windowInfo.compactCardStatsLimit,
                             onClick = { onAppClick(uiState.apps[idx].id) },
                         )
                     }
@@ -997,9 +1002,28 @@ private fun catalogSortLabel(sort: CatalogSort): String {
 @Composable
 private fun AppGridCard(
     app: WebApp,
+    statsLimit: Int,
     modifier: Modifier = Modifier,
     onClick: () -> Unit = {},
 ) {
+    val visibleStats = listOf(
+        Triple(
+            Icons.Default.Favorite,
+            app.collectCount,
+            stringResource(Res.string.discovery_collect_stat_content_description),
+        ),
+        Triple(
+            Icons.Default.Person,
+            app.useCount,
+            stringResource(Res.string.discovery_use_stat_content_description),
+        ),
+        Triple(
+            Icons.Default.Visibility,
+            app.pv,
+            stringResource(Res.string.discovery_view_stat_content_description),
+        ),
+    ).take(statsLimit.coerceIn(1, 3))
+
     Surface(
         modifier = modifier
             .fillMaxWidth()
@@ -1088,21 +1112,14 @@ private fun AppGridCard(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
-                    CardStatChip(
-                        icon = Icons.Default.Favorite,
-                        count = app.collectCount,
-                        label = stringResource(Res.string.discovery_collect_stat_content_description),
-                    )
-                    CardStatChip(
-                        icon = Icons.Default.Person,
-                        count = app.useCount,
-                        label = stringResource(Res.string.discovery_use_stat_content_description),
-                    )
-                    CardStatChip(
-                        icon = Icons.Default.Visibility,
-                        count = app.pv,
-                        label = stringResource(Res.string.discovery_view_stat_content_description),
-                    )
+                    visibleStats.forEachIndexed { index, (icon, count, label) ->
+                        CardStatChip(
+                            icon = icon,
+                            count = count,
+                            label = label,
+                            modifier = if (index == visibleStats.lastIndex) Modifier else Modifier.padding(end = 1.dp),
+                        )
+                    }
                 }
             }
         }

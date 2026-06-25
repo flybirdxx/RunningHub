@@ -59,7 +59,8 @@ import com.runninghub.app.ui.feature.plaza.PlazaVoyagerScreen
 import com.runninghub.app.ui.feature.profile.ProfileVoyagerScreen
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateVoyagerScreen
 import com.runninghub.app.ui.theme.BrandLime
-import com.runninghub.app.ui.theme.RhAppBackground
+import com.runninghub.app.ui.theme.RhAppBottomBar
+import com.runninghub.app.ui.theme.RhAppLine
 import com.runninghub.app.ui.theme.RhAppMuted
 import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
@@ -261,24 +262,32 @@ private fun CompactBottomBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(72.dp),
-        color = RhAppBackground,
+        color = RhAppBottomBar,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(start = 12.dp, top = 2.dp, end = 12.dp, bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            BottomNavTab.entries.forEach { tab ->
-                CompactBottomBarItem(
-                    tab = tab,
-                    selected = selectedTab == tab,
-                    onClick = { onSelected(tab) },
-                    modifier = Modifier.weight(1f),
-                )
+        Column(modifier = Modifier.fillMaxSize()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(RhAppLine.copy(alpha = 0.72f)),
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(start = 12.dp, top = 2.dp, end = 12.dp, bottom = 16.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                BottomNavTab.entries.forEach { tab ->
+                    CompactBottomBarItem(
+                        tab = tab,
+                        selected = selectedTab == tab,
+                        onClick = { onSelected(tab) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
     }

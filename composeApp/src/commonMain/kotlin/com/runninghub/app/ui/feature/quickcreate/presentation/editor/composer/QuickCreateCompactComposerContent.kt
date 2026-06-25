@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -139,9 +139,10 @@ internal fun QuickCreateCompactComposer(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = 6.dp)
+            .imePadding()
             .navigationBarsPadding()
-            .padding(bottom = 12.dp),
+            .padding(bottom = 4.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (showMediaUploadStrip) {
@@ -173,53 +174,95 @@ internal fun QuickCreateCompactComposer(
                         stringResource(Res.string.quick_create_compact_video_prompt_placeholder)
                     },
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    CompactControlPill(
-                        text = quickCreateCompactServiceModelLabel(
-                            model = selectedServiceModel,
-                            fallback = if (isImage) {
-                                uiState.imageConfig.model.label.asImageModelText()
-                            } else {
-                                uiState.videoConfig.model.label.asVideoModelText()
-                            },
-                            loading = serviceModelsLoading,
-                        ).asCompactModelText(),
-                        selected = uiState.activeSheet == QuickCreateSheet.MODEL_PICKER,
-                        icon = {
-                            Icon(
-                                imageVector = Icons.Default.AutoAwesome,
-                                contentDescription = null,
-                                modifier = Modifier.size(15.dp),
-                                tint = QuickCreateDesignTokens.Text,
-                            )
+                CompactControlRow(
+                    modelText = quickCreateCompactServiceModelLabel(
+                        model = selectedServiceModel,
+                        fallback = if (isImage) {
+                            uiState.imageConfig.model.label.asImageModelText()
+                        } else {
+                            uiState.videoConfig.model.label.asVideoModelText()
                         },
-                        onClick = onOpenModelSheet,
-                    )
-                    CompactControlPill(
-                        text = compactParamsSummary(uiState, isImage),
-                        selected = uiState.activeSheet == QuickCreateSheet.PARAMS,
-                        onClick = onOpenParamsSheet,
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    CompactGenerateButton(
-                        hasPrompt = hasPrompt,
-                        enabled = if (hasPrompt) canGenerate else !isTaskActive,
-                        isLoading = isTaskActive,
-                        cost = uiState.estimatedCost,
-                        feePreviewLoading = uiState.feePreviewLoading,
-                        feePreviewError = uiState.feePreviewError,
-                        onGenerate = onGenerate,
-                        onAddMedia = onLaunchImagePicker,
-                    )
-                }
+                        loading = serviceModelsLoading,
+                    ).asCompactModelText(),
+                    paramsText = compactParamsSummary(uiState, isImage),
+                    modelSelected = uiState.activeSheet == QuickCreateSheet.MODEL_PICKER,
+                    paramsSelected = uiState.activeSheet == QuickCreateSheet.PARAMS,
+                    hasPrompt = hasPrompt,
+                    enabled = if (hasPrompt) canGenerate else !isTaskActive,
+                    isLoading = isTaskActive,
+                    cost = uiState.estimatedCost,
+                    feePreviewLoading = uiState.feePreviewLoading,
+                    feePreviewError = uiState.feePreviewError,
+                    onOpenModelSheet = onOpenModelSheet,
+                    onOpenParamsSheet = onOpenParamsSheet,
+                    onGenerate = onGenerate,
+                    onLaunchImagePicker = onLaunchImagePicker,
+                )
             }
         }
     }
 
+}
+
+/**
+ * 渲染紧凑输入栏底部的模型、参数和执行入口。
+ *
+ * 模型名称来自服务端目录，计费文案也会随预估状态变化；三个控件必须共享剩余宽度，
+ * 避免窄屏或重组测量时把右侧执行入口挤压成不可点击的细条。
+ */
+@Composable
+private fun CompactControlRow(
+    modelText: String,
+    paramsText: String,
+    modelSelected: Boolean,
+    paramsSelected: Boolean,
+    hasPrompt: Boolean,
+    enabled: Boolean,
+    isLoading: Boolean,
+    cost: Double,
+    feePreviewLoading: Boolean,
+    feePreviewError: QuickCreateUiMessage?,
+    onOpenModelSheet: () -> Unit,
+    onOpenParamsSheet: () -> Unit,
+    onGenerate: () -> Unit,
+    onLaunchImagePicker: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        CompactControlPill(
+            text = modelText,
+            selected = modelSelected,
+            icon = {
+                Icon(
+                    imageVector = Icons.Default.AutoAwesome,
+                    contentDescription = null,
+                    modifier = Modifier.size(15.dp),
+                    tint = QuickCreateDesignTokens.Text,
+                )
+            },
+            onClick = onOpenModelSheet,
+            modifier = Modifier.weight(1f),
+        )
+        CompactControlPill(
+            text = paramsText,
+            selected = paramsSelected,
+            onClick = onOpenParamsSheet,
+            modifier = Modifier.weight(0.72f),
+        )
+        CompactGenerateButton(
+            hasPrompt = hasPrompt,
+            enabled = enabled,
+            isLoading = isLoading,
+            cost = cost,
+            feePreviewLoading = feePreviewLoading,
+            feePreviewError = feePreviewError,
+            onGenerate = onGenerate,
+            onAddMedia = onLaunchImagePicker,
+        )
+    }
 }
 
 @Composable

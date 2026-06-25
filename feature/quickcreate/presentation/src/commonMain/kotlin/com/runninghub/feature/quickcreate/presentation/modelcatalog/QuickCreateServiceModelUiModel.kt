@@ -207,6 +207,14 @@ fun QuickCreationServiceModel.toQuickCreateServiceModelUi(
     selected: Boolean = false,
 ): QuickCreateServiceModelUi {
     val displayNameText = name.takeIf { it.isNotBlank() }
+    val compactDisplayName = (displayNameText ?: "").toQuickCreateCompactServiceModelLabel()
+    val compactGroupName = groupName
+        ?.takeIf { it.isNotBlank() }
+        ?.toQuickCreateCompactServiceModelLabel()
+    val compactNameText = compactGroupName
+        ?.takeIf { it.hasQuickCreateModelFamilyToken() }
+        ?: compactDisplayName.takeIf { it.isNotBlank() }
+        ?: compactGroupName.orEmpty()
     val displayName = displayNameText
         ?.let(QuickCreateServiceModelDisplayName::ServerText)
         ?: QuickCreateServiceModelDisplayName.Unnamed
@@ -214,7 +222,7 @@ fun QuickCreationServiceModel.toQuickCreateServiceModelUi(
         source = this,
         identityKey = quickCreateServiceModelIdentityKey(),
         displayName = displayName,
-        compactName = (displayNameText ?: "").toQuickCreateCompactServiceModelLabel(),
+        compactName = compactNameText,
         groupTitle = groupName
             ?.takeIf { it.isNotBlank() }
             ?.let(QuickCreateServiceModelGroupTitle::ServerText)
@@ -242,7 +250,7 @@ fun quickCreateCompactServiceModelLabel(
 ): QuickCreateCompactServiceModelLabel =
     when {
         model != null -> QuickCreateCompactServiceModelLabel.ModelName(model.compactName)
-        else -> QuickCreateCompactServiceModelLabel.FallbackName(fallback)
+        else -> QuickCreateCompactServiceModelLabel.FallbackName(fallback.toQuickCreateCompactServiceModelLabel())
     }
 
 private fun String.toQuickCreateCompactServiceModelLabel(): String {
@@ -261,3 +269,6 @@ private fun String.toQuickCreateCompactServiceModelLabel(): String {
         .trim(' ', '-', '·')
         .take(18)
 }
+
+private fun String.hasQuickCreateModelFamilyToken(): Boolean =
+    any { it.isDigit() }

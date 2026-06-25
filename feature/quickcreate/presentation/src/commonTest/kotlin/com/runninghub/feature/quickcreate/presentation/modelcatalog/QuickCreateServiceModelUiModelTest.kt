@@ -73,6 +73,32 @@ class QuickCreateServiceModelUiModelTest {
     }
 
     @Test
+    fun `compact label uses same short family name before and after catalog loads`() {
+        val model = serviceModel(
+            name = "全能图片G-2.0-文生图-官方版",
+            groupName = "全能图片G-2.0-官方版",
+        ).toQuickCreateServiceModelUi()
+
+        assertEquals("全能图片 G-2.0", model.compactName)
+        assertEquals(
+            QuickCreateCompactServiceModelLabel.FallbackName("全能图片 G-2.0"),
+            quickCreateCompactServiceModelLabel(
+                model = null,
+                fallback = "全能图片 G-2.0",
+                loading = true,
+            ),
+        )
+        assertEquals(
+            QuickCreateCompactServiceModelLabel.ModelName("全能图片 G-2.0"),
+            quickCreateCompactServiceModelLabel(
+                model = model,
+                fallback = "全能图片 G-2.0",
+                loading = false,
+            ),
+        )
+    }
+
+    @Test
     fun `same service model compares binding and sku together`() {
         val base = serviceModel(bindingId = "binding", skuId = "sku-a")
 

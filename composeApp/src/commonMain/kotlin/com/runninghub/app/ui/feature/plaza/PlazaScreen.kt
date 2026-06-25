@@ -154,7 +154,7 @@ fun PlazaScreenContent(
     modifier: Modifier = Modifier,
 ) {
     val windowInfo = LocalRhWindowInfo.current
-    val columns = if (windowInfo.windowWidth < 390.dp) 1 else 2
+    val columns = if (windowInfo.windowWidth < 340.dp) 1 else 2
 
     Scaffold(
         modifier = modifier,
