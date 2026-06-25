@@ -324,7 +324,6 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         visible = true,
                         isImage = uiState.currentTab == QuickCreateTab.IMAGE,
                         uiState = uiState,
-                        onDismiss = screenModel::closeActiveSheet,
                         onImageServiceModelSelected = {
                             screenModel.updateImageServiceModel(it)
                         },

@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -19,7 +20,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,7 +46,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
@@ -64,7 +63,6 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
-import runninghub.composeapp.generated.resources.quick_create_model_selector_apply
 import runninghub.composeapp.generated.resources.quick_create_model_selector_empty
 import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_3d
 import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_all
@@ -75,7 +73,6 @@ import runninghub.composeapp.generated.resources.quick_create_model_selector_fil
 import runninghub.composeapp.generated.resources.quick_create_model_selector_loading
 import runninghub.composeapp.generated.resources.quick_create_model_selector_path_format
 import runninghub.composeapp.generated.resources.quick_create_model_selector_search_placeholder
-import runninghub.composeapp.generated.resources.quick_create_model_selector_selected_label
 import runninghub.composeapp.generated.resources.quick_create_model_selector_title
 import runninghub.composeapp.generated.resources.quick_create_model_selector_unknown_price
 import runninghub.composeapp.generated.resources.quick_create_model_selector_video_group
@@ -86,7 +83,7 @@ private const val RECENT_GROUP_MARKER = "\u6700\u8fd1\u4e0a\u65b0"
  * 展示设计稿版快捷创作服务端模型选择面板。
  *
  * 面板只消费 [QuickCreateUiState] 中已经加载好的模型目录，搜索过滤与分类筛选属于本地临时 UI 状态；
- * 模型点击只通过回调更新 ScreenModel 中的选中项，底部“套用”负责关闭弹层，避免选择动作绕过状态层。
+ * 模型点击只通过回调更新 ScreenModel 中的选中项，列表勾选态就是当前生效模型，避免额外确认区挤占小屏高度。
  * 顶部手柄只上报拖拽过程，真正的 sheet 位移和收起判定由页面边界统一处理。
  */
 @Composable
@@ -94,7 +91,6 @@ internal fun QuickCreateModelSheet(
     visible: Boolean,
     isImage: Boolean,
     uiState: QuickCreateUiState,
-    onDismiss: () -> Unit,
     onImageServiceModelSelected: (String) -> Unit,
     onVideoServiceModelSelected: (String) -> Unit,
     onTabSwitch: (QuickCreateTab) -> Unit,
@@ -106,7 +102,6 @@ internal fun QuickCreateModelSheet(
 ) {
     val models = (uiState.serviceImageModelItems + uiState.serviceVideoModelItems)
         .distinctBy { it.identityKey }
-    val selectedModel = if (isImage) uiState.selectedImageServiceModelUi else uiState.selectedVideoServiceModelUi
     var query by remember { mutableStateOf("") }
     var selectedFilter by remember { mutableStateOf(ModelFilter.ALL) }
     val filteredModels = models
@@ -152,64 +147,66 @@ internal fun QuickCreateModelSheet(
         exit = slideOutVertically { it } + fadeOut(),
         modifier = modifier,
     ) {
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            color = QuickCreateDesignTokens.PanelStrong,
-            border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
-        ) {
-            Column(
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                    .heightIn(max = maxHeight),
+                shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                color = QuickCreateDesignTokens.PanelStrong,
+                border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
             ) {
-                QuickCreateSheetHandle(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                    onDragStart = onSheetDragStart,
-                    onDrag = onSheetDrag,
-                    onDragEnd = onSheetDragEnd,
-                    onDragCancel = onSheetDragCancel,
-                )
-                Text(
-                    text = stringResource(Res.string.quick_create_model_selector_title),
-                    color = QuickCreateDesignTokens.Text,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(top = 28.dp, bottom = 18.dp),
-                )
-                ModelSearchField(query = query, onQueryChange = { query = it })
-                ModelFilterRow(selectedFilter = selectedFilter, onSelect = { selectedFilter = it })
-                Box(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 520.dp)
-                        .padding(top = 16.dp, bottom = 12.dp),
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                 ) {
-                    when {
-                        uiState.serviceModelsLoading -> LoadingRow()
-                        filteredModels.isEmpty() -> EmptyText()
-                        else -> ModelList(
-                            models = filteredModels,
-                            onSelect = { model ->
-                                when (model.targetTab()) {
-                                    QuickCreateTab.IMAGE -> {
-                                        if (!isImage) onTabSwitch(QuickCreateTab.IMAGE)
-                                        onImageServiceModelSelected(model.identityKey)
+                    QuickCreateSheetHandle(
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        onDragStart = onSheetDragStart,
+                        onDrag = onSheetDrag,
+                        onDragEnd = onSheetDragEnd,
+                        onDragCancel = onSheetDragCancel,
+                    )
+                    Text(
+                        text = stringResource(Res.string.quick_create_model_selector_title),
+                        color = QuickCreateDesignTokens.Text,
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Black,
+                        modifier = Modifier.padding(top = 28.dp, bottom = 18.dp),
+                    )
+                    ModelSearchField(query = query, onQueryChange = { query = it })
+                    ModelFilterRow(selectedFilter = selectedFilter, onSelect = { selectedFilter = it })
+                    // 列表区域按剩余高度收缩；行尾勾选就是当前生效模型，不再额外占用底部确认区。
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f, fill = false)
+                            .heightIn(max = 520.dp)
+                            .padding(top = 16.dp, bottom = 12.dp),
+                    ) {
+                        when {
+                            uiState.serviceModelsLoading -> LoadingRow()
+                            filteredModels.isEmpty() -> EmptyText()
+                            else -> ModelList(
+                                models = filteredModels,
+                                onSelect = { model ->
+                                    when (model.targetTab()) {
+                                        QuickCreateTab.IMAGE -> {
+                                            if (!isImage) onTabSwitch(QuickCreateTab.IMAGE)
+                                            onImageServiceModelSelected(model.identityKey)
+                                        }
+                                        QuickCreateTab.VIDEO -> {
+                                            if (isImage) onTabSwitch(QuickCreateTab.VIDEO)
+                                            onVideoServiceModelSelected(model.identityKey)
+                                        }
                                     }
-                                    QuickCreateTab.VIDEO -> {
-                                        if (isImage) onTabSwitch(QuickCreateTab.VIDEO)
-                                        onVideoServiceModelSelected(model.identityKey)
-                                    }
-                                }
-                            },
-                        )
+                                },
+                            )
+                        }
                     }
                 }
-                SelectedModelBar(
-                    model = selectedModel,
-                    onApply = onDismiss,
-                )
             }
         }
     }
@@ -473,79 +470,6 @@ private fun CapabilityTag(text: String, muted: Boolean = false) {
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
             maxLines = 1,
         )
-    }
-}
-
-@Composable
-private fun SelectedModelBar(model: QuickCreateServiceModelUi?, onApply: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(11.dp),
-        color = Color(0xF515191E),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
-    ) {
-        Row(
-            modifier = Modifier.padding(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            QuickCreateModelGlyph(modifier = Modifier.size(48.dp)) {
-                Icon(
-                    imageVector = Icons.Default.Image,
-                    contentDescription = null,
-                    tint = QuickCreateDesignTokens.Text,
-                    modifier = Modifier.size(25.dp),
-                )
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = stringResource(Res.string.quick_create_model_selector_selected_label),
-                    color = Color(0xFFB8BAC3),
-                    fontSize = 11.sp,
-                )
-                Text(
-                    text = model?.displayName?.asServiceModelText().orEmpty(),
-                    color = QuickCreateDesignTokens.Text,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = model?.let {
-                        stringResource(
-                            Res.string.quick_create_model_selector_path_format,
-                            it.source.bindingId.ifBlank { it.source.skuId },
-                        )
-                    }.orEmpty(),
-                    color = Color(0xFF90929A),
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Surface(
-                onClick = onApply,
-                shape = RoundedCornerShape(12.dp),
-                color = Color.Transparent,
-                modifier = Modifier.height(42.dp).width(110.dp),
-            ) {
-                Box(
-                    modifier = Modifier.background(
-                        Brush.horizontalGradient(listOf(Color(0xFF7556F6), Color(0xFF9B61FF))),
-                        RoundedCornerShape(12.dp),
-                    ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.quick_create_model_selector_apply),
-                        color = QuickCreateDesignTokens.Text,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Black,
-                    )
-                }
-            }
-        }
     }
 }
 

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -22,7 +23,12 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -96,7 +102,7 @@ internal fun QuickCreateConversationArea(
                     QuickCreateRhAvatar(modifier = Modifier.padding(top = 4.dp))
                     GeneratedPosterCard(
                         result = item.results.firstOrNull(),
-                        fallbackAspectRatio = item.aspectRatio,
+                        generatingAspectRatio = item.aspectRatio,
                         progress = (item.statusText as? QuickCreateTaskStatusText.Running)?.progressPercent,
                         taskStatus = item.taskStatus,
                         modifier = Modifier.weight(1f),
@@ -153,12 +159,24 @@ private fun UserPromptBubble(prompt: String) {
 @Composable
 private fun GeneratedPosterCard(
     result: QuickCreateResultUi?,
-    fallbackAspectRatio: String?,
+    generatingAspectRatio: String?,
     progress: Int?,
     taskStatus: QuickCreateTaskUiStatus,
     modifier: Modifier = Modifier,
 ) {
-    val cardAspectRatio = result.displayAspectRatio(fallbackAspectRatio)
+    var resolvedImageAspectRatio by remember(result?.url) { mutableStateOf<Float?>(null) }
+    val cardAspectRatio = if (result == null) {
+        quickCreateConversationGeneratingAspectRatio(generatingAspectRatio)
+    } else {
+        quickCreateConversationResultAspectRatio(
+            resultWidth = result.width,
+            resultHeight = result.height,
+            resolvedImageAspectRatio = resolvedImageAspectRatio,
+        )
+    }
+    val cardSizeModifier = cardAspectRatio?.let { ratio ->
+        Modifier.aspectRatio(ratio)
+    } ?: Modifier.heightIn(min = 180.dp)
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
@@ -168,7 +186,7 @@ private fun GeneratedPosterCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(cardAspectRatio)
+                .then(cardSizeModifier)
                 .clip(RoundedCornerShape(16.dp))
                 .background(Color.Transparent),
         ) {
@@ -177,9 +195,12 @@ private fun GeneratedPosterCard(
                     SmartAsyncImage(
                         imageUrl = result.url,
                         contentDescription = null,
-                        modifier = Modifier.matchParentSize(),
+                        modifier = Modifier
+                            .matchParentSize()
+                            .alpha(if (cardAspectRatio != null) 1f else 0f),
                         contentScale = ContentScale.Crop,
                         shape = RoundedCornerShape(16.dp),
+                        onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
                     )
                 }
                 result != null -> {
@@ -187,9 +208,12 @@ private fun GeneratedPosterCard(
                     SmartAsyncImage(
                         imageUrl = previewUrl,
                         contentDescription = null,
-                        modifier = Modifier.matchParentSize(),
+                        modifier = Modifier
+                            .matchParentSize()
+                            .alpha(if (cardAspectRatio != null) 1f else 0f),
                         contentScale = ContentScale.Crop,
                         shape = RoundedCornerShape(16.dp),
+                        onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
                     )
                 }
                 else -> {
@@ -281,22 +305,38 @@ private fun QuickCreateTaskUiStatus.quickCreateTaskBadgeText(progress: Int?): St
         QuickCreateTaskUiStatus.CANCELED -> stringResource(Res.string.quick_create_task_status_canceled)
     }
 
-private fun QuickCreateResultUi?.displayAspectRatio(fallbackAspectRatio: String?): Float {
-    val resultRatio = this?.let { result ->
-        val width = result.width
-        val height = result.height
-        if (width != null && height != null && width > 0 && height > 0) {
-            width.toFloat() / height.toFloat()
-        } else {
-            null
-        }
+/**
+ * 返回对话结果卡片可使用的最终图片比例。
+ *
+ * 服务端结果如果已经明确给出宽高，则优先使用该宽高比；如果没有宽高，再用图片加载成功后的
+ * intrinsic size。这里不使用提交参数，因为最终图片可能没有按用户选择比例生成。
+ */
+internal fun quickCreateConversationResultAspectRatio(
+    resultWidth: Int?,
+    resultHeight: Int?,
+    resolvedImageAspectRatio: Float?,
+): Float? {
+    val resultRatio = if (
+        resultWidth != null &&
+        resultHeight != null &&
+        resultWidth > 0 &&
+        resultHeight > 0
+    ) {
+        resultWidth.toFloat() / resultHeight.toFloat()
+    } else {
+        null
     }
-    return resultRatio ?: fallbackAspectRatio.parseAspectRatioOrNull() ?: 1f
+    return resultRatio ?: resolvedImageAspectRatio?.takeIf { it.isFinite() && it > 0f }
 }
 
-private fun String?.parseAspectRatioOrNull(): Float? {
-    val value = this?.trim()?.takeIf { it.isNotBlank() } ?: return null
-    val parts = value.split(':')
+/**
+ * 返回生成中状态卡片可使用的占位比例。
+ *
+ * 该值只在还没有结果图时使用，用于让排队、生成中的视觉占位贴近本次提交参数；结果图出现后会改用实际图片比例。
+ */
+internal fun quickCreateConversationGeneratingAspectRatio(aspectRatio: String?): Float? {
+    val value = aspectRatio?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    val parts = value.split(':', '：', '/')
     if (parts.size != 2) return null
     val width = parts[0].trim().toFloatOrNull()
     val height = parts[1].trim().toFloatOrNull()
