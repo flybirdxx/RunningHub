@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package com.runninghub.feature.model.data.remote.dto
 
 import kotlinx.serialization.KSerializer
@@ -14,6 +16,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonNames
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -51,6 +54,51 @@ data class SkuListRequestDto(
     val isWhitelist: Boolean = false,
     val pageNum: Int = 1,
     val pageSize: Int = 30,
+)
+
+/**
+ * 标准模型分组标签查询请求。
+ *
+ * 该 DTO 对应 RunningHub 标准模型页的 `sku/tag/query` 请求；客户端只使用 `parentId=4`
+ * 查询模型分组，避免把模型名称前缀误当作分组来源。
+ *
+ * @property parentId 服务端标签父级 ID；标准模型分组固定为 `4`，其他值不属于当前业务入口。
+ * @property levels 需要查询的标签层级；`[1]` 表示只取顶部模型分组，空集合表示服务端默认层级。
+ * @property showType 服务端展示结构类型；`tree` 表示按标签树返回，空字符串不是当前客户端有效值。
+ * @property search 搜索关键字，允许空字符串；空字符串表示不按名称过滤分组。
+ */
+@Serializable
+data class SkuTagQueryRequestDto(
+    val parentId: Int,
+    val levels: List<Int> = emptyList(),
+    val showType: String = "tree",
+    val search: String = "",
+)
+
+/**
+ * 标准模型分组标签 DTO。
+ *
+ * @property id 服务端标签 ID，可能以数字或字符串返回；空字符串表示缺少可用于筛选的稳定 ID。
+ * @property parentId 父级标签 ID，来源于服务端标签树；空字符串表示接口未返回父级。
+ * @property level 标签层级，`0` 表示接口未提供层级或不是当前客户端关心的层级。
+ * @property name 用户可见标签名称；空字符串表示服务端没有提供展示名。
+ * @property nameEn 英文标签名称；`null` 表示接口未返回英文名。
+ * @property description 标签说明；`null` 表示服务端未提供说明，客户端不自行补文案。
+ * @property sort 服务端排序值；`0` 表示默认排序或接口未返回排序。
+ * @property apiCount 标签下模型数量，单位为个；`null` 表示接口未提供数量，映射时按 0 处理。
+ */
+@Serializable
+data class SkuTagDto(
+    @Serializable(with = FlexibleStringSerializer::class)
+    val id: String = "",
+    @Serializable(with = FlexibleStringSerializer::class)
+    val parentId: String = "",
+    val level: Int = 0,
+    val name: String = "",
+    val nameEn: String? = null,
+    val description: String? = null,
+    val sort: Int = 0,
+    val apiCount: Int? = null,
 )
 
 /**
@@ -195,9 +243,11 @@ private fun String.splitTagText(): List<String> =
  * @property name 中文模型名称，来源于服务端目录；空字符串表示服务端未提供名称。
  * @property nameEn 英文模型名称，来源于服务端目录；`null` 表示服务端未返回英文名称，
  * 与空字符串“返回了空名称”不同。
- * @property type 服务端模型类型标识；`null` 表示目录响应未提供类型。
+ * @property type 服务端模型类型标识，兼容读取 `type` 和线上列表响应的 `categoryName`；
+ * `null` 表示目录响应未提供类型。
  * @property groupName 服务端分组名称；`null` 表示未提供分组，客户端不应自行推断分组。
- * @property source 模型来源或供应方标识；`null` 表示服务端未返回来源信息。
+ * @property source 模型来源或供应方标识，兼容读取 `source` 和线上列表响应的 `sourceTypeName`；
+ * `null` 表示服务端未返回来源信息。
  * @property tags 服务端模型标签，可能携带 `text-to-video`、`text-to-audio`、`image-to-3D` 等
  * 分类线索；空集合表示服务端未返回标签或标签不可解析。
  * @property price 原始价格字段，来源于服务端，可能是数字或字符串；空字符串表示服务端未提供价格。
@@ -211,8 +261,10 @@ data class SkuSummaryDto(
     val id: String = "",
     val name: String = "",
     val nameEn: String? = null,
+    @JsonNames("categoryName")
     val type: String? = null,
     val groupName: String? = null,
+    @JsonNames("sourceTypeName")
     val source: String? = null,
     @Serializable(with = FlexibleStringListSerializer::class)
     val tags: List<String> = emptyList(),
@@ -239,9 +291,11 @@ data class SkuDetailRequestDto(
  * @property id SKU 稳定标识，来源于服务端详情；用于登记 endpoint 缓存和映射领域模型。
  * @property name 中文模型名称，来源于服务端；空字符串表示服务端未提供名称。
  * @property nameEn 英文模型名称；`null` 表示服务端未提供英文名称。
- * @property type 服务端模型类型标识；`null` 表示详情响应未提供类型。
+ * @property type 服务端模型类型标识，兼容读取 `type` 和线上详情响应可能返回的 `categoryName`；
+ * `null` 表示详情响应未提供类型。
  * @property groupName 服务端分组名称；`null` 表示未提供分组。
- * @property source 模型来源或供应方标识；`null` 表示服务端未返回来源信息。
+ * @property source 模型来源或供应方标识，兼容读取 `source` 和线上详情响应可能返回的
+ * `sourceTypeName`；`null` 表示服务端未返回来源信息。
  * @property tags 服务端模型标签，可能携带分类、供应方和产品线信息；空集合表示详情未返回标签。
  * @property price 原始价格字段，可能是数字或字符串；空字符串表示服务端未提供价格。
  * @property priceSummary 服务端可直接展示的价格摘要；`null` 时 Repository 回退使用 [price]。
@@ -257,8 +311,10 @@ data class SkuDetailDto(
     val id: String,
     val name: String = "",
     val nameEn: String? = null,
+    @JsonNames("categoryName")
     val type: String? = null,
     val groupName: String? = null,
+    @JsonNames("sourceTypeName")
     val source: String? = null,
     @Serializable(with = FlexibleStringListSerializer::class)
     val tags: List<String> = emptyList(),

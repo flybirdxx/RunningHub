@@ -24,6 +24,24 @@ data class ApiModelSummary(
 )
 
 /**
+ * 标准模型目录中的服务端模型分组。
+ *
+ * 该模型对应 RunningHub 标准模型页顶部的模型分组标签，例如 Seedance、Suno 或 Wan Video Models。
+ * 它只描述目录归属，不等同于每个模型自己的 `text-to-video`、`motion-control` 等能力筛选类型。
+ *
+ * @property id 服务端分组标签 ID，来源于 `sku/tag/query`；必须稳定保留，用于后续 `categoryTagIds` 查询。
+ * @property name 用户可见分组名称，来源于服务端标签配置；空字符串表示服务端没有提供可展示名称。
+ * @property nameEn 服务端英文分组名称；`null` 表示接口未返回英文名，不应由客户端自行翻译。
+ * @property apiCount 服务端声明的分组模型数量，单位为个；`0` 表示该分组当前没有可展示模型或接口未提供数量。
+ */
+data class ApiModelGroup(
+    val id: String,
+    val name: String,
+    val nameEn: String? = null,
+    val apiCount: Int = 0,
+)
+
+/**
  * 标准模型详情的领域模型。
  *
  * @property id 标准模型 SKU 稳定标识，来源于详情接口；用于和列表项、任务提交请求关联。

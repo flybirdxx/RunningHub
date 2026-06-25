@@ -4,6 +4,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogReposi
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,23 +26,40 @@ import kotlinx.coroutines.launch
  */
 class QuickCreateModelCatalogInteractor(
     private val modelCatalogRepository: QuickCreationModelCatalogRepository,
+    private val modelSelectionRepository: QuickCreateModelSelectionRepository,
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<QuickCreateUiState>,
     private val onFeePreviewRequired: () -> Unit,
 ) {
+    /**
+     * 当前页面生命周期内用户主动选择的图片模型身份键。
+     *
+     * 加载模型目录时会先读取持久化的上次选择；若用户在缓存展示和远端刷新之间重新选择模型，
+     * 这里的值必须优先于旧持久化值，避免刷新回调把用户刚刚点选的模型改回旧选择。
+     */
+    private var sessionImageSelectionIdentityKey: String? = null
+
+    /**
+     * 当前页面生命周期内用户主动选择的视频模型身份键。
+     *
+     * 语义同 [sessionImageSelectionIdentityKey]，仅用于视频快捷创作模型列表。
+     */
+    private var sessionVideoSelectionIdentityKey: String? = null
 
     /**
      * 加载图片与视频服务模型目录，并在刷新后修正当前选中模型。
      *
      * 流程分两段执行：先读取本地缓存并尽快回写 UI，避免打开模型 sheet 时等待远端接口；
-     * 随后后台强制刷新远端目录，成功后再用最新模型覆盖缓存展示。若新目录中仍存在同一
-     * `bindingId + skuId` 的模型，会切换到最新返回的规范对象并保留用户已填参数；若原模型不存在，
-     * 则回退到列表首项并使用新模型默认参数，避免生成请求继续携带过期服务字段。
+     * 随后后台强制刷新远端目录，成功后再用最新模型覆盖缓存展示。若本地保存过用户最后一次选择，
+     * 优先恢复该模型；否则保留当前列表中的同一 `bindingId + skuId` 模型，或名称、分组和接口类型一致的
+     * 同一服务模型。仍无法命中时回退到列表首项并使用新模型默认参数，避免生成请求继续携带过期服务字段。
      */
     fun loadServiceModels() {
         scope.launch {
             uiState.update { it.copy(serviceModelsLoading = true) }
 
+            val lastImageIdentityKey = modelSelectionRepository.getLastImageServiceModelIdentityKey()
+            val lastVideoIdentityKey = modelSelectionRepository.getLastVideoServiceModelIdentityKey()
             val shouldRefreshAfterCachedDisplay =
                 modelCatalogRepository.hasCachedModels(QuickCreationServiceKind.IMAGE) ||
                     modelCatalogRepository.hasCachedModels(QuickCreationServiceKind.VIDEO)
@@ -52,6 +70,8 @@ class QuickCreateModelCatalogInteractor(
                 imageModels = imageModels.getOrElse { emptyList() },
                 videoModels = videoModels.getOrElse { emptyList() },
                 loading = false,
+                lastImageIdentityKey = lastImageIdentityKey,
+                lastVideoIdentityKey = lastVideoIdentityKey,
             )
             onFeePreviewRequired()
 
@@ -63,6 +83,8 @@ class QuickCreateModelCatalogInteractor(
                     imageModels = refreshedImageModels.getOrElse { uiState.value.serviceImageModels },
                     videoModels = refreshedVideoModels.getOrElse { uiState.value.serviceVideoModels },
                     loading = false,
+                    lastImageIdentityKey = lastImageIdentityKey,
+                    lastVideoIdentityKey = lastVideoIdentityKey,
                 )
                 onFeePreviewRequired()
             }
@@ -73,13 +95,17 @@ class QuickCreateModelCatalogInteractor(
         imageModels: List<QuickCreationServiceModel>,
         videoModels: List<QuickCreationServiceModel>,
         loading: Boolean,
+        lastImageIdentityKey: String?,
+        lastVideoIdentityKey: String?,
     ) {
         uiState.update { state ->
-            val selectedImage = state.selectedImageServiceModel
-                ?.let { selected -> imageModels.firstOrNull { it.matchesServiceIdentity(selected) } }
+            val effectiveImageIdentityKey = sessionImageSelectionIdentityKey ?: lastImageIdentityKey
+            val effectiveVideoIdentityKey = sessionVideoSelectionIdentityKey ?: lastVideoIdentityKey
+            val selectedImage = imageModels.matchingPersistedSelection(effectiveImageIdentityKey)
+                ?: imageModels.matchingServiceSelection(state.selectedImageServiceModel)
                 ?: imageModels.firstOrNull()
-            val selectedVideo = state.selectedVideoServiceModel
-                ?.let { selected -> videoModels.firstOrNull { it.matchesServiceIdentity(selected) } }
+            val selectedVideo = videoModels.matchingPersistedSelection(effectiveVideoIdentityKey)
+                ?: videoModels.matchingServiceSelection(state.selectedVideoServiceModel)
                 ?: videoModels.firstOrNull()
             val imageItems = imageModels.toQuickCreateServiceModelUiItems(selectedImage)
             val videoItems = videoModels.toQuickCreateServiceModelUiItems(selectedVideo)
@@ -94,12 +120,12 @@ class QuickCreateModelCatalogInteractor(
                 serviceVideoModelItems = videoItems,
                 selectedImageServiceModelUi = imageItems.firstOrNull { it.selected },
                 selectedVideoServiceModelUi = videoItems.firstOrNull { it.selected },
-                imageServiceParams = if (hasSameServiceIdentity(selectedImage, state.selectedImageServiceModel)) {
+                imageServiceParams = if (hasSameServiceSelection(selectedImage, state.selectedImageServiceModel)) {
                     state.imageServiceParams
                 } else {
                     QuickCreationServiceSchema.defaultParams(selectedImage)
                 },
-                videoServiceParams = if (hasSameServiceIdentity(selectedVideo, state.selectedVideoServiceModel)) {
+                videoServiceParams = if (hasSameServiceSelection(selectedVideo, state.selectedVideoServiceModel)) {
                     state.videoServiceParams
                 } else {
                     QuickCreationServiceSchema.defaultParams(selectedVideo)
@@ -133,6 +159,7 @@ class QuickCreateModelCatalogInteractor(
     }
 
     private fun updateImageServiceModelSelection(selectedModel: QuickCreationServiceModel) {
+        sessionImageSelectionIdentityKey = selectedModel.quickCreateServiceModelIdentityKey()
         uiState.update {
             val imageItems = it.serviceImageModels.toQuickCreateServiceModelUiItems(selectedModel)
             it.copy(
@@ -141,6 +168,9 @@ class QuickCreateModelCatalogInteractor(
                 selectedImageServiceModelUi = imageItems.firstOrNull { item -> item.selected },
                 imageServiceParams = QuickCreationServiceSchema.defaultParams(selectedModel),
             )
+        }
+        scope.launch {
+            modelSelectionRepository.saveLastImageServiceModelIdentityKey(selectedModel.quickCreateServiceModelIdentityKey())
         }
         onFeePreviewRequired()
     }
@@ -169,6 +199,7 @@ class QuickCreateModelCatalogInteractor(
     }
 
     private fun updateVideoServiceModelSelection(selectedModel: QuickCreationServiceModel) {
+        sessionVideoSelectionIdentityKey = selectedModel.quickCreateServiceModelIdentityKey()
         uiState.update {
             val videoItems = it.serviceVideoModels.toQuickCreateServiceModelUiItems(selectedModel)
             it.copy(
@@ -177,6 +208,9 @@ class QuickCreateModelCatalogInteractor(
                 selectedVideoServiceModelUi = videoItems.firstOrNull { item -> item.selected },
                 videoServiceParams = QuickCreationServiceSchema.defaultParams(selectedModel),
             )
+        }
+        scope.launch {
+            modelSelectionRepository.saveLastVideoServiceModelIdentityKey(selectedModel.quickCreateServiceModelIdentityKey())
         }
         onFeePreviewRequired()
     }
@@ -222,9 +256,37 @@ class QuickCreateModelCatalogInteractor(
     private fun QuickCreationServiceModel.matchesServiceIdentity(other: QuickCreationServiceModel?): Boolean =
         other != null && bindingId == other.bindingId && skuId == other.skuId
 
-    private fun hasSameServiceIdentity(
+    private fun List<QuickCreationServiceModel>.matchingServiceSelection(
+        selected: QuickCreationServiceModel?,
+    ): QuickCreationServiceModel? {
+        if (selected == null) return null
+        return firstOrNull { it.matchesServiceIdentity(selected) }
+            ?: firstOrNull { it.matchesServiceSignature(selected) }
+    }
+
+    private fun List<QuickCreationServiceModel>.matchingPersistedSelection(
+        identityKey: String?,
+    ): QuickCreationServiceModel? =
+        identityKey
+            ?.takeIf { it.isNotBlank() }
+            ?.let { key -> firstOrNull { it.quickCreateServiceModelIdentityKey() == key } }
+
+    private fun QuickCreationServiceModel.matchesServiceSignature(other: QuickCreationServiceModel?): Boolean =
+        other != null &&
+            categoryId.quickCreateServiceSignatureToken() == other.categoryId.quickCreateServiceSignatureToken() &&
+            groupName.quickCreateServiceSignatureToken() == other.groupName.quickCreateServiceSignatureToken() &&
+            name.quickCreateServiceSignatureToken() == other.name.quickCreateServiceSignatureToken() &&
+            apiType.quickCreateServiceSignatureToken() == other.apiType.quickCreateServiceSignatureToken() &&
+            apiSource.quickCreateServiceSignatureToken() == other.apiSource.quickCreateServiceSignatureToken()
+
+    private fun String?.quickCreateServiceSignatureToken(): String =
+        orEmpty()
+            .lowercase()
+            .filterNot { it.isWhitespace() || it == '-' || it == '_' }
+
+    private fun hasSameServiceSelection(
         first: QuickCreationServiceModel?,
         second: QuickCreationServiceModel?,
     ): Boolean =
-        first != null && first.matchesServiceIdentity(second)
+        first != null && (first.matchesServiceIdentity(second) || first.matchesServiceSignature(second))
 }

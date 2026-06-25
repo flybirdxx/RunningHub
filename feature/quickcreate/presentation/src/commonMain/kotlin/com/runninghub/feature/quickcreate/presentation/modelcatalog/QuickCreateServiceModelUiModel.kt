@@ -235,12 +235,12 @@ fun QuickCreationServiceModel.toQuickCreateServiceModelUi(
 /**
  * 根据当前选中模型生成紧凑编辑器中的模型标签。
  *
- * 主输入条不展示模型目录同步状态；模型为空时使用本地兼容模型名，避免切换到快捷创作时短暂显示
- * “模型加载中”占位。目录加载状态只交给模型选择 sheet 展示。
+ * 主输入条在服务端模型尚未回填时展示加载语义，避免把本地兼容模型误当作当前已选模型；
+ * 目录加载完成但仍无服务模型时才使用本地兼容模型名兜底，保证旧接口或离线场景仍可读。
  *
  * @param model 当前服务端选中模型 UI 摘要；`null` 表示还没有可展示的服务端模型。
  * @param fallback 服务端模型缺失时展示的本地兼容模型名称。
- * @param loading 兼容旧调用点的目录加载状态；主输入条会忽略该值以保持可读模型标签稳定。
+ * @param loading `true` 表示目录仍在加载，此时若 [model] 为空不应展示硬编码兼容模型名。
  * @return 紧凑模型入口的稳定标签语义。
  */
 fun quickCreateCompactServiceModelLabel(
@@ -250,6 +250,7 @@ fun quickCreateCompactServiceModelLabel(
 ): QuickCreateCompactServiceModelLabel =
     when {
         model != null -> QuickCreateCompactServiceModelLabel.ModelName(model.compactName)
+        loading -> QuickCreateCompactServiceModelLabel.Loading
         else -> QuickCreateCompactServiceModelLabel.FallbackName(fallback.toQuickCreateCompactServiceModelLabel())
     }
 

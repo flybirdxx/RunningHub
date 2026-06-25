@@ -9,6 +9,22 @@ package com.runninghub.core.storage
  */
 interface ModelCatalogCacheStore {
     /**
+     * 读取标准模型分组缓存。
+     *
+     * @param cacheKey 由调用方按搜索词生成的稳定缓存键；空字符串不是有效键。
+     * @return 已脱敏的分组 JSON；`null` 表示本地没有该查询条件的分组索引快照。
+     */
+    suspend fun getStandardModelGroups(cacheKey: String): String?
+
+    /**
+     * 保存标准模型分组缓存。
+     *
+     * @param cacheKey 与读取时一致的稳定缓存键。
+     * @param json 已脱敏的分组 JSON，不包含认证信息或远端错误消息。
+     */
+    suspend fun saveStandardModelGroups(cacheKey: String, json: String)
+
+    /**
      * 读取标准模型列表缓存。
      *
      * @param cacheKey 由调用方按搜索词、页码和页大小生成的稳定缓存键；空字符串不是有效键。

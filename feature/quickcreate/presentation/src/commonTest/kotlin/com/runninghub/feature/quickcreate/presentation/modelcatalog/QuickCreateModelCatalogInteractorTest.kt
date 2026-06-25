@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.modelcatalog
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
@@ -54,16 +55,24 @@ class QuickCreateModelCatalogInteractorTest {
             )
         }
         val state = MutableStateFlow(QuickCreateUiState())
+        val selectionRepository = FakeModelSelectionRepository()
         var feePreviewRequests = 0
-        val interactor = createInteractor(repository, state, this) {
+        val interactor = createInteractor(
+            repository = repository,
+            state = state,
+            scope = this,
+            selectionRepository = selectionRepository,
+        ) {
             feePreviewRequests += 1
         }
 
         interactor.loadServiceModels()
         runCurrent()
         interactor.updateImageServiceModel("binding-key|sku-key")
+        runCurrent()
 
         assertEquals("binding-key", state.value.selectedImageServiceModel?.bindingId)
+        assertEquals("binding-key|sku-key", selectionRepository.imageIdentityKey)
         assertEquals("binding-key|sku-key", state.value.selectedImageServiceModelUi?.identityKey)
         assertEquals(
             QuickCreateServiceModelDisplayName.ServerText("身份键图片模型"),
@@ -72,6 +81,113 @@ class QuickCreateModelCatalogInteractorTest {
         assertEquals(mapOf("style" to "sketch"), state.value.imageServiceParams)
         assertEquals(listOf(false, true), state.value.serviceImageModelItems.map { it.selected })
         assertEquals(2, feePreviewRequests)
+    }
+
+    @Test
+    fun `load service models selects first catalog image model when there is no saved selection`() = runTest {
+        val repository = FakeModelCatalogRepository().apply {
+            imageModels = listOf(
+                serviceModel(
+                    groupName = "全能图片 PRO",
+                    bindingId = "pro-binding",
+                    skuId = "pro-sku",
+                    name = "全能图片 PRO-文生图-官方版",
+                    fields = listOf(serviceField("style", "pro")),
+                ),
+                serviceModel(
+                    bindingId = "g2-binding",
+                    skuId = "g2-sku",
+                    name = "全能图片G-2.0-官方版",
+                    fields = listOf(serviceField("style", "photoreal")),
+                ),
+            )
+        }
+        val state = MutableStateFlow(QuickCreateUiState())
+        val interactor = createInteractor(repository, state, this)
+
+        interactor.loadServiceModels()
+        runCurrent()
+
+        assertEquals("pro-binding", state.value.selectedImageServiceModel?.bindingId)
+        assertEquals("pro-binding|pro-sku", state.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals(listOf(true, false), state.value.serviceImageModelItems.map { it.selected })
+    }
+
+    @Test
+    fun `load service models restores saved image selection before falling back to first catalog item`() = runTest {
+        val repository = FakeModelCatalogRepository().apply {
+            imageModels = listOf(
+                serviceModel(
+                    groupName = "全能图片 PRO",
+                    bindingId = "pro-binding",
+                    skuId = "pro-sku",
+                    name = "全能图片 PRO-文生图-官方版",
+                    fields = listOf(serviceField("style", "pro")),
+                ),
+                serviceModel(
+                    bindingId = "g2-binding",
+                    skuId = "g2-sku",
+                    name = "全能图片G-2.0-官方版",
+                    fields = listOf(serviceField("style", "photoreal")),
+                ),
+            )
+        }
+        val selectionRepository = FakeModelSelectionRepository(
+            imageIdentityKey = "g2-binding|g2-sku",
+        )
+        val state = MutableStateFlow(QuickCreateUiState())
+        val interactor = createInteractor(repository, state, this, selectionRepository = selectionRepository)
+
+        interactor.loadServiceModels()
+        runCurrent()
+
+        assertEquals("g2-binding", state.value.selectedImageServiceModel?.bindingId)
+        assertEquals("g2-binding|g2-sku", state.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals(listOf(false, true), state.value.serviceImageModelItems.map { it.selected })
+    }
+
+    @Test
+    fun `refresh restores saved image selection even when cached list selected first item`() = runTest {
+        val repository = FakeModelCatalogRepository().apply {
+            hasCachedModels = true
+            imageModels = listOf(
+                serviceModel(
+                    groupName = "全能图片 PRO",
+                    bindingId = "pro-cache-binding",
+                    skuId = "pro-cache-sku",
+                    name = "全能图片 PRO-文生图-官方版",
+                    fields = listOf(serviceField("style", "pro-cache")),
+                )
+            )
+            refreshedImageModels = listOf(
+                serviceModel(
+                    groupName = "全能图片 PRO",
+                    bindingId = "pro-live-binding",
+                    skuId = "pro-live-sku",
+                    name = "全能图片 PRO-文生图-官方版",
+                    fields = listOf(serviceField("style", "pro-live")),
+                ),
+                serviceModel(
+                    bindingId = "g2-live-binding",
+                    skuId = "g2-live-sku",
+                    name = "全能图片G-2.0-官方版",
+                    fields = listOf(serviceField("style", "photoreal")),
+                ),
+            )
+        }
+        val selectionRepository = FakeModelSelectionRepository(
+            imageIdentityKey = "g2-live-binding|g2-live-sku",
+        )
+        val state = MutableStateFlow(QuickCreateUiState())
+        val interactor = createInteractor(repository, state, this, selectionRepository = selectionRepository)
+
+        interactor.loadServiceModels()
+        runCurrent()
+
+        assertEquals("g2-live-binding", state.value.selectedImageServiceModel?.bindingId)
+        assertEquals("g2-live-binding|g2-live-sku", state.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals(mapOf("style" to "photoreal"), state.value.imageServiceParams)
+        assertEquals(listOf(false, true), state.value.serviceImageModelItems.map { it.selected })
     }
 
     @Test
@@ -112,6 +228,56 @@ class QuickCreateModelCatalogInteractorTest {
         )
         assertTrue(state.value.serviceImageModelItems.single().selected)
         assertEquals(mapOf("style" to "photoreal", "aspectRatio" to "1:1"), state.value.imageServiceParams)
+    }
+
+    @Test
+    fun `reload keeps selected image model when refreshed identity changes but signature matches`() = runTest {
+        val repository = FakeModelCatalogRepository().apply {
+            imageModels = listOf(
+                serviceModel(
+                    bindingId = "g2-binding",
+                    skuId = "g2-sku",
+                    name = "全能图片G-2.0-官方版",
+                    fields = listOf(serviceField("style", "photoreal")),
+                ),
+                serviceModel(
+                    groupName = "全能图片 PRO",
+                    bindingId = "pro-cache-binding",
+                    skuId = "pro-cache-sku",
+                    name = "全能图片PRO-文生图-官方版",
+                    fields = listOf(serviceField("style", "cinematic")),
+                ),
+            )
+        }
+        val state = MutableStateFlow(QuickCreateUiState())
+        val interactor = createInteractor(repository, state, this)
+
+        interactor.loadServiceModels()
+        runCurrent()
+        interactor.updateImageServiceModel("pro-cache-binding|pro-cache-sku")
+        interactor.updateImageServiceParam("style", "custom")
+        repository.imageModels = listOf(
+            serviceModel(
+                bindingId = "g2-binding",
+                skuId = "g2-sku",
+                name = "全能图片G-2.0-官方版",
+                fields = listOf(serviceField("style", "photoreal")),
+            ),
+            serviceModel(
+                groupName = "全能图片 PRO",
+                bindingId = "pro-live-binding",
+                skuId = "pro-live-sku",
+                name = "全能图片 PRO-文生图-官方版",
+                fields = listOf(serviceField("style", "cinematic")),
+            ),
+        )
+        interactor.loadServiceModels()
+        runCurrent()
+
+        assertEquals("pro-live-binding", state.value.selectedImageServiceModel?.bindingId)
+        assertEquals("pro-live-binding|pro-live-sku", state.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals("custom", state.value.imageServiceParams["style"])
+        assertEquals(listOf(false, true), state.value.serviceImageModelItems.map { it.selected })
     }
 
     @Test
@@ -166,10 +332,12 @@ class QuickCreateModelCatalogInteractorTest {
         repository: FakeModelCatalogRepository,
         state: MutableStateFlow<QuickCreateUiState>,
         scope: TestScope,
+        selectionRepository: FakeModelSelectionRepository = FakeModelSelectionRepository(),
         onFeePreviewRequired: () -> Unit = {},
     ): QuickCreateModelCatalogInteractor =
         QuickCreateModelCatalogInteractor(
             modelCatalogRepository = repository,
+            modelSelectionRepository = selectionRepository,
             scope = scope,
             uiState = state,
             onFeePreviewRequired = onFeePreviewRequired,
@@ -182,6 +350,7 @@ class QuickCreateModelCatalogInteractorTest {
      * 避免把 feature presentation 单测耦合到 composeApp 的 ScreenModel、媒体解析或生成流程。
      */
     private class FakeModelCatalogRepository : QuickCreationModelCatalogRepository {
+        var hasCachedModels: Boolean = false
         var imageModels: List<QuickCreationServiceModel> = listOf(
             serviceModel(
                 bindingId = "binding-1",
@@ -203,6 +372,8 @@ class QuickCreateModelCatalogInteractorTest {
                 fields = listOf(serviceField("motion", "cinematic")),
             )
         )
+        var refreshedImageModels: List<QuickCreationServiceModel>? = null
+        var refreshedVideoModels: List<QuickCreationServiceModel>? = null
 
         /**
          * 按业务类别返回当前测试设置的模型目录。
@@ -212,6 +383,45 @@ class QuickCreateModelCatalogInteractorTest {
                 QuickCreationServiceKind.IMAGE -> Result.success(imageModels)
                 QuickCreationServiceKind.VIDEO -> Result.success(videoModels)
             }
+
+        /**
+         * 测试是否存在本地缓存。
+         */
+        override suspend fun hasCachedModels(kind: QuickCreationServiceKind): Boolean =
+            hasCachedModels
+
+        /**
+         * 返回测试设置的远端刷新目录；未设置时沿用当前目录。
+         */
+        override suspend fun refreshModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> =
+            when (kind) {
+                QuickCreationServiceKind.IMAGE -> Result.success(refreshedImageModels ?: imageModels)
+                QuickCreationServiceKind.VIDEO -> Result.success(refreshedVideoModels ?: videoModels)
+            }
+    }
+
+    /**
+     * 最近模型选择仓库替身。
+     *
+     * 测试只关心读取上次选择和用户主动选择后的写入，不需要覆盖底层 DataStore 行为。
+     */
+    private class FakeModelSelectionRepository(
+        var imageIdentityKey: String? = null,
+        var videoIdentityKey: String? = null,
+    ) : QuickCreateModelSelectionRepository {
+        override suspend fun getLastImageServiceModelIdentityKey(): String? =
+            imageIdentityKey
+
+        override suspend fun saveLastImageServiceModelIdentityKey(identityKey: String) {
+            imageIdentityKey = identityKey
+        }
+
+        override suspend fun getLastVideoServiceModelIdentityKey(): String? =
+            videoIdentityKey
+
+        override suspend fun saveLastVideoServiceModelIdentityKey(identityKey: String) {
+            videoIdentityKey = identityKey
+        }
     }
 }
 

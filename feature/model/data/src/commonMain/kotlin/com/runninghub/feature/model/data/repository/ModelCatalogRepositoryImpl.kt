@@ -6,10 +6,12 @@ import com.runninghub.feature.model.data.remote.dto.LlmModelDto
 import com.runninghub.feature.model.data.remote.dto.SkuDetailDto
 import com.runninghub.feature.model.data.remote.dto.SkuListRequestDto
 import com.runninghub.feature.model.data.remote.dto.SkuSummaryDto
+import com.runninghub.feature.model.data.remote.dto.SkuTagDto
 import com.runninghub.feature.model.domain.ApiModelDetail
 import com.runninghub.feature.model.domain.ApiModelField
 import com.runninghub.feature.model.domain.ApiModelFieldOption
 import com.runninghub.feature.model.domain.ApiModelFieldType
+import com.runninghub.feature.model.domain.ApiModelGroup
 import com.runninghub.feature.model.domain.ApiModelSummary
 import com.runninghub.feature.model.domain.LlmModelSummary
 import com.runninghub.feature.model.domain.ModelCatalogException
@@ -31,6 +33,9 @@ private val skuPriceJson = Json {
     explicitNulls = false
 }
 
+private const val STANDARD_MODEL_LIST_CACHE_SCHEMA_VERSION = 3
+private const val STANDARD_MODEL_GROUP_CACHE_SCHEMA_VERSION = 1
+
 /**
  * 标准模型目录仓库的数据层实现。
  *
@@ -51,8 +56,45 @@ class ModelCatalogRepositoryImpl(
 ) : ModelCatalogRepository {
     private val fieldMapper = ApiModelFieldMapper(json)
     private val cacheMutex = Mutex()
+    private val standardGroupCache = mutableMapOf<String, List<ApiModelGroup>>()
     private val standardListCache = mutableMapOf<StandardListCacheKey, List<ApiModelSummary>>()
     private val standardDetailCache = mutableMapOf<String, ApiModelDetail>()
+
+    override suspend fun listStandardModelGroups(search: String): Result<List<ApiModelGroup>> =
+        runCatching {
+            cacheMutex.withLock {
+                standardGroupCache[search]?.let { return@runCatching it }
+            }
+            val response = api.listStandardModelGroups(search = search)
+            if (response.code != 0) {
+                // 分组接口失败时只抛稳定错误语义，上层可回落到旧的全量 SKU 列表。
+                throw ModelCatalogException(ModelCatalogIssue.StandardGroupLoadFailed, response.code)
+            }
+            val groups = response.data.orEmpty()
+                .map { it.toDomain() }
+                .filter { it.id.isNotBlank() && it.name.isNotBlank() && it.apiCount > 0 }
+            cacheMutex.withLock {
+                standardGroupCache[search] = groups
+            }
+            cacheStore?.saveStandardModelGroups(standardGroupCacheKey(search), encodeStandardGroupCache(groups))
+            groups
+        }
+
+    override suspend fun getCachedStandardModelGroups(search: String): List<ApiModelGroup> {
+        cacheMutex.withLock {
+            standardGroupCache[search]?.let { return it }
+        }
+        val cached = cacheStore
+            ?.getStandardModelGroups(standardGroupCacheKey(search))
+            ?.let(::decodeStandardGroupCache)
+            .orEmpty()
+        if (cached.isNotEmpty()) {
+            cacheMutex.withLock {
+                standardGroupCache[search] = cached
+            }
+        }
+        return cached
+    }
 
     override suspend fun listStandardModels(search: String, page: Int, size: Int): Result<List<ApiModelSummary>> =
         runCatching {
@@ -62,6 +104,10 @@ class ModelCatalogRepositoryImpl(
 
     override suspend fun getCachedStandardModels(search: String, page: Int, size: Int): List<ApiModelSummary> {
         val cacheKey = StandardListCacheKey(search = search, page = page, size = size)
+        return getCachedStandardModels(cacheKey)
+    }
+
+    private suspend fun getCachedStandardModels(cacheKey: StandardListCacheKey): List<ApiModelSummary> {
         cacheMutex.withLock {
             standardListCache[cacheKey]?.let { return it }
         }
@@ -80,22 +126,76 @@ class ModelCatalogRepositoryImpl(
     override suspend fun refreshStandardModels(search: String, page: Int, size: Int): Result<List<ApiModelSummary>> =
         runCatching {
             val cacheKey = StandardListCacheKey(search = search, page = page, size = size)
-            val response = api.listStandardModels(
-                SkuListRequestDto(search = search, pageNum = page, pageSize = size)
+            loadStandardModelsFromRemote(
+                request = SkuListRequestDto(search = search, pageNum = page, pageSize = size),
+                cacheKey = cacheKey,
             )
-            if (response.code != 0) {
-                // Data 层只保留稳定错误语义和服务端 code，避免把远端 msg 直接暴露给 Presentation。
-                throw ModelCatalogException(ModelCatalogIssue.StandardListLoadFailed, response.code)
-            }
-            val models = response.data?.items.orEmpty().map { dto ->
-                endpointRegistry.register(dto.id, dto.rhEndpoint)
-                dto.toDomain()
-            }
-            cacheMutex.withLock {
-                standardListCache[cacheKey] = models
-            }
-            cacheStore?.saveStandardModelList(cacheKey.storeKey(), encodeStandardListCache(models))
-            models
+        }
+
+    override suspend fun listStandardModelsByGroup(
+        group: ApiModelGroup,
+        search: String,
+        page: Int,
+        size: Int,
+    ): Result<List<ApiModelSummary>> =
+        runCatching {
+            val cacheKey = StandardListCacheKey(
+                search = search,
+                page = page,
+                size = size,
+                categoryTagIds = listOf(group.id),
+            )
+            getCachedStandardModels(cacheKey).takeIf { it.isNotEmpty() }
+                ?: loadStandardModelsFromRemote(
+                    request = SkuListRequestDto(
+                        search = search,
+                        pageNum = page,
+                        pageSize = size,
+                        categoryTagIds = listOf(group.id),
+                    ),
+                    cacheKey = cacheKey,
+                    groupNameOverride = group.name,
+                )
+        }
+
+    override suspend fun getCachedStandardModelsByGroup(
+        group: ApiModelGroup,
+        search: String,
+        page: Int,
+        size: Int,
+    ): List<ApiModelSummary> =
+        getCachedStandardModels(
+            StandardListCacheKey(
+                search = search,
+                page = page,
+                size = size,
+                categoryTagIds = listOf(group.id),
+            )
+        )
+
+    override suspend fun refreshStandardModelsByGroup(
+        group: ApiModelGroup,
+        search: String,
+        page: Int,
+        size: Int,
+    ): Result<List<ApiModelSummary>> =
+        runCatching {
+            val cacheKey = StandardListCacheKey(
+                search = search,
+                page = page,
+                size = size,
+                categoryTagIds = listOf(group.id),
+            )
+            loadStandardModelsFromRemote(
+                request = SkuListRequestDto(
+                    search = search,
+                    pageNum = page,
+                    pageSize = size,
+                    categoryTagIds = listOf(group.id),
+                ),
+                cacheKey = cacheKey,
+                groupNameOverride = group.name,
+            )
         }
 
     override suspend fun getStandardModelDetail(modelId: String): Result<ApiModelDetail> =
@@ -142,13 +242,62 @@ class ModelCatalogRepositoryImpl(
             response.data.orEmpty().map { it.toDomain() }
         }
 
+    private suspend fun loadStandardModelsFromRemote(
+        request: SkuListRequestDto,
+        cacheKey: StandardListCacheKey,
+        groupNameOverride: String? = null,
+    ): List<ApiModelSummary> {
+        val response = api.listStandardModels(request)
+        if (response.code != 0) {
+            // Data 层只保留稳定错误语义和服务端 code，避免把远端 msg 直接暴露给 Presentation。
+            throw ModelCatalogException(ModelCatalogIssue.StandardListLoadFailed, response.code)
+        }
+        val models = response.data?.items.orEmpty().map { dto ->
+            endpointRegistry.register(dto.id, dto.rhEndpoint)
+            dto.toDomain(groupNameOverride = groupNameOverride)
+        }
+        cacheMutex.withLock {
+            standardListCache[cacheKey] = models
+        }
+        cacheStore?.saveStandardModelList(cacheKey.storeKey(), encodeStandardListCache(models))
+        return models
+    }
+
     private fun decodeStandardListCache(cacheJson: String): List<ApiModelSummary> =
         runCatching {
-            json.decodeFromString<StandardModelListCacheDto>(cacheJson).models.map { it.toDomain() }
+            val cache = json.decodeFromString<StandardModelListCacheDto>(cacheJson)
+            if (cache.schemaVersion == STANDARD_MODEL_LIST_CACHE_SCHEMA_VERSION) {
+                cache.models.map { it.toDomain() }
+            } else {
+                emptyList()
+            }
+        }.getOrDefault(emptyList())
+
+    private fun decodeStandardGroupCache(cacheJson: String): List<ApiModelGroup> =
+        runCatching {
+            val cache = json.decodeFromString<StandardModelGroupListCacheDto>(cacheJson)
+            if (cache.schemaVersion == STANDARD_MODEL_GROUP_CACHE_SCHEMA_VERSION) {
+                cache.groups.map { it.toDomain() }
+            } else {
+                emptyList()
+            }
         }.getOrDefault(emptyList())
 
     private fun encodeStandardListCache(models: List<ApiModelSummary>): String =
-        json.encodeToString(StandardModelListCacheDto(models.map { it.toCacheDto() }))
+        json.encodeToString(
+            StandardModelListCacheDto(
+                schemaVersion = STANDARD_MODEL_LIST_CACHE_SCHEMA_VERSION,
+                models = models.map { it.toCacheDto() },
+            )
+        )
+
+    private fun encodeStandardGroupCache(groups: List<ApiModelGroup>): String =
+        json.encodeToString(
+            StandardModelGroupListCacheDto(
+                schemaVersion = STANDARD_MODEL_GROUP_CACHE_SCHEMA_VERSION,
+                groups = groups.map { it.toCacheDto() },
+            )
+        )
 
     private fun decodeStandardDetailCache(cacheJson: String): ApiModelDetail? =
         runCatching {
@@ -159,29 +308,63 @@ class ModelCatalogRepositoryImpl(
         json.encodeToString(model.toCacheDto())
 }
 
+private fun standardGroupCacheKey(search: String): String =
+    "s${search.hashCode()}"
+
 /**
  * 标准模型列表缓存键。
  *
- * `/api/sku/list` 的返回受搜索词、页码和页大小影响，三者共同决定可复用范围。
+ * `/api/sku/list` 的返回受搜索词、页码、页大小和分组标签影响，这些字段共同决定可复用范围。
  * 缓存值只保存已脱敏的 Domain 摘要，不包含原始响应、Cookie、API Key 或请求头。
  *
  * @property search 用户搜索词；空字符串表示默认标准模型目录。
  * @property page 页码，从 1 开始；调用方不应传入小于 1 的值。
  * @property size 每页数量，单位为条；调用方不应传入小于 1 的值。
+ * @property categoryTagIds 服务端模型分组标签 ID；空集合表示全量目录，非空表示某个页面分组。
  */
 private data class StandardListCacheKey(
     val search: String,
     val page: Int,
     val size: Int,
+    val categoryTagIds: List<String> = emptyList(),
 ) {
     fun storeKey(): String =
-        "s${search.hashCode()}_p${page}_n$size"
+        "s${search.hashCode()}_p${page}_n${size}_c${categoryTagIds.joinToString("|").hashCode()}"
 }
 
 @Serializable
 private data class StandardModelListCacheDto(
+    /**
+     * 标准模型列表缓存结构版本；缺失或不匹配时视为旧缓存，调用方会回源刷新。
+     */
+    val schemaVersion: Int,
     val models: List<StandardModelSummaryCacheDto>,
 )
+
+@Serializable
+private data class StandardModelGroupListCacheDto(
+    /**
+     * 标准模型分组缓存结构版本；缺失或不匹配时视为旧缓存，调用方会回源刷新。
+     */
+    val schemaVersion: Int,
+    val groups: List<StandardModelGroupCacheDto>,
+)
+
+@Serializable
+private data class StandardModelGroupCacheDto(
+    val id: String,
+    val name: String,
+    val nameEn: String? = null,
+    val apiCount: Int = 0,
+) {
+    fun toDomain(): ApiModelGroup =
+        ApiModelGroup(
+            id = id,
+            name = name,
+            nameEn = nameEn,
+            apiCount = apiCount,
+        )
+}
 
 @Serializable
 private data class StandardModelSummaryCacheDto(
@@ -306,6 +489,14 @@ private fun ApiModelSummary.toCacheDto(): StandardModelSummaryCacheDto =
         optionalFields = optionalFields,
     )
 
+private fun ApiModelGroup.toCacheDto(): StandardModelGroupCacheDto =
+    StandardModelGroupCacheDto(
+        id = id,
+        name = name,
+        nameEn = nameEn,
+        apiCount = apiCount,
+    )
+
 private fun ApiModelDetail.toCacheDto(): StandardModelDetailCacheDto =
     StandardModelDetailCacheDto(
         id = id,
@@ -352,18 +543,36 @@ private fun ApiModelFieldOption.toCacheDto(): StandardModelFieldOptionCacheDto =
  * 把 SKU 列表 DTO 映射为领域摘要。
  *
  * endpoint 不进入返回值；调用方需要提交任务时只能使用 id，由 Data 层再解析实际路由。
+ *
+ * @param groupNameOverride 按服务端分组标签查询时传入的分组名；非空时优先作为目录归属，
+ * 避免依赖列表项标签猜测 Seedance、Suno 等模型族。
  */
-fun SkuSummaryDto.toDomain(): ApiModelSummary =
+fun SkuSummaryDto.toDomain(groupNameOverride: String? = null): ApiModelSummary =
     normalizedTags().let { normalizedTags ->
         ApiModelSummary(
             id = id,
             name = name,
             type = type.takeUnlessBlank() ?: normalizedTags.capabilityTag(),
-            groupName = groupName.takeUnlessBlank() ?: normalizedTags.groupLabel(),
+            groupName = groupNameOverride.takeUnlessBlank()
+                ?: groupName.takeUnlessBlank()
+                ?: normalizedTags.groupLabel(),
             source = source.takeUnlessBlank() ?: normalizedTags.sourceTag(),
             priceSummary = priceSummary?.takeIf { it.isNotBlank() } ?: price.toSkuPriceSummary(),
         )
     }
+
+/**
+ * 把标准模型分组标签 DTO 映射为领域分组。
+ *
+ * 标签 ID 会作为后续 `categoryTagIds` 请求条件，名称只用于展示和分组归属，不参与接口路由。
+ */
+fun SkuTagDto.toDomain(): ApiModelGroup =
+    ApiModelGroup(
+        id = id,
+        name = name,
+        nameEn = nameEn,
+        apiCount = apiCount ?: 0,
+    )
 
 /**
  * 把 SKU 详情 DTO 映射为领域详情。

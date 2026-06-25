@@ -28,7 +28,7 @@ class RunningHubApplication : Application() {
         super.onCreate()
         initDataStore(this)
         initMediaResolver(this)
-        startKoin {
+        val koinApplication = startKoin {
             androidLogger()
             androidContext(this@RunningHubApplication)
             // 应用组合根负责装配运行期核心能力和已迁出的 feature data 模块，shared 不再参与生产启动图。
@@ -44,5 +44,6 @@ class RunningHubApplication : Application() {
                 appModule,
             )
         }
+        koinApplication.koin.get<ModelCatalogInitialPreloader>().start()
     }
 }

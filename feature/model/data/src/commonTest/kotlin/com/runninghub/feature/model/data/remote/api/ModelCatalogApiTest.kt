@@ -27,12 +27,14 @@ class ModelCatalogApiTest {
         val captured = mutableListOf<Pair<HttpMethod, String>>()
         val api = ModelCatalogApi(clientWithPathCapture(captured))
 
+        api.listStandardModelGroups()
         api.listStandardModels(SkuListRequestDto())
         api.getStandardModelDetail("sku-1")
         api.listLlmModels()
 
         assertEquals(
             listOf(
+                HttpMethod.Post to "/api/sku/tag/query",
                 HttpMethod.Post to "/api/sku/list",
                 HttpMethod.Post to "/api/sku/detail",
                 HttpMethod.Get to "/llm/api/models",
@@ -61,6 +63,7 @@ class ModelCatalogApiTest {
 
     private fun responseFor(path: String): String =
         when (path) {
+            "/api/sku/tag/query" -> """{"code":0,"msg":"success","data":[]}"""
             "/api/sku/list" -> """{"code":0,"msg":"success","data":{"records":[],"total":0}}"""
             "/api/sku/detail" -> """{"code":0,"msg":"success","data":{"id":"sku-1"}}"""
             "/llm/api/models" -> """{"code":0,"msg":"success","data":[]}"""

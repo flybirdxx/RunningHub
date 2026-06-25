@@ -22,7 +22,9 @@ class PreferencesSettingsStore(
 ) : CredentialStore,
     BalanceCache,
     QuickCreateDraftStore,
-    ModelCatalogCacheStore {
+    QuickCreateModelSelectionStore,
+    ModelCatalogCacheStore,
+    AppStartupStore {
 
     companion object {
         // 这些凭据键只用于读取和清理 L1 迁移前的旧数据；新凭据写入必须进入平台安全存储。
@@ -33,6 +35,13 @@ class PreferencesSettingsStore(
         private val KEY_REFRESH_TOKEN = stringPreferencesKey("refresh_token")
         private val KEY_LAST_KNOWN_COINS = stringPreferencesKey("last_known_coins")
         private val KEY_QUICK_CREATE_DRAFT = stringPreferencesKey("quick_create_draft")
+        private val KEY_QUICK_CREATE_LAST_IMAGE_SERVICE_MODEL =
+            stringPreferencesKey("quick_create_last_image_service_model")
+        private val KEY_QUICK_CREATE_LAST_VIDEO_SERVICE_MODEL =
+            stringPreferencesKey("quick_create_last_video_service_model")
+        private val KEY_INITIAL_MODEL_CATALOG_PRELOAD_STARTED =
+            stringPreferencesKey("initial_model_catalog_preload_started")
+        private const val KEY_MODEL_CATALOG_GROUP_PREFIX = "model_catalog_standard_group_"
         private const val KEY_MODEL_CATALOG_LIST_PREFIX = "model_catalog_standard_list_"
         private const val KEY_MODEL_CATALOG_DETAIL_PREFIX = "model_catalog_standard_detail_"
     }
@@ -115,6 +124,34 @@ class PreferencesSettingsStore(
 
     override suspend fun clearQuickCreateDraft() {
         dataStore.edit { it.remove(KEY_QUICK_CREATE_DRAFT) }
+    }
+
+    override suspend fun getLastImageServiceModelIdentityKey(): String? =
+        dataStore.data.map { it[KEY_QUICK_CREATE_LAST_IMAGE_SERVICE_MODEL] }.first()
+
+    override suspend fun saveLastImageServiceModelIdentityKey(identityKey: String) {
+        dataStore.edit { it[KEY_QUICK_CREATE_LAST_IMAGE_SERVICE_MODEL] = identityKey }
+    }
+
+    override suspend fun getLastVideoServiceModelIdentityKey(): String? =
+        dataStore.data.map { it[KEY_QUICK_CREATE_LAST_VIDEO_SERVICE_MODEL] }.first()
+
+    override suspend fun saveLastVideoServiceModelIdentityKey(identityKey: String) {
+        dataStore.edit { it[KEY_QUICK_CREATE_LAST_VIDEO_SERVICE_MODEL] = identityKey }
+    }
+
+    override suspend fun hasStartedInitialModelCatalogPreload(): Boolean =
+        dataStore.data.map { it[KEY_INITIAL_MODEL_CATALOG_PRELOAD_STARTED] == "true" }.first()
+
+    override suspend fun markInitialModelCatalogPreloadStarted() {
+        dataStore.edit { it[KEY_INITIAL_MODEL_CATALOG_PRELOAD_STARTED] = "true" }
+    }
+
+    override suspend fun getStandardModelGroups(cacheKey: String): String? =
+        dataStore.data.map { it[stringPreferencesKey(KEY_MODEL_CATALOG_GROUP_PREFIX + cacheKey)] }.first()
+
+    override suspend fun saveStandardModelGroups(cacheKey: String, json: String) {
+        dataStore.edit { it[stringPreferencesKey(KEY_MODEL_CATALOG_GROUP_PREFIX + cacheKey)] = json }
     }
 
     override suspend fun getStandardModelList(cacheKey: String): String? =

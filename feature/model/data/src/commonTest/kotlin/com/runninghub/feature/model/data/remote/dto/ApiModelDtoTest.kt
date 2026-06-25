@@ -78,6 +78,65 @@ class ApiModelDtoTest {
     }
 
     @Test
+    fun `sku list response parses category and source aliases from production payload`() {
+        val response = json.decodeFromString<BaseResponseDto<SkuListPageDto>>(
+            """
+            {
+              "code": 0,
+              "msg": "success",
+              "data": {
+                "page": {
+                  "records": [
+                    {
+                      "id": "2004543847939751938",
+                      "name": "全能图片PRO-文生图-低价渠道版",
+                      "categoryName": "text-to-image",
+                      "sourceTypeName": "rh-ai",
+                      "categoryType": "STANDARD_MODEL"
+                    }
+                  ],
+                  "total": "1"
+                }
+              }
+            }
+            """.trimIndent()
+        )
+
+        val record = assertNotNull(response.data).items.single()
+        assertEquals("text-to-image", record.type)
+        assertEquals("rh-ai", record.source)
+    }
+
+    @Test
+    fun `sku tag query response parses standard model groups`() {
+        val response = json.decodeFromString<BaseResponseDto<List<SkuTagDto>>>(
+            """
+            {
+              "code": 0,
+              "msg": "success",
+              "data": [
+                {
+                  "id": 438,
+                  "parentId": 4,
+                  "level": 1,
+                  "name": "Seedance",
+                  "nameEn": "Seedance Models",
+                  "apiCount": 10
+                }
+              ]
+            }
+            """.trimIndent()
+        )
+
+        val tag = assertNotNull(response.data).single()
+        assertEquals("438", tag.id)
+        assertEquals("4", tag.parentId)
+        assertEquals("Seedance", tag.name)
+        assertEquals("Seedance Models", tag.nameEn)
+        assertEquals(10, tag.apiCount)
+    }
+
+    @Test
     fun `sku list response parses mixed tag formats`() {
         val response = json.decodeFromString<BaseResponseDto<SkuListPageDto>>(
             """

@@ -128,6 +128,7 @@
     <string name="quick_create_model_selector_filter_image">图片</string>
     <string name="quick_create_model_selector_filter_video">视频</string>
     <string name="quick_create_model_selector_filter_audio">音频</string>
+    <string name="quick_create_model_selector_filter_other">其它</string>
     <string name="quick_create_model_selector_filter_3d">3D</string>
     <string name="quick_create_model_selector_filter_recent">最近上新</string>
     <string name="quick_create_model_selector_image_group">图片生成</string>

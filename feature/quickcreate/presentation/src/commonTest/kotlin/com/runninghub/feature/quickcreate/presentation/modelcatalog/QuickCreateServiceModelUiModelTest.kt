@@ -46,7 +46,7 @@ class QuickCreateServiceModelUiModelTest {
     }
 
     @Test
-    fun `compact label keeps selected or fallback model while catalog is loading`() {
+    fun `compact label keeps selected model and avoids fallback while catalog is loading`() {
         val model = serviceModel(name = "示例模型").toQuickCreateServiceModelUi()
         val g2Model = serviceModel(name = "全能图片G-2-文生图-官方稳定版").toQuickCreateServiceModelUi()
 
@@ -67,7 +67,7 @@ class QuickCreateServiceModelUiModelTest {
             quickCreateCompactServiceModelLabel(null, fallback = "本地", loading = false),
         )
         assertEquals(
-            QuickCreateCompactServiceModelLabel.FallbackName("本地"),
+            QuickCreateCompactServiceModelLabel.Loading,
             quickCreateCompactServiceModelLabel(null, fallback = "本地", loading = true),
         )
     }
@@ -81,7 +81,7 @@ class QuickCreateServiceModelUiModelTest {
 
         assertEquals("全能图片 G-2.0", model.compactName)
         assertEquals(
-            QuickCreateCompactServiceModelLabel.FallbackName("全能图片 G-2.0"),
+            QuickCreateCompactServiceModelLabel.Loading,
             quickCreateCompactServiceModelLabel(
                 model = null,
                 fallback = "全能图片 G-2.0",

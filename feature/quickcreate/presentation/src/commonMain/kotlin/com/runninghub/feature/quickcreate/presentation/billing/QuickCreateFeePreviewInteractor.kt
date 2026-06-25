@@ -138,7 +138,8 @@ class QuickCreateFeePreviewInteractor(
     fun schedule() {
         feePreviewJob?.cancel()
         val requestSeq = ++feePreviewRequestSeq
-        if (buildFeePreviewRequest(uiState.value) == null) {
+        val request = buildFeePreviewRequest(uiState.value)
+        if (request == null) {
             uiState.update {
                 it.copy(
                     feePreviewLoading = false,
@@ -147,6 +148,9 @@ class QuickCreateFeePreviewInteractor(
                     estimatedCost = it.currentLocalEstimatedCost(),
                 )
             }
+            return
+        }
+        if (tryApplyCatalogPricedImageRequest(request)) {
             return
         }
 
@@ -248,6 +252,22 @@ class QuickCreateFeePreviewInteractor(
         }
     }
 
+    private fun tryApplyCatalogPricedImageRequest(request: QuickCreateFeePreviewRequest): Boolean {
+        if (request !is QuickCreateFeePreviewRequest.Image) return false
+        val catalogCost = uiState.value.currentServiceCatalogEstimatedCost() ?: return false
+
+        // 图片服务模型当前按目录中的固定单价计费，直接把同一请求标记为已定价，避免每次输入后进入远端确认态。
+        uiState.update {
+            it.copy(
+                estimatedCost = catalogCost,
+                feePreviewLoading = false,
+                feePreviewError = null,
+                feePreviewRequestKey = request.request.quickCreateFeeRequestKey(),
+            )
+        }
+        return true
+    }
+
     private fun QuickCreateUiState.hasUnreadyFeePreviewMediaReferences(): Boolean =
         generationRequestFactory.currentRelevantMediaReferences(this).any { reference ->
             reference.uploadStatus == UploadStatus.FAILED ||
@@ -326,8 +346,8 @@ class QuickCreateFeePreviewInteractor(
 /**
  * 从服务模型目录价格摘要中提取可用于本地展示的现金单价。
  *
- * 服务端 fee-preview 仍然是最终计费事实；该解析结果只在请求尚未构建、预览失败或预览未返回时，
- * 作为生成按钮的临时价格展示，避免回退到旧的本地兼容模型价格。
+ * 图片服务模型使用该目录价作为本地已确认价格；视频仍保留远端 fee-preview，以覆盖时长、参考素材等动态计费。
+ * 当目录没有返回可解析价格时，调用方才会回退到旧的本地兼容模型价格或远端预览结果。
  */
 internal fun QuickCreationServicePricing?.quickCreateCashAmountOrNull(): Double? {
     if (this == null) return null

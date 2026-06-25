@@ -16,6 +16,7 @@ import com.runninghub.core.storage.ModelCatalogCacheStore
 import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.core.storage.PreferencesSettingsStore
 import com.runninghub.core.storage.QuickCreateDraftStore
+import com.runninghub.core.storage.QuickCreateModelSelectionStore
 import com.runninghub.core.storage.createDataStore
 import com.runninghub.core.storage.createPermissionDataStore
 import com.runninghub.core.storage.createSecureCredentialStore
@@ -74,6 +75,7 @@ val iosRuntimeModule = module {
     }
     single<BalanceCache> { get<PreferencesSettingsStore>() }
     single<QuickCreateDraftStore> { get<PreferencesSettingsStore>() }
+    single<QuickCreateModelSelectionStore> { get<PreferencesSettingsStore>() }
     single<ModelCatalogCacheStore> { get<PreferencesSettingsStore>() }
     single<PermissionStateStore> { createPermissionDataStore() }
     single { SessionManager(get()) }

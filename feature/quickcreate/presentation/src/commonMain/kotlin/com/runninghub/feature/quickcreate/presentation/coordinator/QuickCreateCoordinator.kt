@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.coordinator
 
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
@@ -59,6 +60,7 @@ import kotlinx.coroutines.flow.update
  * @param projectRepository 快捷创作项目仓库；单独注入以避免项目列表和变更动作依赖历史或生成能力。
  * @param mediaResolver feature presentation 的平台无关媒体读取端口，由应用壳把 Android/iOS 媒体能力适配后传入。
  * @param draftRepository 快捷创作草稿领域仓库，只保存可恢复编辑草稿快照。
+ * @param modelSelectionRepository 快捷创作最近模型选择仓库，只保存用户主动选择的模型身份键。
  * @param scope 页面生命周期协程作用域，所有局部组件的 Job 都绑定到该作用域。
  * @param uiState 页面唯一状态容器，由各局部组件按职责更新。
  * @param ioDispatcher 媒体字节读取使用的调度器；生产环境传 IO，测试环境可传测试调度器。
@@ -67,6 +69,7 @@ class QuickCreateCoordinator(
     private val historyRepository: QuickCreationTaskHistoryRepository,
     private val mediaResolver: QuickCreateMediaResolver,
     private val draftRepository: QuickCreateDraftRepository,
+    private val modelSelectionRepository: QuickCreateModelSelectionRepository,
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<QuickCreateUiState>,
     private val ioDispatcher: CoroutineDispatcher,
@@ -92,6 +95,7 @@ class QuickCreateCoordinator(
     )
     private val modelCatalogInteractor = QuickCreateModelCatalogInteractor(
         modelCatalogRepository = modelCatalogRepository,
+        modelSelectionRepository = modelSelectionRepository,
         scope = scope,
         uiState = uiState,
         onFeePreviewRequired = { scheduleFeePreview() },

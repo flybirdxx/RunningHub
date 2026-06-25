@@ -1,5 +1,6 @@
 package com.runninghub.feature.model.data.repository
 
+import com.runninghub.core.storage.ModelCatalogCacheStore
 import com.runninghub.feature.model.data.remote.api.ModelCatalogApi
 import com.runninghub.feature.model.domain.ModelCatalogException
 import com.runninghub.feature.model.domain.ModelCatalogIssue
@@ -67,7 +68,139 @@ class ModelCatalogRepositoryImplTest {
         assertEquals(403, error.remoteCode)
     }
 
-    private fun repositoryWithResponses(vararg responses: Pair<String, String>): ModelCatalogRepositoryImpl {
+    @Test
+    fun `listStandardModels ignores legacy list cache without schema version`() = runBlocking {
+        val cacheStore = FakeModelCatalogCacheStore(
+            standardLists = mutableMapOf(
+                "s0_p1_n30" to """{"models":[{"id":"legacy","name":"旧缓存模型"}]}""",
+            ),
+        )
+        val repository = repositoryWithResponses(
+            "/api/sku/list" to """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "records": [
+                      {
+                        "id": "fresh",
+                        "name": "接口模型",
+                        "categoryName": "text-to-image",
+                        "sourceTypeName": "rh-ai"
+                      }
+                    ],
+                    "total": 1
+                  }
+                }
+            """.trimIndent(),
+            cacheStore = cacheStore,
+        )
+
+        val models = repository.listStandardModels().getOrThrow()
+
+        assertEquals(listOf("fresh"), models.map { it.id })
+        assertEquals("text-to-image", models.single().type)
+    }
+
+    @Test
+    fun `listStandardModelsByGroup uses server group as model group name`() = runBlocking {
+        val repository = repositoryWithResponses(
+            "/api/sku/tag/query" to """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": [
+                    { "id": 438, "name": "Seedance", "nameEn": "Seedance Models", "apiCount": 10 },
+                    { "id": 999, "name": "Empty", "apiCount": 0 }
+                  ]
+                }
+            """.trimIndent(),
+            "/api/sku/list" to """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "page": {
+                      "records": [
+                        {
+                          "id": "seedance-motion",
+                          "name": "即梦/动作模仿2.0",
+                          "categoryName": "motion-control",
+                          "sourceTypeName": "bytedance"
+                        }
+                      ]
+                    },
+                    "total": 1
+                  }
+                }
+            """.trimIndent(),
+        )
+
+        val group = repository.listStandardModelGroups().getOrThrow().single()
+        val models = repository.listStandardModelsByGroup(group = group, size = 999).getOrThrow()
+
+        assertEquals("438", group.id)
+        assertEquals("Seedance", group.name)
+        assertEquals(listOf("seedance-motion"), models.map { it.id })
+        assertEquals("Seedance", models.single().groupName)
+        assertEquals("motion-control", models.single().type)
+    }
+
+    @Test
+    fun `grouped standard model cache can be restored without network`() = runBlocking {
+        val cacheStore = FakeModelCatalogCacheStore()
+        val repository = repositoryWithResponses(
+            "/api/sku/tag/query" to """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": [
+                    { "id": 438, "name": "Seedance", "nameEn": "Seedance Models", "apiCount": 10 }
+                  ]
+                }
+            """.trimIndent(),
+            "/api/sku/list" to """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "page": {
+                      "records": [
+                        {
+                          "id": "seedance-video",
+                          "name": "SEEDANCE-V1.5-PRO-TEXT-TO-VIDEO",
+                          "categoryName": "text-to-video",
+                          "sourceTypeName": "bytedance"
+                        }
+                      ]
+                    },
+                    "total": 1
+                  }
+                }
+            """.trimIndent(),
+            cacheStore = cacheStore,
+        )
+
+        val group = repository.listStandardModelGroups().getOrThrow().single()
+        repository.listStandardModelsByGroup(group = group, size = 999).getOrThrow()
+
+        val restoredRepository = repositoryWithResponses(cacheStore = cacheStore)
+        val restoredGroup = restoredRepository.getCachedStandardModelGroups().single()
+        val restoredModels = restoredRepository.getCachedStandardModelsByGroup(
+            group = restoredGroup,
+            size = 999,
+        )
+
+        assertEquals("438", restoredGroup.id)
+        assertEquals("Seedance", restoredGroup.name)
+        assertEquals(listOf("seedance-video"), restoredModels.map { it.id })
+        assertEquals("Seedance", restoredModels.single().groupName)
+    }
+
+    private fun repositoryWithResponses(
+        vararg responses: Pair<String, String>,
+        cacheStore: ModelCatalogCacheStore? = null,
+    ): ModelCatalogRepositoryImpl {
         val responseByPath = responses.toMap()
         val client = HttpClient(
             MockEngine { request ->
@@ -85,6 +218,34 @@ class ModelCatalogRepositoryImplTest {
             api = ModelCatalogApi(client),
             json = json,
             endpointRegistry = ModelEndpointRegistry(),
+            cacheStore = cacheStore,
         )
+    }
+}
+
+private class FakeModelCatalogCacheStore(
+    private val standardGroups: MutableMap<String, String> = mutableMapOf(),
+    private val standardLists: MutableMap<String, String> = mutableMapOf(),
+    private val standardDetails: MutableMap<String, String> = mutableMapOf(),
+) : ModelCatalogCacheStore {
+    override suspend fun getStandardModelGroups(cacheKey: String): String? =
+        standardGroups[cacheKey]
+
+    override suspend fun saveStandardModelGroups(cacheKey: String, json: String) {
+        standardGroups[cacheKey] = json
+    }
+
+    override suspend fun getStandardModelList(cacheKey: String): String? =
+        standardLists[cacheKey]
+
+    override suspend fun saveStandardModelList(cacheKey: String, json: String) {
+        standardLists[cacheKey] = json
+    }
+
+    override suspend fun getStandardModelDetail(modelId: String): String? =
+        standardDetails[modelId]
+
+    override suspend fun saveStandardModelDetail(modelId: String, json: String) {
+        standardDetails[modelId] = json
     }
 }

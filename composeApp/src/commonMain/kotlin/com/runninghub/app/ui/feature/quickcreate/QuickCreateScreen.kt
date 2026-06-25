@@ -331,6 +331,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                             screenModel.updateVideoServiceModel(it)
                         },
                         onTabSwitch = screenModel::switchTab,
+                        onDismiss = screenModel::closeActiveSheet,
                         onSheetDragStart = ::startSheetDrag,
                         onSheetDrag = ::dragSheet,
                         onSheetDragEnd = ::endSheetDrag,

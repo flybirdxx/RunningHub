@@ -8,6 +8,8 @@ import com.runninghub.feature.model.data.remote.dto.SkuDetailDto
 import com.runninghub.feature.model.data.remote.dto.SkuDetailRequestDto
 import com.runninghub.feature.model.data.remote.dto.SkuListPageDto
 import com.runninghub.feature.model.data.remote.dto.SkuListRequestDto
+import com.runninghub.feature.model.data.remote.dto.SkuTagDto
+import com.runninghub.feature.model.data.remote.dto.SkuTagQueryRequestDto
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
@@ -25,6 +27,26 @@ import io.ktor.http.contentType
  * @param client 已安装 RunningHub 默认配置和认证拦截器的 Ktor 客户端。
  */
 class ModelCatalogApi(private val client: HttpClient) {
+    /**
+     * 拉取标准模型页顶部的模型分组标签。
+     *
+     * 页面使用 `parentId=4` 和一级 `levels=[1]` 区分 Seedance、Suno 等模型分组；
+     * 这些分组后续会作为 `categoryTagIds` 查询条件，不与单个模型的能力类型混用。
+     */
+    suspend fun listStandardModelGroups(search: String = ""): BaseResponseDto<List<SkuTagDto>> =
+        client.post(RunningHubApiEnvironment.apiUrl("sku/tag/query")) {
+            markRunningHubAuthRetryAllowed()
+            contentType(ContentType.Application.Json)
+            setBody(
+                SkuTagQueryRequestDto(
+                    parentId = STANDARD_MODEL_GROUP_PARENT_ID,
+                    levels = listOf(STANDARD_MODEL_GROUP_LEVEL),
+                    showType = STANDARD_MODEL_GROUP_SHOW_TYPE,
+                    search = search,
+                )
+            )
+        }.body()
+
     /**
      * 拉取标准模型 SKU 分页列表。
      *
@@ -60,3 +82,7 @@ class ModelCatalogApi(private val client: HttpClient) {
     suspend fun listLlmModels(): BaseResponseDto<List<LlmModelDto>> =
         client.get(RunningHubApiEnvironment.webUrl("llm/api/models")).body()
 }
+
+private const val STANDARD_MODEL_GROUP_PARENT_ID = 4
+private const val STANDARD_MODEL_GROUP_LEVEL = 1
+private const val STANDARD_MODEL_GROUP_SHOW_TYPE = "tree"

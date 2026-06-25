@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation
 
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
@@ -47,6 +48,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * @param projectRepository 快捷创作项目仓库，用于项目列表、详情和项目变更操作。
  * @param mediaResolver 平台无关媒体读取端口，由 composeApp 在组合根适配 Android/iOS 能力。
  * @param draftRepository 快捷创作草稿仓库，用于保存和清理可恢复编辑草稿快照。
+ * @param modelSelectionRepository 快捷创作最近模型选择仓库，用于恢复用户上次主动选择的模型。
  * @param ioDispatcher 媒体字节读取使用的调度器；默认值保持 commonMain 跨平台可用。
  */
 class QuickCreatePresentationStateHolderFactory(
@@ -59,6 +61,7 @@ class QuickCreatePresentationStateHolderFactory(
     private val projectRepository: QuickCreationProjectRepository,
     private val mediaResolver: QuickCreateMediaResolver,
     private val draftRepository: QuickCreateDraftRepository,
+    private val modelSelectionRepository: QuickCreateModelSelectionRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) {
     /**
@@ -77,6 +80,7 @@ class QuickCreatePresentationStateHolderFactory(
             projectRepository = projectRepository,
             mediaResolver = mediaResolver,
             draftRepository = draftRepository,
+            modelSelectionRepository = modelSelectionRepository,
             scope = scope,
             ioDispatcher = ioDispatcher,
         )
@@ -98,6 +102,7 @@ class QuickCreatePresentationStateHolderFactory(
  * @param projectRepository 快捷创作项目仓库，只用于项目列表、详情和项目变更操作。
  * @param mediaResolver 快捷创作媒体读取端口，由 app 组合根把平台媒体能力适配后注入。
  * @param draftRepository 快捷创作草稿领域仓库，只保存和清理可恢复编辑草稿快照。
+ * @param modelSelectionRepository 快捷创作最近模型选择仓库，只保存用户主动选择的模型身份键。
  * @param scope 页面生命周期协程作用域，所有异步任务随该作用域取消。
  * @param ioDispatcher 媒体字节读取使用的调度器。
  */
@@ -111,6 +116,7 @@ class QuickCreatePresentationStateHolder(
     projectRepository: QuickCreationProjectRepository,
     mediaResolver: QuickCreateMediaResolver,
     draftRepository: QuickCreateDraftRepository,
+    modelSelectionRepository: QuickCreateModelSelectionRepository,
     scope: CoroutineScope,
     ioDispatcher: CoroutineDispatcher,
 ) {
@@ -128,6 +134,7 @@ class QuickCreatePresentationStateHolder(
         historyRepository = historyRepository,
         mediaResolver = mediaResolver,
         draftRepository = draftRepository,
+        modelSelectionRepository = modelSelectionRepository,
         scope = scope,
         uiState = mutableUiState,
         ioDispatcher = ioDispatcher,

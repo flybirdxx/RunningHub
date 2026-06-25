@@ -5,6 +5,7 @@ import com.runninghub.feature.auth.domain.AuthRepository
 import com.runninghub.feature.model.domain.ApiModelDetail
 import com.runninghub.feature.model.domain.ApiModelField
 import com.runninghub.feature.model.domain.ApiModelFieldType
+import com.runninghub.feature.model.domain.ApiModelGroup
 import com.runninghub.feature.model.domain.ApiModelSummary
 import com.runninghub.feature.model.domain.ModelCatalogRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
@@ -106,6 +107,7 @@ private val quickCreationParamJson = Json {
 
 private const val STANDARD_MODEL_CATALOG_PAGE_SIZE = 30
 private const val STANDARD_MODEL_CATALOG_MAX_PAGES = 20
+private const val STANDARD_MODEL_CATALOG_GROUP_PAGE_SIZE = 999
 private const val QUICK_CREATION_POLL_PAGE_SIZE = 50
 private const val QUICK_CREATION_POLL_MAX_PAGES = 5
 
@@ -1743,6 +1745,10 @@ private suspend fun loadCachedStandardModelCatalog(
     repository: ModelCatalogRepository?,
 ): List<ApiModelSummary> {
     repository ?: return emptyList()
+    val groupedModels = loadCachedGroupedStandardModelCatalog(repository)
+    if (groupedModels.isNotEmpty()) {
+        return groupedModels
+    }
     val models = mutableListOf<ApiModelSummary>()
     for (page in 1..STANDARD_MODEL_CATALOG_MAX_PAGES) {
         val pageModels = repository.getCachedStandardModels(
@@ -1761,7 +1767,82 @@ private suspend fun loadCachedStandardModelCatalog(
     return models.distinctBy { it.id }
 }
 
+private suspend fun loadCachedGroupedStandardModelCatalog(
+    repository: ModelCatalogRepository,
+): List<ApiModelSummary> {
+    val groups = repository.getCachedStandardModelGroups()
+    catalogDebug("cachedStandardGroups count=${groups.size} groups=${groups.modelGroupDistributionLog()}")
+    if (groups.isEmpty()) {
+        return emptyList()
+    }
+
+    val models = mutableListOf<ApiModelSummary>()
+    groups.forEach { group ->
+        val groupModels = repository.getCachedStandardModelsByGroup(
+            group = group,
+            page = 1,
+            size = STANDARD_MODEL_CATALOG_GROUP_PAGE_SIZE,
+        )
+        catalogDebug(
+            "cachedStandardGroup name=${group.name} id=${group.id} size=${groupModels.size} " +
+                "types=${groupModels.apiModelTypeDistributionLog()}",
+        )
+        models += groupModels
+    }
+    // 分组缓存是快捷创作冷启动快照的主来源，按分组顺序去重可保留与目录页一致的模型族归属。
+    return models.distinctBy { it.id }
+}
+
 private suspend fun loadStandardModelCatalog(
+    repository: ModelCatalogRepository,
+    forceRefresh: Boolean,
+): List<ApiModelSummary> {
+    val groupedModels = loadGroupedStandardModelCatalog(repository, forceRefresh)
+    if (groupedModels.isNotEmpty()) {
+        return groupedModels
+    }
+    return loadPagedStandardModelCatalog(repository, forceRefresh)
+}
+
+private suspend fun loadGroupedStandardModelCatalog(
+    repository: ModelCatalogRepository,
+    forceRefresh: Boolean,
+): List<ApiModelSummary> {
+    val groups = repository.listStandardModelGroups().getOrNull().orEmpty()
+    catalogDebug("standardGroups count=${groups.size} groups=${groups.modelGroupDistributionLog()}")
+    if (groups.isEmpty()) {
+        return emptyList()
+    }
+
+    val models = mutableListOf<ApiModelSummary>()
+    groups.forEach { group ->
+        val groupResult = if (forceRefresh) {
+            repository.refreshStandardModelsByGroup(
+                group = group,
+                page = 1,
+                size = STANDARD_MODEL_CATALOG_GROUP_PAGE_SIZE,
+            )
+        } else {
+            repository.listStandardModelsByGroup(
+                group = group,
+                page = 1,
+                size = STANDARD_MODEL_CATALOG_GROUP_PAGE_SIZE,
+            )
+        }
+        val groupModels = groupResult
+            .getOrNull()
+            .orEmpty()
+        catalogDebug(
+            "standardGroup forceRefresh=$forceRefresh name=${group.name} id=${group.id} size=${groupModels.size} " +
+                "types=${groupModels.apiModelTypeDistributionLog()}",
+        )
+        models += groupModels
+    }
+    // 部分服务端分组如“最近上新”会与模型族重复，按服务端分组顺序保留第一个归属。
+    return models.distinctBy { it.id }
+}
+
+private suspend fun loadPagedStandardModelCatalog(
     repository: ModelCatalogRepository,
     forceRefresh: Boolean,
 ): List<ApiModelSummary> {
@@ -1800,22 +1881,25 @@ private fun catalogDebug(message: String) {
 
 private fun List<ApiModelSummary>.toQuickCreationServiceModels(
     kind: QuickCreationServiceKind,
-): List<QuickCreationServiceModel> =
-    filter { it.belongsToQuickCreationKind(kind) }
-        .map { it.toQuickCreationServiceModel(kind) }
+): List<QuickCreationServiceModel> {
+    val outputKindByGroup = dominantOutputKindByGroup()
+    return filter { model ->
+        model.belongsToQuickCreationKind(kind, outputKindByGroup[model.normalizedGroupName()])
+    }.map { model ->
+        model.toQuickCreationServiceModel(kind, outputKindByGroup[model.normalizedGroupName()])
+    }
+}
 
-private fun ApiModelSummary.belongsToQuickCreationKind(kind: QuickCreationServiceKind): Boolean {
-    val typeText = type.orEmpty().lowercase()
-    val isNonImageOutput = typeText.contains("video") ||
-        typeText.contains("audio") ||
-        typeText.contains("music") ||
-        typeText.contains("3d")
-    val isImage = typeText.contains("image") && !isNonImageOutput
+private fun ApiModelSummary.belongsToQuickCreationKind(
+    kind: QuickCreationServiceKind,
+    groupOutputKind: StandardModelOutputKind?,
+): Boolean {
+    val outputKind = outputKind(groupOutputKind)
     return when (kind) {
-        QuickCreationServiceKind.IMAGE -> isImage
-        // 当前快捷创作只有图片/视频两个入口；标准模型目录中的视频、音频和 3D 都先归入非图片目录，
-        // 这样模型选择 sheet 的视频、音频、3D 筛选不会因为旧 quickcreate 目录缺项而空白。
-        QuickCreationServiceKind.VIDEO -> !isImage
+        QuickCreationServiceKind.IMAGE -> outputKind == StandardModelOutputKind.IMAGE
+        // 当前 Domain 查询仍只有图片/视频两个入口；VIDEO 查询在数据层承载非图片模型桶，
+        // 具体展示大类由接口返回的 type 与服务端模型分组共同归为 VIDEO、AUDIO 或 OTHER。
+        QuickCreationServiceKind.VIDEO -> outputKind != StandardModelOutputKind.IMAGE
     }
 }
 
@@ -1835,11 +1919,15 @@ private fun List<String>.toDistributionLog(): String =
         .take(8)
         .joinToString(prefix = "[", postfix = "]") { "${it.key}:${it.value}" }
 
+private fun List<ApiModelGroup>.modelGroupDistributionLog(): String =
+    take(8).joinToString(prefix = "[", postfix = "]") { "${it.name}:${it.apiCount}" }
+
 private fun ApiModelSummary.toQuickCreationServiceModel(
     kind: QuickCreationServiceKind,
+    groupOutputKind: StandardModelOutputKind?,
 ): QuickCreationServiceModel =
     QuickCreationServiceModel(
-        categoryId = kind.toRemoteCategoryId(),
+        categoryId = toQuickCreationServiceCategoryId(kind, groupOutputKind),
         groupName = groupName,
         // 标准目录模型没有 quickcreate bindingId；这里使用 skuId 形成稳定 UI 身份。
         // 真正提交标准模型时仍应走 ModelInvocationRepository，而不是旧 quickcreate binding 路由。
@@ -1852,6 +1940,69 @@ private fun ApiModelSummary.toQuickCreationServiceModel(
         fields = emptyList(),
         pricing = QuickCreationServicePricing(priceSummaryRaw = priceSummary),
     )
+
+private fun ApiModelSummary.toQuickCreationServiceCategoryId(
+    kind: QuickCreationServiceKind,
+    groupOutputKind: StandardModelOutputKind?,
+): String {
+    val outputKind = outputKind(groupOutputKind)
+    return when {
+        kind == QuickCreationServiceKind.IMAGE -> "IMAGE"
+        else -> outputKind.categoryId
+    }
+}
+
+// 标准模型页的顶部 tag 表示模型分组，左侧筛选表示单个 API 的能力类型。
+// motion-control、text-to-lyrics、upload-file 这类能力类型本身无法表达最终大类，
+// 因此只在 type 没有明确输出时，使用同一服务端分组内其它模型的明确输出分布兜底。
+private fun List<ApiModelSummary>.dominantOutputKindByGroup(): Map<String, StandardModelOutputKind> =
+    groupBy { it.normalizedGroupName() }
+        .filterKeys { it.isNotEmpty() }
+        .mapNotNull { (groupName, groupModels) ->
+            val dominantKind = groupModels
+                .mapNotNull { it.explicitOutputKind() }
+                .groupingBy { it }
+                .eachCount()
+                .maxWithOrNull(compareBy<Map.Entry<StandardModelOutputKind, Int>> { it.value }.thenBy { it.key.priority })
+                ?.key
+            dominantKind?.let { groupName to it }
+        }
+        .toMap()
+
+private fun ApiModelSummary.outputKind(groupOutputKind: StandardModelOutputKind?): StandardModelOutputKind =
+    explicitOutputKind() ?: groupOutputKind ?: StandardModelOutputKind.OTHER
+
+private fun ApiModelSummary.explicitOutputKind(): StandardModelOutputKind? =
+    type.explicitOutputKind()
+
+private fun String?.explicitOutputKind(): StandardModelOutputKind? {
+    val text = orEmpty().trim().lowercase()
+    return when {
+        text.isBlank() -> null
+        text.contains("-to-3d") || text.contains("to-3d") -> StandardModelOutputKind.OTHER
+        text.contains("-to-music") || text.contains("-to-audio") -> StandardModelOutputKind.AUDIO
+        text.contains("-to-video") || text.contains("reference-to-video") -> StandardModelOutputKind.VIDEO
+        text.contains("-to-image") -> StandardModelOutputKind.IMAGE
+        text.contains("video") -> StandardModelOutputKind.VIDEO
+        text.contains("audio") || text.contains("music") -> StandardModelOutputKind.AUDIO
+        text.contains("image") -> StandardModelOutputKind.IMAGE
+        text.contains("3d") -> StandardModelOutputKind.OTHER
+        else -> null
+    }
+}
+
+private fun ApiModelSummary.normalizedGroupName(): String =
+    groupName.orEmpty().trim()
+
+private enum class StandardModelOutputKind(
+    val categoryId: String,
+    val priority: Int,
+) {
+    IMAGE(categoryId = "IMAGE", priority = 0),
+    VIDEO(categoryId = "VIDEO", priority = 1),
+    AUDIO(categoryId = "AUDIO", priority = 2),
+    OTHER(categoryId = "OTHER", priority = 3),
+}
 
 private fun mergeStandardServiceModels(
     quickCreationModels: List<QuickCreationServiceModel>,

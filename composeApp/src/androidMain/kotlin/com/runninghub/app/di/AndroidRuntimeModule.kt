@@ -1,6 +1,7 @@
 package com.runninghub.app.di
 
 import com.runninghub.app.BuildConfig
+import com.runninghub.app.ModelCatalogInitialPreloader
 import com.runninghub.core.network.auth.TokenRefresher
 import com.runninghub.core.network.auth.installRunningHubAuthInterceptors
 import com.runninghub.core.network.ApiEnvironment
@@ -12,11 +13,13 @@ import com.runninghub.core.network.installRunningHubRefreshClientDefaults
 import com.runninghub.core.network.installRunningHubNetworkActivityTracking
 import com.runninghub.core.storage.BalanceCache
 import com.runninghub.core.storage.CredentialStore
+import com.runninghub.core.storage.AppStartupStore
 import com.runninghub.core.storage.MigratingCredentialStore
 import com.runninghub.core.storage.ModelCatalogCacheStore
 import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.core.storage.PreferencesSettingsStore
 import com.runninghub.core.storage.QuickCreateDraftStore
+import com.runninghub.core.storage.QuickCreateModelSelectionStore
 import com.runninghub.core.storage.createDataStore
 import com.runninghub.core.storage.createPermissionDataStore
 import com.runninghub.core.storage.createSecureCredentialStore
@@ -66,8 +69,16 @@ val androidRuntimeModule = module {
     }
     single<BalanceCache> { get<PreferencesSettingsStore>() }
     single<QuickCreateDraftStore> { get<PreferencesSettingsStore>() }
+    single<QuickCreateModelSelectionStore> { get<PreferencesSettingsStore>() }
     single<ModelCatalogCacheStore> { get<PreferencesSettingsStore>() }
+    single<AppStartupStore> { get<PreferencesSettingsStore>() }
     single<PermissionStateStore> { createPermissionDataStore() }
+    single {
+        ModelCatalogInitialPreloader(
+            startupStore = get(),
+            modelCatalogRepository = get(),
+        )
+    }
     // SessionManager 保持可注入单例，由根 App 观察状态并决定 Login/Main 入口。
     single { SessionManager(get()) }
 

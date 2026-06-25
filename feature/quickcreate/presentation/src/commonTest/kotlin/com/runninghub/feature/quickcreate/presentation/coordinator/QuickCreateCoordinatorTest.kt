@@ -6,6 +6,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateDraftSnapshot
 import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTag
 import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplateDetail
 import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplatePage
+import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
@@ -47,6 +48,7 @@ class QuickCreateCoordinatorTest {
             historyRepository = dependencies,
             mediaResolver = RecordingQuickCreateMediaResolver(),
             draftRepository = dependencies,
+            modelSelectionRepository = dependencies,
             scope = this,
             uiState = state,
             ioDispatcher = StandardTestDispatcher(testScheduler),
@@ -82,6 +84,7 @@ class QuickCreateCoordinatorTest {
      */
     private class RecordingQuickCreateDependencies :
         QuickCreateDraftRepository,
+        QuickCreateModelSelectionRepository,
         QuickCreationModelCatalogRepository,
         QuickCreationTaskHistoryRepository,
         QuickCreationProjectRepository,
@@ -102,6 +105,18 @@ class QuickCreateCoordinatorTest {
                 imagePrompt = "hello image",
             )
         }
+
+        override suspend fun getLastImageServiceModelIdentityKey(): String? =
+            null
+
+        override suspend fun saveLastImageServiceModelIdentityKey(identityKey: String): Unit =
+            unexpected("saveLastImageServiceModelIdentityKey")
+
+        override suspend fun getLastVideoServiceModelIdentityKey(): String? =
+            null
+
+        override suspend fun saveLastVideoServiceModelIdentityKey(identityKey: String): Unit =
+            unexpected("saveLastVideoServiceModelIdentityKey")
 
         override suspend fun getModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> {
             modelRequests += kind

@@ -26,6 +26,7 @@ import kotlinx.coroutines.withContext
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -94,7 +95,7 @@ class QuickCreateFeePreviewInteractorTest {
     }
 
     @Test
-    fun `service model price summary remains display price after successful fee preview`() = runTest {
+    fun `catalog priced image service model skips remote fee preview and marks request priced`() = runTest {
         val repository = FakeFeePreviewRepository().apply {
             imageFeePreviewResult = Result.success(feePreview(requiredCashAmount = 0.76))
         }
@@ -113,10 +114,11 @@ class QuickCreateFeePreviewInteractorTest {
         advanceTimeBy(500)
         runCurrent()
 
-        assertEquals(listOf("cat"), repository.feePreviewRequests.map { it.prompt })
+        assertEquals(0, repository.feePreviewRequests.size)
         assertEquals(0.06, state.value.estimatedCost)
         assertFalse(state.value.feePreviewLoading)
         assertNull(state.value.feePreviewError)
+        assertNotNull(state.value.feePreviewRequestKey)
     }
 
     @Test

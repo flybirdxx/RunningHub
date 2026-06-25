@@ -45,6 +45,7 @@ val appModule = module {
             projectRepository = get(),
             mediaResolver = get<QuickCreateMediaResolver>(),
             draftRepository = get(),
+            modelSelectionRepository = get(),
             ioDispatcher = Dispatchers.Default,
         )
     }

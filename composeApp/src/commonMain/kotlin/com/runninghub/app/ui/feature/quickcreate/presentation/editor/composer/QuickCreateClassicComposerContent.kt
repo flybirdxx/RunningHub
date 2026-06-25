@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -194,7 +193,6 @@ internal fun QuickCreateClassicComposer(
                     .fillMaxWidth()
                     .widthIn(max = windowInfo.bottomSheetMaxWidth)
                     .padding(horizontal = Dimens.SpaceMD)
-                    .imePadding()
                     .navigationBarsPadding()
                     .padding(top = Dimens.SpaceSM, bottom = Dimens.SpaceMD),
             ) {
