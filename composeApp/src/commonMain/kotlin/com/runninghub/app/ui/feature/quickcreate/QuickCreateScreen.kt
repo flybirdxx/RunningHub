@@ -16,6 +16,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -59,6 +61,7 @@ import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
 import runninghub.composeapp.generated.resources.quick_create_top_bar_menu_content_description
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
@@ -82,6 +85,8 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
     val uiState by screenModel.uiState.collectAsState()
     val currentScreenModel by rememberUpdatedState(screenModel)
     val windowInfo = LocalRhWindowInfo.current
+    val density = LocalDensity.current
+    val rootWindowHeightPx = rememberRootWindowHeightPx().toFloat()
 
     // 页面只依赖权限状态的领域边界，底层是否使用 DataStore 由 DI 组合根决定。
     val permissionStateStore: PermissionStateStore = koinInject()
@@ -93,7 +98,20 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
     var lastActiveSheet by remember { mutableStateOf<QuickCreateSheet?>(null) }
     val renderedSheet = uiState.activeSheet ?: lastActiveSheet
     var availableContentHeightPx by remember { mutableFloatStateOf(0f) }
+    var rootBottomWindowPx by remember { mutableFloatStateOf(0f) }
+    var editorBottomPx by remember { mutableFloatStateOf(0f) }
+    var editorImeOffsetPx by remember { mutableFloatStateOf(0f) }
     var sheetHeightPx by remember { mutableFloatStateOf(0f) }
+    val imeBottomPx = WindowInsets.ime.getBottom(density).toFloat()
+    val navigationBottomPx = WindowInsets.navigationBars.getBottom(density).toFloat()
+    val keyboardVisible = imeBottomPx > 0f
+    val editorKeyboardGapPx = with(density) { 8.dp.toPx() }
+    // 输入栏按窗口坐标闭环贴近键盘顶部，避免把局部 root 高度或整段 IME inset 误当作最终偏移。
+    val targetEditorBottomPx =
+        (rootWindowHeightPx.takeIf { it > 0f } ?: rootBottomWindowPx) -
+            imeBottomPx +
+            navigationBottomPx -
+            editorKeyboardGapPx
     // QuickCreateScreen 位于 MainScreen 的 Scaffold 内容区内；该高度已扣除手机底部 BottomBar。
     // 因此阈值按“设备屏幕高度 - BottomBar 高度”的一半计算，避免 sheet 自身高度变化影响收起手感。
     val sheetDismissThresholdPx = if (availableContentHeightPx > 0f) {
@@ -113,6 +131,19 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
 
     LaunchedEffect(uiState.activeSheet) {
         uiState.activeSheet?.let { lastActiveSheet = it }
+    }
+
+    LaunchedEffect(keyboardVisible, editorBottomPx, targetEditorBottomPx) {
+        if (!keyboardVisible) {
+            editorImeOffsetPx = 0f
+            return@LaunchedEffect
+        }
+        if (editorBottomPx <= 0f) return@LaunchedEffect
+
+        val deltaPx = editorBottomPx - targetEditorBottomPx
+        if (abs(deltaPx) > 1f) {
+            editorImeOffsetPx -= deltaPx
+        }
     }
 
     LaunchedEffect(activeBusinessSheetVisible) {
@@ -168,6 +199,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
             .fillMaxSize()
             .onGloballyPositioned { coordinates ->
                 availableContentHeightPx = coordinates.size.height.toFloat()
+                rootBottomWindowPx = coordinates.positionInWindow().y + coordinates.size.height
             }
             .background(DarkBackground)
     ) {
@@ -215,52 +247,63 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         onDismiss = screenModel::dismissProjectDetail,
                     )
                 }
+            }
+        }
 
-                if (uiState.showCreationInput) {
-                    QuickCreateEditorPanel(
-                        uiState = uiState,
-                        onTabSwitch = screenModel::switchTab,
-                        onPromptChange = if (uiState.currentTab == QuickCreateTab.IMAGE) screenModel::updateImagePrompt else screenModel::updateVideoPrompt,
-                        onLaunchImagePicker = {
-                            controller.pickMedia(
-                                mediaPermission = Permission.MediaImages,
-                                mediaType = MediaType.IMAGE,
-                                onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
-                                onPermissionDenied = {},
-                            )
-                        },
-                        onLaunchVideoPicker = {
-                            controller.pickMedia(
-                                mediaPermission = Permission.MediaVideo,
-                                mediaType = MediaType.VIDEO,
-                                onSuccess = { uriString -> currentScreenModel.pickVideoReference(uriString) },
-                                onPermissionDenied = {},
-                            )
-                        },
-                        onLaunchAudioPicker = {
-                            controller.pickMedia(
-                                mediaPermission = Permission.MediaAudio,
-                                mediaType = MediaType.AUDIO,
-                                onSuccess = { uriString -> currentScreenModel.pickAudioReference(uriString) },
-                                onPermissionDenied = { pendingPermission = Permission.MediaAudio },
-                            )
-                        },
-                        onRemoveMedia = screenModel::removeMediaReference,
-                        onOpenModelSheet = screenModel::showModelPickerSheet,
-                        onOpenParamsSheet = screenModel::showParamsSheet,
-                        onImageRatioChange = screenModel::updateImageAspectRatio,
-                        onImageResChange = screenModel::updateImageResolution,
-                        onImageQualityChange = screenModel::updateImageQuality,
-                        onImageCountChange = screenModel::updateImageCount,
-                        onVideoRatioChange = screenModel::updateVideoAspectRatio,
-                        onVideoResChange = screenModel::updateVideoResolution,
-                        onVideoDurationChange = screenModel::updateVideoDuration,
-                        onToggleAudio = screenModel::toggleGenerateAudio,
-                        onRestoreDraft = screenModel::restoreDraft,
-                        onDiscardDraft = screenModel::discardDraft,
-                        onGenerate = screenModel::generate,
-                    )
-                }
+        if (uiState.showCreationInput) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .widthIn(max = windowInfo.detailContentMaxWidth)
+                    .offset { IntOffset(x = 0, y = editorImeOffsetPx.roundToInt()) }
+                    .onGloballyPositioned { coordinates ->
+                        editorBottomPx = coordinates.positionInWindow().y + coordinates.size.height
+                    },
+            ) {
+                QuickCreateEditorPanel(
+                    uiState = uiState,
+                    onTabSwitch = screenModel::switchTab,
+                    onPromptChange = if (uiState.currentTab == QuickCreateTab.IMAGE) screenModel::updateImagePrompt else screenModel::updateVideoPrompt,
+                    onLaunchImagePicker = {
+                        controller.pickMedia(
+                            mediaPermission = Permission.MediaImages,
+                            mediaType = MediaType.IMAGE,
+                            onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
+                            onPermissionDenied = {},
+                        )
+                    },
+                    onLaunchVideoPicker = {
+                        controller.pickMedia(
+                            mediaPermission = Permission.MediaVideo,
+                            mediaType = MediaType.VIDEO,
+                            onSuccess = { uriString -> currentScreenModel.pickVideoReference(uriString) },
+                            onPermissionDenied = {},
+                        )
+                    },
+                    onLaunchAudioPicker = {
+                        controller.pickMedia(
+                            mediaPermission = Permission.MediaAudio,
+                            mediaType = MediaType.AUDIO,
+                            onSuccess = { uriString -> currentScreenModel.pickAudioReference(uriString) },
+                            onPermissionDenied = { pendingPermission = Permission.MediaAudio },
+                        )
+                    },
+                    onRemoveMedia = screenModel::removeMediaReference,
+                    onOpenModelSheet = screenModel::showModelPickerSheet,
+                    onOpenParamsSheet = screenModel::showParamsSheet,
+                    onImageRatioChange = screenModel::updateImageAspectRatio,
+                    onImageResChange = screenModel::updateImageResolution,
+                    onImageQualityChange = screenModel::updateImageQuality,
+                    onImageCountChange = screenModel::updateImageCount,
+                    onVideoRatioChange = screenModel::updateVideoAspectRatio,
+                    onVideoResChange = screenModel::updateVideoResolution,
+                    onVideoDurationChange = screenModel::updateVideoDuration,
+                    onToggleAudio = screenModel::toggleGenerateAudio,
+                    onRestoreDraft = screenModel::restoreDraft,
+                    onDiscardDraft = screenModel::discardDraft,
+                    onGenerate = screenModel::generate,
+                )
             }
         }
 

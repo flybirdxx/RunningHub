@@ -1,5 +1,6 @@
 package com.runninghub.feature.quickcreate.data.di
 
+import com.runninghub.core.storage.ModelCatalogCacheStore
 import com.runninghub.feature.quickcreate.data.remote.api.QuickCreateApi
 import com.runninghub.feature.quickcreate.data.repository.QuickCreateDraftRepositoryImpl
 import com.runninghub.feature.quickcreate.data.repository.QuickCreateModelSelectionRepositoryImpl
@@ -27,7 +28,7 @@ val quickCreateDataModule = module {
     single<QuickCreateDraftRepository> { QuickCreateDraftRepositoryImpl(get(), get()) }
     single<QuickCreateModelSelectionRepository> { QuickCreateModelSelectionRepositoryImpl(get()) }
     single { QuickCreateApi(get(), get()) }
-    single { QuickCreateRepositoryImpl(get(), get(), get(), get()) }
+    single { QuickCreateRepositoryImpl(get(), get(), get(), get(), get<ModelCatalogCacheStore>()) }
     single<QuickCreationFeePreviewRepository> { get<QuickCreateRepositoryImpl>() }
     single<QuickCreationGenerationRepository> { get<QuickCreateRepositoryImpl>() }
     single<QuickCreationInspirationRepository> { get<QuickCreateRepositoryImpl>() }

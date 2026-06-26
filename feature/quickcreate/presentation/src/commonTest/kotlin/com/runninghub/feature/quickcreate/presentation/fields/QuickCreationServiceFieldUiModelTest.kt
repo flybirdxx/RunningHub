@@ -112,4 +112,48 @@ class QuickCreationServiceFieldUiModelTest {
             fields[3].uploadHint,
         )
     }
+
+    @Test
+    fun `service field ui items render standard model lora and file fields`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "VIDEO",
+            groupName = "自部署开源模型",
+            bindingId = "binding-standard",
+            skuId = "sku-standard",
+            name = "Standard model",
+            description = null,
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "16##lora_name",
+                    paramKey = "lora",
+                    fieldType = "MODEL",
+                    required = false,
+                    defaultValue = "example.safetensors",
+                    options = emptyList(),
+                    inputExtra = QuickCreationServiceFieldExtra(title = "LoRA"),
+                ),
+                QuickCreationServiceField(
+                    fieldKey = "3##file",
+                    paramKey = "file",
+                    fieldType = "FILE",
+                    required = true,
+                    defaultValue = null,
+                    options = emptyList(),
+                    inputExtra = QuickCreationServiceFieldExtra(
+                        title = "Source file",
+                        acceptFormats = listOf("mp4", "wav"),
+                    ),
+                ),
+            ),
+        )
+
+        val fields = model.quickCreationServiceFieldUiItems(params = emptyMap())
+
+        assertEquals(listOf("lora", "file"), fields.map { it.paramKey })
+        assertEquals(QuickCreationServiceFieldControlType.TEXT, fields[0].controlType)
+        assertEquals("example.safetensors", fields[0].textValue)
+        assertEquals(QuickCreationServiceFieldControlType.UPLOAD, fields[1].controlType)
+        assertEquals(null, fields[1].uploadMediaType)
+        assertEquals(listOf("mp4", "wav"), fields[1].uploadHint.acceptFormats)
+    }
 }

@@ -698,7 +698,8 @@ private fun QuickCreationServiceField.supportsTextEntry(): Boolean {
         type.contains("TEXT") ||
         type.contains("NUMBER") ||
         type.contains("INTEGER") ||
-        type.contains("FLOAT")
+        type.contains("FLOAT") ||
+        type == "MODEL"
 }
 
 private fun QuickCreationServiceFieldInputChild.supportsTextEntry(): Boolean {
@@ -707,12 +708,14 @@ private fun QuickCreationServiceFieldInputChild.supportsTextEntry(): Boolean {
         type.contains("TEXT") ||
         type.contains("NUMBER") ||
         type.contains("INTEGER") ||
-        type.contains("FLOAT")
+        type.contains("FLOAT") ||
+        type == "MODEL"
 }
 
 private fun QuickCreationServiceField.isUploadField(): Boolean {
     val type = fieldType.uppercase()
     return type.contains("UPLOAD") ||
+        type == "FILE" ||
         type.contains("IMAGE") ||
         type.contains("VIDEO") ||
         type.contains("AUDIO")
@@ -721,6 +724,7 @@ private fun QuickCreationServiceField.isUploadField(): Boolean {
 private fun QuickCreationServiceFieldInputChild.isUploadField(): Boolean {
     val type = fieldType.uppercase()
     return type.contains("UPLOAD") ||
+        type == "FILE" ||
         type.contains("IMAGE") ||
         type.contains("VIDEO") ||
         type.contains("AUDIO")

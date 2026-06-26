@@ -5,7 +5,9 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionReposi
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.TestScope
@@ -84,7 +86,7 @@ class QuickCreateModelCatalogInteractorTest {
     }
 
     @Test
-    fun `load service models selects first catalog image model when there is no saved selection`() = runTest {
+    fun `load service models prefers stable default image model when there is no saved selection`() = runTest {
         val repository = FakeModelCatalogRepository().apply {
             imageModels = listOf(
                 serviceModel(
@@ -108,9 +110,9 @@ class QuickCreateModelCatalogInteractorTest {
         interactor.loadServiceModels()
         runCurrent()
 
-        assertEquals("pro-binding", state.value.selectedImageServiceModel?.bindingId)
-        assertEquals("pro-binding|pro-sku", state.value.selectedImageServiceModelUi?.identityKey)
-        assertEquals(listOf(true, false), state.value.serviceImageModelItems.map { it.selected })
+        assertEquals("g2-binding", state.value.selectedImageServiceModel?.bindingId)
+        assertEquals("g2-binding|g2-sku", state.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals(listOf(false, true), state.value.serviceImageModelItems.map { it.selected })
     }
 
     @Test
@@ -147,7 +149,7 @@ class QuickCreateModelCatalogInteractorTest {
     }
 
     @Test
-    fun `refresh restores saved image selection even when cached list selected first item`() = runTest {
+    fun `refresh keeps cached image selection when saved selection is absent from snapshot`() = runTest {
         val repository = FakeModelCatalogRepository().apply {
             hasCachedModels = true
             imageModels = listOf(
@@ -184,10 +186,143 @@ class QuickCreateModelCatalogInteractorTest {
         interactor.loadServiceModels()
         runCurrent()
 
-        assertEquals("g2-live-binding", state.value.selectedImageServiceModel?.bindingId)
-        assertEquals("g2-live-binding|g2-live-sku", state.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals("pro-live-binding", state.value.selectedImageServiceModel?.bindingId)
+        assertEquals("pro-live-binding|pro-live-sku", state.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals(mapOf("style" to "pro-cache"), state.value.imageServiceParams)
+        assertEquals(listOf(true, false), state.value.serviceImageModelItems.map { it.selected })
+    }
+
+    @Test
+    fun `cached video list selects Seedance immediately instead of waiting for refresh`() = runTest {
+        val refreshGate = CompletableDeferred<Unit>()
+        val repository = FakeModelCatalogRepository().apply {
+            hasCachedModels = true
+            refreshGateBeforeResult = refreshGate
+            videoModels = listOf(
+                serviceModel(
+                    categoryId = "VIDEO",
+                    groupName = "\u5168\u80fd\u89c6\u9891S",
+                    bindingId = "all-purpose-video-s-binding",
+                    skuId = "all-purpose-video-s-sku",
+                    name = "\u5168\u80fd\u89c6\u9891S",
+                    fields = listOf(serviceField("motion", "default")),
+                ),
+                serviceModel(
+                    categoryId = "VIDEO",
+                    groupName = "Seedance2.0",
+                    bindingId = "seedance-binding",
+                    skuId = "seedance-sku",
+                    name = "seedance2.0-Mini/text-to-video",
+                    fields = listOf(serviceField("duration", "5")),
+                ),
+            )
+            refreshedVideoModels = listOf(
+                serviceModel(
+                    categoryId = "VIDEO",
+                    groupName = "Seedance2.0",
+                    bindingId = "seedance-binding",
+                    skuId = "seedance-sku",
+                    name = "seedance2.0-Mini/text-to-video",
+                    fields = listOf(serviceField("duration", "5")),
+                )
+            )
+        }
+        val selectionRepository = FakeModelSelectionRepository(
+            videoIdentityKey = "seedance-binding|seedance-sku",
+        )
+        val state = MutableStateFlow(QuickCreateUiState(currentTab = QuickCreateTab.VIDEO))
+        var feePreviewRequests = 0
+        val interactor = createInteractor(
+            repository = repository,
+            state = state,
+            scope = this,
+            selectionRepository = selectionRepository,
+        ) {
+            feePreviewRequests += 1
+        }
+
+        interactor.loadServiceModels()
+        runCurrent()
+
+        assertFalse(state.value.serviceModelsLoading)
+        assertEquals("seedance-binding", state.value.selectedVideoServiceModel?.bindingId)
+        assertEquals("seedance-binding|seedance-sku", state.value.selectedVideoServiceModelUi?.identityKey)
+        assertEquals("Seedance2.0", state.value.selectedVideoServiceModelUi?.compactName)
+        assertEquals(mapOf("duration" to "5"), state.value.videoServiceParams)
+        assertEquals(1, feePreviewRequests)
+
+        refreshGate.complete(Unit)
+        runCurrent()
+
+        assertFalse(state.value.serviceModelsLoading)
+        assertEquals("seedance-binding", state.value.selectedVideoServiceModel?.bindingId)
+        assertEquals("seedance-binding|seedance-sku", state.value.selectedVideoServiceModelUi?.identityKey)
+        assertEquals("Seedance2.0", state.value.selectedVideoServiceModelUi?.compactName)
+        assertEquals(mapOf("duration" to "5"), state.value.videoServiceParams)
+        assertEquals(2, feePreviewRequests)
+    }
+
+    @Test
+    fun `cached image list selects G2 immediately instead of waiting for refresh`() = runTest {
+        val refreshGate = CompletableDeferred<Unit>()
+        val repository = FakeModelCatalogRepository().apply {
+            hasCachedModels = true
+            refreshGateBeforeResult = refreshGate
+            imageModels = listOf(
+                serviceModel(
+                    groupName = "\u5168\u80fd\u56fe\u7247PRO",
+                    bindingId = "all-purpose-pro-binding",
+                    skuId = "all-purpose-pro-sku",
+                    name = "\u5168\u80fd\u56fe\u7247PRO-\u6587\u751f\u56fe-\u5b98\u65b9\u7248",
+                    fields = listOf(serviceField("style", "pro")),
+                ),
+                serviceModel(
+                    groupName = "\u5168\u80fd\u56fe\u7247G",
+                    bindingId = "all-purpose-g2-binding",
+                    skuId = "all-purpose-g2-sku",
+                    name = "\u5168\u80fd\u56fe\u7247G-2.0-\u6587\u751f\u56fe-\u5b98\u65b9\u7248",
+                    fields = listOf(serviceField("style", "photoreal")),
+                ),
+            )
+            refreshedImageModels = listOf(
+                serviceModel(
+                    groupName = "\u5168\u80fd\u56fe\u7247G",
+                    bindingId = "all-purpose-g2-binding",
+                    skuId = "all-purpose-g2-sku",
+                    name = "\u5168\u80fd\u56fe\u7247G-2.0-\u6587\u751f\u56fe-\u5b98\u65b9\u7248",
+                    fields = listOf(serviceField("style", "photoreal")),
+                )
+            )
+        }
+        val state = MutableStateFlow(QuickCreateUiState(currentTab = QuickCreateTab.IMAGE))
+        var feePreviewRequests = 0
+        val interactor = createInteractor(
+            repository = repository,
+            state = state,
+            scope = this,
+        ) {
+            feePreviewRequests += 1
+        }
+
+        interactor.loadServiceModels()
+        runCurrent()
+
+        assertFalse(state.value.serviceModelsLoading)
+        assertEquals("all-purpose-g2-binding", state.value.selectedImageServiceModel?.bindingId)
+        assertEquals("all-purpose-g2-binding|all-purpose-g2-sku", state.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals("\u5168\u80fd\u56fe\u7247 G-2.0", state.value.selectedImageServiceModelUi?.compactName)
         assertEquals(mapOf("style" to "photoreal"), state.value.imageServiceParams)
-        assertEquals(listOf(false, true), state.value.serviceImageModelItems.map { it.selected })
+        assertEquals(1, feePreviewRequests)
+
+        refreshGate.complete(Unit)
+        runCurrent()
+
+        assertFalse(state.value.serviceModelsLoading)
+        assertEquals("all-purpose-g2-binding", state.value.selectedImageServiceModel?.bindingId)
+        assertEquals("all-purpose-g2-binding|all-purpose-g2-sku", state.value.selectedImageServiceModelUi?.identityKey)
+        assertEquals("\u5168\u80fd\u56fe\u7247 G-2.0", state.value.selectedImageServiceModelUi?.compactName)
+        assertEquals(mapOf("style" to "photoreal"), state.value.imageServiceParams)
+        assertEquals(2, feePreviewRequests)
     }
 
     @Test
@@ -374,6 +509,7 @@ class QuickCreateModelCatalogInteractorTest {
         )
         var refreshedImageModels: List<QuickCreationServiceModel>? = null
         var refreshedVideoModels: List<QuickCreationServiceModel>? = null
+        var refreshGateBeforeResult: CompletableDeferred<Unit>? = null
 
         /**
          * 按业务类别返回当前测试设置的模型目录。
@@ -393,11 +529,13 @@ class QuickCreateModelCatalogInteractorTest {
         /**
          * 返回测试设置的远端刷新目录；未设置时沿用当前目录。
          */
-        override suspend fun refreshModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> =
-            when (kind) {
+        override suspend fun refreshModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> {
+            refreshGateBeforeResult?.await()
+            return when (kind) {
                 QuickCreationServiceKind.IMAGE -> Result.success(refreshedImageModels ?: imageModels)
                 QuickCreationServiceKind.VIDEO -> Result.success(refreshedVideoModels ?: videoModels)
             }
+        }
     }
 
     /**

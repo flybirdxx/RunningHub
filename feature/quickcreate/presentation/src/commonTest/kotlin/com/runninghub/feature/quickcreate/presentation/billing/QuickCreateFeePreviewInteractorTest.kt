@@ -122,6 +122,45 @@ class QuickCreateFeePreviewInteractorTest {
     }
 
     @Test
+    fun `dynamic image service fields use remote fee preview instead of catalog price`() = runTest {
+        val repository = FakeFeePreviewRepository().apply {
+            imageFeePreviewResult = Result.success(feePreview(requiredCashAmount = 0.76))
+        }
+        val state = MutableStateFlow(
+            QuickCreateUiState(
+                selectedImageServiceModel = serviceModel(
+                    fields = listOf(
+                        dynamicOptionField(paramKey = "resolution", values = listOf("1k", "2k", "4k")),
+                        dynamicOptionField(paramKey = "quality", values = listOf("low", "medium", "high")),
+                    ),
+                    pricing = QuickCreationServicePricing(
+                        priceSummaryRaw = "0.0600",
+                        dimensionPricingRaw = """{"resolution":{"4k":0.76}}""",
+                    ),
+                ),
+                imageServiceParams = mapOf(
+                    "resolution" to "4k",
+                    "quality" to "high",
+                ),
+                imageConfig = ImageConfig(prompt = "cat"),
+            )
+        )
+        val interactor = createInteractor(repository = repository, state = state, scope = this)
+
+        interactor.schedule()
+        advanceTimeBy(500)
+        runCurrent()
+
+        assertEquals(1, repository.feePreviewRequests.size)
+        assertEquals("4k", repository.feePreviewRequests.single().quickCreationParams["resolution"])
+        assertEquals("high", repository.feePreviewRequests.single().quickCreationParams["quality"])
+        assertEquals(0.76, state.value.estimatedCost)
+        assertFalse(state.value.feePreviewLoading)
+        assertNull(state.value.feePreviewError)
+        assertNotNull(state.value.feePreviewRequestKey)
+    }
+
+    @Test
     fun `required service field skips fee preview request without exposing generation block message`() = runTest {
         val repository = FakeFeePreviewRepository()
         val state = MutableStateFlow(
@@ -192,6 +231,22 @@ class QuickCreateFeePreviewInteractorTest {
                 QuickCreationServiceFieldOption(label = "Realistic", value = "realistic"),
             ),
             inputExtra = QuickCreationServiceFieldExtra(title = "Style preset"),
+        )
+
+    private fun dynamicOptionField(
+        paramKey: String,
+        values: List<String>,
+    ): QuickCreationServiceField =
+        QuickCreationServiceField(
+            fieldKey = paramKey,
+            paramKey = paramKey,
+            fieldType = "LIST",
+            required = true,
+            defaultValue = values.firstOrNull(),
+            options = values.map { value ->
+                QuickCreationServiceFieldOption(label = value, value = value)
+            },
+            inputExtra = QuickCreationServiceFieldExtra(title = paramKey),
         )
 
     /**

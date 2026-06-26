@@ -44,6 +44,7 @@ class PreferencesSettingsStore(
         private const val KEY_MODEL_CATALOG_GROUP_PREFIX = "model_catalog_standard_group_"
         private const val KEY_MODEL_CATALOG_LIST_PREFIX = "model_catalog_standard_list_"
         private const val KEY_MODEL_CATALOG_DETAIL_PREFIX = "model_catalog_standard_detail_"
+        private const val KEY_QUICK_CREATE_MODEL_CATALOG_PREFIX = "quick_create_model_catalog_"
     }
 
     override suspend fun getApiKey(): String? =
@@ -166,6 +167,13 @@ class PreferencesSettingsStore(
 
     override suspend fun saveStandardModelDetail(modelId: String, json: String) {
         dataStore.edit { it[stringPreferencesKey(KEY_MODEL_CATALOG_DETAIL_PREFIX + modelId)] = json }
+    }
+
+    override suspend fun getQuickCreateModelCatalog(kindKey: String): String? =
+        dataStore.data.map { it[stringPreferencesKey(KEY_QUICK_CREATE_MODEL_CATALOG_PREFIX + kindKey)] }.first()
+
+    override suspend fun saveQuickCreateModelCatalog(kindKey: String, json: String) {
+        dataStore.edit { it[stringPreferencesKey(KEY_QUICK_CREATE_MODEL_CATALOG_PREFIX + kindKey)] = json }
     }
 
     override suspend fun clearAll() {

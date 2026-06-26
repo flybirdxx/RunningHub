@@ -140,7 +140,6 @@
     <string name="quick_create_model_selector_official_stable">官方稳定</string>
     <string name="quick_create_model_selector_high_quality">高质量</string>
     <string name="quick_create_model_selector_unknown_price">价格待确认</string>
-    <string name="quick_create_model_selector_path_format">/%1$s</string>
     <string name="quick_create_service_model_unnamed">未命名模型</string>
     <string name="quick_create_service_model_other_group">其他模型</string>
     <string name="quick_create_service_model_parameter_count_format">%1$d 个参数</string>

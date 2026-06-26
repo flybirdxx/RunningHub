@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -72,7 +71,6 @@ import runninghub.composeapp.generated.resources.quick_create_model_selector_fil
 import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_other
 import runninghub.composeapp.generated.resources.quick_create_model_selector_filter_video
 import runninghub.composeapp.generated.resources.quick_create_model_selector_loading
-import runninghub.composeapp.generated.resources.quick_create_model_selector_path_format
 import runninghub.composeapp.generated.resources.quick_create_model_selector_search_placeholder
 import runninghub.composeapp.generated.resources.quick_create_model_selector_title
 import runninghub.composeapp.generated.resources.quick_create_model_selector_unknown_price
@@ -172,8 +170,7 @@ internal fun QuickCreateModelSheet(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .navigationBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                        .padding(start = 16.dp, top = 6.dp, end = 16.dp, bottom = 0.dp),
                 ) {
                     QuickCreateSheetHandle(
                         modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -191,7 +188,7 @@ internal fun QuickCreateModelSheet(
                             .fillMaxWidth()
                             .weight(1f, fill = false)
                             .heightIn(max = 520.dp)
-                            .padding(top = 16.dp, bottom = 12.dp),
+                            .padding(top = 16.dp),
                     ) {
                         when {
                             // 模型目录刷新时保留上一份可用快照，避免每次进入或后台同步都闪回加载态。
@@ -230,7 +227,7 @@ private fun ModelSheetHeader(onDismiss: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 28.dp, bottom = 18.dp),
+            .padding(top = 14.dp, bottom = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
@@ -404,77 +401,136 @@ private fun ServiceModelListRow(
         color = Color(0xFF15191E),
         border = BorderStroke(1.dp, Color(0xFF3A3D46)),
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            ModelGlyphForKind(model = model)
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
+        BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+            val compact = maxWidth < 380.dp
+            Row(
+                modifier = Modifier.padding(if (compact) 10.dp else 12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(if (compact) 10.dp else 14.dp),
             ) {
-                Text(
-                    text = model.displayName.asServiceModelText(),
-                    color = QuickCreateDesignTokens.Text,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                ModelGlyphForKind(
+                    model = model,
+                    modifier = Modifier.size(if (compact) 48.dp else 52.dp),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    modelCapabilityTags(model).forEachIndexed { index, tag ->
-                        CapabilityTag(text = tag, muted = index > 0)
-                    }
-                }
-                Text(
-                    text = stringResource(
-                        Res.string.quick_create_model_selector_path_format,
-                        model.source.bindingId.ifBlank { model.source.skuId },
-                    ),
-                    color = Color(0xFF90929A),
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Text(
-                text = modelPriceText(model),
-                color = Color(0xFFC9CAD1),
-                fontSize = 14.sp,
-                maxLines = 1,
-            )
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .background(
-                        if (selected) QuickCreateDesignTokens.Purple else Color.Transparent,
-                        CircleShape,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (selected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = Color(0xFF090A0D),
-                        modifier = Modifier.size(15.dp),
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = model.displayName.asServiceModelText(),
+                        color = QuickCreateDesignTokens.Text,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
-                } else {
-                    Icon(
-                        imageVector = Icons.Default.CheckBoxOutlineBlank,
-                        contentDescription = null,
-                        tint = Color(0xFFC5C7D0),
-                        modifier = Modifier.size(22.dp),
-                    )
+                    // 小屏仍保持“标签 + 价格”同一行；标签区域承担收缩，价格不再挤压模型名。
+                    ModelMetadataLine(model = model, compact = compact)
                 }
+                ModelSelectionIndicator(selected = selected)
             }
         }
     }
 }
 
 @Composable
-private fun ModelGlyphForKind(model: QuickCreateServiceModelUi) {
+private fun ModelMetadataLine(model: QuickCreateServiceModelUi, compact: Boolean) {
+    val tags = modelCapabilityTags(model)
+    val priceText = modelPriceText(model)
+    if (compact) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            CapabilityTagRow(
+                tags = tags.take(1),
+                compact = true,
+                modifier = Modifier.weight(1f),
+            )
+            ModelPriceText(text = priceText)
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            CapabilityTagRow(
+                tags = tags,
+                compact = false,
+                modifier = Modifier.weight(1f),
+            )
+            ModelPriceText(text = priceText)
+        }
+    }
+}
+
+@Composable
+private fun CapabilityTagRow(
+    tags: List<String>,
+    compact: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        tags.forEachIndexed { index, tag ->
+            CapabilityTag(
+                text = tag,
+                muted = index > 0,
+                modifier = if (compact || index == 0) Modifier.weight(1f, fill = false) else Modifier,
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModelPriceText(text: String) {
+    Text(
+        text = text,
+        color = Color(0xFFC9CAD1),
+        fontSize = 14.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+    )
+}
+
+@Composable
+private fun ModelSelectionIndicator(selected: Boolean) {
+    Box(
+        modifier = Modifier
+            .size(22.dp)
+            .background(
+                if (selected) QuickCreateDesignTokens.Purple else Color.Transparent,
+                CircleShape,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = null,
+                tint = Color(0xFF090A0D),
+                modifier = Modifier.size(15.dp),
+            )
+        } else {
+            Icon(
+                imageVector = Icons.Default.CheckBoxOutlineBlank,
+                contentDescription = null,
+                tint = Color(0xFFC5C7D0),
+                modifier = Modifier.size(22.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ModelGlyphForKind(
+    model: QuickCreateServiceModelUi,
+    modifier: Modifier = Modifier.size(52.dp),
+) {
     val kind = model.outputKind()
     val icon = when (kind) {
         ModelOutputKind.IMAGE -> Icons.Default.Image
@@ -489,7 +545,7 @@ private fun ModelGlyphForKind(model: QuickCreateServiceModelUi) {
         ModelOutputKind.OTHER -> Color(0xFF5E63D7)
     }
     QuickCreateModelGlyph(
-        modifier = Modifier.size(52.dp),
+        modifier = modifier,
         accent = accent,
     ) {
         Icon(
@@ -502,8 +558,13 @@ private fun ModelGlyphForKind(model: QuickCreateServiceModelUi) {
 }
 
 @Composable
-private fun CapabilityTag(text: String, muted: Boolean = false) {
+private fun CapabilityTag(
+    text: String,
+    muted: Boolean = false,
+    modifier: Modifier = Modifier,
+) {
     Surface(
+        modifier = modifier,
         shape = RoundedCornerShape(9.dp),
         color = if (muted) Color(0xFF22252B) else Color(0xFF2A2240),
         border = BorderStroke(1.dp, if (muted) Color(0xFF535761) else QuickCreateDesignTokens.Purple),
@@ -514,6 +575,7 @@ private fun CapabilityTag(text: String, muted: Boolean = false) {
             fontSize = 10.sp,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
     }
 }
@@ -551,10 +613,19 @@ private fun EmptyText() {
 
 @Composable
 private fun modelPriceText(model: QuickCreateServiceModelUi): String =
-    model.source.pricing?.priceSummaryRaw
+    (model.source.pricing?.priceSummaryRaw
         ?: model.source.pricing?.flatPriceRaw
         ?: model.source.pricing?.dimensionPricingRaw
-        ?: stringResource(Res.string.quick_create_model_selector_unknown_price)
+        ?: stringResource(Res.string.quick_create_model_selector_unknown_price))
+        .trimInsignificantPriceZeros()
+
+private fun String.trimInsignificantPriceZeros(): String =
+    // 服务端价格摘要可能带固定四位小数；这里只收敛 C 端展示，不改变计费原始数据。
+    replace(Regex("""(\d+)\.(\d*?[1-9])0+(?=\D|$)|(\d+)\.0+(?=\D|$)""")) { match ->
+        val integer = match.groups[1]?.value ?: match.groups[3]?.value.orEmpty()
+        val fraction = match.groups[2]?.value
+        if (fraction == null) integer else "$integer.$fraction"
+    }
 
 private fun modelCapabilityTags(model: QuickCreateServiceModelUi): List<String> =
     buildList {

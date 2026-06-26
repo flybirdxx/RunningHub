@@ -70,6 +70,7 @@ class QuickCreateModelCatalogInteractor(
                 imageModels = imageModels.getOrElse { emptyList() },
                 videoModels = videoModels.getOrElse { emptyList() },
                 loading = false,
+                preferPersistedSelection = true,
                 lastImageIdentityKey = lastImageIdentityKey,
                 lastVideoIdentityKey = lastVideoIdentityKey,
             )
@@ -83,6 +84,7 @@ class QuickCreateModelCatalogInteractor(
                     imageModels = refreshedImageModels.getOrElse { uiState.value.serviceImageModels },
                     videoModels = refreshedVideoModels.getOrElse { uiState.value.serviceVideoModels },
                     loading = false,
+                    preferPersistedSelection = false,
                     lastImageIdentityKey = lastImageIdentityKey,
                     lastVideoIdentityKey = lastVideoIdentityKey,
                 )
@@ -95,18 +97,25 @@ class QuickCreateModelCatalogInteractor(
         imageModels: List<QuickCreationServiceModel>,
         videoModels: List<QuickCreationServiceModel>,
         loading: Boolean,
+        preferPersistedSelection: Boolean,
         lastImageIdentityKey: String?,
         lastVideoIdentityKey: String?,
     ) {
         uiState.update { state ->
             val effectiveImageIdentityKey = sessionImageSelectionIdentityKey ?: lastImageIdentityKey
             val effectiveVideoIdentityKey = sessionVideoSelectionIdentityKey ?: lastVideoIdentityKey
-            val selectedImage = imageModels.matchingPersistedSelection(effectiveImageIdentityKey)
-                ?: imageModels.matchingServiceSelection(state.selectedImageServiceModel)
-                ?: imageModels.firstOrNull()
-            val selectedVideo = videoModels.matchingPersistedSelection(effectiveVideoIdentityKey)
-                ?: videoModels.matchingServiceSelection(state.selectedVideoServiceModel)
-                ?: videoModels.firstOrNull()
+            // 缓存快照用于即时可用，远端刷新只在能映射到当前选择时修正为最新对象；
+            // 若刷新结果已改变默认首项，则保持当前已展示模型，避免网络慢或排序变动造成标签跳动。
+            val selectedImage = imageModels.resolveServiceSelection(
+                identityKey = effectiveImageIdentityKey,
+                selected = state.selectedImageServiceModel,
+                preferPersistedSelection = preferPersistedSelection,
+            )
+            val selectedVideo = videoModels.resolveServiceSelection(
+                identityKey = effectiveVideoIdentityKey,
+                selected = state.selectedVideoServiceModel,
+                preferPersistedSelection = preferPersistedSelection,
+            )
             val imageItems = imageModels.toQuickCreateServiceModelUiItems(selectedImage)
             val videoItems = videoModels.toQuickCreateServiceModelUiItems(selectedVideo)
 
@@ -270,6 +279,41 @@ class QuickCreateModelCatalogInteractor(
         identityKey
             ?.takeIf { it.isNotBlank() }
             ?.let { key -> firstOrNull { it.quickCreateServiceModelIdentityKey() == key } }
+
+    private fun List<QuickCreationServiceModel>.resolveServiceSelection(
+        identityKey: String?,
+        selected: QuickCreationServiceModel?,
+        preferPersistedSelection: Boolean,
+    ): QuickCreationServiceModel? {
+        val currentSelection = matchingServiceSelection(selected)
+        val persistedSelection = matchingPersistedSelection(identityKey)
+        return when {
+            preferPersistedSelection && persistedSelection != null -> persistedSelection
+            currentSelection != null -> currentSelection
+            persistedSelection != null -> persistedSelection
+            else -> preferredQuickCreateDefaultSelection() ?: firstOrNull()
+        }
+    }
+
+    private fun List<QuickCreationServiceModel>.preferredQuickCreateDefaultSelection(): QuickCreationServiceModel? =
+        firstOrNull { it.isPreferredImageDefaultModel() }
+            ?: firstOrNull { it.isPreferredVideoDefaultModel() }
+
+    private fun QuickCreationServiceModel.isPreferredImageDefaultModel(): Boolean {
+        val signature = listOf(categoryId, name, groupName, apiType, apiSource)
+            .joinToString("|")
+            .quickCreateServiceSignatureToken()
+        return ("g20" in signature || "g2.0" in signature) &&
+            ("image" in signature || "picture" in signature)
+    }
+
+    private fun QuickCreationServiceModel.isPreferredVideoDefaultModel(): Boolean {
+        val signature = listOf(categoryId, name, groupName, apiType, apiSource)
+            .joinToString("|")
+            .quickCreateServiceSignatureToken()
+        return ("seedance20" in signature || "seedance2.0" in signature) &&
+            "video" in signature
+    }
 
     private fun QuickCreationServiceModel.matchesServiceSignature(other: QuickCreationServiceModel?): Boolean =
         other != null &&

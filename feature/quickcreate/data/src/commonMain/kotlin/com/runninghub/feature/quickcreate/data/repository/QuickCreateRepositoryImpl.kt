@@ -1,6 +1,7 @@
 ﻿package com.runninghub.feature.quickcreate.data.repository
 
 import com.runninghub.core.storage.CredentialStore
+import com.runninghub.core.storage.ModelCatalogCacheStore
 import com.runninghub.feature.auth.domain.AuthRepository
 import com.runninghub.feature.model.domain.ApiModelDetail
 import com.runninghub.feature.model.domain.ApiModelField
@@ -35,7 +36,10 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationProject
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectPage
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldExtra
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldInputChild
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldOption
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldVisibilityCondition
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationServicePricing
 import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
@@ -48,6 +52,8 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -55,6 +61,9 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 
 @Suppress("UNUSED_PARAMETER")
 private fun debug(tag: String, msg: String) {
@@ -110,6 +119,8 @@ private const val STANDARD_MODEL_CATALOG_MAX_PAGES = 20
 private const val STANDARD_MODEL_CATALOG_GROUP_PAGE_SIZE = 999
 private const val QUICK_CREATION_POLL_PAGE_SIZE = 50
 private const val QUICK_CREATION_POLL_MAX_PAGES = 5
+private const val QUICK_CREATE_MODEL_CATALOG_CACHE_SCHEMA_VERSION = 1
+private val STANDARD_MODEL_DETAIL_ENRICHED_GROUP_NAMES = setOf("\u81ea\u90e8\u7f72\u5f00\u6e90\u6a21\u578b")
 
 private fun JsonElement.asParamString(): String? =
     (this as? JsonPrimitive)?.jsonPrimitive?.contentOrNull
@@ -423,12 +434,15 @@ private val ImageGenerationRequest.hasQuickCreationIdentity: Boolean
  * 该依赖必须由 DI 提供，避免生产运行时因缺少刷新能力而把可恢复的 401/TOKEN_INVALID 直接暴露为失败。
  * @param modelCatalogRepository 标准模型目录仓库，用于按 SKU 补齐 `/api/sku/list` 与 `/api/sku/detail`
  * 的脱敏摘要、字段结构和价格展示信息；`null` 只作为旧测试或接口不可用时的降级路径。
+ * @param modelCatalogCacheStore 快捷创作合并目录快照缓存；保存的是可直接展示和提交的模型列表，
+ * 与标准 SKU 目录缓存分开，避免不同身份键的列表互相覆盖。
  */
 class QuickCreateRepositoryImpl(
     private val quickCreateApi: QuickCreateApi,
     private val credentialStore: CredentialStore,
     private val authRepository: AuthRepository,
     private val modelCatalogRepository: ModelCatalogRepository? = null,
+    private val modelCatalogCacheStore: ModelCatalogCacheStore? = null,
 ) : QuickCreationTaskHistoryRepository,
     QuickCreationFeePreviewRepository,
     QuickCreationGenerationRepository,
@@ -436,6 +450,9 @@ class QuickCreateRepositoryImpl(
     QuickCreationMediaUploadRepository,
     QuickCreationModelCatalogRepository,
     QuickCreationProjectRepository {
+    private val modelCatalogCacheMutex = Mutex()
+    private val quickCreateModelCatalogMemoryCache =
+        mutableMapOf<QuickCreationServiceKind, List<QuickCreationServiceModel>>()
 
     private suspend fun <T> quickCreationRequestWithTokenRetry(
         request: suspend () -> QuickCreationEnvelopeDto<T>,
@@ -1551,52 +1568,83 @@ class QuickCreateRepositoryImpl(
     }
 
     override suspend fun getModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> =
-        loadModels(kind = kind, forceRefresh = false)
+        runCatching {
+            getCachedQuickCreateModelCatalog(kind).takeIf { it.isNotEmpty() }
+                ?: loadModels(kind = kind, forceRefresh = true).also { saveQuickCreateModelCatalog(kind, it) }
+        }
 
     override suspend fun hasCachedModels(kind: QuickCreationServiceKind): Boolean =
-        loadCachedStandardModelCatalog(modelCatalogRepository)
-            .toQuickCreationServiceModels(kind)
-            .isNotEmpty()
+        getCachedQuickCreateModelCatalog(kind).isNotEmpty()
 
     override suspend fun refreshModels(kind: QuickCreationServiceKind): Result<List<QuickCreationServiceModel>> =
-        loadModels(kind = kind, forceRefresh = true)
+        runCatching {
+            loadModels(kind = kind, forceRefresh = true).also { saveQuickCreateModelCatalog(kind, it) }
+        }
 
     private suspend fun loadModels(
         kind: QuickCreationServiceKind,
         forceRefresh: Boolean,
-    ): Result<List<QuickCreationServiceModel>> =
-        runCatching {
-            val cachedStandardModels = loadCachedStandardModelCatalog(modelCatalogRepository)
-                .toQuickCreationServiceModels(kind)
-            catalogDebug(
-                "loadModels kind=$kind forceRefresh=$forceRefresh cached=${cachedStandardModels.size} " +
-                    "cachedTypes=${cachedStandardModels.serviceModelTypeDistributionLog()}",
-            )
-            if (!forceRefresh && cachedStandardModels.isNotEmpty()) {
-                return@runCatching cachedStandardModels
-            }
+    ): List<QuickCreationServiceModel> {
+        val cachedStandardModels = loadCachedStandardModelCatalog(modelCatalogRepository)
+            .toQuickCreationServiceModels(kind)
+        catalogDebug(
+            "loadModels kind=$kind forceRefresh=$forceRefresh cachedStandard=${cachedStandardModels.size} " +
+                "cachedStandardTypes=${cachedStandardModels.serviceModelTypeDistributionLog()}",
+        )
 
-            // Repository 边界只接受领域类别，远端 categoryId 在 Data 层统一映射和记录。
-            val categoryId = kind.toRemoteCategoryId()
-            val response = quickCreateApi.getQuickCreationModels(listOf(categoryId))
-            debug("QuickCreationV2", "models response category=$categoryId code=${response.code}")
-            if (response.code != 0) {
-                throw response.toRepositoryException(QuickCreateRepositoryIssueCode.MODEL_LIST_LOAD_FAILED)
-            }
-            val quickCreationModels = QuickCreationModelMapper.flatten(
-                fallbackCategoryId = categoryId,
-                models = response.data?.categories?.get(categoryId).orEmpty(),
-            )
-            catalogDebug(
-                "quickCreation category=$categoryId count=${quickCreationModels.size} " +
-                    "types=${quickCreationModels.serviceModelTypeDistributionLog()}",
-            )
-            enrichWithStandardModelCatalog(
-                models = quickCreationModels,
-                kind = kind,
-                forceRefresh = forceRefresh || cachedStandardModels.isEmpty(),
-            )
+        // Repository 边界只接受领域类别，远端 categoryId 在 Data 层统一映射和记录。
+        val categoryId = kind.toRemoteCategoryId()
+        val response = quickCreateApi.getQuickCreationModels(listOf(categoryId))
+        debug("QuickCreationV2", "models response category=$categoryId code=${response.code}")
+        if (response.code != 0) {
+            throw response.toRepositoryException(QuickCreateRepositoryIssueCode.MODEL_LIST_LOAD_FAILED)
         }
+        val quickCreationModels = QuickCreationModelMapper.flatten(
+            fallbackCategoryId = categoryId,
+            models = response.data?.categories?.get(categoryId).orEmpty(),
+        )
+        catalogDebug(
+            "quickCreation category=$categoryId count=${quickCreationModels.size} " +
+                "types=${quickCreationModels.serviceModelTypeDistributionLog()}",
+        )
+        return enrichWithStandardModelCatalog(
+            models = quickCreationModels,
+            kind = kind,
+            forceRefresh = forceRefresh || cachedStandardModels.isEmpty(),
+        )
+    }
+
+    private suspend fun getCachedQuickCreateModelCatalog(
+        kind: QuickCreationServiceKind,
+    ): List<QuickCreationServiceModel> {
+        modelCatalogCacheMutex.withLock {
+            quickCreateModelCatalogMemoryCache[kind]?.let { return it }
+        }
+        val cached = modelCatalogCacheStore
+            ?.getQuickCreateModelCatalog(kind.cacheKey())
+            ?.let(::decodeQuickCreateModelCatalogCache)
+            .orEmpty()
+        if (cached.isNotEmpty()) {
+            modelCatalogCacheMutex.withLock {
+                quickCreateModelCatalogMemoryCache[kind] = cached
+            }
+        }
+        return cached
+    }
+
+    private suspend fun saveQuickCreateModelCatalog(
+        kind: QuickCreationServiceKind,
+        models: List<QuickCreationServiceModel>,
+    ) {
+        if (models.isEmpty()) return
+        modelCatalogCacheMutex.withLock {
+            quickCreateModelCatalogMemoryCache[kind] = models
+        }
+        modelCatalogCacheStore?.saveQuickCreateModelCatalog(
+            kindKey = kind.cacheKey(),
+            json = encodeQuickCreateModelCatalogCache(models),
+        )
+    }
 
     private suspend fun enrichWithStandardModelCatalog(
         models: List<QuickCreationServiceModel>,
@@ -1621,9 +1669,14 @@ class QuickCreateRepositoryImpl(
                 }
             }.awaitAll()
         }
+        val quickSkuIds = quickCreationModels.map { it.skuId }.toSet()
+        val standardModels = standardSummaries
+            .toQuickCreationServiceModels(kind)
+            .filterNot { it.skuId in quickSkuIds }
+            .enrichWithStandardModelDetails(repository, summaryById)
         return mergeStandardServiceModels(
             quickCreationModels = quickCreationModels,
-            standardModels = standardSummaries.toQuickCreationServiceModels(kind),
+            standardModels = standardModels,
         )
     }
 
@@ -1728,6 +1781,304 @@ class QuickCreateRepositoryImpl(
         response.data.toProject()
     }
 }
+
+@Serializable
+private data class QuickCreateModelCatalogCacheDto(
+    val schemaVersion: Int,
+    val models: List<QuickCreateServiceModelCacheDto>,
+)
+
+@Serializable
+private data class QuickCreateServiceModelCacheDto(
+    val categoryId: String,
+    val groupName: String? = null,
+    val bindingId: String,
+    val skuId: String,
+    val name: String,
+    val description: String? = null,
+    val apiType: String? = null,
+    val apiSource: String? = null,
+    val fields: List<QuickCreateServiceFieldCacheDto> = emptyList(),
+    val pricing: QuickCreateServicePricingCacheDto? = null,
+) {
+    fun toDomain(): QuickCreationServiceModel =
+        QuickCreationServiceModel(
+            categoryId = categoryId,
+            groupName = groupName,
+            bindingId = bindingId,
+            skuId = skuId,
+            name = name,
+            description = description,
+            apiType = apiType,
+            apiSource = apiSource,
+            fields = fields.map { it.toDomain() },
+            pricing = pricing?.toDomain(),
+        )
+}
+
+@Serializable
+private data class QuickCreateServiceFieldCacheDto(
+    val fieldKey: String,
+    val paramKey: String,
+    val fieldType: String,
+    val required: Boolean,
+    val defaultValue: String? = null,
+    val options: List<QuickCreateServiceFieldOptionCacheDto> = emptyList(),
+    val maxUploadCount: Int? = null,
+    val maxUploadSize: Long? = null,
+    val multipleInputs: Boolean = false,
+    val uploadMediaKind: String? = null,
+    val inputExtra: QuickCreateServiceFieldExtraCacheDto? = null,
+    val visible: Boolean = true,
+    val rawInputExtraJson: String? = null,
+) {
+    fun toDomain(): QuickCreationServiceField =
+        QuickCreationServiceField(
+            fieldKey = fieldKey,
+            paramKey = paramKey,
+            fieldType = fieldType,
+            required = required,
+            defaultValue = defaultValue,
+            options = options.map { it.toDomain() },
+            maxUploadCount = maxUploadCount,
+            maxUploadSize = maxUploadSize,
+            multipleInputs = multipleInputs,
+            uploadMediaKind = uploadMediaKind?.let { runCatching { QuickCreationUploadMediaKind.valueOf(it) }.getOrNull() },
+            inputExtra = inputExtra?.toDomain(),
+            visible = visible,
+            rawInputExtraJson = rawInputExtraJson,
+        )
+}
+
+@Serializable
+private data class QuickCreateServiceFieldExtraCacheDto(
+    val title: String? = null,
+    val titleEn: String? = null,
+    val paramDescription: String? = null,
+    val paramDescriptionEn: String? = null,
+    val placeholder: String? = null,
+    val acceptFormats: List<String> = emptyList(),
+    val maxLength: Int? = null,
+    val minLength: Int? = null,
+    val maxInputCount: Int? = null,
+    val ignoreListValueCaseSensitive: Boolean = false,
+    val inputChildren: List<QuickCreateServiceFieldInputChildCacheDto> = emptyList(),
+) {
+    fun toDomain(): QuickCreationServiceFieldExtra =
+        QuickCreationServiceFieldExtra(
+            title = title,
+            titleEn = titleEn,
+            paramDescription = paramDescription,
+            paramDescriptionEn = paramDescriptionEn,
+            placeholder = placeholder,
+            acceptFormats = acceptFormats,
+            maxLength = maxLength,
+            minLength = minLength,
+            maxInputCount = maxInputCount,
+            ignoreListValueCaseSensitive = ignoreListValueCaseSensitive,
+            inputChildren = inputChildren.map { it.toDomain() },
+        )
+}
+
+@Serializable
+private data class QuickCreateServiceFieldInputChildCacheDto(
+    val fieldKey: String,
+    val paramKey: String,
+    val fieldType: String,
+    val required: Boolean = false,
+    val visible: Boolean = true,
+    val defaultValue: String? = null,
+    val title: String? = null,
+    val paramDescription: String? = null,
+    val placeholder: String? = null,
+    val maxLength: Int? = null,
+    val minLength: Int? = null,
+    val maxInputCount: Int? = null,
+    val uploadMediaKind: String? = null,
+    val options: List<QuickCreateServiceFieldOptionCacheDto> = emptyList(),
+    val visibleWhen: QuickCreateServiceFieldVisibilityConditionCacheDto? = null,
+    val rawInputExtraJson: String? = null,
+    val rawVisibilityConditionJson: String? = null,
+) {
+    fun toDomain(): QuickCreationServiceFieldInputChild =
+        QuickCreationServiceFieldInputChild(
+            fieldKey = fieldKey,
+            paramKey = paramKey,
+            fieldType = fieldType,
+            required = required,
+            visible = visible,
+            defaultValue = defaultValue,
+            title = title,
+            paramDescription = paramDescription,
+            placeholder = placeholder,
+            maxLength = maxLength,
+            minLength = minLength,
+            maxInputCount = maxInputCount,
+            uploadMediaKind = uploadMediaKind?.let { runCatching { QuickCreationUploadMediaKind.valueOf(it) }.getOrNull() },
+            options = options.map { it.toDomain() },
+            visibleWhen = visibleWhen?.toDomain(),
+            rawInputExtraJson = rawInputExtraJson,
+            rawVisibilityConditionJson = rawVisibilityConditionJson,
+        )
+}
+
+@Serializable
+private data class QuickCreateServiceFieldOptionCacheDto(
+    val label: String,
+    val value: String,
+) {
+    fun toDomain(): QuickCreationServiceFieldOption =
+        QuickCreationServiceFieldOption(label = label, value = value)
+}
+
+@Serializable
+private data class QuickCreateServiceFieldVisibilityConditionCacheDto(
+    val fieldKey: String,
+    val values: List<String> = emptyList(),
+) {
+    fun toDomain(): QuickCreationServiceFieldVisibilityCondition =
+        QuickCreationServiceFieldVisibilityCondition(fieldKey = fieldKey, values = values)
+}
+
+@Serializable
+private data class QuickCreateServicePricingCacheDto(
+    val pricingMode: String? = null,
+    val settlementMode: String? = null,
+    val paidPriceKind: String? = null,
+    val flatPriceRaw: String? = null,
+    val dimensionPricingRaw: String? = null,
+    val priceSummaryRaw: String? = null,
+    val discountPercent: Int? = null,
+    val isFree: Boolean = false,
+    val freeRemaining: Int = 0,
+    val isTimeFree: Boolean = false,
+    val promoType: String? = null,
+) {
+    fun toDomain(): QuickCreationServicePricing =
+        QuickCreationServicePricing(
+            pricingMode = pricingMode,
+            settlementMode = settlementMode,
+            paidPriceKind = paidPriceKind,
+            flatPriceRaw = flatPriceRaw,
+            dimensionPricingRaw = dimensionPricingRaw,
+            priceSummaryRaw = priceSummaryRaw,
+            discountPercent = discountPercent,
+            isFree = isFree,
+            freeRemaining = freeRemaining,
+            isTimeFree = isTimeFree,
+            promoType = promoType,
+        )
+}
+
+private fun encodeQuickCreateModelCatalogCache(models: List<QuickCreationServiceModel>): String =
+    quickCreationParamJson.encodeToString(
+        QuickCreateModelCatalogCacheDto(
+            schemaVersion = QUICK_CREATE_MODEL_CATALOG_CACHE_SCHEMA_VERSION,
+            models = models.map { it.toCacheDto() },
+        )
+    )
+
+private fun decodeQuickCreateModelCatalogCache(cacheJson: String): List<QuickCreationServiceModel> =
+    runCatching {
+        val cache = quickCreationParamJson.decodeFromString<QuickCreateModelCatalogCacheDto>(cacheJson)
+        if (cache.schemaVersion == QUICK_CREATE_MODEL_CATALOG_CACHE_SCHEMA_VERSION) {
+            cache.models.map { it.toDomain() }
+        } else {
+            emptyList()
+        }
+    }.getOrDefault(emptyList())
+
+private fun QuickCreationServiceKind.cacheKey(): String =
+    name.lowercase()
+
+private fun QuickCreationServiceModel.toCacheDto(): QuickCreateServiceModelCacheDto =
+    QuickCreateServiceModelCacheDto(
+        categoryId = categoryId,
+        groupName = groupName,
+        bindingId = bindingId,
+        skuId = skuId,
+        name = name,
+        description = description,
+        apiType = apiType,
+        apiSource = apiSource,
+        fields = fields.map { it.toCacheDto() },
+        pricing = pricing?.toCacheDto(),
+    )
+
+private fun QuickCreationServiceField.toCacheDto(): QuickCreateServiceFieldCacheDto =
+    QuickCreateServiceFieldCacheDto(
+        fieldKey = fieldKey,
+        paramKey = paramKey,
+        fieldType = fieldType,
+        required = required,
+        defaultValue = defaultValue,
+        options = options.map { it.toCacheDto() },
+        maxUploadCount = maxUploadCount,
+        maxUploadSize = maxUploadSize,
+        multipleInputs = multipleInputs,
+        uploadMediaKind = uploadMediaKind?.name,
+        inputExtra = inputExtra?.toCacheDto(),
+        visible = visible,
+        rawInputExtraJson = rawInputExtraJson,
+    )
+
+private fun QuickCreationServiceFieldExtra.toCacheDto(): QuickCreateServiceFieldExtraCacheDto =
+    QuickCreateServiceFieldExtraCacheDto(
+        title = title,
+        titleEn = titleEn,
+        paramDescription = paramDescription,
+        paramDescriptionEn = paramDescriptionEn,
+        placeholder = placeholder,
+        acceptFormats = acceptFormats,
+        maxLength = maxLength,
+        minLength = minLength,
+        maxInputCount = maxInputCount,
+        ignoreListValueCaseSensitive = ignoreListValueCaseSensitive,
+        inputChildren = inputChildren.map { it.toCacheDto() },
+    )
+
+private fun QuickCreationServiceFieldInputChild.toCacheDto(): QuickCreateServiceFieldInputChildCacheDto =
+    QuickCreateServiceFieldInputChildCacheDto(
+        fieldKey = fieldKey,
+        paramKey = paramKey,
+        fieldType = fieldType,
+        required = required,
+        visible = visible,
+        defaultValue = defaultValue,
+        title = title,
+        paramDescription = paramDescription,
+        placeholder = placeholder,
+        maxLength = maxLength,
+        minLength = minLength,
+        maxInputCount = maxInputCount,
+        uploadMediaKind = uploadMediaKind?.name,
+        options = options.map { it.toCacheDto() },
+        visibleWhen = visibleWhen?.toCacheDto(),
+        rawInputExtraJson = rawInputExtraJson,
+        rawVisibilityConditionJson = rawVisibilityConditionJson,
+    )
+
+private fun QuickCreationServiceFieldOption.toCacheDto(): QuickCreateServiceFieldOptionCacheDto =
+    QuickCreateServiceFieldOptionCacheDto(label = label, value = value)
+
+private fun QuickCreationServiceFieldVisibilityCondition.toCacheDto():
+    QuickCreateServiceFieldVisibilityConditionCacheDto =
+    QuickCreateServiceFieldVisibilityConditionCacheDto(fieldKey = fieldKey, values = values)
+
+private fun QuickCreationServicePricing.toCacheDto(): QuickCreateServicePricingCacheDto =
+    QuickCreateServicePricingCacheDto(
+        pricingMode = pricingMode,
+        settlementMode = settlementMode,
+        paidPriceKind = paidPriceKind,
+        flatPriceRaw = flatPriceRaw,
+        dimensionPricingRaw = dimensionPricingRaw,
+        priceSummaryRaw = priceSummaryRaw,
+        discountPercent = discountPercent,
+        isFree = isFree,
+        freeRemaining = freeRemaining,
+        isTimeFree = isTimeFree,
+        promoType = promoType,
+    )
 
 /**
  * 将快捷创作服务领域类别映射为当前远程接口需要的分类 ID。
@@ -1941,6 +2292,26 @@ private fun ApiModelSummary.toQuickCreationServiceModel(
         pricing = QuickCreationServicePricing(priceSummaryRaw = priceSummary),
     )
 
+private suspend fun List<QuickCreationServiceModel>.enrichWithStandardModelDetails(
+    repository: ModelCatalogRepository,
+    summaryById: Map<String, ApiModelSummary>,
+): List<QuickCreationServiceModel> =
+    map { model ->
+        val summary = summaryById[model.skuId]
+        if (!model.requiresStandardDetailEnrichment(summary)) {
+            return@map model
+        }
+        // 只有自部署开源模型依赖 `/api/sku/detail` 暴露 LoRA、输出格式和泛文件输入等动态字段；
+        // 普通标准目录模型已由列表摘要满足展示，不能在打开模型弹层时全量回源数百个详情请求。
+        val detail = repository.getStandardModelDetail(model.skuId).getOrNull()
+        model.withStandardModelMetadata(summary, detail)
+    }
+
+private fun QuickCreationServiceModel.requiresStandardDetailEnrichment(summary: ApiModelSummary?): Boolean {
+    val groupName = summary?.groupName?.takeIf { it.isNotBlank() } ?: groupName
+    return groupName?.trim() in STANDARD_MODEL_DETAIL_ENRICHED_GROUP_NAMES
+}
+
 private fun ApiModelSummary.toQuickCreationServiceCategoryId(
     kind: QuickCreationServiceKind,
     groupOutputKind: StandardModelOutputKind?,
@@ -2057,9 +2428,31 @@ private fun ApiModelField.toQuickCreationServiceField(): QuickCreationServiceFie
         maxUploadSize = maxUploadSizeBytes,
         multipleInputs = multipleInputs,
         uploadMediaKind = type.toQuickCreationUploadMediaKind(),
+        inputExtra = toQuickCreationServiceFieldExtra(),
         visible = visible,
         rawInputExtraJson = rawConfigJson,
     )
+
+private fun ApiModelField.toQuickCreationServiceFieldExtra(): QuickCreationServiceFieldExtra? {
+    val extra = QuickCreationServiceFieldExtra(
+        title = title,
+        paramDescription = description,
+        placeholder = placeholder,
+        acceptFormats = acceptFormats,
+        maxLength = maxLength,
+        minLength = minLength,
+        maxInputCount = maxInputCount,
+    )
+    return extra.takeIf {
+        !it.title.isNullOrBlank() ||
+            !it.paramDescription.isNullOrBlank() ||
+            !it.placeholder.isNullOrBlank() ||
+            it.acceptFormats.isNotEmpty() ||
+            it.maxLength != null ||
+            it.minLength != null ||
+            it.maxInputCount != null
+    }
+}
 
 private fun QuickCreationServicePricing?.withStandardPriceSummary(
     priceSummary: String?,

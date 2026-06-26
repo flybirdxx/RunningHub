@@ -55,4 +55,23 @@ interface ModelCatalogCacheStore {
      * @param json 已脱敏的详情 JSON，不包含认证信息或远端错误消息。
      */
     suspend fun saveStandardModelDetail(modelId: String, json: String)
+
+    /**
+     * 读取快捷创作可直接展示和提交的模型目录快照。
+     *
+     * 这份快照保存的是 QuickCreate Data 层合并 `/api/qc/v2/models` 与标准 SKU 目录后的最终结果，
+     * 不能用标准 SKU 列表缓存替代；两者的 `bindingId`、分组归属和排序语义不同。
+     *
+     * @param kindKey 快捷创作业务类别键，例如图片或视频类别；空字符串不是有效键。
+     * @return 已脱敏的快捷创作模型目录 JSON；`null` 表示本地没有该类别的同构快照。
+     */
+    suspend fun getQuickCreateModelCatalog(kindKey: String): String? = null
+
+    /**
+     * 保存快捷创作可直接展示和提交的模型目录快照。
+     *
+     * @param kindKey 与读取时一致的快捷创作业务类别键。
+     * @param json 已脱敏的快捷创作模型目录 JSON，不包含认证信息、请求头或原始响应。
+     */
+    suspend fun saveQuickCreateModelCatalog(kindKey: String, json: String) {}
 }

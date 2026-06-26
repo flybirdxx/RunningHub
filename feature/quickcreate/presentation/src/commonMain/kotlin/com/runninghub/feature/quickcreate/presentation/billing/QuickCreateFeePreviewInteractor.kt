@@ -3,7 +3,9 @@ package com.runninghub.feature.quickcreate.presentation.billing
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationServicePricing
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
@@ -24,6 +26,7 @@ import kotlinx.coroutines.launch
 
 // 计费预览需要等待用户连续编辑结束后再请求，避免每个输入字符都触发远程计费接口。
 private const val FEE_PREVIEW_DEBOUNCE_MS = 500L
+private val DYNAMIC_IMAGE_PRICE_PARAM_KEYS = setOf("resolution", "quality")
 
 // 计费预览与正式生成共用请求构建规则；这里仅把已构建请求按媒体类型分发到不同 Repository 入口。
 private sealed interface QuickCreateFeePreviewRequest {
@@ -254,9 +257,13 @@ class QuickCreateFeePreviewInteractor(
 
     private fun tryApplyCatalogPricedImageRequest(request: QuickCreateFeePreviewRequest): Boolean {
         if (request !is QuickCreateFeePreviewRequest.Image) return false
-        val catalogCost = uiState.value.currentServiceCatalogEstimatedCost() ?: return false
+        val state = uiState.value
+        val catalogCost = state.currentServiceCatalogEstimatedCost() ?: return false
+        if (state.selectedImageServiceModel.requiresRemoteImageFeePreview(state.imageServiceParams)) {
+            return false
+        }
 
-        // 图片服务模型当前按目录中的固定单价计费，直接把同一请求标记为已定价，避免每次输入后进入远端确认态。
+        // 只有固定单价目录模型可以直接确认价格；带动态计价字段的模型必须让远端 fee-preview 计算最终金额。
         uiState.update {
             it.copy(
                 estimatedCost = catalogCost,
@@ -266,6 +273,33 @@ class QuickCreateFeePreviewInteractor(
             )
         }
         return true
+    }
+
+    private fun QuickCreationServiceModel?.requiresRemoteImageFeePreview(
+        serviceParams: Map<String, String>,
+    ): Boolean {
+        if (this == null) return false
+        if (pricing.hasDimensionPricing()) return true
+        return QuickCreationServiceSchema.activeParamKeys(this, serviceParams).any { key ->
+            key.isDynamicImagePriceParamKey()
+        }
+    }
+
+    private fun QuickCreationServicePricing?.hasDimensionPricing(): Boolean {
+        val normalized = this
+            ?.dimensionPricingRaw
+            ?.trim()
+            ?.lowercase()
+            ?.takeIf { it.isNotEmpty() }
+            ?: return false
+        return normalized !in setOf("null", "{}", "[]")
+    }
+
+    private fun String.isDynamicImagePriceParamKey(): Boolean {
+        val normalized = lowercase().filter { it.isLetterOrDigit() }
+        return DYNAMIC_IMAGE_PRICE_PARAM_KEYS.any { key ->
+            normalized == key || normalized.endsWith(key)
+        }
     }
 
     private fun QuickCreateUiState.hasUnreadyFeePreviewMediaReferences(): Boolean =
@@ -319,7 +353,7 @@ class QuickCreateFeePreviewInteractor(
         uiState.update {
             it.copy(
                 estimatedCost = if (previewError == null) {
-                    it.currentServiceCatalogEstimatedCost() ?: previewCost
+                    previewCost
                 } else {
                     it.currentLocalEstimatedCost()
                 },
@@ -346,14 +380,14 @@ class QuickCreateFeePreviewInteractor(
 /**
  * 从服务模型目录价格摘要中提取可用于本地展示的现金单价。
  *
- * 图片服务模型使用该目录价作为本地已确认价格；视频仍保留远端 fee-preview，以覆盖时长、参考素材等动态计费。
- * 当目录没有返回可解析价格时，调用方才会回退到旧的本地兼容模型价格或远端预览结果。
+ * 该值只作为无远端预览时的本地兜底价，或固定单价图片模型的快捷确认价。
+ * 带维度计价、resolution 或 quality 等动态字段的模型仍必须走 fee-preview，避免目录摘要覆盖真实价格。
  */
 internal fun QuickCreationServicePricing?.quickCreateCashAmountOrNull(): Double? {
     if (this == null) return null
     if (isFree || isTimeFree || freeRemaining > 0) return 0.0
 
-    return listOf(priceSummaryRaw, flatPriceRaw, dimensionPricingRaw)
+    return listOf(priceSummaryRaw, flatPriceRaw)
         .asSequence()
         .mapNotNull { raw -> raw?.quickCreateFirstPositiveNumberOrNull() }
         .firstOrNull()

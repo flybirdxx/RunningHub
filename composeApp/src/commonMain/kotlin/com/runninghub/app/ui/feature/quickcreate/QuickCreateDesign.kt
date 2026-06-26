@@ -106,7 +106,7 @@ internal fun QuickCreateSheetHandle(
 
     Box(
         modifier = modifier
-            .size(width = 72.dp, height = 22.dp)
+            .size(width = 64.dp, height = 16.dp)
             .pointerInput(Unit) {
                 detectVerticalDragGestures(
                     onDragStart = { latestDragStart() },
@@ -122,9 +122,9 @@ internal fun QuickCreateSheetHandle(
     ) {
         Box(
             modifier = Modifier
-                .size(width = 42.dp, height = 4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(Color.White.copy(alpha = 0.42f)),
+                .size(width = 42.dp, height = 2.dp)
+                .clip(RoundedCornerShape(1.dp))
+                .background(Color.White.copy(alpha = 0.38f)),
         )
     }
 }

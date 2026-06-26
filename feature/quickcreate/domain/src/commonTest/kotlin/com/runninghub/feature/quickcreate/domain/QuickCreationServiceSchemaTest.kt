@@ -472,6 +472,43 @@ class QuickCreationServiceSchemaTest {
     }
 
     @Test
+    fun `resolved fields keep standard model lora and generic file parameters renderable`() {
+        val model = serviceModel(
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "16##lora_name",
+                    paramKey = "lora",
+                    fieldType = "MODEL",
+                    required = false,
+                    defaultValue = "example.safetensors",
+                    options = emptyList(),
+                    inputExtra = QuickCreationServiceFieldExtra(title = "LoRA"),
+                ),
+                QuickCreationServiceField(
+                    fieldKey = "3##file",
+                    paramKey = "file",
+                    fieldType = "FILE",
+                    required = true,
+                    defaultValue = null,
+                    options = emptyList(),
+                    inputExtra = QuickCreationServiceFieldExtra(title = "Source file"),
+                ),
+            ),
+        )
+
+        val fields = QuickCreationServiceSchema.resolvedFields(
+            model = model,
+            serviceParams = emptyMap(),
+        )
+
+        assertEquals(listOf("lora", "file"), fields.map { it.paramKey })
+        assertEquals(QuickCreationResolvedFieldKind.TEXT, fields[0].kind)
+        assertEquals("example.safetensors", fields[0].currentValue)
+        assertEquals(QuickCreationResolvedFieldKind.UPLOAD, fields[1].kind)
+        assertEquals(null, fields[1].uploadMediaKind)
+    }
+
+    @Test
     fun `validate fields applies required and min length rules to top level and active child text`() {
         val model = serviceModel(
             fields = listOf(
