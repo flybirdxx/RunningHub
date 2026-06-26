@@ -521,6 +521,12 @@ private fun CompactGenerateButton(
 ) {
     val buttonClick = if (hasPrompt) onGenerate else onAddMedia
     val buttonShape = if (hasPrompt) RoundedCornerShape(18.dp) else CircleShape
+    val sendButtonLabel = quickCreateSendButtonLabel(
+        cost = cost,
+        feePreviewLoading = feePreviewLoading,
+        feePreviewError = feePreviewError,
+    )
+    val confirmingFee = hasPrompt && sendButtonLabel == QuickCreateSendButtonLabel.Confirming
     val buttonModifier = if (hasPrompt) {
         Modifier
             .height(36.dp)
@@ -553,6 +559,9 @@ private fun CompactGenerateButton(
                     color = QuickCreateDesignTokens.Text,
                     strokeWidth = 2.dp,
                 )
+            } else if (confirmingFee) {
+                // 价格预览中只展示环形加载态，避免紧凑按钮继续用“价格确认中”文案占位。
+                FeePreviewLoadingIndicator()
             } else if (!hasPrompt) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -570,15 +579,9 @@ private fun CompactGenerateButton(
                     tint = QuickCreateDesignTokens.Text,
                 )
             }
-            if (hasPrompt) {
+            if (hasPrompt && !confirmingFee) {
                 Text(
-                    text = quickCreateSendButtonText(
-                        quickCreateSendButtonLabel(
-                            cost = cost,
-                            feePreviewLoading = feePreviewLoading,
-                            feePreviewError = feePreviewError,
-                        ),
-                    ),
+                    text = quickCreateSendButtonText(sendButtonLabel),
                     color = QuickCreateDesignTokens.Text,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -587,6 +590,15 @@ private fun CompactGenerateButton(
             }
         }
     }
+}
+
+@Composable
+private fun FeePreviewLoadingIndicator() {
+    CircularProgressIndicator(
+        modifier = Modifier.size(15.dp),
+        color = QuickCreateDesignTokens.Text,
+        strokeWidth = 2.dp,
+    )
 }
 
 @Composable

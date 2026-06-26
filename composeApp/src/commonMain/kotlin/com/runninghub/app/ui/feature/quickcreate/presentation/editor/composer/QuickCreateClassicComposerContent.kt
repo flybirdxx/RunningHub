@@ -724,12 +724,21 @@ private fun SendButton(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.Center,
             ) {
+                val sendButtonLabel = quickCreateSendButtonLabel(
+                    cost = cost,
+                    feePreviewLoading = feePreviewLoading,
+                    feePreviewError = feePreviewError,
+                )
+                val confirmingFee = sendButtonLabel == QuickCreateSendButtonLabel.Confirming
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
                         color = Color.White,
                         strokeWidth = 2.dp,
                     )
+                } else if (confirmingFee) {
+                    // 价格预览中只展示环形加载态，避免旧版按钮继续用“价格确认中”文案占位。
+                    FeePreviewLoadingIndicator()
                 } else {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
@@ -740,33 +749,38 @@ private fun SendButton(
                         tint = Color.White,
                     )
                 }
-                Spacer(Modifier.width(6.dp))
-                val sendLabel = quickCreateSendButtonText(
-                    quickCreateSendButtonLabel(
-                        cost = cost,
-                        feePreviewLoading = feePreviewLoading,
-                        feePreviewError = feePreviewError,
-                    )
-                )
-                if (sendLabel.isNotBlank()) {
-                    Text(
-                        sendLabel,
-                        fontSize = if (cost > 0 || feePreviewLoading || feePreviewError != null) 12.sp else 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (enabled) Color.White else Neutral500,
-                        maxLines = 1,
-                    )
-                } else {
-                    Text(
-                        text = stringResource(Res.string.quick_create_classic_generate_button_label),
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (enabled) Color.White else Neutral500,
-                    )
+                if (!confirmingFee) {
+                    Spacer(Modifier.width(6.dp))
+                    val sendLabel = quickCreateSendButtonText(sendButtonLabel)
+                    if (sendLabel.isNotBlank()) {
+                        Text(
+                            sendLabel,
+                            fontSize = if (cost > 0 || feePreviewError != null) 12.sp else 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (enabled) Color.White else Neutral500,
+                            maxLines = 1,
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(Res.string.quick_create_classic_generate_button_label),
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = if (enabled) Color.White else Neutral500,
+                        )
+                    }
                 }
             }
         }
     }
+}
+
+@Composable
+private fun FeePreviewLoadingIndicator() {
+    CircularProgressIndicator(
+        modifier = Modifier.size(18.dp),
+        color = Color.White,
+        strokeWidth = 2.dp,
+    )
 }
 
 @Composable
