@@ -13,6 +13,5 @@ class QuickCreateNavigationStateTest {
     @Test
     fun `mode navigation labels expose stable keys instead of localized copy`() {
         assertEquals(QuickCreateNavigationLabel.CreationMode, QuickCreateMode.CREATION.navigationLabel)
-        assertEquals(QuickCreateNavigationLabel.InspirationMode, QuickCreateMode.INSPIRATION.navigationLabel)
     }
 }

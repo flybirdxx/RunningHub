@@ -1,7 +1,21 @@
+@file:OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+
 package com.runninghub.feature.community.data.remote.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.EncodeDefault
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.intOrNull
 
 /**
  * Plaza 创作列表请求 DTO。
@@ -14,10 +28,14 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 data class PlazaCreationListRequestDto(
+    @EncodeDefault
     val current: Int = 1,
+    @EncodeDefault
     val size: Int = 30,
     val fromId: String? = null,
+    @EncodeDefault
     val sort: String = "RECOMMEND",
+    @EncodeDefault
     val tags: List<String> = emptyList(),
 )
 
@@ -34,7 +52,9 @@ data class PlazaCreationListRequestDto(
 data class PlazaCreationPageDto(
     val records: List<PlazaCreationCardDto> = emptyList(),
     val list: List<PlazaCreationCardDto> = emptyList(),
+    @Serializable(with = FlexibleIntSerializer::class)
     val total: Int = 0,
+    @Serializable(with = FlexibleIntSerializer::class)
     val current: Int = 1,
     val nextCursor: String? = null,
 ) {
@@ -137,6 +157,7 @@ data class PlazaCreationShowreelDto(
  */
 @Serializable
 data class PlazaTagTreeRequestDto(
+    @EncodeDefault
     val rang: String = "CREATION",
 )
 
@@ -167,7 +188,9 @@ data class PlazaTagDto(
  */
 @Serializable
 data class PlazaShortListRequestDto(
+    @EncodeDefault
     val page: Int = 1,
+    @EncodeDefault
     val size: Int = 30,
     val categoryCode: String? = null,
 )
@@ -183,7 +206,10 @@ data class PlazaShortListRequestDto(
 data class PlazaShortPageDto(
     val records: List<PlazaShortCardDto> = emptyList(),
     val list: List<PlazaShortCardDto> = emptyList(),
+    @Serializable(with = FlexibleIntSerializer::class)
     val total: Int = 0,
+    @Serializable(with = FlexibleIntSerializer::class)
+    val current: Int = 1,
 ) {
     /**
      * 兼容新旧字段后的短片列表。
@@ -203,6 +229,7 @@ data class PlazaShortPageDto(
  */
 @Serializable
 data class PlazaShortCategoryDto(
+    @Serializable(with = FlexibleStringSerializer::class)
     val id: String? = null,
     val code: String? = null,
     val name: String = "",
@@ -213,25 +240,88 @@ data class PlazaShortCategoryDto(
  *
  * @property id 短片稳定 ID。
  * @property name 短片名称，空字符串表示服务端未提供标题。
- * @property videoUrl 远端视频 URL；`null` 表示短片暂不可播放。
+ * @property videoUrl 旧版远端视频 URL；`null` 时优先兼容 [compositionUrl]。
+ * @property compositionUrl explore 当前短片接口返回的远端视频 URL。
  * @property coverUrl 旧版封面 URL；当 [thumbnailUrl] 缺失时作为降级缩略图。
- * @property thumbnailUrl 新版缩略图 URL；`null` 时 Repository 会尝试使用 [coverUrl]。
- * @property duration 视频时长，单位为秒；`null` 表示服务端未提供时长。
+ * @property thumbnailUrl 旧版缩略图 URL；`null` 时 Repository 会尝试使用 [thumbnail] 或 [coverUrl]。
+ * @property thumbnail explore 当前短片接口返回的缩略图 URL。
+ * @property duration 旧版视频时长，单位为秒；`null` 时优先兼容 [compositionDuration]。
+ * @property compositionDuration explore 当前短片接口返回的视频时长，单位为秒。
+ * @property categoryCode 短片分类编码；`null` 表示服务端未返回分类编码。
  * @property categoryName 分类展示名；`null` 表示未知分类。
- * @property authorName 作者展示名，对应服务端 `userName` 字段。
- * @property authorAvatar 作者头像 URL，对应服务端 `userAvatar` 字段。
+ * @property authorName explore 当前短片接口返回的作者展示名。
+ * @property userName 旧版作者展示名。
+ * @property authorAvatar explore 当前短片接口返回的作者头像 URL。
+ * @property userAvatar 旧版作者头像 URL。
  */
 @Serializable
 data class PlazaShortCardDto(
     val id: String,
     val name: String = "",
     val videoUrl: String? = null,
+    val compositionUrl: String? = null,
     val coverUrl: String? = null,
     val thumbnailUrl: String? = null,
+    val thumbnail: String? = null,
     val duration: Int? = null,
+    val compositionDuration: Int? = null,
+    val categoryCode: String? = null,
     val categoryName: String? = null,
-    @SerialName("userName")
     val authorName: String? = null,
-    @SerialName("userAvatar")
+    @SerialName("userName")
+    val userName: String? = null,
     val authorAvatar: String? = null,
+    @SerialName("userAvatar")
+    val userAvatar: String? = null,
 )
+
+/**
+ * 兼容服务端把分页数字返回为字符串或数字的反序列化器。
+ *
+ * RunningHub explore 接口当前会把 `current/total` 等分页字段返回为字符串；旧抓包和部分接口
+ * 返回数字。Data 层在 DTO 边界统一吸收差异，避免 Presentation 因反序列化失败进入错误空态。
+ */
+internal object FlexibleIntSerializer : KSerializer<Int> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("FlexibleInt", PrimitiveKind.INT)
+
+    override fun deserialize(decoder: Decoder): Int {
+        val jsonDecoder = decoder as? JsonDecoder ?: return decoder.decodeInt()
+        val element = jsonDecoder.decodeJsonElement()
+        return when (element) {
+            JsonNull -> 0
+            is JsonPrimitive -> element.intOrNull ?: element.contentOrNull?.toIntOrNull() ?: 0
+            else -> 0
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: Int) {
+        encoder.encodeInt(value)
+    }
+}
+
+/**
+ * 兼容服务端把 ID 返回为字符串或数字的反序列化器。
+ *
+ * 短片分类接口中的 `id` 既可能是数字，也可能缺失；统一转为字符串后再进入 Domain。
+ */
+internal object FlexibleStringSerializer : KSerializer<String?> {
+    override val descriptor: SerialDescriptor = PrimitiveSerialDescriptor("FlexibleString", PrimitiveKind.STRING)
+
+    override fun deserialize(decoder: Decoder): String? {
+        val jsonDecoder = decoder as? JsonDecoder ?: return decoder.decodeString()
+        val element = jsonDecoder.decodeJsonElement()
+        return when (element) {
+            JsonNull -> null
+            is JsonPrimitive -> element.contentOrNull
+            else -> null
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: String?) {
+        if (value == null) {
+            encoder.encodeNull()
+        } else {
+            encoder.encodeString(value)
+        }
+    }
+}

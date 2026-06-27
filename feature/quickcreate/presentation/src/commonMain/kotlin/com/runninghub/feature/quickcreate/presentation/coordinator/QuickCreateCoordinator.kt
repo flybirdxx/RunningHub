@@ -4,7 +4,6 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
-import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
@@ -25,11 +24,9 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationInteractor
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryStateHolder
-import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationStateHolder
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateModelCatalogInteractor
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectStateHolder
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
@@ -43,7 +40,7 @@ import kotlinx.coroutines.flow.update
  * 协调快捷创作页面各个局部 StateHolder 与 Interactor。
  *
  * 本类位于 Presentation 层，负责把草稿、模型目录、媒体上传、计费预览、任务提交、历史、
- * 项目和灵感模板这些局部组件织成一个页面级单向数据流。它不直接渲染 UI，也不实现网络、
+ * 项目这些局部组件织成一个页面级单向数据流。它不直接渲染 UI，也不实现网络、
  * 数据库或平台媒体读取细节；这些能力仍通过 Repository、DraftRepository 和 QuickCreateMediaResolver 注入。
  *
  * 并发与生命周期约束：
@@ -53,9 +50,8 @@ import kotlinx.coroutines.flow.update
  *
  * @param historyRepository 快捷创作历史仓库；单独注入以避免历史区依赖项目管理、生成或计费能力。
  * @param modelCatalogRepository 快捷创作模型目录仓库；单独注入以避免目录加载依赖完整业务仓库能力。
- * @param generationRepository 快捷创作生成仓库；单独注入以避免提交任务依赖历史、项目或灵感能力。
+ * @param generationRepository 快捷创作生成仓库；单独注入以避免提交任务依赖历史或项目能力。
  * @param feePreviewRepository 快捷创作计费预览仓库；单独注入以避免计费流程依赖生成、历史或项目能力。
- * @param inspirationRepository 快捷创作灵感仓库；单独注入以避免模板区域依赖历史、项目或生成能力。
  * @param mediaUploadRepository 快捷创作媒体上传仓库；单独注入以避免上传流程依赖生成、计费或历史能力。
  * @param projectRepository 快捷创作项目仓库；单独注入以避免项目列表和变更动作依赖历史或生成能力。
  * @param mediaResolver feature presentation 的平台无关媒体读取端口，由应用壳把 Android/iOS 媒体能力适配后传入。
@@ -76,7 +72,6 @@ class QuickCreateCoordinator(
     private val modelCatalogRepository: QuickCreationModelCatalogRepository,
     private val generationRepository: QuickCreationGenerationRepository,
     private val feePreviewRepository: QuickCreationFeePreviewRepository,
-    private val inspirationRepository: QuickCreationInspirationRepository,
     private val mediaUploadRepository: QuickCreationMediaUploadRepository,
     private val projectRepository: QuickCreationProjectRepository,
 ) {
@@ -128,12 +123,6 @@ class QuickCreateCoordinator(
         scope = scope,
         uiState = uiState,
     )
-    private val inspirationStateHolder = QuickCreateInspirationStateHolder(
-        inspirationRepository = inspirationRepository,
-        scope = scope,
-        uiState = uiState,
-        onTemplateApplied = { scheduleFeePreview() },
-    )
     private val projectStateHolder = QuickCreateProjectStateHolder(
         projectRepository = projectRepository,
         scope = scope,
@@ -144,7 +133,6 @@ class QuickCreateCoordinator(
         uiState = uiState,
         onFeePreviewRequired = { scheduleFeePreview() },
         onDraftChanged = { autoSaveDraft() },
-        onInspirationRequired = { inspirationStateHolder.loadInspiration() },
     )
 
     /**
@@ -347,38 +335,6 @@ class QuickCreateCoordinator(
 
     private fun clearDraft() {
         draftStateHolder.clearDraft()
-    }
-
-    /**
-     * 切换快捷创作页面的一级模式。
-     *
-     * UI 仍通过 ScreenModel 发送用户动作；具体模式状态、弹层关闭和首次灵感加载触发由编辑器状态持有者处理。
-     */
-    fun switchMode(mode: QuickCreateMode) {
-        editorStateHolder.switchMode(mode)
-    }
-
-    /**
-     * 加载灵感模板首页。
-     */
-    fun loadInspiration() {
-        inspirationStateHolder.loadInspiration()
-    }
-
-    /**
-     * 加载更多灵感模板。
-     */
-    fun loadMoreInspirationTemplates() {
-        inspirationStateHolder.loadMoreTemplates()
-    }
-
-    /**
-     * 应用指定灵感模板。
-     *
-     * 模板成功写入编辑状态后才触发计费预览；模板加载失败不应覆盖当前编辑状态。
-     */
-    fun applyInspirationTemplate(templateId: String) {
-        inspirationStateHolder.applyTemplate(templateId)
     }
 
     /**

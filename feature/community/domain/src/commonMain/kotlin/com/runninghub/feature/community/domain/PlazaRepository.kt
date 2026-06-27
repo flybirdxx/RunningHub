@@ -43,13 +43,13 @@ interface PlazaRepository {
      * @param page 页码，从 1 开始。
      * @param size 每页条数。
      * @param categoryCode 分类代码；为空表示全部分类。
-     * @return 成功时返回短片卡片列表。
+     * @return 成功时返回短片分页。
      */
     suspend fun listShorts(
         page: Int = 1,
         size: Int = 30,
         categoryCode: String? = null,
-    ): Result<List<PlazaShortCard>>
+    ): Result<PlazaShortPage>
 }
 
 /**

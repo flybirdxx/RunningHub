@@ -16,15 +16,12 @@ enum class QuickCreateTab {
 /**
  * 快捷创作页面的主模式。
  *
- * 创作模式展示编辑器、结果和历史；灵感模式展示模板列表。模式状态放在 Presentation
- * 模块中，避免 composeApp 继续承载具体业务页面的状态枚举。
+ * 当前产品入口只保留创作模式。模式状态仍放在 Presentation 模块中，
+ * 避免 composeApp 直接承载具体业务页面的状态枚举，也为历史草稿恢复保留稳定字段。
  */
 enum class QuickCreateMode {
     /** 正常创作模式，用户可以编辑参数并提交生成。 */
     CREATION,
-
-    /** 灵感模板模式，用户可以浏览模板并一键应用到创作参数。 */
-    INSPIRATION,
 }
 
 /**
@@ -42,9 +39,6 @@ sealed interface QuickCreateNavigationLabel {
 
     /** 正常创作模式的展示语义。 */
     data object CreationMode : QuickCreateNavigationLabel
-
-    /** 灵感模板模式的展示语义。 */
-    data object InspirationMode : QuickCreateNavigationLabel
 }
 
 /**
@@ -61,12 +55,11 @@ val QuickCreateTab.navigationLabel: QuickCreateNavigationLabel
 /**
  * 当前页面模式对应的稳定文案键。
  *
- * @return 创作或灵感模式的文案语义，由 composeApp 负责映射为最终本地化文案。
+ * @return 创作模式的文案语义，由 composeApp 负责映射为最终本地化文案。
  */
 val QuickCreateMode.navigationLabel: QuickCreateNavigationLabel
     get() = when (this) {
         QuickCreateMode.CREATION -> QuickCreateNavigationLabel.CreationMode
-        QuickCreateMode.INSPIRATION -> QuickCreateNavigationLabel.InspirationMode
     }
 
 /**

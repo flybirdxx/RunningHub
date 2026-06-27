@@ -9,8 +9,8 @@ import com.runninghub.feature.community.domain.PlazaCreationPage
 import com.runninghub.feature.community.domain.PlazaRepository
 import com.runninghub.feature.community.domain.PlazaRepositoryException
 import com.runninghub.feature.community.domain.PlazaRepositoryIssue
-import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
+import com.runninghub.feature.community.domain.PlazaShortPage
 import com.runninghub.feature.community.domain.PlazaTag
 
 /**
@@ -70,11 +70,12 @@ class PlazaRepositoryImpl(
      *
      * `categoryCode` 为 null 表示全部分类；短片分页结果当前由 ScreenModel 负责追加和去重。
      */
-    override suspend fun listShorts(page: Int, size: Int, categoryCode: String?): Result<List<PlazaShortCard>> =
+    override suspend fun listShorts(page: Int, size: Int, categoryCode: String?): Result<PlazaShortPage> =
         runCatching {
             val response = api.listShorts(PlazaShortListRequestDto(page = page, size = size, categoryCode = categoryCode))
             requireSuccessfulResponse(response.code, PlazaRepositoryIssue.ShortListLoadFailed)
-            response.data?.items.orEmpty().map { it.toDomain() }
+            response.data?.toDomain(requestedPage = page)
+                ?: PlazaShortPage(page = page, total = 0, items = emptyList())
         }
 
     private fun requireSuccessfulResponse(code: Int, issue: PlazaRepositoryIssue) {

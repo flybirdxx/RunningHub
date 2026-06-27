@@ -97,8 +97,6 @@
     <string name="plaza_fallback_card_workflow_intro">Reusable API model invocation workflow</string>
     <string name="plaza_fallback_card_owner_runninghub_api">RunningHub API</string>
     <string name="plaza_fallback_card_owner_creator">RunningHub creator</string>
-    <string name="quick_create_inspiration_empty_prompt">输入提示词开始创作</string>
-    <string name="quick_create_inspiration_load_more_templates">加载更多模板</string>
     <string name="quick_create_result_clear_action">重新创作</string>
     <string name="quick_create_result_section_title">生成结果</string>
      <string name="quick_create_task_status_failed">生成失败</string>
@@ -116,6 +114,8 @@
     <string name="collapsible_section_expand_hint">点击展开</string>
     <string name="error_state_retry_action">重试</string>
     <string name="smart_async_image_error">图片加载失败</string>
+    <string name="image_preview_close_content_description">关闭图片预览</string>
+    <string name="video_preview_close_content_description">关闭视频预览</string>
     <string name="app_search_bar_placeholder">搜索 AI 应用...</string>
     <string name="app_search_bar_search_content_description">搜索</string>
     <string name="app_search_bar_clear_content_description">清除</string>
@@ -147,7 +147,6 @@
     <string name="quick_create_tab_image">图片</string>
     <string name="quick_create_tab_video">视频</string>
     <string name="quick_create_mode_creation">创作</string>
-    <string name="quick_create_mode_inspiration">灵感</string>
     <string name="quick_create_top_bar_back_content_description">返回</string>
     <string name="quick_create_top_bar_menu_content_description">菜单</string>
     <string name="quick_create_top_bar_support_content_description">客服</string>

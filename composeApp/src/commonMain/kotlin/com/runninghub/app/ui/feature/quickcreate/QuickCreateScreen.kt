@@ -39,7 +39,6 @@ import com.runninghub.app.ui.component.PermissionBottomSheet
 import com.runninghub.app.ui.feature.quickcreate.presentation.editor.QuickCreateEditorPanel
 import com.runninghub.app.ui.feature.quickcreate.presentation.editor.params.QuickCreateParamsSheet
 import com.runninghub.app.ui.feature.quickcreate.presentation.history.QuickCreateHistoryDetailDialog
-import com.runninghub.app.ui.feature.quickcreate.presentation.inspiration.QuickCreateInspirationArea
 import com.runninghub.app.ui.feature.quickcreate.presentation.modelselector.QuickCreateModelSheet
 import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateCreateProjectAction
 import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateProjectDetailDialog
@@ -51,10 +50,9 @@ import com.runninghub.core.storage.PermissionStateStore
 import kotlinx.coroutines.delay
 import org.koin.compose.koinInject
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateNavigationLabel
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
-import com.runninghub.feature.quickcreate.presentation.state.navigationLabel
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import org.jetbrains.compose.resources.stringResource
@@ -213,23 +211,12 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                     .widthIn(max = windowInfo.detailContentMaxWidth)
             ) {
                 QuickCreateTopBar(
-                    selectedMode = uiState.currentMode,
-                    onModeSelected = screenModel::switchMode,
                     onBack = null,
                     onCreateProject = screenModel::createProject,
                 )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    when (uiState.currentMode) {
-                        QuickCreateMode.CREATION -> CreationScrollableArea(
-                            uiState = uiState,
-                        )
-                        QuickCreateMode.INSPIRATION -> QuickCreateInspirationArea(
-                            uiState = uiState,
-                            onApplyTemplate = screenModel::applyInspirationTemplate,
-                            onLoadMoreTemplates = screenModel::loadMoreInspirationTemplates,
-                        )
-                    }
+                    CreationScrollableArea(uiState = uiState)
                 }
 
                 if (uiState.historyDetailLoading || uiState.selectedHistoryDetail != null) {
@@ -458,8 +445,6 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
 
 @Composable
 private fun QuickCreateTopBar(
-    selectedMode: QuickCreateMode,
-    onModeSelected: (QuickCreateMode) -> Unit,
     onBack: (() -> Unit)?,
     onCreateProject: (String) -> Unit,
 ) {
@@ -497,56 +482,30 @@ private fun QuickCreateTopBar(
                 }
             }
         }
-        ModeSwitch(
-            selectedMode = selectedMode,
-            onModeSelected = onModeSelected,
+        QuickCreateModeTitle(
             modifier = Modifier.align(Alignment.Center),
         )
-        if (selectedMode == QuickCreateMode.CREATION) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 12.dp),
-            ) {
-                QuickCreateCreateProjectAction(onCreateProject = onCreateProject)
-            }
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .padding(end = 12.dp),
+        ) {
+            QuickCreateCreateProjectAction(onCreateProject = onCreateProject)
         }
     }
 }
 
 @Composable
-private fun ModeSwitch(
-    selectedMode: QuickCreateMode,
-    onModeSelected: (QuickCreateMode) -> Unit,
+private fun QuickCreateModeTitle(
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Text(
+        text = quickCreateNavigationText(QuickCreateNavigationLabel.CreationMode),
+        color = Primary300,
+        fontWeight = FontWeight.Bold,
+        fontSize = 18.sp,
         modifier = modifier.wrapContentWidth(),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        QuickCreateMode.entries.forEachIndexed { index, mode ->
-            TextButton(
-                onClick = { onModeSelected(mode) },
-                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
-            ) {
-                Text(
-                    quickCreateNavigationText(mode.navigationLabel),
-                    color = if (mode == selectedMode) Primary300 else Color.White.copy(alpha = 0.56f),
-                    fontWeight = if (mode == selectedMode) FontWeight.Bold else FontWeight.Medium,
-                    fontSize = 18.sp,
-                )
-            }
-            if (index == 0) {
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(20.dp)
-                        .background(Primary300.copy(alpha = 0.8f)),
-                )
-            }
-        }
-    }
+    )
 }
 
 @Composable
@@ -588,23 +547,12 @@ private fun QuickCreatePreviewContent(
                     .widthIn(max = windowInfo.detailContentMaxWidth),
             ) {
                 QuickCreateTopBar(
-                    selectedMode = uiState.currentMode,
-                    onModeSelected = {},
                     onBack = null,
                     onCreateProject = {},
                 )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    when (uiState.currentMode) {
-                        QuickCreateMode.CREATION -> CreationScrollableArea(
-                            uiState = uiState,
-                        )
-                        QuickCreateMode.INSPIRATION -> QuickCreateInspirationArea(
-                            uiState = uiState,
-                            onApplyTemplate = {},
-                            onLoadMoreTemplates = {},
-                        )
-                    }
+                    CreationScrollableArea(uiState = uiState)
                 }
 
                 if (uiState.showCreationInput) {

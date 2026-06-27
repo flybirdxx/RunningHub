@@ -4,7 +4,6 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
-import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
@@ -20,7 +19,6 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
@@ -43,7 +41,6 @@ import kotlinx.coroutines.flow.asStateFlow
  * @param modelCatalogRepository 快捷创作模型目录仓库，用于加载图片和视频服务模型。
  * @param generationRepository 快捷创作生成仓库，用于提交生成任务并收集任务状态流。
  * @param feePreviewRepository 快捷创作计费预览仓库，用于刷新远端价格预览。
- * @param inspirationRepository 快捷创作灵感仓库，用于加载模板标签、分页和模板详情。
  * @param mediaUploadRepository 快捷创作媒体上传仓库，用于把本地媒体上传为远端 URL。
  * @param projectRepository 快捷创作项目仓库，用于项目列表、详情和项目变更操作。
  * @param mediaResolver 平台无关媒体读取端口，由 composeApp 在组合根适配 Android/iOS 能力。
@@ -56,7 +53,6 @@ class QuickCreatePresentationStateHolderFactory(
     private val modelCatalogRepository: QuickCreationModelCatalogRepository,
     private val generationRepository: QuickCreationGenerationRepository,
     private val feePreviewRepository: QuickCreationFeePreviewRepository,
-    private val inspirationRepository: QuickCreationInspirationRepository,
     private val mediaUploadRepository: QuickCreationMediaUploadRepository,
     private val projectRepository: QuickCreationProjectRepository,
     private val mediaResolver: QuickCreateMediaResolver,
@@ -75,7 +71,6 @@ class QuickCreatePresentationStateHolderFactory(
             modelCatalogRepository = modelCatalogRepository,
             generationRepository = generationRepository,
             feePreviewRepository = feePreviewRepository,
-            inspirationRepository = inspirationRepository,
             mediaUploadRepository = mediaUploadRepository,
             projectRepository = projectRepository,
             mediaResolver = mediaResolver,
@@ -97,7 +92,6 @@ class QuickCreatePresentationStateHolderFactory(
  * @param modelCatalogRepository 快捷创作模型目录仓库，只用于加载和刷新服务模型列表。
  * @param generationRepository 快捷创作生成仓库，只用于提交图片或视频生成任务并收集状态流。
  * @param feePreviewRepository 快捷创作计费预览仓库，只用于刷新远端价格预览。
- * @param inspirationRepository 快捷创作灵感仓库，只用于加载模板标签、模板分页和模板详情。
  * @param mediaUploadRepository 快捷创作媒体上传仓库，只用于把本地媒体上传为远端 URL。
  * @param projectRepository 快捷创作项目仓库，只用于项目列表、详情和项目变更操作。
  * @param mediaResolver 快捷创作媒体读取端口，由 app 组合根把平台媒体能力适配后注入。
@@ -111,7 +105,6 @@ class QuickCreatePresentationStateHolder(
     modelCatalogRepository: QuickCreationModelCatalogRepository,
     generationRepository: QuickCreationGenerationRepository,
     feePreviewRepository: QuickCreationFeePreviewRepository,
-    inspirationRepository: QuickCreationInspirationRepository,
     mediaUploadRepository: QuickCreationMediaUploadRepository,
     projectRepository: QuickCreationProjectRepository,
     mediaResolver: QuickCreateMediaResolver,
@@ -141,7 +134,6 @@ class QuickCreatePresentationStateHolder(
         modelCatalogRepository = modelCatalogRepository,
         generationRepository = generationRepository,
         feePreviewRepository = feePreviewRepository,
-        inspirationRepository = inspirationRepository,
         mediaUploadRepository = mediaUploadRepository,
         projectRepository = projectRepository,
     )
@@ -303,34 +295,6 @@ class QuickCreatePresentationStateHolder(
     /** 放弃当前可恢复草稿。 */
     fun discardDraft() {
         coordinator.discardDraft()
-    }
-
-    /**
-     * 切换快捷创作一级模式。
-     *
-     * @param mode 目标模式，普通创作或灵感模板模式。
-     */
-    fun switchMode(mode: QuickCreateMode) {
-        coordinator.switchMode(mode)
-    }
-
-    /** 加载灵感模板首页。 */
-    fun loadInspiration() {
-        coordinator.loadInspiration()
-    }
-
-    /** 加载更多灵感模板。 */
-    fun loadMoreInspirationTemplates() {
-        coordinator.loadMoreInspirationTemplates()
-    }
-
-    /**
-     * 应用灵感模板到编辑区。
-     *
-     * @param templateId 模板稳定标识，来源于灵感模板列表。
-     */
-    fun applyInspirationTemplate(templateId: String) {
-        coordinator.applyInspirationTemplate(templateId)
     }
 
     /**

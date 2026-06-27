@@ -174,12 +174,12 @@ data class PlazaFallbackCardText(
  * `false` 表示当前没有灵感分页请求。
  * @property mode 当前广场内容模式。默认 [PlazaMode.CREATIONS] 表示展示灵感创作；
  * [PlazaMode.SHORTS] 表示展示短片列表。
- * @property tags 灵感创作筛选标签，来源于服务端标签接口并过滤为一级可用标签；
+ * @property tags 灵感创作筛选标签，来源于服务端标签树并保留所有可用节点；
  * 顺序按服务端返回保留，空集合表示标签尚未加载或服务端没有可用标签。
  * @property fallbackTagLabels 本地 fallback 标签 ID 到资源化文案语义的映射。空集合表示当前标签来自
  * 服务端或 UI 静态兜底；非空时 UI 应优先使用该映射展示内置标签文案。
- * @property selectedTagId 当前选中的灵感标签 ID，来源于用户点击；`null` 表示不过滤标签，
- * 与空字符串“无效标签 ID”不同。
+ * @property selectedTagId 当前选中的灵感标签 ID，来源于用户点击；父标签请求时会展开为父子标签 ID，
+ * `null` 表示不过滤标签，与空字符串“无效标签 ID”不同。
  * @property sort 当前灵感排序协议值，来源于 UI 分段控件；默认 `RECOMMEND` 表示推荐排序。
  * 该字符串仍是社区接口协议值，后续可迁移为 Community Domain 枚举。
  * @property creations 当前灵感创作卡片列表，来源于服务端分页或本地 fallback；
@@ -196,6 +196,9 @@ data class PlazaFallbackCardText(
  * @property shorts 当前短片卡片列表，来源于服务端分页；顺序按服务端返回保留。
  * 空集合表示尚无可展示短片。
  * @property shortPage 已加载的短片页码，从 1 开始；0 表示尚未成功加载任何短片页。
+ * @property shortTotal 短片总数，单位为条；0 表示服务端未返回总数或当前无短片数据。
+ * @property shortHasMore 短片是否还有下一页。`true` 表示可以继续请求下一页；
+ * `false` 表示已加载数量达到服务端总数，或服务端返回空页。
  * @property isShortsLoading 短片分类或短片页是否正在加载。`true` 时短片加载入口应避免重复点击；
  * `false` 表示当前没有短片请求。
  * @property error 当前等待页面展示的稳定错误语义。
@@ -221,6 +224,8 @@ data class PlazaUiState(
     val selectedShortCategoryCode: String? = null,
     val shorts: List<PlazaShortCard> = emptyList(),
     val shortPage: Int = 0,
+    val shortTotal: Int = 0,
+    val shortHasMore: Boolean = true,
     val isShortsLoading: Boolean = false,
     val error: PlazaPresentationError? = null,
 )
@@ -266,7 +271,7 @@ class PlazaStateHolder(
             tagsResult.onSuccess { tags ->
                 _uiState.update {
                     it.copy(
-                        tags = tags.filter { tag -> tag.level <= 1 && tag.enable },
+                        tags = tags.filter { tag -> tag.enable },
                         fallbackTagLabels = emptyMap(),
                     )
                 }
@@ -346,7 +351,15 @@ class PlazaStateHolder(
      */
     fun loadShorts() {
         scope.launch {
-            _uiState.update { it.copy(isShortsLoading = true, shortPage = 0, error = null) }
+            _uiState.update {
+                it.copy(
+                    isShortsLoading = true,
+                    shortPage = 0,
+                    shortTotal = 0,
+                    shortHasMore = true,
+                    error = null,
+                )
+            }
             val categoriesResult = withTimeoutOrNull(REQUEST_TIMEOUT_MILLIS) { plazaRepository.listShortCategories() }
                 ?: Result.failure(IllegalStateException("Short categories request timed out"))
             categoriesResult.onSuccess { categories ->
@@ -367,6 +380,8 @@ class PlazaStateHolder(
                 selectedShortCategoryCode = categoryCode,
                 shorts = emptyList(),
                 shortPage = 0,
+                shortTotal = 0,
+                shortHasMore = true,
                 isShortsLoading = true,
                 error = null,
             )
@@ -377,11 +392,11 @@ class PlazaStateHolder(
     /**
      * 加载下一页短片。
      *
-     * 当前没有短片总数字段，分页入口只防止并发重复请求；是否展示入口由 UI 决定。
+     * 根据服务端 total 控制分页边界，避免已加载完毕后继续请求空页。
      */
     fun loadMoreShorts() {
         val state = _uiState.value
-        if (state.isShortsLoading) return
+        if (state.isShortsLoading || !state.shortHasMore) return
         val nextPage = state.shortPage + 1
         _uiState.update { it.copy(isShortsLoading = true, error = null) }
         scope.launch { loadShortPage(page = nextPage, append = true) }
@@ -389,7 +404,7 @@ class PlazaStateHolder(
 
     private suspend fun loadCreations(page: Int, append: Boolean, fallbackOnFailure: Boolean) {
         val state = _uiState.value
-        val selectedTags = state.selectedTagId?.let(::listOf).orEmpty()
+        val selectedTags = state.creationQueryTagIds()
         val result = withTimeoutOrNull(REQUEST_TIMEOUT_MILLIS) {
             plazaRepository.listCreations(page = page, sort = state.sort, tags = selectedTags)
         } ?: Result.failure(IllegalStateException("Plaza creations request timed out"))
@@ -434,12 +449,15 @@ class PlazaStateHolder(
         } ?: Result.failure(IllegalStateException("Short list request timed out"))
 
         result
-            .onSuccess { cards ->
+            .onSuccess { shortPage ->
                 _uiState.update {
+                    val merged = if (append) it.shorts + shortPage.items else shortPage.items
                     it.copy(
                         isShortsLoading = false,
-                        shorts = if (append) it.shorts + cards else cards,
-                        shortPage = page,
+                        shorts = merged,
+                        shortPage = shortPage.page,
+                        shortTotal = shortPage.total,
+                        shortHasMore = merged.size < shortPage.total && shortPage.items.isNotEmpty(),
                         error = null,
                     )
                 }
@@ -452,6 +470,12 @@ class PlazaStateHolder(
                     )
                 }
             }
+    }
+
+    private fun PlazaUiState.creationQueryTagIds(): List<String> {
+        val selectedId = selectedTagId ?: return emptyList()
+        val selectedTag = tags.firstOrNull { it.id == selectedId }
+        return (listOf(selectedId) + selectedTag?.childIds.orEmpty()).distinct()
     }
 
     private fun applyFallbackContent(error: PlazaPresentationError) {

@@ -4,6 +4,7 @@ import com.runninghub.feature.community.domain.PlazaCreationCard
 import com.runninghub.feature.community.domain.PlazaCreationPage
 import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
+import com.runninghub.feature.community.domain.PlazaShortPage
 import com.runninghub.feature.community.domain.PlazaTag
 
 /**
@@ -44,7 +45,8 @@ fun PlazaCreationCardDto.toDomain(): PlazaCreationCard =
 /**
  * 将服务端标签树压平成可展示标签列表。
  *
- * PlazaScreen 当前按平铺标签筛选，Data 层在这里消化远端树形结构，避免 Presentation 遍历 DTO。
+ * PlazaScreen 当前按平铺标签筛选，Data 层在这里消化远端树形结构并保留每个节点的子孙 ID，
+ * 避免 Presentation 遍历 DTO。
  */
 fun PlazaTagDto.flatten(): List<PlazaTag> =
     listOf(toDomain()) + childTags.flatMap { it.flatten() }
@@ -53,7 +55,10 @@ fun PlazaTagDto.flatten(): List<PlazaTag> =
  * 将单个标签节点映射为 Domain 标签。
  */
 fun PlazaTagDto.toDomain(): PlazaTag =
-    PlazaTag(id = id, name = name, level = level, enable = enable)
+    PlazaTag(id = id, name = name, level = level, enable = enable, childIds = childTagIds())
+
+private fun PlazaTagDto.childTagIds(): List<String> =
+    childTags.flatMap { child -> listOf(child.id) + child.childTagIds() }
 
 /**
  * 将短片分类 DTO 映射为 Domain 分类。
@@ -68,18 +73,31 @@ fun PlazaShortCategoryDto.toDomain(): PlazaShortCategory =
     )
 
 /**
+ * 将短片分页 DTO 映射为 Domain 分页。
+ *
+ * @param requestedPage 请求页码；当短片接口未返回 current 时用于保留客户端分页进度。
+ */
+fun PlazaShortPageDto.toDomain(requestedPage: Int): PlazaShortPage =
+    PlazaShortPage(
+        page = current.takeIf { it > 0 } ?: requestedPage,
+        total = total,
+        items = items.map { it.toDomain() },
+    )
+
+/**
  * 将短片卡片 DTO 映射为 Domain 短片卡片。
  *
- * 缩略图优先使用新版 [PlazaShortCardDto.thumbnailUrl]，缺失时兼容旧版 [PlazaShortCardDto.coverUrl]。
+ * 当前 explore 接口使用 `compositionUrl/compositionDuration/thumbnail/authorName`，旧接口可能使用
+ * `videoUrl/duration/thumbnailUrl/userName`，因此在 Data 边界统一做兼容映射。
  */
 fun PlazaShortCardDto.toDomain(): PlazaShortCard =
     PlazaShortCard(
         id = id,
         name = name,
-        videoUrl = videoUrl,
-        thumbnailUrl = thumbnailUrl ?: coverUrl,
-        durationSeconds = duration,
+        videoUrl = compositionUrl ?: videoUrl,
+        thumbnailUrl = thumbnail ?: thumbnailUrl ?: coverUrl,
+        durationSeconds = compositionDuration ?: duration,
         categoryName = categoryName,
-        authorName = authorName,
-        authorAvatar = authorAvatar,
+        authorName = authorName ?: userName,
+        authorAvatar = authorAvatar ?: userAvatar,
     )

@@ -40,7 +40,6 @@ val appModule = module {
             modelCatalogRepository = get(),
             generationRepository = get(),
             feePreviewRepository = get(),
-            inspirationRepository = get(),
             mediaUploadRepository = get(),
             projectRepository = get(),
             mediaResolver = get<QuickCreateMediaResolver>(),

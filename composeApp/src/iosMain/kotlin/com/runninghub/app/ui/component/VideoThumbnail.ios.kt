@@ -7,6 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.sp
 
 @Composable
@@ -15,12 +16,16 @@ actual fun VideoThumbnail(
     modifier: Modifier,
     posterUrl: String?,
     autoPlay: Boolean,
+    cropToFill: Boolean,
+    onPlaybackProgressChange: ((VideoPlaybackProgress) -> Unit)?,
+    seekRequest: VideoPlaybackSeekRequest?,
 ) {
     if (posterUrl != null) {
         SmartAsyncImage(
             imageUrl = posterUrl,
             contentDescription = null,
             modifier = modifier,
+            contentScale = if (cropToFill) ContentScale.Crop else ContentScale.Fit,
         )
     } else {
         Box(

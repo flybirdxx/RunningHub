@@ -5,12 +5,14 @@ import com.runninghub.feature.community.domain.PlazaCreationPage
 import com.runninghub.feature.community.domain.PlazaRepository
 import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
+import com.runninghub.feature.community.domain.PlazaShortPage
 import com.runninghub.feature.community.domain.PlazaTag
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -30,6 +32,42 @@ class PlazaStateHolderTest {
         assertEquals(listOf("creation-1"), state.creations.map { it.id })
         assertEquals(emptyMap(), state.fallbackCreationTexts)
         assertEquals("RECOMMEND", repository.lastSort)
+    }
+
+    @Test
+    fun `loadInitialData keeps child tags from full tag tree`() = runTest {
+        val repository = FakePlazaRepository()
+        repository.tags = listOf(
+            PlazaTag(id = "parent", name = "图片生成", level = 1, childIds = listOf("child")),
+            PlazaTag(id = "child", name = "文生图", level = 2),
+            PlazaTag(id = "disabled-child", name = "禁用", level = 2, enable = false),
+        )
+        val stateHolder = PlazaStateHolder(repository, this)
+
+        stateHolder.loadInitialData()
+        advanceUntilIdle()
+
+        val tags = stateHolder.uiState.value.tags
+        assertEquals(listOf("parent", "child"), tags.map { it.id })
+        assertEquals(listOf("child"), tags.first { it.id == "parent" }.childIds)
+    }
+
+    @Test
+    fun `selectTag expands parent tag to descendant ids for creation request`() = runTest {
+        val repository = FakePlazaRepository()
+        repository.tags = listOf(
+            PlazaTag(id = "parent", name = "视频生成", level = 1, childIds = listOf("child-a", "child-b")),
+            PlazaTag(id = "child-a", name = "文生视频", level = 2),
+            PlazaTag(id = "child-b", name = "图生视频", level = 2),
+        )
+        val stateHolder = PlazaStateHolder(repository, this)
+
+        stateHolder.loadInitialData()
+        advanceUntilIdle()
+        stateHolder.selectTag("parent")
+        advanceUntilIdle()
+
+        assertEquals(listOf("parent", "child-a", "child-b"), repository.lastTags)
     }
 
     @Test
@@ -97,6 +135,27 @@ class PlazaStateHolderTest {
         val state = stateHolder.uiState.value
         assertEquals(listOf("HOT"), state.shortCategories.map { it.code })
         assertEquals(listOf("short-1"), state.shorts.map { it.id })
+        assertEquals(1, state.shortPage)
+        assertEquals(1, state.shortTotal)
+        assertFalse(state.shortHasMore)
+    }
+
+    @Test
+    fun `loadMoreShorts stops when loaded shorts reach total`() = runTest {
+        val repository = FakePlazaRepository()
+        repository.shortPages = mapOf(
+            1 to listOf(PlazaShortCard(id = "short-1", name = "Short demo")),
+        )
+        repository.shortTotal = 1
+        val stateHolder = PlazaStateHolder(repository, this)
+
+        stateHolder.loadShorts()
+        advanceUntilIdle()
+        stateHolder.loadMoreShorts()
+        advanceUntilIdle()
+
+        assertEquals(listOf(1), repository.requestedShortPages)
+        assertFalse(stateHolder.uiState.value.shortHasMore)
     }
 
     @Test
@@ -170,6 +229,8 @@ class PlazaStateHolderTest {
         )
         var shortCategories: List<PlazaShortCategory> = emptyList()
         var shortPages: Map<Int, List<PlazaShortCard>> = emptyMap()
+        var shortTotal: Int = 1
+        val requestedShortPages = mutableListOf<Int>()
         var lastShortCategoryCode: String? = null
         var creationFailure: Throwable? = null
         var shortFailure: Throwable? = null
@@ -200,10 +261,17 @@ class PlazaStateHolderTest {
         override suspend fun listShortCategories(): Result<List<PlazaShortCategory>> =
             Result.success(shortCategories)
 
-        override suspend fun listShorts(page: Int, size: Int, categoryCode: String?): Result<List<PlazaShortCard>> {
+        override suspend fun listShorts(page: Int, size: Int, categoryCode: String?): Result<PlazaShortPage> {
             lastShortCategoryCode = categoryCode
+            requestedShortPages += page
             shortFailure?.let { return Result.failure(it) }
-            return Result.success(shortPages[page].orEmpty())
+            return Result.success(
+                PlazaShortPage(
+                    page = page,
+                    total = shortTotal,
+                    items = shortPages[page].orEmpty(),
+                )
+            )
         }
     }
 }

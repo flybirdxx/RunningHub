@@ -1,250 +1,187 @@
-# RunningHub Repository Instructions
-
-## Scope
-
-本文件适用于整个仓库。
-
-子目录中的 `AGENTS.md` 可以补充或覆盖本文件中与该目录相关的规则。
-用户在当前任务中的明确要求优先于本文件。
-
-## Context Entry Points
-
-日常开发先读取当前态文档，避免每次加载完整迁移历史：
-
-- `ARCHITECTURE.md`：当前模块边界、依赖方向和运行期装配。
-- `DEVELOPMENT.md`：日常验证命令、PR 交付信息和长期治理入口。
-- `docs/governance/long-term-priorities.md`：复核建议收敛后的 10 条长期优先级。
-- `docs/governance/ai-task-template.md`：AI 任务启动时需要提供的边界和验收字段。
-- `docs/governance/chinese-commenting.md`：中文 KDoc、字段注释和复杂流程注释规则。
-
-只有追溯 Gate/AC、证据来源或封板风险时，才读取 `docs/migration/`。
-
-## Project Overview
-
-RunningHub 是面向 Android 和 iOS 的 Kotlin Multiplatform 客户端，
-UI 使用 Compose Multiplatform。
-
-当前 Gradle 模块以 `settings.gradle.kts` 为准：
-
-- `:core:model`：跨功能共享的纯业务模型和值对象。
-- `:core:common`：跨平台结果类型、错误语义、日志和基础工具。
-- `:core:network`：Ktor 客户端、认证插件、DTO 编解码和网络错误映射。
-- `:core:storage`：会话、凭据、偏好、草稿等存储抽象及平台实现。
-- `:feature:*:domain`：业务模型、Repository interface、UseCase 和业务契约。
-- `:feature:*:data`：API、DTO、Mapper、Repository 实现和 Data DI。
-- `:feature:quickcreate:presentation`：快捷创作 Coordinator、StateHolder、
-  Interactor、ScreenModel 门面和 UI 状态。
-- `:composeApp`：应用壳、根导航、DI 组装、平台入口和仍待拆分页面。
-历史 `:shared` 模块已退役，不得重新 include、依赖 `projects.shared` 或导入 `com.runninghub.shared.*`。
-
-## Sources of Truth
-
-- 模块清单：`settings.gradle.kts`
-- 依赖及插件版本：`gradle/libs.versions.toml`
-- Gradle 版本：`gradle/wrapper/gradle-wrapper.properties`
-- API 接口及产品资料：`doc/` 和相关接口文档
-- 数据库结构：SQLDelight `.sq` 文件
-- Android 配置：`composeApp/src/androidMain/AndroidManifest.xml`
-- 当前架构说明：`ARCHITECTURE.md`
-- 日常开发规范：`DEVELOPMENT.md`
-- 迁移状态：`docs/migration/current-state.yaml`
-- 迁移 Gate/AC 跟踪：`docs/migration/acceptance.md`
-
-不要在本文件、源码注释或其他说明文档中复制具体依赖版本。
-版本发生变化时只修改 Version Catalog。
-
-## Architecture Direction
-
-项目采用 Kotlin Multiplatform、Feature-first、Repository abstraction、
-单向数据流和 Koin 依赖注入。
-
-依赖方向必须保持为：
-
-```text
-Presentation -> Domain <- Data
-Platform bootstrap -> Data modules
-```
-
-要求：
-
-- UI 和 ScreenModel 可以依赖 Domain model、Repository interface 或 UseCase。
-- UI 和 ScreenModel 不得直接调用 Ktor API、SQLDelight Query、DataStore 或 DataSource。
-- Domain 不得依赖 Compose、Ktor、SQLDelight、DataStore、Android/iOS SDK 或 endpoint。
-- Data 层负责实现 Domain Repository，并完成 DTO、Entity、Domain Model 映射。
-- Data 层不得依赖 `composeApp` 或任何 Presentation 类型。
-- 新业务代码不得继续扩大 `shared`；应放入明确 Feature 或 Core 边界。
-- 简单 Repository 转发不机械创建 UseCase；跨仓库、计费、任务编排和轮询使用 UseCase/Interactor。
-
-## Kotlin Multiplatform
-
-`commonMain` 只能使用跨平台 API。
-
-禁止：
-
-- `android.*`
-- `java.awt.*`
-- `platform.UIKit.*`
-- `platform.Foundation.*`
-- Android `Context`、`Uri`、`Application`
-- 仅 JVM 可用的库或类型
-
-平台相关代码放入 `androidMain` 或 `iosMain`，优先通过接口和依赖注入隔离。
-不要把 Android/iOS 类型泄漏到 `commonMain` 状态、模型或 Domain 契约中。
-
-## Presentation Rules
-
-Compose 页面使用单向数据流：
-
-```text
-UI -> Action -> ScreenModel/StateHolder -> UseCase/Repository -> State -> UI
-```
-
-要求：
-
-- 页面状态使用不可变 `data class`，对外暴露只读 `StateFlow`。
-- UI 通过明确 Action 或回调发送事件，Composable 尽量保持无状态。
-- 业务判断、网络调用、持久化和任务轮询不得放在 Composable 中。
-- 导航行为与持久业务状态分离。
-- 不在 UI 中直接读取 Token、Cookie、API Key 或 DataStore。
-- 用户可见文案优先使用 Compose Resources，不在 Data 层生成最终 UI 文案。
-- 不继续向已经过大的 Screen 或 ScreenModel 添加无关职责。
-
-`QuickCreateScreenModel` 是重点治理对象：草稿、上传、计费、生成、轮询、
-历史、项目和灵感模板应逐步拆分到 Interactor、Coordinator 或 StateHolder；
-不得在一次无测试变更中整体重写。
-
-## Data, Network, Storage
-
-- Repository interface 放在 Domain，Repository implementation 放在 Data。
-- DTO 不得暴露给 Presentation。
-- API 路径、请求头和环境地址不得定义在 Domain model 中。
-- 网络、认证和业务错误统一映射，不直接把服务端 `msg` 当最终 UI 文案。
-- 不使用空 `catch`、生产 `runBlocking` 或裸 `println`。
-- Authorization/Cookie 只能发送到精确主机白名单。
-- Token 刷新必须用 Mutex 去重，401 后最多重试原请求一次。
-- 日志不得输出 Token、Cookie、API Key、密码、验证码 Token、完整认证头或请求体。
-- 敏感凭据使用 Android Keystore / iOS Keychain；普通草稿、余额缓存和偏好继续使用非敏感存储。
-
-## Dependency Injection
-
-KMP 和 Compose Multiplatform 代码统一使用 Koin。
-
-- Repository 通过接口绑定实现。
-- ScreenModel 使用 factory，除非明确需要应用级共享状态。
-- 会话状态、认证状态等应使用可注入对象，不使用难以重置的全局 `object`。
-- 不在 Composable 中创建 Repository、HttpClient 或数据库实例。
-- 不在新 KMP 代码中引入 Hilt。
-
-新增第三方依赖前：
-
-1. 确认现有依赖不能满足需求。
-2. 确认目标平台均受支持。
-3. 通过 `gradle/libs.versions.toml` 添加。
-4. 只添加到需要它的 source set。
-5. 在变更说明中解释引入原因。
-
-## Chinese Comments
-
-中文注释属于代码交付内容。新增或修改生产 Kotlin 代码时，必须遵守
-`docs/governance/chinese-commenting.md`。
-
-最低要求：
-
-- public/internal 业务类型、函数、Repository、UseCase、Interactor、Coordinator、
-  ScreenModel、`expect`/`actual` 和非显而易见配置对象使用中文 KDoc。
-- UiState、Domain model、DTO、Entity、Request、Response、Action、Intent、导航参数
-  必须逐字段说明业务语义、来源、默认值、空值、单位、生命周期和安全属性。
-- Boolean 必须解释 `true`/`false`；可空字段必须解释 `null`；数值必须说明单位和特殊值。
-- 复杂流程、并发、取消、分页、缓存、Token 刷新、计费、任务轮询、DTO 映射和兼容分支
-  必须在代码附近解释原因和约束。
-- 注释与实现不一致视为缺陷；不得添加只复述语法的无价值注释。
-
-## Build and Verification
-
-常用命令：
-
-```bash
-./gradlew projects
-./gradlew checkArchitectureBoundaries
-./gradlew checkLongTermGovernance
-./gradlew verifyL1Android
-./gradlew verifyL1Ios
-```
-
-按变更范围选择验证：
-
-- 修改 `commonMain`：运行架构边界、长期治理和相关模块测试。
-- 修改 Android 平台或 release 行为：执行 `verifyL1Android`。
-- 修改 iOS、`expect`/`actual`、Keychain、WKWebView 或平台权限：在 macOS 或 macOS CI 执行 `verifyL1Ios`。
-- 修改 Repository、UseCase、状态转换、计费或轮询：添加或更新单元测试。
-- 文档-only 变更可不跑完整测试，但最终说明未运行原因。
-
-## Change Discipline
-
-开始修改前：
-
-1. 阅读目标目录和相关调用链。
-2. 检查附近是否存在更具体的 `AGENTS.md`。
-3. 确认代码应该属于 Presentation、Domain、Data、Core 还是平台层。
-4. 搜索同类实现，避免重复抽象。
-5. 确定最小验证命令。
-
-修改过程中：
-
-- 保持变更范围聚焦，不做无关格式化、重命名或目录移动。
-- 不覆盖或回滚用户已有改动。
-- 修复根因，不通过重复重试或吞异常掩盖问题。
-- 行为变化必须同步修改测试和相关文档。
-- 不提交生成文件、构建产物、本地配置或凭据。
-
-除非用户明确要求，否则不要执行 `git commit`、`git push`、`git reset --hard`、
-force push、大规模删除或破坏性数据库迁移。
-
-## Generated and Local Files
-
-不得提交构建产物、本地配置、IDE 配置、日志、临时文件、签名文件或任何凭据。
-发现已跟踪的构建产物时，应将其从 Git 索引移除，而不只是修改 `.gitignore`。
-
-## Code Style
-
-- 使用 Kotlin 官方代码风格，4 空格缩进。
-- JVM target 保持与 Gradle 配置一致。
-- 包名保持在 `com.runninghub` 下。
-- 禁止 wildcard import。
-- 使用有业务意义的命名，避免无边界的 `Util`、`Manager`、`Helper`。
-- 常量使用 `UPPER_SNAKE_CASE`。
-- Domain model 不使用 DTO/Entity 后缀；网络模型用 `Dto`，数据库模型用 `Entity`。
-- Repository 实现用 `Impl`；页面状态用 `*UiState`；用户事件用 `*Action` 或 `*Intent`。
-
-## Git and Pull Requests
-
-使用 Conventional Commits：
-
-```text
-feat(scope): ...
-fix(scope): ...
-refactor(scope): ...
-test(scope): ...
-docs(scope): ...
-chore(scope): ...
-```
-
-PR 或任务结果必须说明：
-
-- 修改内容、原因、影响模块和平台。
-- 实际验证命令、未执行检查及原因。
-- 是否包含行为、API、数据库、配置、发布、隐私或安全变化。
-- 本次新增或更新了哪些中文注释。
-
-## Definition of Done
-
-变更完成前确认：
-
-- 代码位于正确架构层。
-- `commonMain` 没有新增平台类型。
-- 没有新增 Data-to-Presentation 反向依赖。
-- 没有新增硬编码凭据或环境地址。
-- 中文注释符合 `docs/governance/chinese-commenting.md`。
-- 相关模块能够编译，相关测试已经添加或更新。
-- 没有提交构建产物，没有进行无关修改。
-- 最终说明包含实际验证结果、未验证项和剩余风险。
+<!-- .codex-version: v1.0.0 (2026.06.27) -->
+# AGENTS.md
+
+本文件是 RunningHub 仓库的 AI 协作入口。所有任务先读本文件，再按需读取 `.codex/rules/project_rule.md`、局部 `AGENTS.md`、`ARCHITECTURE.md`、`DEVELOPMENT.md` 与相关源码。
+
+## 1. 项目身份
+
+- 项目名称：RunningHub。
+- 项目类型：Kotlin Multiplatform + Compose Multiplatform 应用，Android 为主交付端，iOS 由 `iosApp` 包装 Compose framework。
+- 根包名：`com.runninghub`；Android applicationId：`com.runninghub.app`。
+- 构建系统：Gradle Kotlin DSL，启用 `TYPESAFE_PROJECT_ACCESSORS` 与 `build-logic` convention plugins。
+- 模块数量：25 个 Gradle 模块，见 `.codex/references/dependencies.md`。
+- CodeGraph：已安装并完成索引；优先用 `codegraph explore/query/node/status` 定位符号，再读取必要文件。
+
+## 2. 沟通与协作
+
+- 默认使用中文沟通，除非用户明确要求其他语言。
+- 先确认目标、边界、成功标准和当前工作区状态，再修改系统行为。
+- 用户中途补充的新指令优先于旧方向；如果冲突，立即按最新要求收束。
+- 工作区可能已有用户改动，禁止回滚、覆盖或删除非本任务改动。
+- 重要项目事实写入仓库文档或 `.codex/references/`，不要只留在聊天记录里。
+- 非平凡任务必须给出 verifier；没有验证证据时，只能说明完成范围和剩余风险。
+
+## 3. 任务启动流程
+
+- 运行或查看 `git status --short`，区分用户已有改动和本次改动。
+- 阅读最近的局部规则：从目标文件向上查找 `AGENTS.md`。
+- 需要架构背景时读 `ARCHITECTURE.md`、`DEVELOPMENT.md` 和 `.codex/rules/project_rule.md`。
+- 需要模块定位时先查 `.codex/references/_scan.json` 与 `.codex/references/{module}.md`。
+- 需要符号级上下文时优先使用 CodeGraph，例如 `codegraph explore "QuickCreateCoordinator"`。
+- 目标涉及长期治理、迁移状态或外部证据时，读取 `docs/governance/long-term-priorities.md`、`docs/governance/ai-task-template.md`、`docs/governance/chinese-commenting.md` 和 `docs/migration/`。
+
+## 4. 架构边界
+
+- `composeApp/commonMain` 只能依赖 Core、Feature Domain 和 Feature Presentation 入口。
+- `composeApp/androidMain` 与 `composeApp/iosMain` 负责装配运行期 Data 模块、平台 HTTP 引擎、存储和权限实现。
+- Feature Domain 只放稳定业务模型和 Repository 接口，不导入 Data、Ktor、Koin、DataStore、Compose 或平台 SDK。
+- Feature Data 实现 Domain 接口，可依赖 `core:network`、`core:storage` 和必要的其他 Domain 契约。
+- Feature Presentation 依赖自身 Domain 和跨 feature 的 Domain 契约，不直接依赖 Data 实现。
+- Core 模块不得依赖 Feature 或 `composeApp`。
+- `shared` 模块已退役；不得重新 include、声明 `projects.shared` / `project(":shared")` 或导入 `com.runninghub.shared.*`。
+- 新增跨模块能力优先通过 Domain 接口、Koin 绑定和平台组合根装配，不引入全局单例旁路。
+
+## 5. UI 与状态
+
+- UI 使用 Compose Multiplatform，导航使用 Voyager，依赖注入使用 Koin。
+- `composeApp` 中的 `ScreenModel` 应保持应用壳职责，复杂页面状态下沉到对应 Feature Presentation 的 `StateHolder`、`Coordinator` 或 Interactor。
+- QuickCreate 的页面级状态所有权属于 `feature:quickcreate:presentation`；`QuickCreateScreenModel` 只做 Voyager facade。
+- UI 文案优先进入 Compose Resources；业务层不得保存最终展示文案。
+- 公共 UI 组件放在 `composeApp/src/commonMain/kotlin/com/runninghub/app/ui/component` 或主题目录，避免复制粘贴到页面文件。
+- UI 修改必须验证真实渲染或至少运行相关 compose/viewmodel 单元测试；构建通过不等于体验正确。
+
+## 6. 网络、数据与凭据
+
+- Ktor API 类只维护远端路径和 DTO 边界，Repository 负责 DTO-to-Domain 映射和错误归一化。
+- Token、Cookie、Authorization、API Key、请求体和验证码 `validToken` 不得进入日志、截图说明、异常展示或提交内容。
+- 敏感凭据必须通过 Android Keystore / iOS Keychain 边界；Preferences/DataStore 只允许作为非敏感配置或迁移源。
+- `RunningHubApiEnvironment` 必须由平台启动层配置，不得在 Data 层写死生产地址。
+- 刷新 token 响应必须用 `kotlinx.serialization` DTO 解析，不使用正则提取敏感字段。
+- 上传、生成、轮询、取消等流程必须有可取消的结构化协程边界。
+
+## 7. 禁止模式
+
+- 禁止在生产源码使用 `runBlocking`、`GlobalScope`、空 `catch` 或阻塞式 `Thread.sleep`。
+- 禁止在 `commonMain` 导入 Android/iOS 平台 API；平台能力必须通过 expect/actual 或平台 source set 注入。
+- 禁止在 Domain/Presentation 依赖 Feature Data 模块或导入 Data 实现包。
+- 禁止在 `composeApp/commonMain` 直接依赖 Data 模块。
+- 禁止恢复旧 `CreateVoyagerScreen` / `CreateScreenModel` 创作入口。
+- 禁止把远端原始错误、服务端 message 或内部诊断文本直接展示给用户。
+- 禁止在发布配置关闭 R8、资源压缩或移除 `proguard-rules.pro`。
+- 禁止把 `build/`、`.gradle/`、`.kotlin/`、`local.properties`、keystore、APK/AAB 等产物或敏感文件加入 Git。
+- 禁止在没有证据的情况下声称 L1 封板、iOS 真机构建、远端 CI 或登录态运行观察已完成。
+
+## 8. 构建与验证命令
+
+- Windows 本地优先使用 `.\gradlew.bat --console=plain <task>`。
+- 架构边界快速检查：`.\gradlew.bat --console=plain checkArchitectureBoundaries`。
+- 长期治理检查：`.\gradlew.bat --console=plain checkLongTermGovernance`。
+- Android 侧聚合验证：`.\gradlew.bat --console=plain verifyL1Android`。
+- iOS 侧聚合验证需要 macOS runner 或 macOS 开发机：`./gradlew --console=plain verifyL1Ios`。
+- 本地总入口：`.\gradlew.bat --console=plain verifyL1Local`，但 Windows 上 iOS link 结果不能替代 macOS 证据。
+- 快速定位任务：`.\gradlew.bat --console=plain tasks --all` 或 `.\gradlew.bat --console=plain help --task <task>`。
+- 文档-only 初始化变更可用占位符扫描、文档数量检查和 CodeGraph 状态作为 verifier。
+
+## 9. 测试策略
+
+- 小范围代码变更至少运行相关模块测试或目标类测试。
+- 架构边界、依赖、source set 或 DI 装配变更必须运行 `checkArchitectureBoundaries`。
+- 影响 QuickCreate、History、Auth、Task、Model 等用户流程时，优先运行对应 feature 的 commonTest。
+- Data/DTO/API 路径变更必须补或更新契约测试，尤其是 Ktor MockEngine 路径和请求体断言。
+- UI 变更需要截图、运行观察或可复现的交互检查；仅运行 Gradle 不足以证明体验正确。
+- 外部 CI、商店上传、生产签名、真机权限矩阵等高风险动作只能作为人工确认项，不自动执行。
+
+## 10. 文档与记忆
+
+- 当前态规则写入 `AGENTS.md`、`.codex/rules/`、`ARCHITECTURE.md` 或 `DEVELOPMENT.md`。
+- 模块事实写入 `.codex/references/{module}.md`。
+- 迁移历史、封板证据和外部状态写入 `docs/migration/`。
+- 长期治理和任务模板写入 `docs/governance/`，尤其是 `docs/governance/long-term-priorities.md` 与 `docs/governance/ai-task-template.md`。
+- 注释和中文文案规范以 `docs/governance/chinese-commenting.md` 为准。
+- 没有实质新信息时不要制造文档噪音。
+
+## 11. CodeGraph 使用
+
+- 项目结构探索优先 `codegraph status`、`codegraph files`、`codegraph query <symbol>`。
+- 需要调用关系或源码上下文时使用 `codegraph explore "<query>"`。
+- 单个符号或文件深读使用 `codegraph node "<symbol-or-path>"`。
+- CodeGraph 输出是当前磁盘源码快照；若涉及最近编辑，必要时再读文件确认。
+- `.codex/references/_scan.json` 为轻量模式，主要保存模块和依赖；细节以 CodeGraph 和模块文档补充。
+
+## 12. 文件编辑规则
+
+- 小补丁聚焦解决当前目标，不顺手重构无关模块。
+- 先读上游调用点和下游使用点，再改共享接口、数据结构或状态模型。
+- 生成或更新规则文档时必须去掉模板占位符，尤其是双大括号形式的变量。
+- 脚本和 hooks 中不得保留项目模板变量。
+- 遇到既有脏文件，先判断是否与任务有关；无关则忽略，有关则在现有改动上继续，不回滚。
+- 不使用破坏性 Git 操作，除非用户明确要求。
+
+## 13. 交付口径
+
+- 完成后说明改了什么、验证了什么、未验证什么和剩余风险。
+- 如果工作区有无关改动，交付时说明未触碰。
+- 如果验证失败，给出失败命令、关键错误和下一步可行路径。
+- 文档-only 改动可不跑完整 Gradle，但必须说明原因并执行轻量 verifier。
+- 任何声称“初始化完成”的结论必须同时满足 `.codex/rules`、`.codex/skills`、`.codex/agents`、`.codex/references` 和 hooks 无占位符残留。
+
+## 14. 常用参考入口
+
+- `.codex/rules/project_rule.md`：AI 主规则和当前架构约束。
+- `.codex/rules/conflict_resolution.md`：规则冲突裁决顺序。
+- `.codex/skills/plan_mode/SKILL.md`：规划任务模板。
+- `.codex/skills/code_review/SKILL.md`：代码审查清单。
+- `.codex/skills/performance_check/SKILL.md`：性能与安全检查。
+- `.codex/agents/arch-review.md`：架构审查 agent 规则。
+- `.codex/agents/resource-sync.md`：资源同步 agent 规则。
+- `.codex/agents/proactive-correction.md`：主动纠错 agent 规则。
+- `.codex/references/dependencies.md`：模块依赖图。
+- `.codex/references/conventions.md`：编码和命名约定。
+
+## 15. 常见改动路线
+
+- Auth 登录、短信验证码、用户资料：先看 `feature/auth/domain`，再看 `feature/auth/data` 和 `feature/auth/presentation`。
+- Discovery/Search/WebApp 列表：先看 `feature/discovery/domain`，再看 Data mapper 和 Presentation state holder。
+- Plaza/Community：先看 `feature/community/domain`、`PlazaRepositoryImpl` 和 `PlazaStateHolder`。
+- App detail 与任务运行：先看 `feature/detail/presentation` 和 `feature/task/domain|data`。
+- History：先看 `feature/task/presentation/TaskHistoryStateHolder.kt`，应用壳只做资源文案映射和 Compose 展示。
+- QuickCreate：先看 `feature/quickcreate/domain` 和 `feature/quickcreate/presentation`，再看 `feature/quickcreate/data`。
+- 标准模型目录与调用：先看 `feature/model/domain` 和 `feature/model/data`。
+- 音频生成：先看 `feature/audio/domain` 和 `feature/audio/data`。
+- 网络环境或认证：先看 `core/network` 与平台 runtime module。
+- 本地存储或权限状态：先看 `core/storage` 与 `composeApp/platform`。
+
+## 16. 变更分层检查
+
+- 只改 UI 布局：确认没有把业务状态拉回 `composeApp`。
+- 只改 Presentation：确认没有新增 Data import 或远端 DTO import。
+- 只改 Data：确认没有暴露 DTO 给 Domain/Presentation。
+- 只改 Domain：确认模型仍平台无关，且 Data mapper 同步更新。
+- 改 source set：确认 commonMain 没有平台 API。
+- 改 build file：确认依赖方向没有反转，运行架构边界检查。
+- 改发布配置：确认 release minify、shrink 和 ProGuard 仍在。
+- 改资源文案：确认 Compose Resources、Android res、iOS 隐私说明按需同步。
+- 改脚本或 CI：确认命令可在目标平台执行，不能用本地成功替代远端证据。
+- 改 `.codex` 规则：确认占位符扫描和模块文档数量检查通过。
+
+## 17. 验证记录
+
+- 最终回复必须写明实际运行的命令。
+- 命令失败时必须写明 exit code、关键错误和下一步。
+- Windows 本地无法证明 macOS iOS link 通过，只能记录未验证。
+- 没有真实设备时，不声称权限、媒体选择器、WebView/WKWebView 或长轮询运行观察通过。
+- 文档-only 改动不需要跑完整 Gradle，但需要说明原因。
+- 初始化或规则变更至少运行 CodeGraph 状态和 references 一致性检查。
+- 如果用户要求继续实现业务代码，再按业务风险补 Gradle/截图/运行验证。
+
+## 18. 提交前自查
+
+- `git diff --name-only` 中没有意外业务文件。
+- 根入口和 `.codex` 文件不含脚手架占位内容。
+- 新增文档没有“待补充”作为事实占位。
+- references 模块文档数等于 `_scan.json` 模块数。
+- hooks 命令适配当前平台；Windows 使用 PowerShell hook，类 Unix 可使用 `.sh`。
+- 未触碰用户已有业务改动，除非当前任务明确要求。
+- 未把构建产物、临时输出或敏感文件加入交付范围。
+- 最终说明清楚哪些验证未运行以及为什么。
+- 需要后续协作者接手时，明确留下当前决策、阻塞点和下一步命令。

@@ -32,7 +32,7 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * - [historyItems] 在选中项目时表示项目任务，否则表示最近历史。
  *
  * @property currentMode 当前一级模式。
- * [QuickCreateMode.CREATION] 表示展示创作编辑区；[QuickCreateMode.INSPIRATION] 表示展示灵感模板。
+ * [QuickCreateMode.CREATION] 表示展示创作编辑区；灵感分区已从快捷创作入口移除，因此该字段当前只会保持创作模式。
  * @property currentTab 当前创作类型。
  * [QuickCreateTab.IMAGE] 表示图片创作；[QuickCreateTab.VIDEO] 表示视频创作；该值同时决定计费、生成和草稿恢复目标。
  * @property imageConfig 图片编辑区输入和本地参数。
@@ -202,7 +202,7 @@ data class QuickCreateUiState(
     /**
      * 当前是否应展示创作输入区。
      *
-     * `true` 表示页面处于创作模式；`false` 表示当前展示灵感模板等非编辑主界面。
+     * `true` 表示页面处于创作模式；当前快捷创作入口已移除灵感分区，因此正常运行期应始终为 `true`。
      */
     val showCreationInput: Boolean
         get() = currentMode == QuickCreateMode.CREATION

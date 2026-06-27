@@ -15,7 +15,6 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 
@@ -23,8 +22,8 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
  * 快捷创作页面的 Voyager ScreenModel 门面。
  *
  * 本类只保留应用壳的页面生命周期边界和 UI Action 方法外观。唯一 [QuickCreateUiState]
- * 所有权、仓库聚合以及草稿、模型目录、媒体上传、计费预览、任务生成、轮询、历史、项目和
- * 灵感模板编排均由 [QuickCreatePresentationStateHolder] 承担。
+ * 所有权、仓库聚合以及草稿、模型目录、媒体上传、计费预览、任务生成、轮询、历史和项目编排
+ * 均由 [QuickCreatePresentationStateHolder] 承担。
  *
  * 这样做的目的是让 ScreenModel 不再继续膨胀为事实上的业务协调器，同时保持现有 UI 和测试调用
  * 的公开方法签名不变，降低迁移过程中的行为风险。
@@ -198,34 +197,6 @@ class QuickCreateScreenModel(
     /** 放弃当前可恢复草稿。 */
     fun discardDraft() {
         presentation.discardDraft()
-    }
-
-    /**
-     * 切换快捷创作一级模式。
-     *
-     * @param mode 目标模式，普通创作或灵感模板模式。
-     */
-    fun switchMode(mode: QuickCreateMode) {
-        presentation.switchMode(mode)
-    }
-
-    /** 加载灵感模板首页。 */
-    fun loadInspiration() {
-        presentation.loadInspiration()
-    }
-
-    /** 加载更多灵感模板。 */
-    fun loadMoreInspirationTemplates() {
-        presentation.loadMoreInspirationTemplates()
-    }
-
-    /**
-     * 应用灵感模板到编辑区。
-     *
-     * @param templateId 模板稳定标识，来源于灵感模板列表。
-     */
-    fun applyInspirationTemplate(templateId: String) {
-        presentation.applyInspirationTemplate(templateId)
     }
 
     /**

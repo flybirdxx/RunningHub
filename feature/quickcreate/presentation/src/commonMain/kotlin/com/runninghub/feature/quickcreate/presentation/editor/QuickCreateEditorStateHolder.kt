@@ -6,7 +6,6 @@ import com.runninghub.feature.quickcreate.presentation.draft.QuickCreateDraftRes
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 
 private val supportedImageCounts = setOf(1, 2, 4)
@@ -23,32 +22,12 @@ private fun sanitizedSeed(seed: Int?): Int? = seed?.takeIf { it >= 0 }
  * @param uiState 页面状态容器；本类只修改编辑区和一次性错误展示相关字段。
  * @param onFeePreviewRequired 影响价格的输入变化后触发，由调用方负责防抖和旧响应隔离。
  * @param onDraftChanged Prompt 或当前 Tab 变化后触发，由调用方负责草稿自动保存和清理。
- * @param onInspirationRequired 切到灵感模式且当前模板为空时触发，由调用方负责加载灵感数据。
  */
 class QuickCreateEditorStateHolder(
     private val uiState: MutableStateFlow<QuickCreateUiState>,
     private val onFeePreviewRequired: () -> Unit,
     private val onDraftChanged: () -> Unit,
-    private val onInspirationRequired: () -> Unit,
 ) {
-
-    /**
-     * 切换快捷创作的一级模式。
-     *
-     * 进入灵感模式会关闭已有参数弹层，避免隐藏的编辑弹层在用户返回创作模式时重新出现；
-     * 首次进入且模板列表为空时才请求加载灵感数据，避免重复刷新用户已经浏览的模板列表。
-     */
-    fun switchMode(mode: QuickCreateMode) {
-        uiState.update {
-            it.copy(
-                currentMode = mode,
-                activeSheet = if (mode == QuickCreateMode.CREATION) it.activeSheet else null,
-            )
-        }
-        if (mode == QuickCreateMode.INSPIRATION && uiState.value.inspirationTemplates.isEmpty()) {
-            onInspirationRequired()
-        }
-    }
 
     /**
      * 切换图片 / 视频创作 Tab。

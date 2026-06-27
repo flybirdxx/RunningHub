@@ -172,7 +172,7 @@ class QuickCreateInspirationStateHolderTest {
         }
         val state = MutableStateFlow(
             QuickCreateUiState(
-                currentMode = QuickCreateMode.INSPIRATION,
+                currentMode = QuickCreateMode.CREATION,
                 serviceImageModels = listOf(imageModel),
                 selectedImageServiceModel = imageModel,
             )

@@ -1,6 +1,7 @@
 package com.runninghub.feature.community.data.repository
 
 import com.runninghub.feature.community.data.remote.api.PlazaApi
+import com.runninghub.feature.community.domain.PlazaShortPage
 import com.runninghub.feature.community.domain.PlazaRepositoryException
 import com.runninghub.feature.community.domain.PlazaRepositoryIssue
 import io.ktor.client.HttpClient
@@ -55,6 +56,55 @@ class PlazaRepositoryImplTest {
         }
     }
 
+    /**
+     * Plaza Repository 应按抓包结构映射灵感和短片成功响应。
+     */
+    @Test
+    fun `repository maps captured creation and short responses`() = runBlocking {
+        val repository = PlazaRepositoryImpl(
+            api = PlazaApi(
+                HttpClient(
+                    MockEngine { request ->
+                        respond(
+                            content = responseForSuccessPath(request.url.encodedPath),
+                            headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                        )
+                    },
+                ) {
+                    install(ContentNegotiation) {
+                        json(json)
+                    }
+                },
+            ),
+        )
+
+        val creations = repository.listCreations(page = 1, sort = "HOT", tags = listOf("1875941016195785390"))
+            .getOrThrow()
+        val shorts = repository.listShorts(page = 1, categoryCode = "NARRATIVE_SHORT").getOrThrow()
+
+        assertEquals(listOf("2067532558576996354"), creations.items.map { it.id })
+        assertEquals("https://image.png", creations.items.single().mediaUrl)
+        assertEquals(
+            PlazaShortPage(
+                page = 1,
+                total = 274,
+                items = listOf(
+                    com.runninghub.feature.community.domain.PlazaShortCard(
+                        id = "2063090624344010753",
+                        name = "不扫兴的父母：不讲大道理，却让人红了眼",
+                        videoUrl = "https://video.mp4",
+                        thumbnailUrl = "https://thumb.jpg",
+                        durationSeconds = 42,
+                        categoryName = "叙事短片",
+                        authorName = "selene",
+                        authorAvatar = "https://avatar.png",
+                    ),
+                ),
+            ),
+            shorts,
+        )
+    }
+
     private fun repositoryWithResponse(remoteMessage: String): PlazaRepositoryImpl =
         PlazaRepositoryImpl(
             api = PlazaApi(
@@ -72,4 +122,56 @@ class PlazaRepositoryImplTest {
                 },
             ),
         )
-    }
+
+    private fun responseForSuccessPath(path: String): String =
+        when (path) {
+            "/api/portal/creation/list" -> """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "records": [
+                      {
+                        "id": "2067532558576996354",
+                        "intro": "美女",
+                        "owner": { "id": "1970504488576520194", "name": "kitten HZ", "avatar": "https://avatar.png" },
+                        "statisticsInfo": { "likeCount": "2", "useCount": "76", "collectCount": "1" },
+                        "creationShowreelInfo": {
+                          "outputId": "2067532451395362818",
+                          "fileUrl": "https://image.png",
+                          "fileType": "png",
+                          "imageWidth": 1664,
+                          "imageHeight": 2496
+                        }
+                      }
+                    ],
+                    "current": 1,
+                    "total": 64615
+                  }
+                }
+            """.trimIndent()
+            "/canvas/community/composition/list" -> """
+                {
+                  "code": 0,
+                  "msg": "success",
+                  "data": {
+                    "records": [
+                      {
+                        "id": "2063090624344010753",
+                        "name": "不扫兴的父母：不讲大道理，却让人红了眼",
+                        "compositionUrl": "https://video.mp4",
+                        "compositionDuration": 42,
+                        "thumbnail": "https://thumb.jpg",
+                        "categoryCode": "NARRATIVE_SHORT",
+                        "categoryName": "叙事短片",
+                        "authorName": "selene",
+                        "authorAvatar": "https://avatar.png"
+                      }
+                    ],
+                    "total": 274
+                  }
+                }
+            """.trimIndent()
+            else -> """{"code":0,"msg":"success","data":[]}"""
+        }
+}

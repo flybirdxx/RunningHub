@@ -4,19 +4,21 @@ package com.runninghub.feature.community.domain
  * Plaza 内容标签。
  *
  * 该模型属于 Community Feature Domain，用于描述广场内容筛选维度。
- * Data 层负责把远端树形标签压平成可展示列表，Presentation 只根据 [level] 和 [enable]
- * 决定是否展示，不直接依赖远端 DTO 结构。
+ * Data 层负责把远端树形标签压平成可展示列表，并保留 [childIds] 供 Presentation 在筛选父标签时
+ * 展开到可查询的子孙标签 ID；Presentation 不直接依赖远端 DTO 结构。
  *
  * @property id 标签稳定标识。
  * @property name 标签展示名称。
  * @property level 标签层级，0 表示根节点，1 表示一级业务标签。
  * @property enable 标签是否可用。
+ * @property childIds 当前标签的子孙标签 ID，顺序按服务端树形结构保留；空集合表示叶子标签或无可用子节点。
  */
 data class PlazaTag(
     val id: String,
     val name: String,
     val level: Int = 0,
     val enable: Boolean = true,
+    val childIds: List<String> = emptyList(),
 )
 
 /**
@@ -78,6 +80,19 @@ data class PlazaShortCategory(
     val id: String? = null,
     val code: String,
     val name: String,
+)
+
+/**
+ * Plaza 短片内容分页。
+ *
+ * @property page 当前页码，从 1 开始；0 只用于 Presentation 尚未加载任何短片页的初始状态。
+ * @property total 服务端声明的短片总条数，单位为条；0 表示没有数据或服务端未返回总数。
+ * @property items 当前页短片卡片，顺序保留服务端返回顺序。
+ */
+data class PlazaShortPage(
+    val page: Int,
+    val total: Int,
+    val items: List<PlazaShortCard>,
 )
 
 /**

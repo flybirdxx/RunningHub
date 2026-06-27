@@ -3,9 +3,6 @@ package com.runninghub.feature.quickcreate.presentation.coordinator
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftSnapshot
-import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTag
-import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplateDetail
-import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplatePage
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateTaskStatus
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
@@ -14,7 +11,6 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationReposito
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryOutput
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryPage
-import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationProject
@@ -55,7 +51,6 @@ class QuickCreateCoordinatorTest {
             modelCatalogRepository = dependencies,
             generationRepository = dependencies,
             feePreviewRepository = dependencies,
-            inspirationRepository = dependencies,
             mediaUploadRepository = dependencies,
             projectRepository = dependencies,
         )
@@ -90,7 +85,6 @@ class QuickCreateCoordinatorTest {
         QuickCreationProjectRepository,
         QuickCreationGenerationRepository,
         QuickCreationFeePreviewRepository,
-        QuickCreationInspirationRepository,
         QuickCreationMediaUploadRepository {
 
         var draftChecks = 0
@@ -176,21 +170,6 @@ class QuickCreateCoordinatorTest {
             request: VideoGenerationRequest,
         ): Result<QuickCreationFeePreview> =
             unexpected("previewVideoQuickCreationFee")
-
-        override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> =
-            unexpected("getInspirationTags")
-
-        override suspend fun getInspirationTemplates(
-            page: Int,
-            size: Int,
-            tagId: String?,
-        ): Result<QuickCreateInspirationTemplatePage> =
-            unexpected("getInspirationTemplates")
-
-        override suspend fun getInspirationTemplateDetail(
-            templateId: String,
-        ): Result<QuickCreateInspirationTemplateDetail> =
-            unexpected("getInspirationTemplateDetail")
 
         override suspend fun uploadMedia(
             fileBytes: ByteArray,
