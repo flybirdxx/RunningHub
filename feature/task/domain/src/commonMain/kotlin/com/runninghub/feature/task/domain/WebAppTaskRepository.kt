@@ -113,6 +113,12 @@ enum class WebAppTaskIssue(val code: String) {
 
     /** 任务历史接口成功但响应缺少 data。 */
     TaskHistoryMissing("WEB_APP_TASK_HISTORY_MISSING"),
+
+    /** 任务详情接口返回非成功业务 code。 */
+    TaskDetailFailed("WEB_APP_TASK_DETAIL_FAILED"),
+
+    /** 任务详情接口成功但响应缺少 data。 */
+    TaskDetailMissing("WEB_APP_TASK_DETAIL_MISSING"),
 }
 
 private fun WebAppTaskIssue.diagnosticMessage(remoteCode: Int?): String =

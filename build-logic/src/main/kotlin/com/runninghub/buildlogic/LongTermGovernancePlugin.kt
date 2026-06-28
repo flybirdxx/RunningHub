@@ -2403,16 +2403,17 @@ class LongTermGovernancePlugin : Plugin<Project> {
     }
 
     /**
-     * 防止 History Compose 页面重新按运行时任务标题推断费用或输出数量。
+     * 防止 History 页面重新按运行时任务标题或固定资源推断费用、进度和输出数量。
      *
-     * 服务端标题仍可作为迁移期启发式输入，但必须集中在 Task Presentation 层输出稳定语义；
-     * composeApp 只负责把 TaskHistoryCostText 和 TaskHistoryOutputCountText 映射为资源文案。
+     * 费用和输出数量必须来自 Task Domain 的服务端字段；当服务端没有返回时，UI 应隐藏或展示
+     * 中性空态，不能用固定金额、固定进度或固定输出数量伪造数据。
      */
     private fun Project.checkTaskHistoryPresentationTextGuard(violations: MutableList<String>) {
         val historyScreenPath =
             "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/TaskHistoryScreen.kt"
         val stateHolderPath =
             "feature/task/presentation/src/commonMain/kotlin/com/runninghub/feature/task/presentation/TaskHistoryStateHolder.kt"
+        val historyStringsPath = "composeApp/src/commonMain/composeResources/values/strings.xml"
 
         val historyScreenFile = rootDir.resolve(historyScreenPath)
         if (historyScreenFile.isFile) {
@@ -2420,7 +2421,10 @@ class LongTermGovernancePlugin : Plugin<Project> {
             if (text.contains("title.contains(\"\\u89c6\\u9891\")") ||
                 text.contains("title.contains(\"\\u89d2\\u8272\")")
             ) {
-                violations += "$historyScreenPath must not infer task cost or output count from runtime title text; map TaskHistoryCostText/TaskHistoryOutputCountText instead."
+                violations += "$historyScreenPath must not infer task cost or output count from runtime title text; use server cost/output fields."
+            }
+            if (text.contains("TaskHistoryCostText") || text.contains("TaskHistoryOutputCountText")) {
+                violations += "$historyScreenPath must not map fixed TaskHistory cost/output semantics; use server cost/output fields."
             }
         } else {
             violations += "Task history screen guard target is missing: $historyScreenPath."
@@ -2429,13 +2433,41 @@ class LongTermGovernancePlugin : Plugin<Project> {
         val stateHolderFile = rootDir.resolve(stateHolderPath)
         if (stateHolderFile.isFile) {
             val text = stateHolderFile.readText()
-            if (!text.contains("enum class TaskHistoryCostText") ||
-                !text.contains("enum class TaskHistoryOutputCountText")
+            if (text.contains("enum class TaskHistoryCostText") ||
+                text.contains("enum class TaskHistoryOutputCountText") ||
+                text.contains("toHistoryCostText") ||
+                text.contains("toHistoryOutputCountText")
             ) {
-                violations += "$stateHolderPath must expose stable TaskHistory cost/output text semantics for composeApp mapping."
+                violations += "$stateHolderPath must preserve server cost/output values instead of fixed cost/output text semantics."
             }
         } else {
             violations += "Task history presentation guard target is missing: $stateHolderPath."
+        }
+
+        val historyStringsFile = rootDir.resolve(historyStringsPath)
+        if (historyStringsFile.isFile) {
+            val text = historyStringsFile.readText()
+            val forbiddenResourceNames = listOf(
+                "task_history_status_in_progress_percent",
+                "task_history_default_completed_duration",
+                "task_history_default_failed_duration",
+                "task_history_default_running_duration",
+                "task_history_cost_video",
+                "task_history_cost_character",
+                "task_history_cost_failed",
+                "task_history_cost_default",
+                "task_history_output_count_failed",
+                "task_history_output_count_running",
+                "task_history_output_count_video",
+                "task_history_output_count_completed",
+            )
+            forbiddenResourceNames
+                .filter { resourceName -> text.contains(resourceName) }
+                .forEach { resourceName ->
+                    violations += "$historyStringsPath must not define fixed History runtime data resource '$resourceName'."
+                }
+        } else {
+            violations += "Task history string guard target is missing: $historyStringsPath."
         }
     }
 

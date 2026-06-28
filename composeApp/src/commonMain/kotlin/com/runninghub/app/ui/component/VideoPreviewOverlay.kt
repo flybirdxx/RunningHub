@@ -61,6 +61,7 @@ fun RhVideoPreviewOverlay(
 ) {
     val videoUrl = item.videoUrl?.trim()?.takeIf { it.isNotEmpty() }
     val posterUrl = item.posterUrl?.trim()?.takeIf { it.isNotEmpty() }
+    val playAudio = videoPreviewShouldPlayAudio(item)
     var playbackProgress by remember(item.id, videoUrl) {
         mutableStateOf(VideoPlaybackProgress(isLoading = videoUrl != null))
     }
@@ -121,6 +122,7 @@ fun RhVideoPreviewOverlay(
                         posterUrl = posterUrl,
                         autoPlay = true,
                         cropToFill = false,
+                        playAudio = playAudio,
                         onPlaybackProgressChange = { progress -> playbackProgress = progress },
                         seekRequest = seekRequest,
                         modifier = Modifier
@@ -301,6 +303,9 @@ internal fun videoPreviewFormatTime(timeMs: Long?): String {
         "$minutes:${seconds.toString().padStart(2, '0')}"
     }
 }
+
+internal fun videoPreviewShouldPlayAudio(item: VideoPreviewItem): Boolean =
+    !item.videoUrl.isNullOrBlank()
 
 private fun Modifier.blockVideoPreviewClickThrough(): Modifier = pointerInput(Unit) {
     awaitPointerEventScope {

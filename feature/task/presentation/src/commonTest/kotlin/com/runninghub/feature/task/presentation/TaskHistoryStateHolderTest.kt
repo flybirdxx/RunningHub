@@ -5,7 +5,9 @@ import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import com.runninghub.feature.task.domain.GenerationHistoryPage
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
 import com.runninghub.feature.task.domain.GenerationHistorySource
+import com.runninghub.feature.task.domain.GenerationTaskDetail
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -27,19 +29,22 @@ class TaskHistoryStateHolderTest {
     }
 
     @Test
-    fun `history entries expose stable cost and output count semantics`() = runTest {
+    fun `history entries keep server cost and actual output count`() = runTest {
         val stateHolder = TaskHistoryStateHolder(FakeGenerationHistoryRepository(), this, enablePolling = false)
 
         stateHolder.loadHistory()
         runCurrent()
 
         val entries = stateHolder.uiState.value.items.associateBy { it.taskId }
-        assertEquals(TaskHistoryCostText.CHARACTER, entries.getValue("success-task").costText)
-        assertEquals(TaskHistoryOutputCountText.COMPLETED, entries.getValue("success-task").outputCountText)
-        assertEquals(TaskHistoryCostText.VIDEO, entries.getValue("running-task").costText)
-        assertEquals(TaskHistoryOutputCountText.RUNNING, entries.getValue("running-task").outputCountText)
-        assertEquals(TaskHistoryCostText.FAILED, entries.getValue("failed-task").costText)
-        assertEquals(TaskHistoryOutputCountText.FAILED, entries.getValue("failed-task").outputCountText)
+        assertEquals(1.236, entries.getValue("success-task").costAmount)
+        assertEquals("CNY", entries.getValue("success-task").costCurrency)
+        assertEquals(1, entries.getValue("success-task").outputCount)
+        assertEquals(0.0, entries.getValue("running-task").costAmount)
+        assertEquals(null, entries.getValue("running-task").costCurrency)
+        assertEquals(0, entries.getValue("running-task").outputCount)
+        assertEquals(0.42, entries.getValue("failed-task").costAmount)
+        assertEquals("USD", entries.getValue("failed-task").costCurrency)
+        assertEquals(0, entries.getValue("failed-task").outputCount)
     }
 
     @Test
@@ -73,6 +78,24 @@ class TaskHistoryStateHolderTest {
         assertEquals("output-1", state.selectedOutput?.outputId)
         assertEquals("https://example.com/image.png", state.selectedOutput?.url)
         assertEquals(TaskHistoryActionMessage.OutputDetailLoaded, state.actionMessage)
+    }
+
+    @Test
+    fun `openTaskDetail loads console task detail and close clears drawer`() = runTest {
+        val repository = FakeGenerationHistoryRepository()
+        val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
+
+        stateHolder.openTaskDetail("console-task-1")
+        runCurrent()
+
+        assertEquals("console-task-1", repository.lastTaskDetailId)
+        assertEquals("console-task-1", stateHolder.uiState.value.selectedTaskDetail?.taskId)
+        assertEquals("https://example.com/detail.png", stateHolder.uiState.value.selectedTaskDetail?.outputs?.single()?.url)
+
+        stateHolder.closeTaskDetail()
+
+        assertEquals(null, stateHolder.uiState.value.selectedTaskDetail)
+        assertEquals(false, stateHolder.uiState.value.isTaskDetailLoading)
     }
 
     @Test
@@ -136,6 +159,32 @@ class TaskHistoryStateHolderTest {
         assertEquals("running-task", repository.cancelledTaskId)
         assertEquals(TaskHistoryActionMessage.CancelRequested, stateHolder.uiState.value.actionMessage)
         assertEquals(2, repository.listCalls)
+    }
+
+    @Test
+    fun `task history invalidation refreshes immediately and schedules follow up refresh`() = runTest {
+        val repository = FakeGenerationHistoryRepository()
+        val invalidations = MutableSharedFlow<Unit>()
+        val stateHolder = TaskHistoryStateHolder(
+            generationHistoryRepository = repository,
+            coroutineScope = this,
+            historyInvalidations = invalidations,
+            enablePolling = false,
+        )
+        runCurrent()
+
+        stateHolder.loadHistory()
+        runCurrent()
+        invalidations.emit(Unit)
+        runCurrent()
+
+        assertEquals(2, repository.listCalls)
+
+        advanceTimeBy(2_000)
+        runCurrent()
+
+        assertEquals(3, repository.listCalls)
+        stateHolder.dispose()
     }
 
     @Test
@@ -212,6 +261,7 @@ class TaskHistoryStateHolderTest {
 
     private class FakeGenerationHistoryRepository : GenerationHistoryRepository {
         var lastDetailOutputId: String? = null
+        var lastTaskDetailId: String? = null
         var cancelledTaskId: String? = null
         var listCalls = 0
         var listFailureMessage: String? = null
@@ -223,6 +273,8 @@ class TaskHistoryStateHolderTest {
             source = GenerationHistorySource.QUICK_CREATION,
             status = "SUCCESS",
             taskType = "\u89d2\u8272\u8bbe\u5b9a",
+            costAmount = 1.236,
+            costCurrency = "CNY",
             params = mapOf("prompt" to "city"),
             outputs = listOf(
                 GenerationHistoryOutput(
@@ -245,6 +297,8 @@ class TaskHistoryStateHolderTest {
             source = GenerationHistorySource.STANDARD_MODEL,
             status = "FAILED",
             taskType = "Image",
+            costAmount = 0.42,
+            costCurrency = "USD",
             params = mapOf("prompt" to "retry city"),
         )
 
@@ -273,6 +327,24 @@ class TaskHistoryStateHolderTest {
             lastDetailOutputId = outputId
             detailFailureMessage?.let { return Result.failure(IllegalStateException(it)) }
             return Result.success(successItem)
+        }
+
+        override suspend fun getTaskDetail(taskId: String): Result<GenerationTaskDetail> {
+            lastTaskDetailId = taskId
+            return Result.success(
+                GenerationTaskDetail(
+                    taskId = taskId,
+                    title = "Console detail",
+                    status = "SUCCESS",
+                    outputs = listOf(
+                        GenerationHistoryOutput(
+                            outputId = "detail-output-1",
+                            url = "https://example.com/detail.png",
+                            type = "png",
+                        )
+                    ),
+                )
+            )
         }
 
         override suspend fun cancelTask(taskId: String): Result<Unit> {

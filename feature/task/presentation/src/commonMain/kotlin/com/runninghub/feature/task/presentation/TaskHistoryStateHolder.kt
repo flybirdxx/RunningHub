@@ -3,12 +3,17 @@ package com.runninghub.feature.task.presentation
 import com.runninghub.feature.task.domain.GenerationHistoryItem
 import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
+import com.runninghub.feature.task.domain.GenerationHistorySource
+import com.runninghub.feature.task.domain.GenerationTaskDetail
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -84,46 +89,6 @@ enum class TaskHistoryPresentationError {
 }
 
 /**
- * 历史列表费用展示的稳定语义。
- *
- * 该枚举不保存最终展示金额文案，只表达当前任务应使用哪一类费用标签。
- * 费用档位暂由服务端任务标题和任务状态推断，后续服务端提供稳定类型字段后应替换本地启发式。
- */
-enum class TaskHistoryCostText {
-    /** 标题命中视频任务启发式，列表展示视频费用档位。 */
-    VIDEO,
-
-    /** 标题命中角色任务启发式，列表展示角色费用档位。 */
-    CHARACTER,
-
-    /** 非视频/角色任务失败后展示的失败兜底费用档位。 */
-    FAILED,
-
-    /** 未命中专项规则时展示的默认费用档位。 */
-    DEFAULT,
-}
-
-/**
- * 历史列表输出数量展示的稳定语义。
- *
- * 该枚举不保存最终中文文案，只表达 UI 应选择的输出数量标签。
- * 运行中和失败态优先由任务状态决定；完成态再按任务标题启发式区分视频和默认输出。
- */
-enum class TaskHistoryOutputCountText {
-    /** 失败任务输出数量标签。 */
-    FAILED,
-
-    /** 运行中任务输出数量标签。 */
-    RUNNING,
-
-    /** 完成的视频任务输出数量标签。 */
-    VIDEO,
-
-    /** 完成的默认任务输出数量标签。 */
-    COMPLETED,
-}
-
-/**
  * 历史页的完整可渲染状态。
  *
  * 状态由 [TaskHistoryStateHolder] 维护，只保存页面交互所需的任务历史、筛选、
@@ -145,6 +110,10 @@ enum class TaskHistoryOutputCountText {
  * 非空时 UI 可以展示预览地址、下载地址或输出元数据。
  * @property isDetailLoading 是否正在加载单个输出对应的历史详情。
  * `true` 时详情区域应展示进度并避免重复点击；`false` 表示没有进行中的详情请求。
+ * @property selectedTaskDetail 当前被用户打开的完整任务详情。
+ * `null` 表示详情抽屉关闭、尚未加载成功或详情加载失败；该对象只允许保存领域层脱敏后的信息。
+ * @property isTaskDetailLoading 是否正在加载任务详情抽屉数据。
+ * `true` 时 UI 可以展示侧边栏加载态；页面销毁时外部注入的协程作用域会取消未完成请求。
  * @property reuseParams 当前已准备复用或重试的任务参数。
  * Key/Value 均来自历史任务参数快照；空 Map 表示没有可复用参数，或用户尚未触发复用/重试动作。
  * @property actionMessage 等待页面展示的一次性操作提示语义。
@@ -162,6 +131,8 @@ data class TaskHistoryUiState(
     val selectedDetail: GenerationHistoryItem? = null,
     val selectedOutput: GenerationHistoryOutput? = null,
     val isDetailLoading: Boolean = false,
+    val selectedTaskDetail: GenerationTaskDetail? = null,
+    val isTaskDetailLoading: Boolean = false,
     val reuseParams: Map<String, String> = emptyMap(),
     val actionMessage: TaskHistoryActionMessage? = null,
     val error: TaskHistoryPresentationError? = null,
@@ -187,20 +158,20 @@ data class TaskHistoryUiState(
  * `null` 表示任务没有可打开输出；非空时可传给详情接口加载完整输出上下文。
  * @property thumbnailUrl 第一项输出的缩略图或原图 URL。
  * `null` 表示当前任务没有可预览图片；非空值可能是远程 URL，访问权限和有效期由服务端控制。
+ * @property costAmount 服务端返回的任务实际消耗金额。
+ * 该字段保持领域层数值，不生成最终展示文案；`0.0` 表示免费、未扣费或服务端未返回。
+ * @property costCurrency 服务端返回的金额单位或币种。
+ * `null` 表示服务端未声明，UI 不得假设默认币种。
  * @property outputCount 当前任务输出数量，单位为个。
  * `0` 表示没有输出；不允许为负数。该值只用于列表展示，不代表详情接口中的最新数量。
- * @property costText 当前任务费用展示语义。
- * 该字段不得保存最终金额文案；UI 应通过 Compose Resources 把语义映射为可本地化展示值。
- * @property outputCountText 当前任务输出数量展示语义。
- * 该字段不得保存最终中文文案；UI 应通过 Compose Resources 把语义映射为可本地化展示值。
  * @property canViewOutput 是否允许用户查看输出。
  * `true` 表示至少存在一个输出 ID；`false` 表示没有可打开输出，查看按钮应隐藏或禁用。
  * @property canReuseParams 是否允许用户复用本次任务参数。
  * `true` 表示历史项包含非空参数快照；`false` 表示无参数可复用。
  * @property canRetry 是否允许用户按失败任务准备重试参数。
- * `true` 表示任务状态属于失败集合；`false` 表示当前状态不应展示重试入口。
+ * `true` 表示任务失败且存在参数快照；`false` 表示当前状态或来源不应展示重试入口。
  * @property canCancel 是否允许用户发起取消请求。
- * `true` 表示任务仍处于非终态；`false` 表示任务已成功、失败或取消，客户端不再发起取消。
+ * `true` 表示任务仍处于非终态且当前来源支持取消；`false` 表示任务已进入终态或来源不支持取消。
  */
 data class TaskHistoryEntry(
     val taskId: String,
@@ -210,9 +181,9 @@ data class TaskHistoryEntry(
     val source: String,
     val outputId: String? = null,
     val thumbnailUrl: String? = null,
+    val costAmount: Double = 0.0,
+    val costCurrency: String? = null,
     val outputCount: Int = 0,
-    val costText: TaskHistoryCostText = TaskHistoryCostText.DEFAULT,
-    val outputCountText: TaskHistoryOutputCountText = TaskHistoryOutputCountText.COMPLETED,
     val canViewOutput: Boolean = false,
     val canReuseParams: Boolean = false,
     val canRetry: Boolean = false,
@@ -228,12 +199,15 @@ data class TaskHistoryEntry(
  *
  * @param generationHistoryRepository 历史任务仓库接口，负责列表、详情和取消任务请求。
  * @param coroutineScope 页面生命周期绑定的协程作用域；该作用域取消后，本类发起的异步任务也应停止。
+ * @param historyInvalidations 任务提交或终态变化触发的外部刷新信号。
+ * 收到信号后会静默刷新列表，并做一次延迟补刷以覆盖服务端历史写入的短暂延迟。
  * @param enablePolling 是否启用进行中任务的后台轮询。
  * `true` 表示列表中存在非终态任务时每 10 秒刷新一次；`false` 主要用于单元测试或临时禁用轮询。
  */
 class TaskHistoryStateHolder(
     private val generationHistoryRepository: GenerationHistoryRepository,
     private val coroutineScope: CoroutineScope,
+    historyInvalidations: Flow<Unit> = emptyFlow(),
     private val enablePolling: Boolean = true,
 ) {
     private val _uiState = MutableStateFlow(TaskHistoryUiState())
@@ -247,6 +221,12 @@ class TaskHistoryStateHolder(
     val uiState: StateFlow<TaskHistoryUiState> = _uiState.asStateFlow()
 
     private var pollingJob: Job? = null
+    private var invalidationEventsJob: Job? = null
+    private var invalidationRefreshJob: Job? = null
+
+    init {
+        observeTaskHistoryInvalidations(historyInvalidations)
+    }
 
     /**
      * 加载第一页历史记录。
@@ -305,6 +285,53 @@ class TaskHistoryStateHolder(
                     }
                 }
         }
+    }
+
+    /**
+     * 打开指定任务的完整详情抽屉。
+     *
+     * @param taskId 历史任务 ID，来源于列表卡片。
+     * 详情请求使用 Repository 的任务详情契约，StateHolder 只保存脱敏后的领域模型；失败时输出稳定错误语义。
+     */
+    fun openTaskDetail(taskId: String) {
+        coroutineScope.launch {
+            _uiState.update {
+                it.copy(
+                    isTaskDetailLoading = true,
+                    selectedTaskDetail = null,
+                    error = null,
+                    actionMessage = null,
+                )
+            }
+            generationHistoryRepository.getTaskDetail(taskId)
+                .onSuccess { detail ->
+                    _uiState.update {
+                        it.copy(
+                            selectedTaskDetail = detail,
+                            isTaskDetailLoading = false,
+                            error = null,
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _uiState.update {
+                        it.copy(
+                            selectedTaskDetail = null,
+                            isTaskDetailLoading = false,
+                            error = error.toHistoryPresentationError(TaskHistoryPresentationError.DetailLoadFailed),
+                        )
+                    }
+                }
+        }
+    }
+
+    /**
+     * 关闭任务详情抽屉。
+     *
+     * 该动作只清理当前详情展示态，不影响列表数据、筛选条件或已准备的复用参数。
+     */
+    fun closeTaskDetail() {
+        _uiState.update { it.copy(selectedTaskDetail = null, isTaskDetailLoading = false) }
     }
 
     /**
@@ -379,6 +406,23 @@ class TaskHistoryStateHolder(
     fun dispose() {
         pollingJob?.cancel()
         pollingJob = null
+        invalidationRefreshJob?.cancel()
+        invalidationRefreshJob = null
+        invalidationEventsJob?.cancel()
+        invalidationEventsJob = null
+    }
+
+    private fun observeTaskHistoryInvalidations(historyInvalidations: Flow<Unit>) {
+        invalidationEventsJob = coroutineScope.launch {
+            historyInvalidations.collect {
+                invalidationRefreshJob?.cancel()
+                invalidationRefreshJob = launch {
+                    refreshHistory(showLoading = false)
+                    delay(HISTORY_INVALIDATION_FOLLOW_UP_DELAY_MILLIS)
+                    refreshHistory(showLoading = false)
+                }
+            }
+        }
     }
 
     private suspend fun refreshHistory(showLoading: Boolean) {
@@ -426,6 +470,7 @@ class TaskHistoryStateHolder(
 }
 
 private const val HISTORY_POLLING_INTERVAL_MILLIS = 10_000L
+private const val HISTORY_INVALIDATION_FOLLOW_UP_DELAY_MILLIS = 2_000L
 
 private fun List<GenerationHistoryItem>.toEntries(filter: TaskHistoryFilter): List<TaskHistoryEntry> =
     filterByStatus(filter).map { it.toTaskHistoryEntry() }
@@ -448,13 +493,13 @@ private fun GenerationHistoryItem.toTaskHistoryEntry(): TaskHistoryEntry {
         source = source.key,
         outputId = primaryOutput?.outputId,
         thumbnailUrl = primaryOutput?.thumbnailUrl ?: primaryOutput?.url,
+        costAmount = costAmount,
+        costCurrency = costCurrency,
         outputCount = outputs.size,
-        costText = titleText.toHistoryCostText(status),
-        outputCountText = titleText.toHistoryOutputCountText(status),
         canViewOutput = primaryOutput != null,
         canReuseParams = params.isNotEmpty(),
-        canRetry = status.isFailedStatus(),
-        canCancel = isRunning,
+        canRetry = status.isFailedStatus() && params.isNotEmpty(),
+        canCancel = isRunning && source == GenerationHistorySource.QUICK_CREATION,
     )
 }
 
@@ -500,25 +545,3 @@ private fun String.isFailedStatus(): Boolean =
 
 private fun String.isCancelledStatus(): Boolean =
     uppercase() in setOf("CANCELED", "CANCELLED")
-
-private fun String.toHistoryCostText(status: String): TaskHistoryCostText = when {
-    containsAnyTitleHint(HISTORY_VIDEO_TITLE_HINTS) -> TaskHistoryCostText.VIDEO
-    containsAnyTitleHint(HISTORY_CHARACTER_TITLE_HINTS) -> TaskHistoryCostText.CHARACTER
-    status.isFailedStatus() -> TaskHistoryCostText.FAILED
-    else -> TaskHistoryCostText.DEFAULT
-}
-
-private fun String.toHistoryOutputCountText(status: String): TaskHistoryOutputCountText = when {
-    status.isFailedStatus() -> TaskHistoryOutputCountText.FAILED
-    !status.isCompletedStatus() -> TaskHistoryOutputCountText.RUNNING
-    containsAnyTitleHint(HISTORY_VIDEO_TITLE_HINTS) -> TaskHistoryOutputCountText.VIDEO
-    else -> TaskHistoryOutputCountText.COMPLETED
-}
-
-private fun String.containsAnyTitleHint(hints: List<String>): Boolean {
-    val normalized = lowercase()
-    return hints.any { hint -> normalized.contains(hint) }
-}
-
-private val HISTORY_VIDEO_TITLE_HINTS = listOf("\u89c6\u9891", "video")
-private val HISTORY_CHARACTER_TITLE_HINTS = listOf("\u89d2\u8272", "character")

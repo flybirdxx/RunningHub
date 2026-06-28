@@ -73,6 +73,13 @@ data class UploadResult(
  * @property createTime 创建时间文案。
  * @property taskName 任务名称。
  * @property webappId 来源 WebApp ID。
+ * @property taskCategoryCode 任务来源类别编码，例如 WEBAPP_API、FAST_CREATE 或 WORKFLOW。
+ * @property taskCategoryDisplay 服务端面向控制台展示的来源类别。
+ * @property taskRelation 父子任务关系，例如 PARENT、CHILD 或 NORMAL。
+ * @property parentTaskId 父任务 ID；普通任务或父任务为空。
+ * @property moneyAmount 钱包计费金额；为空表示服务端未返回或当前任务按 RH 币计费。
+ * @property currency 钱包金额币种，例如 CNY。
+ * @property coinAmount RH 币消耗数量；为空表示服务端未返回。
  */
 data class TaskHistoryItem(
     val taskId: String?,
@@ -82,6 +89,13 @@ data class TaskHistoryItem(
     val createTime: String?,
     val taskName: String?,
     val webappId: String?,
+    val taskCategoryCode: String? = null,
+    val taskCategoryDisplay: String? = null,
+    val taskRelation: String? = null,
+    val parentTaskId: String? = null,
+    val moneyAmount: Double? = null,
+    val currency: String? = null,
+    val coinAmount: Double? = null,
 )
 
 /**

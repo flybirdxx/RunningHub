@@ -37,6 +37,7 @@ actual fun VideoThumbnail(
     posterUrl: String?,
     autoPlay: Boolean,
     cropToFill: Boolean,
+    playAudio: Boolean,
     onPlaybackProgressChange: ((VideoPlaybackProgress) -> Unit)?,
     seekRequest: VideoPlaybackSeekRequest?,
 ) {
@@ -62,7 +63,7 @@ actual fun VideoThumbnail(
                 ExoPlayer.Builder(context).build().apply {
                     setMediaItem(MediaItem.fromUri(cleanUrl))
                     repeatMode = Player.REPEAT_MODE_ALL
-                    volume = 0f
+                    volume = videoThumbnailPlaybackVolume(playAudio)
                     videoScalingMode = if (cropToFill) {
                         C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
                     } else {
@@ -157,6 +158,7 @@ actual fun VideoThumbnail(
                     if (playerView.player !== exoPlayer) {
                         playerView.player = exoPlayer
                     }
+                    exoPlayer.volume = videoThumbnailPlaybackVolume(playAudio)
                     exoPlayer.videoScalingMode = if (cropToFill) {
                         C.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
                     } else {

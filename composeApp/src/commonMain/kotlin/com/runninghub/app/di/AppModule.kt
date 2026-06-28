@@ -6,7 +6,10 @@ import com.runninghub.app.ui.feature.community.CommunityScreenModel
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreenModel
 import com.runninghub.app.ui.feature.detail.AppDetailScreenModel
 import com.runninghub.app.ui.feature.discovery.DiscoveryScreenModel
-import com.runninghub.app.ui.feature.history.QuickCreateGenerationHistoryRepositoryAdapter
+import com.runninghub.app.ui.feature.history.TaskHistoryInvalidationBus
+import com.runninghub.app.ui.feature.history.TaskHistoryScreenModel
+import com.runninghub.app.ui.feature.history.UnifiedGenerationHistoryRepository
+import com.runninghub.app.ui.feature.history.WebAppTaskHistoryOverlayStore
 import com.runninghub.app.ui.feature.login.LoginScreenModel
 import com.runninghub.app.ui.feature.plaza.PlazaScreenModel
 import com.runninghub.app.ui.feature.profile.ProfileScreenModel
@@ -15,6 +18,8 @@ import com.runninghub.app.ui.feature.search.SearchScreenModel
 import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationStateHolderFactory
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
+import com.runninghub.feature.task.presentation.TaskHistoryInvalidationEvents
+import com.runninghub.feature.task.presentation.TaskHistoryInvalidationNotifier
 import kotlinx.coroutines.Dispatchers
 import org.koin.core.module.dsl.factoryOf
 import org.koin.dsl.module
@@ -31,10 +36,14 @@ val appModule = module {
     single<QuickCreateMediaResolver> {
         MediaResolverQuickCreateMediaResolver(get<MediaResolver>())
     }
-    // 通用历史页已依赖 Task Domain 契约，迁移期仍用唯一兼容桥连接 QuickCreate 历史源。
-    // 删除条件是 feature:task:data 正式提供完整 GenerationHistoryRepository，而不是只接入 WebApp 历史列表。
-    single<GenerationHistoryRepository> { QuickCreateGenerationHistoryRepositoryAdapter(get()) }
+    single { TaskHistoryInvalidationBus() }
+    single { WebAppTaskHistoryOverlayStore() }
+    single<TaskHistoryInvalidationEvents> { get<TaskHistoryInvalidationBus>() }
+    single<TaskHistoryInvalidationNotifier> { get<TaskHistoryInvalidationBus>() }
+    // 通用历史页已依赖 Task Domain 契约；迁移期由 composeApp 聚合当前已接入的 QuickCreate 与 WebApp 历史源。
+    single<GenerationHistoryRepository> { UnifiedGenerationHistoryRepository(get(), get(), get()) }
     single {
+        val historyInvalidationNotifier = get<TaskHistoryInvalidationNotifier>()
         QuickCreatePresentationStateHolderFactory(
             historyRepository = get(),
             modelCatalogRepository = get(),
@@ -46,6 +55,7 @@ val appModule = module {
             draftRepository = get(),
             modelSelectionRepository = get(),
             ioDispatcher = Dispatchers.Default,
+            onTaskHistoryInvalidated = historyInvalidationNotifier::notifyTaskHistoryInvalidated,
         )
     }
 
@@ -61,7 +71,15 @@ val appModule = module {
             webAppCatalogRepository = get(),
             webAppTaskRepository = get(),
             mediaResolver = get(),
+            taskHistoryInvalidationNotifier = get(),
+            webAppTaskHistoryOverlayStore = get(),
             ioDispatcher = Dispatchers.Default,
+        )
+    }
+    factory {
+        TaskHistoryScreenModel(
+            generationHistoryRepository = get(),
+            historyInvalidationEvents = get(),
         )
     }
     factoryOf(::CreatorProfileScreenModel)

@@ -237,20 +237,20 @@ HTML 只负责 HTML/JavaScript 转义和插入 TAC 配置，不再硬编码最�
 - `QuickCreateResultContent` 删除 `Custom` 渲染分支。
 - `LongTermGovernancePlugin` 新增 `checkQuickCreateTaskStatusTextGuard`，防止任务状态文案模型和结果区映射恢复 `Custom`。
 
-### 2026-06-22 History 运行时标题启发式下沉
+### 2026-06-28 History 费用和输出数量改用服务端字段
 
 已复核 `TaskHistoryUiState`、`TaskHistoryEntry` 和 `TaskHistoryScreen` 的费用/输出数量展示链路。
-此前 `composeApp` 直接通过 `TaskHistoryEntry.title.contains("\u89c6\u9891")` 和
-`"\u89d2\u8272"` 推断费用档位与输出数量文案。本批将该运行时标题启发式集中到
-`feature:task:presentation`，由 `TaskHistoryCostText` 与 `TaskHistoryOutputCountText`
-输出稳定语义；`TaskHistoryScreen` 只负责把语义映射到 Compose Resources。
+此前 `composeApp` 和 Presentation 曾通过任务标题、状态和固定资源推断费用档位、输出数量、
+运行中百分比与时间信息，导致历史卡片出现非服务端真实数据。本批改为由
+`feature:task:presentation` 保留 `costAmount`、`costCurrency` 和实际 `outputs.size`，
+`TaskHistoryScreen` 只负责把服务端字段格式化为 Compose 展示。
 
 同步完成：
 
-- `TaskHistoryEntry` 增加费用和输出数量展示语义字段，字段注释明确不得保存最终文案。
-- `TaskHistoryScreen` 删除标题关键字判断和金额硬编码，费用与输出数量均通过资源映射。
-- `TaskHistoryStateHolderTest` 覆盖角色、视频、运行中和失败态的语义推断。
-- `LongTermGovernancePlugin` 新增 `checkTaskHistoryPresentationTextGuard`，防止 History Compose 页面恢复标题启发式。
+- `TaskHistoryEntry` 改为保留服务端费用金额、币种和实际输出数量，字段注释明确不得保存最终文案。
+- `TaskHistoryScreen` 删除标题关键字判断、金额硬编码、固定进度和固定日期时间资源。
+- `TaskHistoryStateHolderTest` 覆盖成功、运行中和失败态的服务端费用与输出数量透传。
+- `LongTermGovernancePlugin` 更新 `checkTaskHistoryPresentationTextGuard`，防止 History 恢复标题启发式或固定历史参数资源。
 
 ## 剩余问题清单
 

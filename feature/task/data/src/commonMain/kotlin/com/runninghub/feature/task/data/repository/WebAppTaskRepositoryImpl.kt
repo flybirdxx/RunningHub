@@ -10,16 +10,25 @@ import com.runninghub.core.model.TaskResult
 import com.runninghub.core.model.UploadResult
 import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.task.data.remote.api.WebAppTaskApi
+import com.runninghub.feature.task.data.remote.dto.BillingUsageWideDetailsRequestDto
+import com.runninghub.feature.task.data.remote.dto.OpenApiCallLogDetailRequestDto
 import com.runninghub.feature.task.data.remote.dto.TaskBaseResponseDto
 import com.runninghub.feature.task.data.remote.dto.TaskHistoryRequestDto
 import com.runninghub.feature.task.data.remote.dto.TaskRunRequestDto
 import com.runninghub.feature.task.data.remote.dto.TaskStatusRequestDto
+import com.runninghub.feature.task.data.remote.dto.toHistoryDomain
 import com.runninghub.feature.task.data.remote.dto.toDomain
 import com.runninghub.feature.task.data.remote.dto.toDto
 import com.runninghub.feature.task.domain.WebAppTaskHistoryRepository
 import com.runninghub.feature.task.domain.WebAppTaskException
 import com.runninghub.feature.task.domain.WebAppTaskIssue
 import com.runninghub.feature.task.domain.WebAppTaskRepository
+import com.runninghub.feature.task.domain.GenerationTaskDetail
+import kotlinx.datetime.Clock
+import kotlinx.datetime.DatePeriod
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.minus
+import kotlinx.datetime.toLocalDateTime
 
 /**
  * WebApp 任务和上传仓库的 Task Data 实现。
@@ -109,20 +118,79 @@ class WebAppTaskRepositoryImpl(
     }
 
     /**
-     * 分页读取当前 API Key 的 WebApp 任务历史。
+     * 分页读取当前登录用户的控制台任务历史。
      *
-     * 历史接口仍是旧 `/api/output/v2/history`，Data 层负责把分页 records 映射为领域列表。
+     * Web 控制台“任务与账单”页使用 `/api/billing/usage/wideDetails` 承载所有任务记录，
+     * 包括 AI 应用、模型 API、工作流、快捷创作以及尚未产出 output 的运行中任务。
+     * 旧 `/api/output/v2/history` 只返回输出历史，不能作为 History 页的任务列表主数据源。
      */
     override suspend fun getTaskHistory(
         pageNum: Int,
         pageSize: Int,
     ): Result<List<TaskHistoryItem>> = runCatching {
-        val apiKey = requireApiKey()
-        val response = api.getTaskHistory(TaskHistoryRequestDto(apiKey = apiKey, pageNum = pageNum, pageSize = pageSize))
-        response.requireTaskData(
+        val safePage = pageNum.coerceAtLeast(1)
+        val safePageSize = pageSize.coerceAtLeast(1)
+        val requestedSize = (safePage * safePageSize).coerceAtMost(BILLING_HISTORY_MAX_PAGE_SIZE)
+        val response = api.getBillingUsageWideDetails(
+            billingHistoryRequest(size = requestedSize)
+        )
+        val billingItems = response.requireTaskData(
             failedIssue = WebAppTaskIssue.TaskHistoryFailed,
             missingIssue = WebAppTaskIssue.TaskHistoryMissing,
-        ).records.map { it.toDomain() }
+        ).records
+            .drop((safePage - 1) * safePageSize)
+            .take(safePageSize)
+            .map { it.toHistoryDomain() }
+        val outputSupplementsByTaskId = loadOutputHistorySupplements(size = requestedSize)
+            .associateBy { it.taskId }
+
+        billingItems
+            .map { item -> item.mergeOutputSupplement(outputSupplementsByTaskId[item.taskId]) }
+            .withChildOutputsAttachedToParents()
+    }
+
+    /**
+     * 读取控制台任务详情。
+     *
+     * 详情接口使用登录态认证，不需要 API Key。返回的请求信息可能含有服务端保存的原始 API Key，
+     * 因此必须经过 mapper 脱敏后才能进入领域模型。
+     */
+    override suspend fun getTaskDetail(taskId: String): Result<GenerationTaskDetail> = runCatching {
+        val response = api.getOpenApiCallLogDetail(OpenApiCallLogDetailRequestDto(taskId = taskId))
+        response.requireTaskData(
+            failedIssue = WebAppTaskIssue.TaskDetailFailed,
+            missingIssue = WebAppTaskIssue.TaskDetailMissing,
+        ).toDomain(taskId)
+    }
+
+    private fun billingHistoryRequest(size: Int): BillingUsageWideDetailsRequestDto {
+        val today = Clock.System.now()
+            .toLocalDateTime(TimeZone.of(BILLING_HISTORY_TIME_ZONE))
+            .date
+        val startDate = today.minus(DatePeriod(days = BILLING_HISTORY_LOOKBACK_DAYS - 1))
+        return BillingUsageWideDetailsRequestDto(
+            startDateTime = "$startDate 00:00:00",
+            endDateTime = "$today 23:59:59",
+            size = size,
+            includeStats = true,
+            includeChildTasks = true,
+        )
+    }
+
+    private suspend fun loadOutputHistorySupplements(size: Int): List<TaskHistoryItem> {
+        val apiKey = credentialStore.getApiKey()?.takeIf { it.isNotBlank() } ?: return emptyList()
+        return runCatching {
+            api.getTaskHistory(
+                TaskHistoryRequestDto(
+                    apiKey = apiKey,
+                    pageNum = 1,
+                    pageSize = size,
+                )
+            ).requireTaskData(
+                failedIssue = WebAppTaskIssue.TaskHistoryFailed,
+                missingIssue = WebAppTaskIssue.TaskHistoryMissing,
+            ).records.map { it.toDomain() }
+        }.getOrElse { emptyList() }
     }
 
     private suspend fun requireApiKey(): String {
@@ -143,3 +211,30 @@ class WebAppTaskRepositoryImpl(
         return data ?: throw WebAppTaskException(missingIssue)
     }
 }
+
+private fun TaskHistoryItem.mergeOutputSupplement(supplement: TaskHistoryItem?): TaskHistoryItem =
+    if (outputs.isEmpty() && supplement?.outputs?.isNotEmpty() == true) {
+        copy(outputs = supplement.outputs)
+    } else {
+        this
+    }
+
+private fun List<TaskHistoryItem>.withChildOutputsAttachedToParents(): List<TaskHistoryItem> {
+    val childOutputsByParentTaskId = filter { item ->
+        !item.parentTaskId.isNullOrBlank() && item.outputs.isNotEmpty()
+    }.groupBy { item -> item.parentTaskId }
+        .mapValues { (_, children) -> children.flatMap { it.outputs } }
+
+    return map { item ->
+        val childOutputs = childOutputsByParentTaskId[item.taskId].orEmpty()
+        if (item.outputs.isEmpty() && childOutputs.isNotEmpty()) {
+            item.copy(outputs = childOutputs)
+        } else {
+            item
+        }
+    }
+}
+
+private const val BILLING_HISTORY_LOOKBACK_DAYS = 365
+private const val BILLING_HISTORY_MAX_PAGE_SIZE = 200
+private const val BILLING_HISTORY_TIME_ZONE = "Asia/Shanghai"

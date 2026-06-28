@@ -4,6 +4,7 @@ import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
 import com.runninghub.feature.task.presentation.TaskHistoryFilter
+import com.runninghub.feature.task.presentation.TaskHistoryInvalidationEvents
 import com.runninghub.feature.task.presentation.TaskHistoryStateHolder
 import com.runninghub.feature.task.presentation.TaskHistoryUiState
 import kotlinx.coroutines.flow.StateFlow
@@ -15,16 +16,19 @@ import kotlinx.coroutines.flow.StateFlow
  * 本类只负责把 Voyager 的 [screenModelScope] 传入并在页面销毁时释放轮询。
  *
  * @param generationHistoryRepository 历史任务仓库接口，由 Koin 从 Task Data 实现绑定注入。
+ * @param historyInvalidationEvents 其他创作入口发出的历史刷新信号。
  * @param enablePolling 是否启用 History 页面后台轮询。
  * `true` 表示存在运行中任务时按 Presentation 层策略刷新；`false` 主要用于测试或临时禁用。
  */
 class TaskHistoryScreenModel(
     generationHistoryRepository: GenerationHistoryRepository,
+    historyInvalidationEvents: TaskHistoryInvalidationEvents,
     enablePolling: Boolean = true,
 ) : ScreenModel {
     private val stateHolder = TaskHistoryStateHolder(
         generationHistoryRepository = generationHistoryRepository,
         coroutineScope = screenModelScope,
+        historyInvalidations = historyInvalidationEvents.invalidations,
         enablePolling = enablePolling,
     )
 
@@ -60,6 +64,22 @@ class TaskHistoryScreenModel(
      */
     fun selectOutput(outputId: String) {
         stateHolder.selectOutput(outputId)
+    }
+
+    /**
+     * 打开任务详情抽屉。
+     *
+     * @param taskId 历史任务 ID。
+     */
+    fun openTaskDetail(taskId: String) {
+        stateHolder.openTaskDetail(taskId)
+    }
+
+    /**
+     * 关闭任务详情抽屉。
+     */
+    fun closeTaskDetail() {
+        stateHolder.closeTaskDetail()
     }
 
     /**

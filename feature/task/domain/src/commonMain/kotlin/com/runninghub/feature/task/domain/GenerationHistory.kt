@@ -91,6 +91,98 @@ data class GenerationHistoryOutput(
 }
 
 /**
+ * 统一生成任务详情。
+ *
+ * 该模型用于 History 页点击任务卡片后展示控制台详情抽屉。它只保存领域可用字段和已经脱敏的
+ * 请求/响应信息，不携带远端 DTO、endpoint、认证头或最终 UI 文案。
+ *
+ * @property taskId 服务端任务稳定标识。
+ * @property title 任务名称；为空表示服务端未返回可展示标题。
+ * @property sourceLabel 任务来源原始标签，例如 API、WEBAPP 或模型类别；最终文案由 UI 映射。
+ * @property status 服务端任务状态原始字符串；Presentation 负责映射为稳定展示状态。
+ * @property duration 服务端返回的任务耗时，当前保留原始秒数或格式化文本，不在领域层换算。
+ * @property rhCoins RH 币消耗数量文本；为空表示服务端未返回或该任务不按 RH 币计费。
+ * @property finalAmount 优惠后金额或服务端声明的最终金额文本；为空表示服务端未返回。
+ * @property outputs 详情接口返回的任务输出文件列表。
+ * @property basicFields 基础信息字段集合，字段名使用稳定枚举，UI 决定最终中文标签。
+ * @property costFields 计费信息字段集合，字段名使用稳定枚举，UI 决定最终中文标签。
+ * @property requestInfo 已脱敏后的请求 JSON 文本；为空表示服务端未返回。
+ * @property responseInfo 已脱敏后的响应 JSON 文本；为空表示服务端未返回。
+ */
+data class GenerationTaskDetail(
+    val taskId: String,
+    val title: String? = null,
+    val sourceLabel: String? = null,
+    val status: String,
+    val duration: String? = null,
+    val rhCoins: String? = null,
+    val finalAmount: String? = null,
+    val outputs: List<GenerationHistoryOutput> = emptyList(),
+    val basicFields: List<GenerationTaskDetailField> = emptyList(),
+    val costFields: List<GenerationTaskDetailField> = emptyList(),
+    val requestInfo: String? = null,
+    val responseInfo: String? = null,
+)
+
+/**
+ * 任务详情中的一行键值信息。
+ *
+ * @property key 稳定字段语义，UI 层据此映射本地化标签。
+ * @property value 服务端返回或 Data 层归一化后的值；空白值不会进入字段集合。
+ */
+data class GenerationTaskDetailField(
+    val key: GenerationTaskDetailFieldKey,
+    val value: String,
+)
+
+/**
+ * 任务详情字段的稳定语义。
+ */
+enum class GenerationTaskDetailFieldKey {
+    /** 任务 ID。 */
+    TASK_ID,
+
+    /** 发起时间。 */
+    CALL_TIME,
+
+    /** 任务名称。 */
+    TASK_NAME,
+
+    /** 任务来源。 */
+    TASK_SOURCE,
+
+    /** 调用方式。 */
+    CALL_TYPE,
+
+    /** 账户。 */
+    ACCOUNT,
+
+    /** 密钥信息。 */
+    API_KEY,
+
+    /** 密钥类型。 */
+    API_KEY_TYPE,
+
+    /** 运行模式。 */
+    MODE,
+
+    /** 原始费用金额。 */
+    ORIGINAL_AMOUNT,
+
+    /** 折扣系数。 */
+    DISCOUNT_RATIO,
+
+    /** 优惠金额。 */
+    DISCOUNT_AMOUNT,
+
+    /** 优惠后金额。 */
+    FINAL_AMOUNT,
+
+    /** RH 币消耗。 */
+    RH_COINS,
+}
+
+/**
  * 统一历史任务来源。
  *
  * @property key 稳定来源标识，供兼容 UI 或埋点区分历史任务来源。
@@ -98,6 +190,12 @@ data class GenerationHistoryOutput(
 enum class GenerationHistorySource(val key: String) {
     /** QuickCreate 快捷创作任务。 */
     QUICK_CREATION("quick_creation"),
+
+    /** WebApp 旧任务历史。 */
+    WEBAPP("webapp"),
+
+    /** 工作流任务。 */
+    WORKFLOW("workflow"),
 
     /** 标准模型或旧模型 API 任务。 */
     STANDARD_MODEL("standard_model"),

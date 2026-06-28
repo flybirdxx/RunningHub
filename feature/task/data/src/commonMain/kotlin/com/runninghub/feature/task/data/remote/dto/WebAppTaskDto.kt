@@ -2,6 +2,7 @@ package com.runninghub.feature.task.data.remote.dto
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.JsonElement
 
 /**
  * WebApp API 调用示例详情 DTO。
@@ -203,6 +204,158 @@ data class TaskHistoryRequestDto(
     @SerialName("apiKey") val apiKey: String,
     @SerialName("pageNum") val pageNum: Int,
     @SerialName("pageSize") val pageSize: Int,
+)
+
+/**
+ * 控制台任务宽表请求 DTO。
+ *
+ * 该接口来自 Web 控制台 `/api/billing/usage/wideDetails`，可返回所有任务来源的状态与费用记录，
+ * 包括尚未生成 output 的运行中任务。请求使用登录态 Authorization/Cookie，不携带 API Key。
+ *
+ * @property startDateTime 查询开始时间，北京时间格式 `yyyy-MM-dd HH:mm:ss`。
+ * @property endDateTime 查询结束时间，北京时间格式 `yyyy-MM-dd HH:mm:ss`。
+ * @property size 每页任务数量。
+ * @property includeStats 是否返回汇总统计。
+ * @property includeChildTasks 是否在主列表中带出子任务记录。
+ */
+@Serializable
+data class BillingUsageWideDetailsRequestDto(
+    @SerialName("startDateTime") val startDateTime: String,
+    @SerialName("endDateTime") val endDateTime: String,
+    @SerialName("size") val size: Int,
+    @SerialName("includeStats") val includeStats: Boolean = true,
+    @SerialName("includeChildTasks") val includeChildTasks: Boolean = true,
+)
+
+/**
+ * 控制台任务宽表分页 DTO。
+ *
+ * @property records 当前页任务记录。
+ * @property total 服务端总数；该接口可能返回 null。
+ * @property hasNext 是否还有下一页。
+ * @property nextCursor 下一页游标；当前历史页先读取首屏，后续分页可基于该字段扩展。
+ */
+@Serializable
+data class BillingUsageWideDetailsDataDto(
+    @SerialName("records") val records: List<BillingUsageTaskDto> = emptyList(),
+    @SerialName("total") val total: Int? = null,
+    @SerialName("hasNext") val hasNext: Boolean = false,
+    @SerialName("nextCursor") val nextCursor: String? = null,
+)
+
+/**
+ * 控制台任务宽表记录 DTO。
+ *
+ * 字段来自账单控制台，包含任务状态、父子关系、来源类型和费用信息。敏感字段如 apiKey 虽然服务端会返回，
+ * 但 DTO 不声明、不解析，避免进入客户端领域模型或日志。
+ */
+@Serializable
+data class BillingUsageTaskDto(
+    @SerialName("taskId") val taskId: String? = null,
+    @SerialName("taskName") val taskName: String? = null,
+    @SerialName("skuName") val skuName: String? = null,
+    @SerialName("skuNameCn") val skuNameCn: String? = null,
+    @SerialName("workflowName") val workflowName: String? = null,
+    @SerialName("taskStatus") val taskStatus: String? = null,
+    @SerialName("createTime") val createTime: String? = null,
+    @SerialName("taskStartTime") val taskStartTime: String? = null,
+    @SerialName("moneyDuration") val moneyDuration: String? = null,
+    @SerialName("coinUsedDuration") val coinUsedDuration: String? = null,
+    @SerialName("currency") val currency: String? = null,
+    @SerialName("moneyAmount") val moneyAmount: Double? = null,
+    @SerialName("coinAmount") val coinAmount: Double? = null,
+    @SerialName("taskCategoryCode") val taskCategoryCode: String? = null,
+    @SerialName("taskCategoryDisplay") val taskCategoryDisplay: String? = null,
+    @SerialName("originalTaskCategory") val originalTaskCategory: String? = null,
+    @SerialName("taskResourceType") val taskResourceType: String? = null,
+    @SerialName("taskRelation") val taskRelation: String? = null,
+    @SerialName("parentTaskId") val parentTaskId: String? = null,
+    @SerialName("webappId") val webappId: String? = null,
+    @SerialName("workflowId") val workflowId: String? = null,
+    @SerialName("skuId") val skuId: String? = null,
+)
+
+/**
+ * 控制台任务详情请求 DTO。
+ *
+ * 详情接口与 Web 控制台任务详情抽屉一致；浏览器验证显示登录态 Authorization 已足以定位当前用户，
+ * 请求体只需要任务 ID，不携带 API Key、Cookie 或 userId。
+ *
+ * @property taskId 服务端任务稳定标识。
+ */
+@Serializable
+data class OpenApiCallLogDetailRequestDto(
+    @SerialName("taskId") val taskId: String,
+)
+
+/**
+ * 控制台任务详情 DTO。
+ *
+ * @property basicInfo 顶部摘要与基础任务字段。
+ * @property list 生成结果文件列表。
+ * @property costInfo 计费详情字段。
+ * @property requestInfo 原始请求参数；可能包含 API Key，映射前必须脱敏。
+ * @property responseInfo 原始响应对象；映射前必须递归脱敏。
+ */
+@Serializable
+data class OpenApiCallLogDetailDataDto(
+    @SerialName("basicInfo") val basicInfo: OpenApiCallLogBasicInfoDto? = null,
+    @SerialName("list") val list: List<TaskHistoryOutputDto> = emptyList(),
+    @SerialName("costInfo") val costInfo: OpenApiCallLogCostInfoDto? = null,
+    @SerialName("requestInfo") val requestInfo: OpenApiCallLogRequestInfoDto? = null,
+    @SerialName("responseInfo") val responseInfo: JsonElement? = null,
+)
+
+/**
+ * 控制台任务基础信息 DTO。
+ *
+ * 金额、RH 币和部分枚举字段在不同任务类型下可能以数字或字符串返回，因此使用 [JsonElement]
+ * 保留原始值，再由 mapper 转成安全文本。
+ */
+@Serializable
+data class OpenApiCallLogBasicInfoDto(
+    @SerialName("apiName") val apiName: String? = null,
+    @SerialName("apiType") val apiType: String? = null,
+    @SerialName("apiKeyType") val apiKeyType: JsonElement? = null,
+    @SerialName("taskStatus") val taskStatus: String? = null,
+    @SerialName("taskId") val taskId: String? = null,
+    @SerialName("callTime") val callTime: String? = null,
+    @SerialName("duration") val duration: JsonElement? = null,
+    @SerialName("amount") val amount: JsonElement? = null,
+    @SerialName("coinNum") val coinNum: JsonElement? = null,
+    @SerialName("callType") val callType: String? = null,
+    @SerialName("callMethod") val callMethod: String? = null,
+    @SerialName("account") val account: String? = null,
+    @SerialName("accountId") val accountId: String? = null,
+    @SerialName("apiKey") val apiKey: String? = null,
+    @SerialName("apiKeyName") val apiKeyName: String? = null,
+    @SerialName("mode") val mode: String? = null,
+)
+
+/**
+ * 控制台任务计费信息 DTO。
+ */
+@Serializable
+data class OpenApiCallLogCostInfoDto(
+    @SerialName("amount") val amount: JsonElement? = null,
+    @SerialName("coinNum") val coinNum: JsonElement? = null,
+    @SerialName("originalAmount") val originalAmount: JsonElement? = null,
+    @SerialName("originAmount") val originAmount: JsonElement? = null,
+    @SerialName("discountRatio") val discountRatio: JsonElement? = null,
+    @SerialName("discountRate") val discountRate: JsonElement? = null,
+    @SerialName("discountAmount") val discountAmount: JsonElement? = null,
+    @SerialName("finalAmount") val finalAmount: JsonElement? = null,
+    @SerialName("afterDiscountAmount") val afterDiscountAmount: JsonElement? = null,
+)
+
+/**
+ * 控制台任务请求信息 DTO。
+ *
+ * @property apiRequestParams 服务端保存的原始 OpenAPI 请求参数 JSON 字符串，可能包含 API Key。
+ */
+@Serializable
+data class OpenApiCallLogRequestInfoDto(
+    @SerialName("apiRequestParams") val apiRequestParams: String? = null,
 )
 
 /**

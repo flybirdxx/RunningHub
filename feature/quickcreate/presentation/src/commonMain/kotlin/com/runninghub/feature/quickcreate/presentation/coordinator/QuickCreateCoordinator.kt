@@ -60,6 +60,7 @@ import kotlinx.coroutines.flow.update
  * @param scope 页面生命周期协程作用域，所有局部组件的 Job 都绑定到该作用域。
  * @param uiState 页面唯一状态容器，由各局部组件按职责更新。
  * @param ioDispatcher 媒体字节读取使用的调度器；生产环境传 IO，测试环境可传测试调度器。
+ * @param onTaskHistoryInvalidated 远端任务被服务端接收或终态变化后触发的历史刷新信号。
  */
 class QuickCreateCoordinator(
     private val historyRepository: QuickCreationTaskHistoryRepository,
@@ -74,6 +75,7 @@ class QuickCreateCoordinator(
     private val feePreviewRepository: QuickCreationFeePreviewRepository,
     private val mediaUploadRepository: QuickCreationMediaUploadRepository,
     private val projectRepository: QuickCreationProjectRepository,
+    private val onTaskHistoryInvalidated: () -> Unit = {},
 ) {
     private val draftStateHolder = QuickCreateDraftStateHolder(
         draftRepository = draftRepository,
@@ -111,8 +113,14 @@ class QuickCreateCoordinator(
     )
     private val taskPollingController = QuickCreateTaskPollingController(
         uiState = uiState,
-        onTaskQueued = { clearDraft() },
-        onTaskSucceeded = { refreshCurrentHistoryArea() },
+        onTaskQueued = {
+            clearDraft()
+            onTaskHistoryInvalidated()
+        },
+        onTaskSucceeded = {
+            refreshCurrentHistoryArea()
+            onTaskHistoryInvalidated()
+        },
     )
     private val generationInteractor = QuickCreateGenerationInteractor(
         generationRepository = generationRepository,

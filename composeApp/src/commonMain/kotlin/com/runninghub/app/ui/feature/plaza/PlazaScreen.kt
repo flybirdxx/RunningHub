@@ -1,5 +1,6 @@
 package com.runninghub.app.ui.feature.plaza
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -18,13 +19,17 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.staggeredgrid.LazyVerticalStaggeredGrid
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
+import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
+import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
+import androidx.compose.foundation.lazy.staggeredgrid.itemsIndexed as staggeredItemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -156,6 +161,7 @@ class PlazaVoyagerScreen : Screen {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlazaScreenContent(
     uiState: PlazaUiState,
@@ -171,9 +177,8 @@ fun PlazaScreenContent(
     val windowInfo = LocalRhWindowInfo.current
     val columns = if (windowInfo.windowWidth < 340.dp) 1 else 2
     val showingShorts = uiState.mode == PlazaMode.SHORTS
-    val creationGridState = rememberLazyGridState()
+    val creationGridState = rememberLazyStaggeredGridState()
     val shortGridState = rememberLazyGridState()
-    val plazaGridState = if (showingShorts) shortGridState else creationGridState
     val currentOnLoadMoreCreations = rememberUpdatedState(onLoadMoreCreations)
     val currentOnLoadMoreShorts = rememberUpdatedState(onLoadMoreShorts)
     val previewItems = remember(uiState.creations) { plazaCreationPreviewItems(uiState.creations) }
@@ -184,43 +189,54 @@ fun PlazaScreenContent(
 
     // 滚动接近底部时自动触发分页；StateHolder 仍负责最终的重复请求保护。
     LaunchedEffect(
-        plazaGridState,
+        creationGridState,
         showingShorts,
         uiState.hasMore,
         uiState.isLoading,
         uiState.isLoadingMore,
         uiState.creations.size,
-        uiState.shortHasMore,
-        uiState.isShortsLoading,
-        uiState.shorts.size,
     ) {
+        if (showingShorts) return@LaunchedEffect
         snapshotFlow {
-            val layoutInfo = plazaGridState.layoutInfo
+            val layoutInfo = creationGridState.layoutInfo
             val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
-            if (showingShorts) {
-                plazaShouldAutoLoadMore(
-                    loadedItemCount = uiState.shorts.size,
-                    lastVisibleItemIndex = lastVisibleItemIndex,
-                    hasMore = uiState.shortHasMore,
-                    isLoading = uiState.isShortsLoading,
-                )
-            } else {
-                plazaShouldAutoLoadMore(
-                    loadedItemCount = uiState.creations.size,
-                    lastVisibleItemIndex = lastVisibleItemIndex,
-                    hasMore = uiState.hasMore,
-                    isLoading = uiState.isLoading || uiState.isLoadingMore,
-                )
-            }
+            plazaShouldAutoLoadMore(
+                loadedItemCount = uiState.creations.size,
+                lastVisibleItemIndex = lastVisibleItemIndex,
+                hasMore = uiState.hasMore,
+                isLoading = uiState.isLoading || uiState.isLoadingMore,
+            )
         }
             .distinctUntilChanged()
             .collect { shouldLoadMore ->
                 if (shouldLoadMore) {
-                    if (showingShorts) {
-                        currentOnLoadMoreShorts.value()
-                    } else {
-                        currentOnLoadMoreCreations.value()
-                    }
+                    currentOnLoadMoreCreations.value()
+                }
+            }
+    }
+
+    LaunchedEffect(
+        shortGridState,
+        showingShorts,
+        uiState.shortHasMore,
+        uiState.isShortsLoading,
+        uiState.shorts.size,
+    ) {
+        if (!showingShorts) return@LaunchedEffect
+        snapshotFlow {
+            val layoutInfo = shortGridState.layoutInfo
+            val lastVisibleItemIndex = layoutInfo.visibleItemsInfo.lastOrNull()?.index
+            plazaShouldAutoLoadMore(
+                loadedItemCount = uiState.shorts.size,
+                lastVisibleItemIndex = lastVisibleItemIndex,
+                hasMore = uiState.shortHasMore,
+                isLoading = uiState.isShortsLoading,
+            )
+        }
+            .distinctUntilChanged()
+            .collect { shouldLoadMore ->
+                if (shouldLoadMore) {
+                    currentOnLoadMoreShorts.value()
                 }
             }
     }
@@ -282,21 +298,21 @@ fun PlazaScreenContent(
                     !showingShorts && uiState.isLoading && uiState.creations.isEmpty() -> LoadingPanel()
                     errorMessage != null && showingShorts && uiState.shorts.isEmpty() -> ErrorPanel(errorMessage)
                     errorMessage != null && !showingShorts && uiState.creations.isEmpty() -> ErrorPanel(errorMessage)
-                    else -> LazyVerticalGrid(
-                        columns = GridCells.Fixed(columns),
-                        state = plazaGridState,
-                        modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(bottom = 92.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        if (showingShorts) {
+                    showingShorts -> {
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(columns),
+                            state = shortGridState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 92.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
                             if (uiState.shorts.isEmpty()) {
                                 item(span = { GridItemSpan(maxLineSpan) }) {
                                     EmptyTile(message = stringResource(Res.string.plaza_empty_shorts))
                                 }
                             } else {
-                                items(uiState.shorts, key = { it.id }) { card ->
+                                gridItemsIndexed(uiState.shorts, key = { _, card -> card.id }) { _, card ->
                                     val shortPreviewItem = plazaShortPreviewItem(card)
                                     PlazaShortTile(
                                         card = card,
@@ -309,13 +325,23 @@ fun PlazaScreenContent(
                                     )
                                 }
                             }
-                        } else {
+                        }
+                    }
+                    else -> {
+                        LazyVerticalStaggeredGrid(
+                            columns = StaggeredGridCells.Fixed(columns),
+                            state = creationGridState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 92.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalItemSpacing = 8.dp,
+                        ) {
                             if (uiState.creations.isEmpty()) {
-                                item(span = { GridItemSpan(maxLineSpan) }) {
+                                item(span = StaggeredGridItemSpan.FullLine) {
                                     EmptyTile(message = stringResource(Res.string.plaza_empty_creations))
                                 }
                             } else {
-                                itemsIndexed(uiState.creations, key = { _, card -> card.id }) { creationIndex, card ->
+                                staggeredItemsIndexed(uiState.creations, key = { _, card -> card.id }) { creationIndex, card ->
                                     val videoPreviewItem = plazaCreationVideoPreviewItem(card)
                                     PlazaCreationTile(
                                         card = card,
@@ -624,7 +650,7 @@ private fun PlazaCreationTile(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(0.76f)
+            .aspectRatio(plazaCreationTileAspectRatio(card))
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, RhLine, RoundedCornerShape(8.dp))
             .background(RhCard)
@@ -755,77 +781,105 @@ private fun PlazaShortTile(
     } else {
         Modifier
     }
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(0.76f)
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp))
-            .background(RhCard)
             .then(previewClickModifier),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         val videoUrl = card.videoUrl?.takeIf { it.isNotBlank() }
         val posterUrl = card.thumbnailUrl?.takeIf { it.isNotBlank() }
-        when {
-            posterUrl != null -> {
-                SmartAsyncImage(
-                    imageUrl = posterUrl,
-                    contentDescription = card.name,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop,
-                    shape = RoundedCornerShape(8.dp),
-                )
-            }
-            videoUrl != null -> {
-                VideoThumbnail(
-                    url = videoUrl,
-                    modifier = Modifier.fillMaxSize(),
-                    autoPlay = true,
-                )
-            }
-            else -> {
-                PlazaFallbackVisual(
-                    PlazaCreationCard(
-                        id = card.id,
-                        intro = card.name,
-                    ),
-                    mediaType = stringResource(Res.string.plaza_short_media_type_fallback),
-                )
-            }
-        }
+
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent, Color(0xCC000000)))),
-        )
-        if (onPreviewClick != null) {
+                .fillMaxWidth()
+                .aspectRatio(plazaShortThumbnailAspectRatio())
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, RhLine, RoundedCornerShape(8.dp))
+                .background(RhCard),
+        ) {
+            when {
+                posterUrl != null -> {
+                    SmartAsyncImage(
+                        imageUrl = posterUrl,
+                        contentDescription = card.name,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop,
+                        shape = RoundedCornerShape(8.dp),
+                    )
+                }
+                videoUrl != null -> {
+                    VideoThumbnail(
+                        url = videoUrl,
+                        modifier = Modifier.fillMaxSize(),
+                        autoPlay = true,
+                    )
+                }
+                else -> {
+                    PlazaFallbackVisual(
+                        PlazaCreationCard(
+                            id = card.id,
+                            intro = card.name,
+                        ),
+                        mediaType = stringResource(Res.string.plaza_short_media_type_fallback),
+                    )
+                }
+            }
             Box(
                 modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.38f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.size(26.dp),
+                    .fillMaxSize()
+                    .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Transparent, Color(0x99000000)))),
+            )
+            if (onPreviewClick != null) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.38f)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Text(
+                text = card.authorName?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: stringResource(Res.string.plaza_default_short_owner),
+                color = RhText,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 8.dp, end = 52.dp, bottom = 7.dp),
+            )
+            plazaShortDurationLabel(card.durationSeconds)?.let { duration ->
+                Text(
+                    text = duration,
+                    color = RhText,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 8.dp, bottom = 7.dp),
                 )
             }
         }
+
         Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
             Text(
                 text = card.name.ifBlank { stringResource(Res.string.plaza_untitled_short) },
                 color = RhText,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -987,6 +1041,25 @@ internal fun plazaShouldAutoLoadMore(
     return remainingItems <= prefetchDistance
 }
 
+internal fun plazaUsesWaterfallLayout(mode: PlazaMode): Boolean =
+    when (mode) {
+        PlazaMode.CREATIONS -> true
+        PlazaMode.SHORTS -> false
+    }
+
+internal fun plazaCreationTileAspectRatio(card: PlazaCreationCard): Float {
+    val width = card.imageWidth?.takeIf { it > 0 } ?: return plazaCreationTileFallbackAspectRatio()
+    val height = card.imageHeight?.takeIf { it > 0 } ?: return plazaCreationTileFallbackAspectRatio()
+    return (width.toFloat() / height.toFloat()).coerceIn(
+        minimumValue = PlazaCreationTileMinAspectRatio,
+        maximumValue = PlazaCreationTileMaxAspectRatio,
+    )
+}
+
+internal fun plazaCreationTileFallbackAspectRatio(): Float = PlazaCreationTileFallbackAspectRatio
+
+internal fun plazaShortThumbnailAspectRatio(): Float = PlazaShortThumbnailAspectRatio
+
 /**
  * 返回灵感分类行应展示的服务端标签。
  *
@@ -1099,6 +1172,10 @@ private fun plazaShortPreviewItemId(card: PlazaShortCard, videoUrl: String?, pos
     "short-preview-${card.id}-${videoUrl ?: posterUrl}"
 
 private const val PlazaAutoLoadMorePrefetchItemDistance = 4
+private const val PlazaCreationTileFallbackAspectRatio = 0.76f
+private const val PlazaCreationTileMinAspectRatio = 0.58f
+private const val PlazaCreationTileMaxAspectRatio = 1.35f
+private const val PlazaShortThumbnailAspectRatio = 16f / 9f
 private val PlazaVideoMediaExtensions = setOf("mp4", "mov", "m4v", "webm", "mkv", "avi")
 
 @Composable

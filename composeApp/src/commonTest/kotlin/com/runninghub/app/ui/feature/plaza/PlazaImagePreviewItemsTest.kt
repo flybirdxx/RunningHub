@@ -2,6 +2,7 @@ package com.runninghub.app.ui.feature.plaza
 
 import com.runninghub.feature.community.domain.PlazaCreationCard
 import com.runninghub.feature.community.domain.PlazaShortCard
+import com.runninghub.feature.community.presentation.PlazaMode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -10,6 +11,41 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class PlazaImagePreviewItemsTest {
+    @Test
+    fun `plaza uses waterfall layout only for creation feed`() {
+        assertTrue(plazaUsesWaterfallLayout(PlazaMode.CREATIONS))
+        assertFalse(plazaUsesWaterfallLayout(PlazaMode.SHORTS))
+    }
+
+    @Test
+    fun `creation tile aspect ratio prefers server image size`() {
+        assertEquals(
+            1664f / 2496f,
+            plazaCreationTileAspectRatio(
+                PlazaCreationCard(
+                    id = "portrait",
+                    mediaUrl = "https://example.com/portrait.png",
+                    imageWidth = 1664,
+                    imageHeight = 2496,
+                ),
+            ),
+        )
+        assertEquals(
+            plazaCreationTileFallbackAspectRatio(),
+            plazaCreationTileAspectRatio(
+                PlazaCreationCard(
+                    id = "unknown",
+                    mediaUrl = "https://example.com/unknown.png",
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `short video thumbnail uses standard landscape ratio`() {
+        assertEquals(16f / 9f, plazaShortThumbnailAspectRatio())
+    }
+
     @Test
     fun `preview items keep media url cards in server order`() {
         val items = plazaCreationPreviewItems(

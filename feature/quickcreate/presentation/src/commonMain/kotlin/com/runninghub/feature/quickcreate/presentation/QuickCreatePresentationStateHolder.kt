@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.asStateFlow
  * @param draftRepository 快捷创作草稿仓库，用于保存和清理可恢复编辑草稿快照。
  * @param modelSelectionRepository 快捷创作最近模型选择仓库，用于恢复用户上次主动选择的模型。
  * @param ioDispatcher 媒体字节读取使用的调度器；默认值保持 commonMain 跨平台可用。
+ * @param onTaskHistoryInvalidated 远端任务被服务端接收或终态变化后触发的历史刷新信号。
  */
 class QuickCreatePresentationStateHolderFactory(
     private val historyRepository: QuickCreationTaskHistoryRepository,
@@ -59,6 +60,7 @@ class QuickCreatePresentationStateHolderFactory(
     private val draftRepository: QuickCreateDraftRepository,
     private val modelSelectionRepository: QuickCreateModelSelectionRepository,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val onTaskHistoryInvalidated: () -> Unit = {},
 ) {
     /**
      * 为一次页面生命周期创建独立状态持有者。
@@ -78,6 +80,7 @@ class QuickCreatePresentationStateHolderFactory(
             modelSelectionRepository = modelSelectionRepository,
             scope = scope,
             ioDispatcher = ioDispatcher,
+            onTaskHistoryInvalidated = onTaskHistoryInvalidated,
         )
 }
 
@@ -99,6 +102,7 @@ class QuickCreatePresentationStateHolderFactory(
  * @param modelSelectionRepository 快捷创作最近模型选择仓库，只保存用户主动选择的模型身份键。
  * @param scope 页面生命周期协程作用域，所有异步任务随该作用域取消。
  * @param ioDispatcher 媒体字节读取使用的调度器。
+ * @param onTaskHistoryInvalidated 远端任务被服务端接收或终态变化后触发的历史刷新信号。
  */
 class QuickCreatePresentationStateHolder(
     historyRepository: QuickCreationTaskHistoryRepository,
@@ -112,6 +116,7 @@ class QuickCreatePresentationStateHolder(
     modelSelectionRepository: QuickCreateModelSelectionRepository,
     scope: CoroutineScope,
     ioDispatcher: CoroutineDispatcher,
+    onTaskHistoryInvalidated: () -> Unit = {},
 ) {
     private val mutableUiState = MutableStateFlow(QuickCreateUiState())
 
@@ -136,6 +141,7 @@ class QuickCreatePresentationStateHolder(
         feePreviewRepository = feePreviewRepository,
         mediaUploadRepository = mediaUploadRepository,
         projectRepository = projectRepository,
+        onTaskHistoryInvalidated = onTaskHistoryInvalidated,
     )
 
     /**

@@ -174,6 +174,9 @@ class WebAppTaskRepositoryImplTest {
             WebAppTaskIssue.TaskHistoryFailed to suspend {
                 repositoryWithMock().getTaskHistory(pageNum = 1, pageSize = 10)
             },
+            WebAppTaskIssue.TaskDetailFailed to suspend {
+                repositoryWithMock().getTaskDetail("task-1")
+            },
         )
 
         failures.forEach { (issue, call) ->
@@ -186,10 +189,10 @@ class WebAppTaskRepositoryImplTest {
     }
 
     /**
-     * 历史接口应把分页 records 映射为领域历史条目。
+     * 控制台任务宽表应把所有任务 records 映射为领域历史条目。
      */
     @Test
-    fun `task history maps records to domain items`() = runBlocking {
+    fun `task history maps billing usage records to domain items`() = runBlocking {
         val repository = repositoryWithMock(
             credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
             response = {
@@ -200,13 +203,19 @@ class WebAppTaskRepositoryImplTest {
                       "data": {
                         "records": [
                           {
-                            "taskId": "task-1",
+                            "taskId": "2071208241819508737",
                             "taskStatus": "SUCCESS",
-                            "taskName": "Demo task",
-                            "outputList": [{"id": "out-1", "fileUrl": "https://example.com/out.png"}]
+                            "taskName": "AI app task",
+                            "webappId": "2046794551444119554",
+                            "taskCategoryCode": "WEBAPP_API",
+                            "taskCategoryDisplay": "AI应用API",
+                            "taskRelation": "PARENT",
+                            "coinAmount": 12.0,
+                            "coinUsedDuration": "60",
+                            "createTime": "2026-06-28 20:25:01"
                           }
                         ],
-                        "total": 1
+                        "hasNext": false
                       }
                     }
                 """.trimIndent()
@@ -215,9 +224,166 @@ class WebAppTaskRepositoryImplTest {
 
         val result = repository.getTaskHistory(pageNum = 1, pageSize = 10).getOrThrow()
 
-        assertEquals("task-1", result.single().taskId)
+        assertEquals("2071208241819508737", result.single().taskId)
         assertEquals(TaskExecutionStatus.Success, result.single().status)
-        assertEquals("https://example.com/out.png", result.single().outputs.single().fileUrl)
+        assertEquals("AI app task", result.single().taskName)
+        assertEquals("2046794551444119554", result.single().webappId)
+        assertEquals("WEBAPP_API", result.single().taskCategoryCode)
+        assertEquals("PARENT", result.single().taskRelation)
+        assertEquals(12.0, result.single().coinAmount)
+        assertEquals("60", result.single().taskCostTime)
+    }
+
+    /**
+     * 宽表负责所有任务和运行中状态，旧 output history 负责已完成任务的输出缩略图。
+     * AI 应用父任务没有直接输出时，应使用子任务输出补齐父任务卡片。
+     */
+    @Test
+    fun `task history merges legacy output images into billing usage parent task`() = runBlocking {
+        val repository = repositoryWithMock(
+            credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+            response = { body ->
+                if (body.contains(""""apiKey"""")) {
+                    """
+                        {
+                          "code": 0,
+                          "msg": "success",
+                          "data": {
+                            "records": [
+                              {
+                                "taskId": "child-task-1",
+                                "taskStatus": "SUCCESS",
+                                "outputList": [
+                                  {
+                                    "id": "output-1",
+                                    "outputName": "result.png",
+                                    "outputType": "png",
+                                    "fileUrl": "https://example.com/result.png",
+                                    "filePreviewUrl": "https://example.com/result-preview.png",
+                                    "expireDays": "7"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        }
+                    """.trimIndent()
+                } else {
+                    """
+                        {
+                          "code": 0,
+                          "msg": "success",
+                          "data": {
+                            "records": [
+                              {
+                                "taskId": "parent-task-1",
+                                "taskStatus": "SUCCESS",
+                                "taskName": "AI app task",
+                                "webappId": "2046794551444119554",
+                                "taskCategoryCode": "WEBAPP_API",
+                                "taskCategoryDisplay": "AI应用API",
+                                "taskRelation": "PARENT",
+                                "coinAmount": 40.0,
+                                "coinUsedDuration": "199"
+                              },
+                              {
+                                "taskId": "child-task-1",
+                                "taskStatus": "SUCCESS",
+                                "taskName": "Model child task",
+                                "taskCategoryCode": "SKU_EXTERNAL_API",
+                                "taskCategoryDisplay": "模型API",
+                                "taskRelation": "CHILD",
+                                "parentTaskId": "parent-task-1",
+                                "moneyAmount": 0.1,
+                                "currency": "CNY",
+                                "moneyDuration": "188"
+                              }
+                            ],
+                            "hasNext": false
+                          }
+                        }
+                    """.trimIndent()
+                }
+            },
+        )
+
+        val result = repository.getTaskHistory(pageNum = 1, pageSize = 10).getOrThrow()
+        val parentTask = result.first { it.taskId == "parent-task-1" }
+        val childTask = result.first { it.taskId == "child-task-1" }
+
+        assertEquals("https://example.com/result-preview.png", parentTask.outputs.single().filePreviewUrl)
+        assertEquals("https://example.com/result-preview.png", childTask.outputs.single().filePreviewUrl)
+    }
+
+    /**
+     * 控制台任务详情应补齐任务输出，并在暴露请求 JSON 前脱敏 API Key。
+     */
+    @Test
+    fun `task detail maps console outputs and redacts sensitive request info`() = runBlocking {
+        var capturedBody = ""
+        val repository = repositoryWithMock(
+            credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+            response = { body ->
+                capturedBody = body
+                """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "basicInfo": {
+                          "apiName": "AI app task",
+                          "apiType": "API",
+                          "apiKeyType": "1",
+                          "taskStatus": "SUCCESS",
+                          "taskId": "2071208241819508737",
+                          "callTime": "2026-06-28 20:25:01",
+                          "duration": "60",
+                          "amount": 0.1,
+                          "coinNum": "12"
+                        },
+                        "list": [
+                          {
+                            "id": "output-1",
+                            "outputName": "result.png",
+                            "outputType": "png",
+                            "fileUrl": "https://example.com/result.png",
+                            "filePreviewUrl": "https://example.com/result-preview.png"
+                          }
+                        ],
+                        "costInfo": {
+                          "amount": 0.1,
+                          "coinNum": "12"
+                        },
+                        "requestInfo": {
+                          "apiRequestParams": "{\"apiKey\":\"secret-api-key\",\"webappId\":\"2046794551444119554\",\"nodeInfoList\":[{\"fieldName\":\"prompt\",\"fieldValue\":\"city\"}]}"
+                        },
+                        "responseInfo": {
+                          "taskId": "2071208241819508737",
+                          "status": "SUCCESS",
+                          "usage": {
+                            "consumeCoins": "12",
+                            "taskCostTime": "60",
+                            "thirdPartyConsumeMoney": "0.1"
+                          }
+                        }
+                      }
+                    }
+                """.trimIndent()
+            },
+        )
+
+        val detail = repository.getTaskDetail("2071208241819508737").getOrThrow()
+
+        assertEquals("2071208241819508737", detail.taskId)
+        assertEquals("AI app task", detail.title)
+        assertEquals("SUCCESS", detail.status)
+        assertEquals("60", detail.duration)
+        assertEquals("12", detail.rhCoins)
+        assertEquals("https://example.com/result-preview.png", detail.outputs.single().thumbnailUrl)
+        assertTrue(capturedBody.contains(""""taskId":"2071208241819508737""""))
+        assertTrue(!capturedBody.contains("apiKey"))
+        assertTrue(!detail.requestInfo.orEmpty().contains("secret-api-key"))
+        assertTrue(detail.requestInfo.orEmpty().contains(""""apiKey": "******""""))
     }
 
     private fun repositoryWithMock(

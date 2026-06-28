@@ -3,6 +3,7 @@ package com.runninghub.app.ui.feature.detail
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
+import com.runninghub.app.ui.feature.history.WebAppTaskHistoryOverlayStore
 import com.runninghub.core.model.InputNode
 import com.runninghub.feature.detail.presentation.AppDetailMediaReader
 import com.runninghub.feature.detail.presentation.AppDetailMediaType
@@ -11,6 +12,7 @@ import com.runninghub.feature.detail.presentation.AppDetailUiState
 import com.runninghub.feature.detail.presentation.appDetailInputKey
 import com.runninghub.feature.discovery.domain.WebAppCatalogRepository
 import com.runninghub.feature.task.domain.WebAppTaskRepository
+import com.runninghub.feature.task.presentation.TaskHistoryInvalidationNotifier
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +27,8 @@ import kotlinx.coroutines.flow.StateFlow
  * @param webAppCatalogRepository WebApp 目录仓库，用于加载公开详情。
  * @param webAppTaskRepository WebApp 任务仓库，用于 API demo fallback、上传、提交和输出轮询。
  * @param mediaResolver composeApp 平台媒体读取能力，负责把本地 URI 转换为上传文件。
+ * @param taskHistoryInvalidationNotifier History 列表刷新通知端口。
+ * @param webAppTaskHistoryOverlayStore 本机已提交 WebApp 任务兜底缓存，用于服务端宽表同步前展示运行中任务。
  * @param ioDispatcher 媒体字节读取使用的调度器；默认使用跨平台可用的 [Dispatchers.Default]，
  * 测试可注入可控调度器。
  */
@@ -32,6 +36,8 @@ class AppDetailScreenModel(
     webAppCatalogRepository: WebAppCatalogRepository,
     webAppTaskRepository: WebAppTaskRepository,
     mediaResolver: MediaResolver,
+    taskHistoryInvalidationNotifier: TaskHistoryInvalidationNotifier = TaskHistoryInvalidationNotifier {},
+    webAppTaskHistoryOverlayStore: WebAppTaskHistoryOverlayStore = WebAppTaskHistoryOverlayStore(),
     ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : ScreenModel {
     private val stateHolder = AppDetailStateHolder(
@@ -40,6 +46,8 @@ class AppDetailScreenModel(
         mediaReader = MediaResolverAppDetailMediaReader(mediaResolver),
         coroutineScope = screenModelScope,
         ioDispatcher = ioDispatcher,
+        onTaskHistoryInvalidated = taskHistoryInvalidationNotifier::notifyTaskHistoryInvalidated,
+        onTaskHistoryTaskChanged = webAppTaskHistoryOverlayStore::trackSubmittedTask,
     )
 
     /**

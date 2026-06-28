@@ -27,6 +27,9 @@ data class VideoPlaybackSeekRequest(
     val fraction: Float,
 )
 
+internal fun videoThumbnailPlaybackVolume(playAudio: Boolean): Float =
+    if (playAudio) 1f else 0f
+
 @Composable
 expect fun VideoThumbnail(
     url: String,
@@ -34,6 +37,7 @@ expect fun VideoThumbnail(
     posterUrl: String? = null,
     autoPlay: Boolean = true,
     cropToFill: Boolean = true,
+    playAudio: Boolean = false,
     onPlaybackProgressChange: ((VideoPlaybackProgress) -> Unit)? = null,
     seekRequest: VideoPlaybackSeekRequest? = null,
 )

@@ -26,6 +26,14 @@ interface GenerationHistoryRepository {
     suspend fun getHistoryDetail(outputId: String): Result<GenerationHistoryItem>
 
     /**
+     * 读取某个任务的完整控制台详情。
+     *
+     * @param taskId 服务端任务稳定标识。
+     * @return 成功时返回任务详情；失败时返回可重试错误。
+     */
+    suspend fun getTaskDetail(taskId: String): Result<GenerationTaskDetail>
+
+    /**
      * 取消仍在运行的任务。
      *
      * @param taskId 服务端任务稳定标识。

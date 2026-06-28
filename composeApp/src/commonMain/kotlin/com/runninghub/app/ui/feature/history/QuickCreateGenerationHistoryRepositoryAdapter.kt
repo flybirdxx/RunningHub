@@ -9,6 +9,7 @@ import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import com.runninghub.feature.task.domain.GenerationHistoryPage
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
 import com.runninghub.feature.task.domain.GenerationHistorySource
+import com.runninghub.feature.task.domain.GenerationTaskDetail
 
 /**
  * 将 QuickCreate 历史仓库适配为当前历史页仍在使用的通用历史仓库。
@@ -43,6 +44,18 @@ internal class QuickCreateGenerationHistoryRepositoryAdapter(
      */
     override suspend fun getHistoryDetail(outputId: String): Result<GenerationHistoryItem> =
         quickCreationTaskHistoryRepository.getQuickCreationHistoryDetail(outputId).map { it.toGenerationHistoryItem() }
+
+    /**
+     * 按任务 ID 构造 QuickCreate 详情抽屉数据。
+     *
+     * QuickCreate 旧详情接口以 outputId 为入口；任务详情抽屉以 taskId 为入口，因此这里先读取最近历史页，
+     * 找到对应任务后用列表项字段构造安全降级详情。
+     */
+    override suspend fun getTaskDetail(taskId: String): Result<GenerationTaskDetail> =
+        listHistory(page = 1, size = 50).mapCatching { page ->
+            page.items.firstOrNull { it.taskId == taskId }?.toFallbackTaskDetail()
+                ?: throw IllegalStateException("QUICK_CREATE_TASK_DETAIL_UNAVAILABLE")
+        }
 
     /**
      * 取消一个仍在运行的 QuickCreate 任务。

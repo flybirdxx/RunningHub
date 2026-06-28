@@ -1,7 +1,9 @@
 package com.runninghub.feature.task.data.remote.api
 
-import com.runninghub.feature.task.data.remote.dto.TaskRunRequestDto
+import com.runninghub.feature.task.data.remote.dto.BillingUsageWideDetailsRequestDto
+import com.runninghub.feature.task.data.remote.dto.OpenApiCallLogDetailRequestDto
 import com.runninghub.feature.task.data.remote.dto.TaskHistoryRequestDto
+import com.runninghub.feature.task.data.remote.dto.TaskRunRequestDto
 import com.runninghub.feature.task.data.remote.dto.TaskStatusRequestDto
 import com.runninghub.feature.task.data.remote.dto.WebAppTaskInputNodeDto
 import io.ktor.client.HttpClient
@@ -54,6 +56,14 @@ class WebAppTaskApiTest {
             fileName = "input.png",
         )
         api.getTaskHistory(TaskHistoryRequestDto(apiKey = "api-key", pageNum = 1, pageSize = 10))
+        api.getBillingUsageWideDetails(
+            BillingUsageWideDetailsRequestDto(
+                startDateTime = "2026-06-22 00:00:00",
+                endDateTime = "2026-06-28 23:59:59",
+                size = 20,
+            )
+        )
+        api.getOpenApiCallLogDetail(OpenApiCallLogDetailRequestDto(taskId = "2071208241819508737"))
 
         assertEquals(
             listOf(
@@ -62,6 +72,8 @@ class WebAppTaskApiTest {
                 HttpMethod.Post to "/task/openapi/outputs",
                 HttpMethod.Post to "/task/openapi/upload",
                 HttpMethod.Post to "/api/output/v2/history",
+                HttpMethod.Post to "/api/billing/usage/wideDetails",
+                HttpMethod.Post to "/api/openapi/my/call/log/detail",
             ),
             captured.map { it.method to it.path },
         )
@@ -97,6 +109,8 @@ class WebAppTaskApiTest {
             "/task/openapi/outputs" -> """{"code":0,"msg":"success","data":[]}"""
             "/task/openapi/upload" -> """{"code":0,"msg":"success","data":{"fileName":"input.png","fileType":"image"}}"""
             "/api/output/v2/history" -> """{"code":0,"msg":"success","data":{"records":[],"total":0}}"""
+            "/api/billing/usage/wideDetails" -> """{"code":0,"msg":"success","data":{"records":[],"hasNext":false}}"""
+            "/api/openapi/my/call/log/detail" -> """{"code":0,"msg":"success","data":{"basicInfo":{"taskId":"2071208241819508737"},"list":[]}}"""
             else -> error("Unexpected path: $path")
         }
 

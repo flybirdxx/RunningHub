@@ -17,4 +17,12 @@ interface WebAppTaskHistoryRepository {
      * @return 成功时返回历史条目；未绑定 API Key、会话失效或网络失败时返回失败结果。
      */
     suspend fun getTaskHistory(pageNum: Int, pageSize: Int): Result<List<TaskHistoryItem>>
+
+    /**
+     * 读取控制台任务详情。
+     *
+     * @param taskId 服务端任务稳定标识。
+     * @return 成功时返回任务详情，包括输出文件、基础信息、计费信息以及已脱敏请求/响应 JSON。
+     */
+    suspend fun getTaskDetail(taskId: String): Result<GenerationTaskDetail>
 }

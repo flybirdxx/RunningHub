@@ -17,6 +17,7 @@ actual fun VideoThumbnail(
     posterUrl: String?,
     autoPlay: Boolean,
     cropToFill: Boolean,
+    playAudio: Boolean,
     onPlaybackProgressChange: ((VideoPlaybackProgress) -> Unit)?,
     seekRequest: VideoPlaybackSeekRequest?,
 ) {

@@ -2,6 +2,10 @@ package com.runninghub.feature.task.data.remote.api
 
 import com.runninghub.core.network.RunningHubApiEnvironment
 import com.runninghub.core.network.auth.markRunningHubAuthRetryAllowed
+import com.runninghub.feature.task.data.remote.dto.BillingUsageWideDetailsDataDto
+import com.runninghub.feature.task.data.remote.dto.BillingUsageWideDetailsRequestDto
+import com.runninghub.feature.task.data.remote.dto.OpenApiCallLogDetailDataDto
+import com.runninghub.feature.task.data.remote.dto.OpenApiCallLogDetailRequestDto
 import com.runninghub.feature.task.data.remote.dto.TaskBaseResponseDto
 import com.runninghub.feature.task.data.remote.dto.TaskHistoryRequestDto
 import com.runninghub.feature.task.data.remote.dto.TaskHistoryItemDto
@@ -99,6 +103,36 @@ class WebAppTaskApi(private val client: HttpClient) {
         request: TaskHistoryRequestDto,
     ): TaskBaseResponseDto<TaskPageDataDto<TaskHistoryItemDto>> =
         client.post(RunningHubApiEnvironment.apiUrl("output/v2/history")) {
+            markRunningHubAuthRetryAllowed()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    /**
+     * 查询控制台任务宽表。
+     *
+     * 该接口与 Web 控制台“任务与账单”页一致，返回所有来源任务的状态和费用记录，包括尚未产出
+     * output 的运行中任务。请求依赖登录态认证拦截器，不在请求体中携带 API Key。
+     */
+    suspend fun getBillingUsageWideDetails(
+        request: BillingUsageWideDetailsRequestDto,
+    ): TaskBaseResponseDto<BillingUsageWideDetailsDataDto> =
+        client.post(RunningHubApiEnvironment.apiUrl("billing/usage/wideDetails")) {
+            markRunningHubAuthRetryAllowed()
+            contentType(ContentType.Application.Json)
+            setBody(request)
+        }.body()
+
+    /**
+     * 查询控制台任务详情。
+     *
+     * 该接口与 Web 控制台详情抽屉一致，返回基础信息、计费信息、生成结果以及请求/响应详情。
+     * 请求体只携带 taskId，认证由 HTTP 客户端统一注入，不允许把 API Key 混入请求体。
+     */
+    suspend fun getOpenApiCallLogDetail(
+        request: OpenApiCallLogDetailRequestDto,
+    ): TaskBaseResponseDto<OpenApiCallLogDetailDataDto> =
+        client.post(RunningHubApiEnvironment.apiUrl("openapi/my/call/log/detail")) {
             markRunningHubAuthRetryAllowed()
             contentType(ContentType.Application.Json)
             setBody(request)

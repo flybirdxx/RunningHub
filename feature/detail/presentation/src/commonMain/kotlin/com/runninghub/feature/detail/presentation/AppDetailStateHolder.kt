@@ -190,6 +190,24 @@ data class AppDetailPendingMediaPick(
 )
 
 /**
+ * AppDetail 已提交任务的轻量历史快照。
+ *
+ * 该模型只携带历史页首屏展示和本地兜底所需的非敏感信息；不得加入 API Key、请求体、上传文件名、
+ * Cookie、Token 或服务端内部错误文本。
+ *
+ * @property taskId 远端任务 ID。
+ * @property webappId 来源 AI 应用 ID。
+ * @property taskName 来源 AI 应用名称。
+ * @property status 当前任务状态协议值。
+ */
+data class AppDetailSubmittedTask(
+    val taskId: String,
+    val webappId: String?,
+    val taskName: String?,
+    val status: String,
+)
+
+/**
  * 持有 AppDetail 页面状态并协调详情加载、输入编辑、媒体上传和任务轮询。
  *
  * 本类位于 Detail Presentation 层，只依赖公开目录和任务领域仓库契约，不依赖 Compose、Voyager、
@@ -201,6 +219,8 @@ data class AppDetailPendingMediaPick(
  * @param mediaReader 本地媒体读取端口，由 composeApp 适配 Android/iOS 平台能力。
  * @param coroutineScope 页面生命周期绑定的协程作用域；作用域取消后本类发起的请求和轮询也应停止。
  * @param ioDispatcher 媒体字节读取使用的调度器，默认使用跨平台可用的 [Dispatchers.Default]。
+ * @param onTaskHistoryInvalidated 远端任务被服务端接收或终态变化后触发的历史刷新信号。
+ * @param onTaskHistoryTaskChanged 已提交 WebApp 任务的本地历史快照变化回调，用于服务端宽表同步前兜底展示。
  */
 class AppDetailStateHolder(
     private val webAppCatalogRepository: WebAppCatalogRepository,
@@ -208,6 +228,8 @@ class AppDetailStateHolder(
     private val mediaReader: AppDetailMediaReader,
     private val coroutineScope: CoroutineScope,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val onTaskHistoryInvalidated: () -> Unit = {},
+    private val onTaskHistoryTaskChanged: (AppDetailSubmittedTask) -> Unit = {},
 ) {
     private val _uiState = MutableStateFlow(AppDetailUiState())
 
@@ -444,8 +466,10 @@ class AppDetailStateHolder(
             webAppTaskRepository.runTask(
                 webappId = detail.id.toLongOrNull() ?: 0L,
                 nodeInfoList = inputNodes,
-            ).onSuccess {
-                startTaskOutputPolling(it.taskId)
+            ).onSuccess { taskResult ->
+                onTaskHistoryTaskChanged(detail.toSubmittedTask(taskResult.taskId, taskResult.status?.rawValue ?: "SUBMITTED"))
+                onTaskHistoryInvalidated()
+                startTaskOutputPolling(taskResult.taskId)
             }.onFailure {
                 _uiState.update {
                     it.copy(
@@ -514,6 +538,8 @@ class AppDetailStateHolder(
 
                         val failed = outputs.firstOrNull { it.failedReason != null }
                         if (failed != null) {
+                            notifySubmittedTaskStatus(taskId, "FAILED")
+                            onTaskHistoryInvalidated()
                             _uiState.update {
                                 it.copy(
                                     isRunningTask = false,
@@ -527,6 +553,8 @@ class AppDetailStateHolder(
                         }
 
                         if (outputs.any { !it.fileUrl.isNullOrBlank() }) {
+                            notifySubmittedTaskStatus(taskId, "SUCCESS")
+                            onTaskHistoryInvalidated()
                             _uiState.update {
                                 it.copy(
                                     isRunningTask = false,
@@ -550,7 +578,14 @@ class AppDetailStateHolder(
                     taskError = AppDetailErrorText.TaskTimeout,
                 )
             }
+            notifySubmittedTaskStatus(taskId, "FAILED")
+            onTaskHistoryInvalidated()
         }
+    }
+
+    private fun notifySubmittedTaskStatus(taskId: Long, status: String) {
+        val detail = _uiState.value.detail ?: return
+        onTaskHistoryTaskChanged(detail.toSubmittedTask(taskId, status))
     }
 
     private fun markUploadFailed(nodeId: String, localUri: String) {
@@ -590,6 +625,14 @@ class AppDetailStateHolder(
         }
     }
 }
+
+private fun AppDetail.toSubmittedTask(taskId: Long, status: String): AppDetailSubmittedTask =
+    AppDetailSubmittedTask(
+        taskId = taskId.toString(),
+        webappId = id,
+        taskName = name,
+        status = status,
+    )
 
 private const val TASK_OUTPUT_POLLING_INTERVAL_MILLIS = 5_000L
 private const val MAX_TASK_OUTPUT_POLLING_ATTEMPTS = 120
