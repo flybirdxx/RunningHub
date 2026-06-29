@@ -15,10 +15,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,13 +54,27 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultM
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultUi
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_creation_generating
 import runninghub.composeapp.generated.resources.quick_create_creation_generating_format
+import runninghub.composeapp.generated.resources.quick_create_empty_stage_generate
+import runninghub.composeapp.generated.resources.quick_create_empty_stage_queue
+import runninghub.composeapp.generated.resources.quick_create_empty_stage_save
+import runninghub.composeapp.generated.resources.quick_create_empty_stage_upload
+import runninghub.composeapp.generated.resources.quick_create_generation_change_model_action
+import runninghub.composeapp.generated.resources.quick_create_generation_failed_recovery_hint
+import runninghub.composeapp.generated.resources.quick_create_generation_retry_action
 import runninghub.composeapp.generated.resources.quick_create_task_status_canceled
 import runninghub.composeapp.generated.resources.quick_create_task_status_failed
+import runninghub.composeapp.generated.resources.quick_create_task_status_processing
+import runninghub.composeapp.generated.resources.quick_create_task_status_queuing
+import runninghub.composeapp.generated.resources.quick_create_task_status_running_format
+import runninghub.composeapp.generated.resources.quick_create_task_status_submitting_task
+import runninghub.composeapp.generated.resources.quick_create_task_status_success
+import runninghub.composeapp.generated.resources.quick_create_task_status_uploading_media_format
 
 /**
  * 渲染设计稿中的对话式快捷创作主区。
@@ -62,6 +85,8 @@ import runninghub.composeapp.generated.resources.quick_create_task_status_failed
 @Composable
 internal fun QuickCreateConversationArea(
     uiState: QuickCreateUiState,
+    onRetryPrompt: (QuickCreateTab, String) -> Unit,
+    onChangeModel: () -> Unit,
 ) {
     val conversationItems = uiState.conversationItems.ifEmpty {
         uiState.asLegacyConversationItems()
@@ -105,6 +130,9 @@ internal fun QuickCreateConversationArea(
                         generatingAspectRatio = item.aspectRatio,
                         progress = (item.statusText as? QuickCreateTaskStatusText.Running)?.progressPercent,
                         taskStatus = item.taskStatus,
+                        statusText = item.statusText,
+                        onRetry = { onRetryPrompt(quickCreateRetryTargetTab(item, uiState.currentTab), item.prompt) },
+                        onChangeModel = onChangeModel,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -123,6 +151,7 @@ private fun QuickCreateUiState.asLegacyConversationItems(): List<QuickCreateConv
     return listOf(
         QuickCreateConversationItemUi(
             prompt = submittedPrompt,
+            sourceTab = currentTab,
             taskStatus = taskStatus,
             aspectRatio = parameterSnapshot.aspectRatio,
             resolution = parameterSnapshot.resolution,
@@ -162,6 +191,9 @@ private fun GeneratedPosterCard(
     generatingAspectRatio: String?,
     progress: Int?,
     taskStatus: QuickCreateTaskUiStatus,
+    statusText: QuickCreateTaskStatusText?,
+    onRetry: () -> Unit,
+    onChangeModel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var resolvedImageAspectRatio by remember(result?.url) { mutableStateOf<Float?>(null) }
@@ -226,9 +258,242 @@ private fun GeneratedPosterCard(
                     modifier = Modifier.align(Alignment.TopStart).padding(12.dp),
                 )
             }
+            if (result == null || taskStatus != QuickCreateTaskUiStatus.SUCCESS) {
+                GenerationStagePanel(
+                    taskStatus = taskStatus,
+                    statusText = statusText,
+                    progress = progress,
+                    onRetry = onRetry,
+                    onChangeModel = onChangeModel,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth(),
+                )
+            }
         }
     }
 }
+
+@Composable
+private fun GenerationStagePanel(
+    taskStatus: QuickCreateTaskUiStatus,
+    statusText: QuickCreateTaskStatusText?,
+    progress: Int?,
+    onRetry: () -> Unit,
+    onChangeModel: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val stages = quickCreateConversationStageStates(taskStatus, statusText)
+    Column(
+        modifier = modifier
+            .background(Color.Black.copy(alpha = 0.58f))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        val statusLabel = statusText?.let { quickCreateConversationStatusText(it) }
+            ?: taskStatus.quickCreateTaskBadgeText(progress)
+        statusLabel?.let {
+            Text(
+                text = it,
+                color = QuickCreateDesignTokens.Text,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            stages.forEachIndexed { index, stage ->
+                GenerationStageStep(
+                    stage = stage,
+                    number = index + 1,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+        }
+        if (taskStatus == QuickCreateTaskUiStatus.FAILED || taskStatus == QuickCreateTaskUiStatus.CANCELED) {
+            Text(
+                text = stringResource(Res.string.quick_create_generation_failed_recovery_hint),
+                color = QuickCreateDesignTokens.Muted,
+                fontSize = 11.sp,
+                lineHeight = 16.sp,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedButton(
+                    onClick = onRetry,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = QuickCreateDesignTokens.Text,
+                    ),
+                    border = BorderStroke(1.dp, QuickCreateDesignTokens.Purple.copy(alpha = 0.74f)),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.size(6.dp))
+                    Text(
+                        text = stringResource(Res.string.quick_create_generation_retry_action),
+                        fontSize = 12.sp,
+                    )
+                }
+                OutlinedButton(
+                    onClick = onChangeModel,
+                    modifier = Modifier.weight(1f).heightIn(min = 48.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = QuickCreateDesignTokens.Text,
+                    ),
+                    border = BorderStroke(1.dp, QuickCreateDesignTokens.Cyan.copy(alpha = 0.68f)),
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Spacer(Modifier.size(6.dp))
+                    Text(
+                        text = stringResource(Res.string.quick_create_generation_change_model_action),
+                        fontSize = 12.sp,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GenerationStageStep(
+    stage: QuickCreateGenerationStageUi,
+    number: Int,
+    modifier: Modifier = Modifier,
+) {
+    val active = stage.state == QuickCreateGenerationStageState.Current ||
+        stage.state == QuickCreateGenerationStageState.Done
+    val failed = stage.state == QuickCreateGenerationStageState.Failed
+    val dotColor = when {
+        failed -> Color(0xFFFF5A67)
+        active -> QuickCreateDesignTokens.Green
+        else -> Color(0xFF343945)
+    }
+    val labelColor = when {
+        failed -> Color(0xFFFFB4BB)
+        active -> QuickCreateDesignTokens.Text
+        else -> QuickCreateDesignTokens.Muted
+    }
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(5.dp),
+    ) {
+        Surface(
+            color = dotColor.copy(alpha = if (active || failed) 0.9f else 0.72f),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.size(24.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = number.toString(),
+                    color = if (active || failed) Color.Black else QuickCreateDesignTokens.Text,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
+        }
+        Text(
+            text = quickCreateGenerationStageText(stage.stage),
+            color = labelColor,
+            fontSize = 11.sp,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
+private fun quickCreateGenerationStageText(stage: QuickCreateGenerationStage): String =
+    when (stage) {
+        QuickCreateGenerationStage.Upload -> stringResource(Res.string.quick_create_empty_stage_upload)
+        QuickCreateGenerationStage.Queue -> stringResource(Res.string.quick_create_empty_stage_queue)
+        QuickCreateGenerationStage.Generate -> stringResource(Res.string.quick_create_empty_stage_generate)
+        QuickCreateGenerationStage.Save -> stringResource(Res.string.quick_create_empty_stage_save)
+    }
+
+@Composable
+private fun quickCreateConversationStatusText(text: QuickCreateTaskStatusText): String =
+    when (text) {
+        QuickCreateTaskStatusText.Canceled -> stringResource(Res.string.quick_create_task_status_canceled)
+        is QuickCreateTaskStatusText.Error -> text.error.asQuickCreateErrorText()
+        QuickCreateTaskStatusText.Failed -> stringResource(Res.string.quick_create_task_status_failed)
+        QuickCreateTaskStatusText.Processing -> stringResource(Res.string.quick_create_task_status_processing)
+        QuickCreateTaskStatusText.Queuing -> stringResource(Res.string.quick_create_task_status_queuing)
+        is QuickCreateTaskStatusText.Running -> stringResource(
+            Res.string.quick_create_task_status_running_format,
+            text.progressPercent,
+        )
+        QuickCreateTaskStatusText.SubmittingTask -> stringResource(
+            Res.string.quick_create_task_status_submitting_task,
+        )
+        QuickCreateTaskStatusText.Success -> stringResource(Res.string.quick_create_task_status_success)
+        is QuickCreateTaskStatusText.UploadingMedia -> stringResource(
+            Res.string.quick_create_task_status_uploading_media_format,
+            text.pendingCount,
+        )
+    }
+
+internal enum class QuickCreateGenerationStage {
+    Upload,
+    Queue,
+    Generate,
+    Save,
+}
+
+internal enum class QuickCreateGenerationStageState {
+    Done,
+    Current,
+    Pending,
+    Failed,
+}
+
+internal data class QuickCreateGenerationStageUi(
+    val stage: QuickCreateGenerationStage,
+    val state: QuickCreateGenerationStageState,
+)
+
+internal fun quickCreateConversationStageStates(
+    status: QuickCreateTaskUiStatus,
+    statusText: QuickCreateTaskStatusText?,
+): List<QuickCreateGenerationStageUi> {
+    val failed = status == QuickCreateTaskUiStatus.FAILED || status == QuickCreateTaskUiStatus.CANCELED
+    val currentStage = when {
+        statusText is QuickCreateTaskStatusText.UploadingMedia -> QuickCreateGenerationStage.Upload
+        status == QuickCreateTaskUiStatus.SUBMITTING -> QuickCreateGenerationStage.Upload
+        status == QuickCreateTaskUiStatus.QUEUING -> QuickCreateGenerationStage.Queue
+        status == QuickCreateTaskUiStatus.RUNNING -> QuickCreateGenerationStage.Generate
+        status == QuickCreateTaskUiStatus.SUCCESS -> QuickCreateGenerationStage.Save
+        failed -> QuickCreateGenerationStage.Generate
+        else -> null
+    }
+    return QuickCreateGenerationStage.entries.map { stage ->
+        val state = when {
+            failed && stage == currentStage -> QuickCreateGenerationStageState.Failed
+            status == QuickCreateTaskUiStatus.SUCCESS -> QuickCreateGenerationStageState.Done
+            currentStage == null -> QuickCreateGenerationStageState.Pending
+            stage.ordinal < currentStage.ordinal -> QuickCreateGenerationStageState.Done
+            stage == currentStage -> QuickCreateGenerationStageState.Current
+            else -> QuickCreateGenerationStageState.Pending
+        }
+        QuickCreateGenerationStageUi(stage = stage, state = state)
+    }
+}
+
+internal fun quickCreateRetryTargetTab(
+    item: QuickCreateConversationItemUi,
+    fallbackTab: QuickCreateTab,
+): QuickCreateTab = item.sourceTab ?: fallbackTab
 
 @Composable
 private fun GeneratingFluidMask(modifier: Modifier = Modifier) {

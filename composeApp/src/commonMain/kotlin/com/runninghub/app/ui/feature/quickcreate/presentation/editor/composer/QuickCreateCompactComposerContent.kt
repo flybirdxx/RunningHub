@@ -28,6 +28,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
@@ -250,6 +251,7 @@ private fun CompactControlRow(
             onClick = onOpenParamsSheet,
             modifier = Modifier.weight(0.72f),
         )
+        CompactMediaActionButton(onAddMedia = onLaunchImagePicker)
         CompactGenerateButton(
             hasPrompt = hasPrompt,
             enabled = enabled,
@@ -258,7 +260,6 @@ private fun CompactControlRow(
             feePreviewLoading = feePreviewLoading,
             feePreviewError = feePreviewError,
             onGenerate = onGenerate,
-            onAddMedia = onLaunchImagePicker,
         )
     }
 }
@@ -509,6 +510,30 @@ private fun CompactControlPill(
 }
 
 @Composable
+private fun CompactMediaActionButton(onAddMedia: () -> Unit) {
+    Surface(
+        onClick = onAddMedia,
+        shape = CircleShape,
+        color = QuickCreateDesignTokens.Purple.copy(alpha = 0.20f),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Purple.copy(alpha = 0.62f)),
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .size(36.dp),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = stringResource(
+                    Res.string.quick_create_compact_add_media_content_description,
+                ),
+                modifier = Modifier.size(18.dp),
+                tint = QuickCreateDesignTokens.Text,
+            )
+        }
+    }
+}
+
+@Composable
 private fun CompactGenerateButton(
     hasPrompt: Boolean,
     enabled: Boolean,
@@ -517,39 +542,38 @@ private fun CompactGenerateButton(
     feePreviewLoading: Boolean,
     feePreviewError: QuickCreateUiMessage?,
     onGenerate: () -> Unit,
-    onAddMedia: () -> Unit,
 ) {
-    val buttonClick = if (hasPrompt) onGenerate else onAddMedia
-    val buttonShape = if (hasPrompt) RoundedCornerShape(18.dp) else CircleShape
+    val buttonEnabled = hasPrompt && enabled
+    val buttonShape = RoundedCornerShape(18.dp)
     val sendButtonLabel = quickCreateSendButtonLabel(
         cost = cost,
         feePreviewLoading = feePreviewLoading,
         feePreviewError = feePreviewError,
     )
     val confirmingFee = hasPrompt && sendButtonLabel == QuickCreateSendButtonLabel.Confirming
-    val buttonModifier = if (hasPrompt) {
-        Modifier
-            .height(36.dp)
-            .widthIn(min = 68.dp)
+    val buttonModifier = Modifier
+        .height(36.dp)
+        .widthIn(min = 68.dp)
+    val buttonBrush = if (buttonEnabled || isLoading) {
+        Brush.horizontalGradient(
+            listOf(Color(0xFF7556F6), Color(0xFF9B61FF)),
+        )
     } else {
-        Modifier.size(36.dp)
+        Brush.horizontalGradient(
+            listOf(Color(0xFF2A2E37), Color(0xFF343844)),
+        )
     }
     Surface(
-        onClick = if (enabled && !isLoading) buttonClick else { {} },
-        enabled = enabled || isLoading,
+        onClick = if (buttonEnabled && !isLoading) onGenerate else { {} },
+        enabled = buttonEnabled || isLoading,
         color = Color.Transparent,
         shape = buttonShape,
         modifier = buttonModifier,
     ) {
         Row(
             modifier = Modifier
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(Color(0xFF7556F6), Color(0xFF9B61FF)),
-                    ),
-                    buttonShape,
-                )
-                .padding(horizontal = if (hasPrompt) 12.dp else 9.dp),
+                .background(buttonBrush, buttonShape)
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
@@ -562,15 +586,6 @@ private fun CompactGenerateButton(
             } else if (confirmingFee) {
                 // 价格预览中只展示环形加载态，避免紧凑按钮继续用“价格确认中”文案占位。
                 FeePreviewLoadingIndicator()
-            } else if (!hasPrompt) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(
-                        Res.string.quick_create_compact_add_media_content_description,
-                    ),
-                    modifier = Modifier.size(18.dp),
-                    tint = QuickCreateDesignTokens.Text,
-                )
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
@@ -579,10 +594,12 @@ private fun CompactGenerateButton(
                     tint = QuickCreateDesignTokens.Text,
                 )
             }
-            if (hasPrompt && !confirmingFee) {
+            if (!confirmingFee) {
                 Text(
-                    text = quickCreateSendButtonText(sendButtonLabel),
-                    color = QuickCreateDesignTokens.Text,
+                    text = quickCreateSendButtonText(
+                        if (hasPrompt) sendButtonLabel else QuickCreateSendButtonLabel.Generate,
+                    ),
+                    color = QuickCreateDesignTokens.Text.copy(alpha = if (buttonEnabled || isLoading) 1f else 0.54f),
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,

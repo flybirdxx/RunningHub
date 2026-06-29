@@ -1,5 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.result
 
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+
 /**
  * 快捷创作任务在页面状态中使用的阶段。
  *
@@ -84,6 +86,8 @@ data class QuickCreateResultUi(
  * 空字符串表示该条目由兼容旧状态构造或提交参数没有可展示提示词；UI 不应显示空提示词气泡。
  * @property taskStatus 该条目的生成阶段。
  * [QuickCreateTaskUiStatus.IDLE] 表示不需要展示任务卡；非空闲状态会展示对应占位、结果或错误状态。
+ * @property sourceTab 点击生成时保存的创作类型。
+ * `null` 表示旧状态缺少来源；失败恢复入口应使用当前页面 Tab 作为兼容兜底。
  * @property aspectRatio 点击生成时保存的宽高比协议值，例如 `16:9`；`null` 表示旧状态缺少参数快照。
  * @property resolution 点击生成时保存的分辨率协议值，例如 `2K`；`null` 表示旧状态缺少参数快照。
  * @property statusText 该条目的辅助状态语义。
@@ -94,6 +98,7 @@ data class QuickCreateResultUi(
 data class QuickCreateConversationItemUi(
     val prompt: String,
     val taskStatus: QuickCreateTaskUiStatus,
+    val sourceTab: QuickCreateTab? = null,
     val aspectRatio: String? = null,
     val resolution: String? = null,
     val statusText: QuickCreateTaskStatusText? = null,

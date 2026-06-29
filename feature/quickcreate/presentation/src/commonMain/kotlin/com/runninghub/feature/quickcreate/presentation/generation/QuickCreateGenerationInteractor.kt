@@ -99,6 +99,7 @@ class QuickCreateGenerationInteractor(
                     results = emptyList(),
                     conversationItems = it.conversationItems + QuickCreateConversationItemUi(
                         prompt = promptSnapshot,
+                        sourceTab = submitSnapshot.currentTab,
                         aspectRatio = parameterSnapshot.aspectRatio,
                         resolution = parameterSnapshot.resolution,
                         taskStatus = QuickCreateTaskUiStatus.SUBMITTING,

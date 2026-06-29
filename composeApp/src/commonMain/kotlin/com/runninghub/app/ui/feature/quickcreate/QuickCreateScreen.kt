@@ -4,12 +4,18 @@ import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -19,6 +25,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,8 +62,34 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_empty_action_media
+import runninghub.composeapp.generated.resources.quick_create_empty_action_model
+import runninghub.composeapp.generated.resources.quick_create_empty_action_params
+import runninghub.composeapp.generated.resources.quick_create_empty_stage_generate
+import runninghub.composeapp.generated.resources.quick_create_empty_stage_queue
+import runninghub.composeapp.generated.resources.quick_create_empty_stage_save
+import runninghub.composeapp.generated.resources.quick_create_empty_stage_upload
+import runninghub.composeapp.generated.resources.quick_create_empty_starter_motion_prompt
+import runninghub.composeapp.generated.resources.quick_create_empty_starter_motion_title
+import runninghub.composeapp.generated.resources.quick_create_empty_starter_product_prompt
+import runninghub.composeapp.generated.resources.quick_create_empty_starter_product_title
+import runninghub.composeapp.generated.resources.quick_create_empty_starter_portrait_prompt
+import runninghub.composeapp.generated.resources.quick_create_empty_starter_portrait_title
+import runninghub.composeapp.generated.resources.quick_create_empty_starter_section
+import runninghub.composeapp.generated.resources.quick_create_empty_subtitle
+import runninghub.composeapp.generated.resources.quick_create_empty_title
+import runninghub.composeapp.generated.resources.quick_create_empty_video_starter_character_prompt
+import runninghub.composeapp.generated.resources.quick_create_empty_video_starter_character_title
+import runninghub.composeapp.generated.resources.quick_create_empty_video_starter_cinematic_prompt
+import runninghub.composeapp.generated.resources.quick_create_empty_video_starter_cinematic_title
+import runninghub.composeapp.generated.resources.quick_create_empty_video_starter_product_prompt
+import runninghub.composeapp.generated.resources.quick_create_empty_video_starter_product_title
+import runninghub.composeapp.generated.resources.quick_create_empty_video_subtitle
+import runninghub.composeapp.generated.resources.quick_create_empty_video_title
+import runninghub.composeapp.generated.resources.quick_create_empty_workflow_title
 import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
 import runninghub.composeapp.generated.resources.quick_create_top_bar_menu_content_description
 import kotlin.math.abs
@@ -129,6 +162,19 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
 
     LaunchedEffect(uiState.activeSheet) {
         uiState.activeSheet?.let { lastActiveSheet = it }
+    }
+
+    val updatePromptForTab: (QuickCreateTab, String) -> Unit = { tab, prompt ->
+        if (uiState.currentTab != tab) {
+            screenModel.switchTab(tab)
+        }
+        when (tab) {
+            QuickCreateTab.IMAGE -> screenModel.updateImagePrompt(prompt)
+            QuickCreateTab.VIDEO -> screenModel.updateVideoPrompt(prompt)
+        }
+    }
+    val updateCurrentPrompt: (String) -> Unit = { prompt ->
+        updatePromptForTab(uiState.currentTab, prompt)
     }
 
     LaunchedEffect(keyboardVisible, editorBottomPx, targetEditorBottomPx) {
@@ -216,7 +262,21 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                 )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    CreationScrollableArea(uiState = uiState)
+                    CreationScrollableArea(
+                        uiState = uiState,
+                        onPromptStarterSelected = updateCurrentPrompt,
+                        onRetryPrompt = updatePromptForTab,
+                        onOpenModelSheet = screenModel::showModelPickerSheet,
+                        onOpenParamsSheet = screenModel::showParamsSheet,
+                        onLaunchImagePicker = {
+                            controller.pickMedia(
+                                mediaPermission = Permission.MediaImages,
+                                mediaType = MediaType.IMAGE,
+                                onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
+                                onPermissionDenied = {},
+                            )
+                        },
+                    )
                 }
 
                 if (uiState.historyDetailLoading || uiState.selectedHistoryDetail != null) {
@@ -251,7 +311,7 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                 QuickCreateEditorPanel(
                     uiState = uiState,
                     onTabSwitch = screenModel::switchTab,
-                    onPromptChange = if (uiState.currentTab == QuickCreateTab.IMAGE) screenModel::updateImagePrompt else screenModel::updateVideoPrompt,
+                    onPromptChange = updateCurrentPrompt,
                     onLaunchImagePicker = {
                         controller.pickMedia(
                             mediaPermission = Permission.MediaImages,
@@ -511,6 +571,11 @@ private fun QuickCreateModeTitle(
 @Composable
 private fun CreationScrollableArea(
     uiState: QuickCreateUiState,
+    onPromptStarterSelected: (String) -> Unit,
+    onRetryPrompt: (QuickCreateTab, String) -> Unit,
+    onOpenModelSheet: () -> Unit,
+    onOpenParamsSheet: () -> Unit,
+    onLaunchImagePicker: () -> Unit,
 ) {
     val hasConversation = uiState.conversationItems.isNotEmpty() ||
         uiState.submittedPrompt.isNotBlank() ||
@@ -520,9 +585,289 @@ private fun CreationScrollableArea(
     if (hasConversation) {
         QuickCreateConversationArea(
             uiState = uiState,
+            onRetryPrompt = onRetryPrompt,
+            onChangeModel = onOpenModelSheet,
         )
     } else {
-        Spacer(modifier = Modifier.fillMaxSize())
+        QuickCreateStarterWorkbench(
+            currentTab = uiState.currentTab,
+            onPromptStarterSelected = onPromptStarterSelected,
+            onOpenModelSheet = onOpenModelSheet,
+            onOpenParamsSheet = onOpenParamsSheet,
+            onLaunchImagePicker = onLaunchImagePicker,
+        )
+    }
+}
+
+@Composable
+private fun QuickCreateStarterWorkbench(
+    currentTab: QuickCreateTab,
+    onPromptStarterSelected: (String) -> Unit,
+    onOpenModelSheet: () -> Unit,
+    onOpenParamsSheet: () -> Unit,
+    onLaunchImagePicker: () -> Unit,
+) {
+    val title = when (currentTab) {
+        QuickCreateTab.IMAGE -> Res.string.quick_create_empty_title
+        QuickCreateTab.VIDEO -> Res.string.quick_create_empty_video_title
+    }
+    val subtitle = when (currentTab) {
+        QuickCreateTab.IMAGE -> Res.string.quick_create_empty_subtitle
+        QuickCreateTab.VIDEO -> Res.string.quick_create_empty_video_subtitle
+    }
+    val starters = quickCreatePromptStarters(currentTab)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 18.dp, vertical = 18.dp)
+            .padding(bottom = 136.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Text(
+            text = stringResource(title),
+            color = QuickCreateDesignTokens.Text,
+            fontSize = 26.sp,
+            lineHeight = 32.sp,
+            fontWeight = FontWeight.Bold,
+        )
+        Text(
+            text = stringResource(subtitle),
+            color = QuickCreateDesignTokens.Muted,
+            fontSize = 14.sp,
+            lineHeight = 20.sp,
+        )
+        QuickCreateGlassPanel(
+            modifier = Modifier.fillMaxWidth(),
+            borderColor = QuickCreateDesignTokens.Purple.copy(alpha = 0.5f),
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = stringResource(Res.string.quick_create_empty_starter_section),
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                starters.forEach { starter ->
+                    QuickCreatePromptStarterRow(
+                        starter = starter,
+                        onSelected = onPromptStarterSelected,
+                    )
+                }
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            QuickCreateStarterAction(
+                text = stringResource(Res.string.quick_create_empty_action_model),
+                icon = {
+                    Icon(
+                        Icons.Default.AutoAwesome,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+                onClick = onOpenModelSheet,
+                modifier = Modifier.weight(1f),
+            )
+            QuickCreateStarterAction(
+                text = stringResource(Res.string.quick_create_empty_action_params),
+                icon = {
+                    Icon(
+                        Icons.Default.Tune,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                },
+                onClick = onOpenParamsSheet,
+                modifier = Modifier.weight(1f),
+            )
+        }
+        QuickCreateStarterAction(
+            text = stringResource(Res.string.quick_create_empty_action_media),
+            icon = {
+                Icon(
+                    Icons.Default.Add,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            },
+            onClick = onLaunchImagePicker,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        QuickCreateStarterWorkflowPreview()
+    }
+}
+
+internal data class QuickCreatePromptStarter(
+    val title: StringResource,
+    val prompt: StringResource,
+)
+
+internal fun quickCreatePromptStarters(tab: QuickCreateTab): List<QuickCreatePromptStarter> =
+    when (tab) {
+        QuickCreateTab.IMAGE -> listOf(
+            QuickCreatePromptStarter(
+                title = Res.string.quick_create_empty_starter_portrait_title,
+                prompt = Res.string.quick_create_empty_starter_portrait_prompt,
+            ),
+            QuickCreatePromptStarter(
+                title = Res.string.quick_create_empty_starter_motion_title,
+                prompt = Res.string.quick_create_empty_starter_motion_prompt,
+            ),
+            QuickCreatePromptStarter(
+                title = Res.string.quick_create_empty_starter_product_title,
+                prompt = Res.string.quick_create_empty_starter_product_prompt,
+            ),
+        )
+        QuickCreateTab.VIDEO -> listOf(
+            QuickCreatePromptStarter(
+                title = Res.string.quick_create_empty_video_starter_cinematic_title,
+                prompt = Res.string.quick_create_empty_video_starter_cinematic_prompt,
+            ),
+            QuickCreatePromptStarter(
+                title = Res.string.quick_create_empty_video_starter_product_title,
+                prompt = Res.string.quick_create_empty_video_starter_product_prompt,
+            ),
+            QuickCreatePromptStarter(
+                title = Res.string.quick_create_empty_video_starter_character_title,
+                prompt = Res.string.quick_create_empty_video_starter_character_prompt,
+            ),
+        )
+    }
+
+@Composable
+private fun QuickCreatePromptStarterRow(
+    starter: QuickCreatePromptStarter,
+    onSelected: (String) -> Unit,
+) {
+    val prompt = stringResource(starter.prompt)
+    Surface(
+        onClick = { onSelected(prompt) },
+        color = Color(0xFF171A22),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.StrokeSoft),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = stringResource(starter.title),
+                color = QuickCreateDesignTokens.Text,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = prompt,
+                color = QuickCreateDesignTokens.Muted,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickCreateStarterAction(
+    text: String,
+    icon: @Composable () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        color = Color(0xFF151820),
+        shape = RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+        modifier = modifier.heightIn(min = 48.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            CompositionLocalProvider(LocalContentColor provides QuickCreateDesignTokens.PurpleSoft) {
+                Box(modifier = Modifier.size(18.dp), contentAlignment = Alignment.Center) {
+                    icon()
+                }
+            }
+            Text(
+                text = text,
+                color = QuickCreateDesignTokens.Text,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickCreateStarterWorkflowPreview() {
+    val stages = listOf(
+        Res.string.quick_create_empty_stage_upload,
+        Res.string.quick_create_empty_stage_queue,
+        Res.string.quick_create_empty_stage_generate,
+        Res.string.quick_create_empty_stage_save,
+    )
+    QuickCreateGlassPanel(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = stringResource(Res.string.quick_create_empty_workflow_title),
+                color = QuickCreateDesignTokens.Text,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                stages.forEachIndexed { index, label ->
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Surface(
+                            color = if (index == 0) QuickCreateDesignTokens.Purple else Color(0xFF242833),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.size(24.dp),
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Text(
+                                    text = (index + 1).toString(),
+                                    color = QuickCreateDesignTokens.Text,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            }
+                        }
+                        Text(
+                            text = stringResource(label),
+                            color = if (index == 0) QuickCreateDesignTokens.Text else QuickCreateDesignTokens.Muted,
+                            fontSize = 11.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -552,7 +897,14 @@ private fun QuickCreatePreviewContent(
                 )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    CreationScrollableArea(uiState = uiState)
+                    CreationScrollableArea(
+                        uiState = uiState,
+                        onPromptStarterSelected = {},
+                        onRetryPrompt = { _, _ -> },
+                        onOpenModelSheet = {},
+                        onOpenParamsSheet = {},
+                        onLaunchImagePicker = {},
+                    )
                 }
 
                 if (uiState.showCreationInput) {
