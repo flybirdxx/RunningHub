@@ -30,6 +30,20 @@
 
 ## 已完成批次
 
+### 2026-06-30 RM-14 状态文案矩阵
+
+已把产品重设 RM-01 到 RM-13 新增的关键状态收口到 `RedesignStateCopyMatrix`。
+矩阵只保存稳定状态 ID、Compose Resource key、承载面类型和是否阻塞流程，不保存最终中文字符串。
+资源文案集中放在 `composeApp/src/commonMain/composeResources/values/strings.xml` 的 `rm14_state_*`
+条目中，后续页面映射可按状态 ID 复用。
+
+同步完成：
+
+- `RedesignStateCopyId` 覆盖首次进入、首页加载、搜索空态、模型加载失败、模型价格失败、上传状态、Prompt/参数阻塞、余额/会员、生成确认和生成状态、复制、复用、保存、过期、历史空态、网络错误、钱包明细、扣费和退款状态。
+- `RedesignStateCopySurface` 固定 `ScreenEmpty`、`InlineNotice`、`Snackbar`、`Dialog`、`BottomSheet`、`Toast` 和 `CardAction` 七类承载面。
+- `RedesignStateCopyMatrixContractTest` 锁住完整状态集合、资源键存在和关键承载面边界：价格确认与复用参数为 Bottom Sheet，复制反馈为 Snackbar，历史/钱包空态为 ScreenEmpty，失败退款提示为 Inline Notice。
+- `ui-copy-hardcoded-baseline.txt` 继续保持无正数基线；本批没有把最终中文文案写入 Kotlin 状态字段、Domain 或 Data。
+
 ### 2026-06-22 History Presentation 错误/提示语义
 
 已把 `TaskHistoryUiState.actionMessage/error` 从最终中文 `String?` 改为

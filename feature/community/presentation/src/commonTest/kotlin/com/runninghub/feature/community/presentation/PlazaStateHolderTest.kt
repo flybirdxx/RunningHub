@@ -2,7 +2,9 @@ package com.runninghub.feature.community.presentation
 
 import com.runninghub.feature.community.domain.PlazaCreationCard
 import com.runninghub.feature.community.domain.PlazaCreationPage
+import com.runninghub.feature.community.domain.PlazaCreationReuseSnapshot
 import com.runninghub.feature.community.domain.PlazaRepository
+import com.runninghub.feature.community.domain.PlazaReuseMediaKind
 import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
 import com.runninghub.feature.community.domain.PlazaShortPage
@@ -13,6 +15,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -217,6 +220,51 @@ class PlazaStateHolderTest {
         val state = stateHolder.uiState.value
         assertEquals(PlazaPresentationError.ShortsLoadFailed, state.error)
         assertEquals(emptyList(), state.shorts)
+    }
+
+    @Test
+    fun `creation work card and detail expose reusable source without assuming full params`() = runTest {
+        val repository = FakePlazaRepository()
+        repository.pages = mapOf(
+            1 to listOf(
+                PlazaCreationCard(
+                    id = "work-1",
+                    intro = "cinematic mountain house",
+                    ownerName = "Ada",
+                    ownerAvatar = "https://example.com/ada.png",
+                    mediaUrl = "https://example.com/work.png",
+                    mediaType = "IMAGE",
+                    useCount = "12",
+                    reuseSnapshot = PlazaCreationReuseSnapshot(
+                        prompt = "cinematic mountain house",
+                        referenceMediaUrl = "https://example.com/work.png",
+                        referenceMediaType = PlazaReuseMediaKind.IMAGE,
+                    ),
+                ),
+            ),
+        )
+        val stateHolder = PlazaStateHolder(repository, this)
+
+        stateHolder.loadInitialData()
+        advanceUntilIdle()
+
+        val workCard = stateHolder.uiState.value.workCards.single()
+        assertEquals("work-1", workCard.id)
+        assertEquals("Ada", workCard.authorName)
+        assertEquals(PlazaWorkCardPrimaryAction.UseSame, workCard.primaryAction)
+        assertEquals(PlazaWorkPreviewType.Image, workCard.preview.type)
+        assertEquals(PlazaReuseParameterStatus.Available, workCard.reuseSummary.prompt.status)
+        assertEquals(PlazaReuseParameterStatus.Missing, workCard.reuseSummary.modelTemplate.status)
+        assertTrue(workCard.sourceProtected)
+
+        stateHolder.openWorkDetail("work-1")
+        val detail = assertNotNull(stateHolder.uiState.value.selectedWorkDetail)
+        assertEquals("work-1", detail.id)
+        assertEquals("Ada", detail.authorName)
+        assertEquals(PlazaReuseParameterStatus.Available, detail.reuseSummary.referenceMedia.status)
+        assertEquals(PlazaReuseParameterStatus.Missing, detail.reuseSummary.resolution.status)
+        assertEquals(PlazaWorkDetailPrimaryAction.UseSameGenerate, detail.primaryAction)
+        assertTrue(detail.sourceProtected)
     }
 
     private class FakePlazaRepository : PlazaRepository {

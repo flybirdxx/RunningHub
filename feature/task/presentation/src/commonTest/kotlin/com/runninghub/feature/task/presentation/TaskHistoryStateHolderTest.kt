@@ -13,6 +13,7 @@ import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -45,6 +46,61 @@ class TaskHistoryStateHolderTest {
         assertEquals(0.42, entries.getValue("failed-task").costAmount)
         assertEquals("USD", entries.getValue("failed-task").costCurrency)
         assertEquals(0, entries.getValue("failed-task").outputCount)
+    }
+
+    @Test
+    fun `history entries expose card status action rhb cost and expiry semantics`() = runTest {
+        val repository = FakeGenerationHistoryRepository(
+            items = listOf(
+                GenerationHistoryItem(
+                    taskId = "success-long-history-row-should-not-render-in-list",
+                    source = GenerationHistorySource.QUICK_CREATION,
+                    status = "SUCCESS",
+                    taskType = "Portrait",
+                    costAmount = 12.5,
+                    costCurrency = "RHB",
+                    costTime = "00:42",
+                    params = mapOf("prompt" to "city"),
+                    outputs = listOf(
+                        GenerationHistoryOutput(
+                            outputId = "output-rhb",
+                            url = "https://example.com/rhb.png",
+                            type = "png",
+                            thumbnailUrl = "https://example.com/rhb-thumb.png",
+                            expireDays = "2",
+                        )
+                    ),
+                ),
+                GenerationHistoryItem(
+                    taskId = "failed-with-params",
+                    source = GenerationHistorySource.STANDARD_MODEL,
+                    status = "FAILED",
+                    taskType = "Image",
+                    costAmount = 4.0,
+                    costCurrency = "CNY",
+                    params = mapOf("prompt" to "retry city"),
+                ),
+            )
+        )
+        val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
+
+        stateHolder.loadHistory()
+        runCurrent()
+
+        val entries = stateHolder.uiState.value.items
+        val success = entries.first()
+        val failed = entries.last()
+        assertEquals(TaskHistoryCardStatus.SUCCESS, success.cardStatus)
+        assertEquals(TaskHistoryCardAction.VIEW_RESULT, success.primaryAction)
+        assertEquals(listOf(TaskHistoryCardAction.REUSE_PARAMETERS), success.secondaryActions)
+        assertEquals(TaskHistoryCostKind.RHB, success.cost?.kind)
+        assertEquals("12.5", success.cost?.amountText)
+        assertEquals("RHB", success.cost?.unit)
+        assertEquals("2", success.expiry?.remainingDays)
+        assertEquals(false, success.showTaskIdInCard)
+        assertEquals(TaskHistoryCardStatus.FAILED, failed.cardStatus)
+        assertEquals(TaskHistoryCardAction.RETRY, failed.primaryAction)
+        assertEquals(TaskHistoryCostKind.FIAT, failed.cost?.kind)
     }
 
     @Test
@@ -96,6 +152,59 @@ class TaskHistoryStateHolderTest {
 
         assertEquals(null, stateHolder.uiState.value.selectedTaskDetail)
         assertEquals(false, stateHolder.uiState.value.isTaskDetailLoading)
+    }
+
+    @Test
+    fun `task detail ui model prioritizes result handling before technical diagnostics`() = runTest {
+        val repository = FakeGenerationHistoryRepository()
+        val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
+
+        stateHolder.openTaskDetail("console-task-1")
+        runCurrent()
+
+        val detailUi = stateHolder.uiState.value.selectedTaskDetailUi ?: error("missing detail ui")
+        assertEquals(
+            listOf(
+                TaskHistoryDetailSectionType.STATUS_SUMMARY,
+                TaskHistoryDetailSectionType.RESULT_PREVIEW,
+                TaskHistoryDetailSectionType.ACTIONS,
+                TaskHistoryDetailSectionType.BILLING,
+                TaskHistoryDetailSectionType.PROMPT_PARAMETERS,
+                TaskHistoryDetailSectionType.TECHNICAL_DETAILS,
+            ),
+            detailUi.sectionOrder,
+        )
+        assertEquals(TaskHistoryDetailStatus.SUCCESS, detailUi.status)
+        assertEquals(TaskHistoryDetailSaveState.NOT_SAVED, detailUi.saveState)
+        assertEquals(
+            listOf(
+                TaskHistoryDetailAction.SAVE,
+                TaskHistoryDetailAction.DOWNLOAD,
+                TaskHistoryDetailAction.REUSE_PARAMETERS,
+            ),
+            detailUi.actions,
+        )
+        assertEquals(TaskHistoryDetailMediaType.IMAGE, detailUi.result?.outputs?.single()?.mediaType)
+        assertEquals("1", detailUi.result?.expiry?.remainingDays)
+        assertEquals("12", detailUi.billing?.rows?.first { it.kind == TaskHistoryDetailBillingKind.RH_COINS }?.value)
+        assertEquals("city", detailUi.promptParameters.single { it.key == "prompt" }.value)
+        assertFalse(detailUi.technicalSections.any { it.initiallyExpanded })
+    }
+
+    @Test
+    fun `failed task detail exposes retry and refund status without result-first json expansion`() = runTest {
+        val repository = FakeGenerationHistoryRepository(taskDetailStatus = "FAILED")
+        val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
+
+        stateHolder.openTaskDetail("console-task-1")
+        runCurrent()
+
+        val detailUi = stateHolder.uiState.value.selectedTaskDetailUi ?: error("missing detail ui")
+        assertEquals(TaskHistoryDetailStatus.FAILED, detailUi.status)
+        assertEquals(TaskHistoryDetailAction.RETRY, detailUi.actions.first())
+        assertEquals(TaskHistoryDetailRefundState.CHECK_AVAILABLE, detailUi.refundState)
+        assertEquals(TaskHistoryDetailSectionType.TECHNICAL_DETAILS, detailUi.sectionOrder.last())
+        assertFalse(detailUi.technicalSections.any { it.initiallyExpanded })
     }
 
     @Test
@@ -259,7 +368,10 @@ class TaskHistoryStateHolderTest {
         assertEquals(1, repository.listCalls)
     }
 
-    private class FakeGenerationHistoryRepository : GenerationHistoryRepository {
+    private class FakeGenerationHistoryRepository(
+        private val items: List<GenerationHistoryItem>? = null,
+        private val taskDetailStatus: String = "SUCCESS",
+    ) : GenerationHistoryRepository {
         var lastDetailOutputId: String? = null
         var lastTaskDetailId: String? = null
         var cancelledTaskId: String? = null
@@ -317,8 +429,8 @@ class TaskHistoryStateHolderTest {
                 GenerationHistoryPage(
                     page = page,
                     size = size,
-                    total = 4,
-                    items = listOf(successItem, runningItem, failedItem, failedEmptyItem),
+                    total = (items ?: listOf(successItem, runningItem, failedItem, failedEmptyItem)).size,
+                    items = items ?: listOf(successItem, runningItem, failedItem, failedEmptyItem),
                 )
             )
         }
@@ -335,14 +447,21 @@ class TaskHistoryStateHolderTest {
                 GenerationTaskDetail(
                     taskId = taskId,
                     title = "Console detail",
-                    status = "SUCCESS",
+                    status = taskDetailStatus,
+                    duration = "60",
+                    rhCoins = "12",
+                    finalAmount = "0.1",
                     outputs = listOf(
                         GenerationHistoryOutput(
                             outputId = "detail-output-1",
                             url = "https://example.com/detail.png",
                             type = "png",
+                            expireDays = "1",
                         )
                     ),
+                    requestParameters = mapOf("prompt" to "city", "seed" to "42"),
+                    requestInfo = """{"prompt":"city","seed":"42","nodeInfoList":[]}""",
+                    responseInfo = """{"status":"$taskDetailStatus"}""",
                 )
             )
         }

@@ -82,7 +82,6 @@ import cafe.adriel.voyager.navigator.currentOrThrow
 import coil3.compose.AsyncImage
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.component.AppBarLogo
-import com.runninghub.app.ui.component.AppCard
 import com.runninghub.app.ui.component.AppSearchBar
 import com.runninghub.app.ui.component.ErrorState
 import com.runninghub.app.ui.component.LoadingIndicator
@@ -91,6 +90,13 @@ import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.previewDiscoveryUiState
+import com.runninghub.app.ui.designsystem.components.cards.AppCard
+import com.runninghub.app.ui.designsystem.components.cards.AppCardActionState
+import com.runninghub.app.ui.designsystem.components.cards.AppCardActionType
+import com.runninghub.app.ui.designsystem.components.cards.AppCardMetricState
+import com.runninghub.app.ui.designsystem.components.cards.AppCardPreviewState
+import com.runninghub.app.ui.designsystem.components.cards.AppCardState
+import com.runninghub.app.ui.designsystem.components.cards.AppCardPreviewType as DsAppCardPreviewType
 import com.runninghub.app.ui.feature.detail.AppDetailScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.WindowSizeClass
@@ -105,15 +111,28 @@ import com.runninghub.core.model.TagSimple
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogSort
 import com.runninghub.feature.discovery.presentation.CatalogPresentationError
+import com.runninghub.feature.discovery.presentation.DiscoveryAppCapability
+import com.runninghub.feature.discovery.presentation.DiscoveryAppCardMetricKind
+import com.runninghub.feature.discovery.presentation.DiscoveryAppCardPrimaryAction
+import com.runninghub.feature.discovery.presentation.DiscoveryAppCardUiModel
+import com.runninghub.feature.discovery.presentation.DiscoveryAppEstimatedCostKind
+import com.runninghub.feature.discovery.presentation.DiscoveryAppPreviewType
 import com.runninghub.feature.discovery.presentation.DiscoveryUiState
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.discovery_all_apps_title
+import runninghub.composeapp.generated.resources.discovery_action_generate
+import runninghub.composeapp.generated.resources.discovery_action_view_detail
+import runninghub.composeapp.generated.resources.discovery_capability_audio
+import runninghub.composeapp.generated.resources.discovery_capability_general
+import runninghub.composeapp.generated.resources.discovery_capability_image
+import runninghub.composeapp.generated.resources.discovery_capability_video
 import runninghub.composeapp.generated.resources.discovery_category_all
 import runninghub.composeapp.generated.resources.discovery_close_search_content_description
 import runninghub.composeapp.generated.resources.discovery_collect_stat_content_description
+import runninghub.composeapp.generated.resources.discovery_cost_unknown
 import runninghub.composeapp.generated.resources.discovery_default_author_name
 import runninghub.composeapp.generated.resources.discovery_empty_apps
 import runninghub.composeapp.generated.resources.discovery_end_of_results
@@ -125,6 +144,8 @@ import runninghub.composeapp.generated.resources.discovery_home_banner_action
 import runninghub.composeapp.generated.resources.discovery_home_banner_eyebrow
 import runninghub.composeapp.generated.resources.discovery_home_banner_title
 import runninghub.composeapp.generated.resources.discovery_inline_search_hint
+import runninghub.composeapp.generated.resources.discovery_metric_use_count
+import runninghub.composeapp.generated.resources.discovery_metric_view_count
 import runninghub.composeapp.generated.resources.discovery_model_api_badge
 import runninghub.composeapp.generated.resources.discovery_search_content_description
 import runninghub.composeapp.generated.resources.discovery_search_empty_results_format
@@ -343,13 +364,12 @@ private fun DiscoveryContent(
                     }
                 } else {
                     items(
-                        count = uiState.apps.size,
-                        key = { idx -> uiState.apps[idx].id },
+                        count = uiState.appCards.size,
+                        key = { idx -> uiState.appCards[idx].id },
                     ) { idx ->
-                        AppGridCard(
-                            app = uiState.apps[idx],
-                            statsLimit = windowInfo.compactCardStatsLimit,
-                            onClick = { onAppClick(uiState.apps[idx].id) },
+                        DiscoveryAppCard(
+                            card = uiState.appCards[idx],
+                            onClick = { onAppClick(uiState.appCards[idx].id) },
                         )
                     }
 
@@ -471,22 +491,17 @@ private fun InlineSearchResults(
                         horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
                         verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
                         modifier = Modifier.height(
-                            ((uiState.searchResults.size.coerceAtMost(10) / columns + 1) * 240).dp
+                            ((uiState.searchResultCards.size.coerceAtMost(10) / columns + 1) * 260).dp
                         ),
                     ) {
                         items(
-                            count = uiState.searchResults.size.coerceAtMost(10),
-                            key = { idx -> uiState.searchResults[idx].id },
+                            count = uiState.searchResultCards.size.coerceAtMost(10),
+                            key = { idx -> uiState.searchResultCards[idx].id },
                         ) { idx ->
-                            val app = uiState.searchResults[idx]
-                            AppCard(
-                                title = app.title,
-                                imageUrl = app.coverUrl ?: app.thumbnailUrl,
-                                authorName = app.author?.name,
-                                authorAvatar = app.author?.avatar,
-                                likeCount = app.likeCount,
-                                useCount = app.useCount,
-                                onClick = { onAppClick(app.id) },
+                            val card = uiState.searchResultCards[idx]
+                            DiscoveryAppCard(
+                                card = card,
+                                onClick = { onAppClick(card.id) },
                             )
                         }
                     }
@@ -998,6 +1013,117 @@ private fun catalogSortLabel(sort: CatalogSort): String {
 // endregion
 
 // region App Grid Card
+
+@Composable
+private fun DiscoveryAppCard(
+    card: DiscoveryAppCardUiModel,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    AppCard(
+        state = card.toAppCardState(),
+        onClick = onClick,
+        onAction = { onClick() },
+        modifier = modifier,
+        previewContent = { preview ->
+            DiscoveryAppCardPreview(preview)
+        },
+    )
+}
+
+@Composable
+private fun DiscoveryAppCardPreview(preview: AppCardPreviewState) {
+    val url = preview.url
+    if (url.isNullOrBlank()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.surfaceVariant),
+            contentAlignment = Alignment.Center,
+        ) {}
+        return
+    }
+
+    when (preview.type) {
+        DsAppCardPreviewType.Video -> VideoThumbnail(
+            url = url,
+            modifier = Modifier.fillMaxSize(),
+        )
+        else -> SmartAsyncImage(
+            imageUrl = url,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
+    }
+}
+
+@Composable
+private fun DiscoveryAppCardUiModel.toAppCardState(): AppCardState = AppCardState(
+    id = id,
+    title = templateName,
+    capabilityLabel = capability.toCapabilityLabel(),
+    preview = AppCardPreviewState(
+        url = preview.url,
+        type = preview.type.toDesignSystemPreviewType(),
+    ),
+    estimatedCostLabel = estimatedCost.kind.toEstimatedCostLabel(),
+    metric = supportingMetric?.let { metric ->
+        AppCardMetricState(
+            label = metric.kind.toMetricLabel(),
+            value = formatCount(metric.value),
+        )
+    },
+    primaryAction = AppCardActionState(
+        type = primaryAction.toDesignSystemActionType(),
+        label = primaryAction.toActionLabel(),
+    ),
+)
+
+@Composable
+private fun DiscoveryAppCapability.toCapabilityLabel(): String = stringResource(
+    when (this) {
+        DiscoveryAppCapability.IMAGE -> Res.string.discovery_capability_image
+        DiscoveryAppCapability.VIDEO -> Res.string.discovery_capability_video
+        DiscoveryAppCapability.AUDIO -> Res.string.discovery_capability_audio
+        DiscoveryAppCapability.GENERAL -> Res.string.discovery_capability_general
+    },
+)
+
+@Composable
+private fun DiscoveryAppEstimatedCostKind.toEstimatedCostLabel(): String = stringResource(
+    when (this) {
+        DiscoveryAppEstimatedCostKind.UNKNOWN -> Res.string.discovery_cost_unknown
+    },
+)
+
+@Composable
+private fun DiscoveryAppCardMetricKind.toMetricLabel(): String = stringResource(
+    when (this) {
+        DiscoveryAppCardMetricKind.USE_COUNT -> Res.string.discovery_metric_use_count
+        DiscoveryAppCardMetricKind.VIEW_COUNT -> Res.string.discovery_metric_view_count
+    },
+)
+
+@Composable
+private fun DiscoveryAppCardPrimaryAction.toActionLabel(): String = stringResource(
+    when (this) {
+        DiscoveryAppCardPrimaryAction.GENERATE -> Res.string.discovery_action_generate
+        DiscoveryAppCardPrimaryAction.VIEW_DETAIL -> Res.string.discovery_action_view_detail
+    },
+)
+
+private fun DiscoveryAppPreviewType.toDesignSystemPreviewType(): DsAppCardPreviewType = when (this) {
+    DiscoveryAppPreviewType.IMAGE -> DsAppCardPreviewType.Image
+    DiscoveryAppPreviewType.VIDEO -> DsAppCardPreviewType.Video
+    DiscoveryAppPreviewType.AUDIO -> DsAppCardPreviewType.Audio
+    DiscoveryAppPreviewType.EMPTY -> DsAppCardPreviewType.Empty
+}
+
+private fun DiscoveryAppCardPrimaryAction.toDesignSystemActionType(): AppCardActionType = when (this) {
+    DiscoveryAppCardPrimaryAction.GENERATE -> AppCardActionType.Generate
+    DiscoveryAppCardPrimaryAction.VIEW_DETAIL -> AppCardActionType.ViewDetail
+}
 
 @Composable
 private fun AppGridCard(

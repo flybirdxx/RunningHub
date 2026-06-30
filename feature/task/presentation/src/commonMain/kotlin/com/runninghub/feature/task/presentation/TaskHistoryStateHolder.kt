@@ -39,6 +39,67 @@ enum class TaskHistoryFilter {
 }
 
 /**
+ * History 任务卡使用的稳定状态语义。
+ *
+ * 该状态由 Presentation 从服务端原始状态字符串归一化得到，composeApp 不再直接按远端字符串判断卡片视觉。
+ */
+enum class TaskHistoryCardStatus {
+    SUCCESS,
+    FAILED,
+    IN_PROGRESS,
+    CANCELED,
+    UNKNOWN,
+}
+
+/**
+ * History 任务卡可暴露的动作语义。
+ *
+ * 动作只描述用户意图，具体查看结果、重试、取消或复用参数仍由页面层回调到 [TaskHistoryStateHolder]。
+ */
+enum class TaskHistoryCardAction {
+    VIEW_RESULT,
+    RETRY,
+    CANCEL,
+    REUSE_PARAMETERS,
+    VIEW_DETAIL,
+}
+
+/**
+ * History 任务卡费用的稳定计费类型。
+ *
+ * RHB 与法币分开表达，避免列表卡片把点数和 CNY 等法币混在同一行展示。
+ */
+enum class TaskHistoryCostKind {
+    RHB,
+    FIAT,
+    UNKNOWN,
+}
+
+/**
+ * History 任务卡费用展示语义。
+ *
+ * @property kind 费用类型，用于决定列表是否按 RHB 点数或法币展示。
+ * @property amountText 已按客户端规则规整的小数文本，不包含最终本地化文案。
+ * @property unit 服务端返回或客户端归一后的费用单位，例如 `RHB`、`CNY`。
+ */
+data class TaskHistoryCostUi(
+    val kind: TaskHistoryCostKind,
+    val amountText: String,
+    val unit: String,
+)
+
+/**
+ * History 任务卡输出过期语义。
+ *
+ * @property remainingDays 服务端返回的剩余天数文本；为空时表示服务端没有给出天数。
+ * @property expireTime 服务端返回的过期时间文本；为空时表示服务端没有给出具体时间。
+ */
+data class TaskHistoryExpiryUi(
+    val remainingDays: String?,
+    val expireTime: String?,
+)
+
+/**
  * History 页面一次性操作提示的稳定语义。
  *
  * 本类型只描述发生了哪类用户操作反馈，不包含最终中文文案。composeApp 负责把语义映射为
@@ -112,6 +173,8 @@ enum class TaskHistoryPresentationError {
  * `true` 时详情区域应展示进度并避免重复点击；`false` 表示没有进行中的详情请求。
  * @property selectedTaskDetail 当前被用户打开的完整任务详情。
  * `null` 表示详情抽屉关闭、尚未加载成功或详情加载失败；该对象只允许保存领域层脱敏后的信息。
+ * @property selectedTaskDetailUi 当前任务详情抽屉的页面级 UI 语义。
+ * `null` 表示详情未打开或加载失败；非空时 UI 应优先使用该对象决定结果、计费、参数和技术详情顺序。
  * @property isTaskDetailLoading 是否正在加载任务详情抽屉数据。
  * `true` 时 UI 可以展示侧边栏加载态；页面销毁时外部注入的协程作用域会取消未完成请求。
  * @property reuseParams 当前已准备复用或重试的任务参数。
@@ -132,6 +195,7 @@ data class TaskHistoryUiState(
     val selectedOutput: GenerationHistoryOutput? = null,
     val isDetailLoading: Boolean = false,
     val selectedTaskDetail: GenerationTaskDetail? = null,
+    val selectedTaskDetailUi: TaskHistoryDetailUiModel? = null,
     val isTaskDetailLoading: Boolean = false,
     val reuseParams: Map<String, String> = emptyMap(),
     val actionMessage: TaskHistoryActionMessage? = null,
@@ -172,6 +236,12 @@ data class TaskHistoryUiState(
  * `true` 表示任务失败且存在参数快照；`false` 表示当前状态或来源不应展示重试入口。
  * @property canCancel 是否允许用户发起取消请求。
  * `true` 表示任务仍处于非终态且当前来源支持取消；`false` 表示任务已进入终态或来源不支持取消。
+ * @property cardStatus 列表任务卡使用的归一化状态语义。
+ * @property primaryAction 列表任务卡的主操作；为空表示当前任务没有可直接执行的下一步。
+ * @property secondaryActions 列表任务卡的次级操作集合，例如成功任务复用参数。
+ * @property cost 列表任务卡费用语义；为空表示服务端未返回可展示费用或任务未产生费用。
+ * @property expiry 第一项输出的过期语义；为空表示没有输出或服务端未返回过期信息。
+ * @property showTaskIdInCard 是否允许列表卡默认展示任务 ID。RM-09 固定为 `false`，长 ID 只进入详情层。
  */
 data class TaskHistoryEntry(
     val taskId: String,
@@ -188,6 +258,12 @@ data class TaskHistoryEntry(
     val canReuseParams: Boolean = false,
     val canRetry: Boolean = false,
     val canCancel: Boolean = false,
+    val cardStatus: TaskHistoryCardStatus = TaskHistoryCardStatus.UNKNOWN,
+    val primaryAction: TaskHistoryCardAction? = null,
+    val secondaryActions: List<TaskHistoryCardAction> = emptyList(),
+    val cost: TaskHistoryCostUi? = null,
+    val expiry: TaskHistoryExpiryUi? = null,
+    val showTaskIdInCard: Boolean = false,
 )
 
 /**
@@ -299,6 +375,7 @@ class TaskHistoryStateHolder(
                 it.copy(
                     isTaskDetailLoading = true,
                     selectedTaskDetail = null,
+                    selectedTaskDetailUi = null,
                     error = null,
                     actionMessage = null,
                 )
@@ -308,6 +385,7 @@ class TaskHistoryStateHolder(
                     _uiState.update {
                         it.copy(
                             selectedTaskDetail = detail,
+                            selectedTaskDetailUi = detail.toTaskHistoryDetailUiModel(),
                             isTaskDetailLoading = false,
                             error = null,
                         )
@@ -317,6 +395,7 @@ class TaskHistoryStateHolder(
                     _uiState.update {
                         it.copy(
                             selectedTaskDetail = null,
+                            selectedTaskDetailUi = null,
                             isTaskDetailLoading = false,
                             error = error.toHistoryPresentationError(TaskHistoryPresentationError.DetailLoadFailed),
                         )
@@ -331,7 +410,13 @@ class TaskHistoryStateHolder(
      * 该动作只清理当前详情展示态，不影响列表数据、筛选条件或已准备的复用参数。
      */
     fun closeTaskDetail() {
-        _uiState.update { it.copy(selectedTaskDetail = null, isTaskDetailLoading = false) }
+        _uiState.update {
+            it.copy(
+                selectedTaskDetail = null,
+                selectedTaskDetailUi = null,
+                isTaskDetailLoading = false,
+            )
+        }
     }
 
     /**
@@ -485,6 +570,10 @@ private fun List<GenerationHistoryItem>.filterByStatus(filter: TaskHistoryFilter
 private fun GenerationHistoryItem.toTaskHistoryEntry(): TaskHistoryEntry {
     val primaryOutput = outputs.firstOrNull()
     val titleText = taskType ?: modelId ?: "Generation task"
+    val canViewOutput = primaryOutput != null
+    val canReuseParams = params.isNotEmpty()
+    val canRetry = status.isFailedStatus() && params.isNotEmpty()
+    val canCancel = isRunning && source == GenerationHistorySource.QUICK_CREATION
     return TaskHistoryEntry(
         taskId = taskId,
         title = titleText,
@@ -496,11 +585,83 @@ private fun GenerationHistoryItem.toTaskHistoryEntry(): TaskHistoryEntry {
         costAmount = costAmount,
         costCurrency = costCurrency,
         outputCount = outputs.size,
-        canViewOutput = primaryOutput != null,
-        canReuseParams = params.isNotEmpty(),
-        canRetry = status.isFailedStatus() && params.isNotEmpty(),
-        canCancel = isRunning && source == GenerationHistorySource.QUICK_CREATION,
+        canViewOutput = canViewOutput,
+        canReuseParams = canReuseParams,
+        canRetry = canRetry,
+        canCancel = canCancel,
+        cardStatus = status.toTaskHistoryCardStatus(),
+        primaryAction = taskHistoryPrimaryAction(
+            status = status,
+            canViewOutput = canViewOutput,
+            canRetry = canRetry,
+            canCancel = canCancel,
+        ),
+        secondaryActions = taskHistorySecondaryActions(
+            status = status,
+            canReuseParams = canReuseParams,
+        ),
+        cost = taskHistoryCostUi(costAmount, costCurrency),
+        expiry = primaryOutput?.toTaskHistoryExpiryUi(),
     )
+}
+
+private fun String.toTaskHistoryCardStatus(): TaskHistoryCardStatus = when {
+    isCompletedStatus() -> TaskHistoryCardStatus.SUCCESS
+    isFailedStatus() -> TaskHistoryCardStatus.FAILED
+    isCancelledStatus() -> TaskHistoryCardStatus.CANCELED
+    isBlank() -> TaskHistoryCardStatus.UNKNOWN
+    else -> TaskHistoryCardStatus.IN_PROGRESS
+}
+
+private fun taskHistoryPrimaryAction(
+    status: String,
+    canViewOutput: Boolean,
+    canRetry: Boolean,
+    canCancel: Boolean,
+): TaskHistoryCardAction? = when {
+    status.isCompletedStatus() && canViewOutput -> TaskHistoryCardAction.VIEW_RESULT
+    status.isFailedStatus() && canRetry -> TaskHistoryCardAction.RETRY
+    canCancel -> TaskHistoryCardAction.CANCEL
+    status.isNotBlank() -> TaskHistoryCardAction.VIEW_DETAIL
+    else -> null
+}
+
+private fun taskHistorySecondaryActions(
+    status: String,
+    canReuseParams: Boolean,
+): List<TaskHistoryCardAction> = buildList {
+    if (status.isCompletedStatus() && canReuseParams) {
+        add(TaskHistoryCardAction.REUSE_PARAMETERS)
+    }
+}
+
+private fun taskHistoryCostUi(amount: Double, currency: String?): TaskHistoryCostUi? {
+    val unit = currency?.trim()?.takeIf { it.isNotBlank() } ?: return null
+    if (amount <= 0.0) return null
+    val normalizedUnit = unit.uppercase()
+    return TaskHistoryCostUi(
+        kind = normalizedUnit.toTaskHistoryCostKind(),
+        amountText = amount.toHistoryAmountText(),
+        unit = normalizedUnit,
+    )
+}
+
+private fun String.toTaskHistoryCostKind(): TaskHistoryCostKind = when (this) {
+    "RHB", "RH", "RH_COIN", "RH_COINS", "COIN", "COINS", "POINT", "POINTS", "CREDIT", "CREDITS" ->
+        TaskHistoryCostKind.RHB
+    "CNY", "USD", "EUR", "JPY", "HKD" -> TaskHistoryCostKind.FIAT
+    else -> TaskHistoryCostKind.UNKNOWN
+}
+
+private fun Double.toHistoryAmountText(): String {
+    val raw = toString()
+    return if (raw.endsWith(".0")) raw.dropLast(2) else raw
+}
+
+private fun GenerationHistoryOutput.toTaskHistoryExpiryUi(): TaskHistoryExpiryUi? {
+    val days = expireDays?.trim()?.takeIf { it.isNotBlank() }
+    val time = expireTime?.trim()?.takeIf { it.isNotBlank() }
+    return if (days == null && time == null) null else TaskHistoryExpiryUi(days, time)
 }
 
 private fun Map<String, String>.toReuseActionMessage(): TaskHistoryActionMessage =

@@ -186,6 +186,7 @@ data class PlazaFallbackCardText(
  * 顺序用于瀑布流展示，空集合表示尚无可展示创作。
  * @property fallbackCreationTexts 本地 fallback 创作 ID 到资源化文案语义的映射。空集合表示当前创作来自
  * 服务端；非空时 UI 应优先使用该映射展示内置卡片简介、作者和媒体类型。
+ * @property selectedWorkId 当前打开详情或复用确认的 Plaza 作品 ID；`null` 表示没有选中作品。
  * @property currentPage 已加载的灵感页码，从 1 开始；0 表示尚未成功加载任何灵感页。
  * @property total 灵感创作总数，单位为条；0 表示服务端未返回总数或当前无数据。
  * @property hasMore 灵感创作是否还有下一页。`true` 表示可以继续请求下一页；
@@ -217,6 +218,7 @@ data class PlazaUiState(
     val sort: String = "RECOMMEND",
     val creations: List<PlazaCreationCard> = emptyList(),
     val fallbackCreationTexts: Map<String, PlazaFallbackCardText> = emptyMap(),
+    val selectedWorkId: String? = null,
     val currentPage: Int = 0,
     val total: Int = 0,
     val hasMore: Boolean = true,
@@ -228,7 +230,23 @@ data class PlazaUiState(
     val shortHasMore: Boolean = true,
     val isShortsLoading: Boolean = false,
     val error: PlazaPresentationError? = null,
-)
+) {
+    /**
+     * Plaza 灵感作品卡片语义。
+     *
+     * UI 使用该派生列表渲染“使用同款”入口，避免在 composeApp 中重新理解 Domain 字段和缺失参数规则。
+     */
+    val workCards: List<PlazaWorkCardUiModel>
+        get() = creations.map { it.toPlazaWorkCardUiModel() }
+
+    /**
+     * 当前选中作品详情语义。
+     *
+     * `null` 表示没有打开作品详情；非空时包含作者来源、预览、复用参数摘要和主 CTA。
+     */
+    val selectedWorkDetail: PlazaWorkDetailUiModel?
+        get() = creations.firstOrNull { it.id == selectedWorkId }?.toPlazaWorkDetailUiModel()
+}
 
 /**
  * 协调社区广场页面的加载、筛选和分页状态。
@@ -342,6 +360,25 @@ class PlazaStateHolder(
         if (mode == PlazaMode.SHORTS && _uiState.value.shorts.isEmpty()) {
             loadShorts()
         }
+    }
+
+    /**
+     * 打开 Plaza 作品详情。
+     *
+     * 只接受当前已加载列表中的作品 ID，避免旧分页或外部伪造 ID 打开不存在的复用来源。
+     *
+     * @param workId 用户点击的 Plaza 作品 ID。
+     */
+    fun openWorkDetail(workId: String) {
+        val selectedId = _uiState.value.creations.firstOrNull { it.id == workId }?.id ?: return
+        _uiState.update { it.copy(selectedWorkId = selectedId) }
+    }
+
+    /**
+     * 关闭当前 Plaza 作品详情或复用确认。
+     */
+    fun dismissWorkDetail() {
+        _uiState.update { it.copy(selectedWorkId = null) }
     }
 
     /**

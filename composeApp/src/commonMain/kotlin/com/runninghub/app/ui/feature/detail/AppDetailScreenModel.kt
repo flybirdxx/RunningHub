@@ -3,7 +3,7 @@ package com.runninghub.app.ui.feature.detail
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.app.platform.MediaResolver
-import com.runninghub.app.ui.feature.history.WebAppTaskHistoryOverlayStore
+import com.runninghub.app.history.WebAppTaskHistoryOverlayStore
 import com.runninghub.core.model.InputNode
 import com.runninghub.feature.detail.presentation.AppDetailMediaReader
 import com.runninghub.feature.detail.presentation.AppDetailMediaType

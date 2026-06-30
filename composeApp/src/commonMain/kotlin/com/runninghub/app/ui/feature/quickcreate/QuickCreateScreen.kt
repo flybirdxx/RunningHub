@@ -17,7 +17,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -53,8 +55,11 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateNavigationLabel
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateConversationItemUi
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultAction
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreatePlazaReuseIntent
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
@@ -68,22 +73,31 @@ import kotlin.math.roundToInt
  * 该类型只负责从 Koin 获取 [QuickCreateScreenModel] 并把它交给页面内容函数；
  * 具体业务编排由 ScreenModel/Coordinator 处理，避免导航对象直接持有创作、上传或轮询状态。
  */
-class QuickCreateVoyagerScreen : Screen {
+class QuickCreateVoyagerScreen(
+    private val consumePlazaReuseIntent: () -> QuickCreatePlazaReuseIntent? = { null },
+) : Screen {
     override val key: ScreenKey = uniqueScreenKey
 
     @Composable
     override fun Content() {
         val screenModel: QuickCreateScreenModel = koinScreenModel()
-        QuickCreateScreen(screenModel)
+        QuickCreateScreen(
+            screenModel = screenModel,
+            consumePlazaReuseIntent = consumePlazaReuseIntent,
+        )
     }
 }
 
 @Composable
-private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
+private fun QuickCreateScreen(
+    screenModel: QuickCreateScreenModel,
+    consumePlazaReuseIntent: () -> QuickCreatePlazaReuseIntent?,
+) {
     val uiState by screenModel.uiState.collectAsState()
     val currentScreenModel by rememberUpdatedState(screenModel)
     val windowInfo = LocalRhWindowInfo.current
     val density = LocalDensity.current
+    val clipboardManager = LocalClipboardManager.current
     val rootWindowHeightPx = rememberRootWindowHeightPx().toFloat()
 
     // 页面只依赖权限状态的领域边界，底层是否使用 DataStore 由 DI 组合根决定。
@@ -129,6 +143,10 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
 
     LaunchedEffect(uiState.activeSheet) {
         uiState.activeSheet?.let { lastActiveSheet = it }
+    }
+
+    LaunchedEffect(screenModel) {
+        consumePlazaReuseIntent()?.let(screenModel::applyPlazaReuseIntent)
     }
 
     LaunchedEffect(keyboardVisible, editorBottomPx, targetEditorBottomPx) {
@@ -178,6 +196,24 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
         }
     }
 
+    fun handleResultAction(action: QuickCreateResultAction, item: QuickCreateConversationItemUi) {
+        when (action) {
+            QuickCreateResultAction.TryAgain,
+            QuickCreateResultAction.Retry -> {
+                screenModel.restoreConversationPrompt(item.prompt)
+                screenModel.generate()
+            }
+            QuickCreateResultAction.ReuseParameters -> screenModel.restoreConversationPrompt(item.prompt)
+            QuickCreateResultAction.CopyPrompt -> clipboardManager.setText(AnnotatedString(item.prompt))
+            QuickCreateResultAction.ViewTask,
+            QuickCreateResultAction.ViewResult,
+            QuickCreateResultAction.Save,
+            QuickCreateResultAction.Download,
+            QuickCreateResultAction.ViewDetail,
+            QuickCreateResultAction.RefundStatus -> Unit
+        }
+    }
+
     fun cancelSheetDrag() {
         sheetDragging = false
         sheetDragOffsetPx = 0f
@@ -216,7 +252,10 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                 )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    CreationScrollableArea(uiState = uiState)
+                    CreationScrollableArea(
+                        uiState = uiState,
+                        onResultAction = ::handleResultAction,
+                    )
                 }
 
                 if (uiState.historyDetailLoading || uiState.selectedHistoryDetail != null) {
@@ -362,6 +401,8 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         },
                         onTabSwitch = screenModel::switchTab,
                         onDismiss = screenModel::closeActiveSheet,
+                        onModelPickerQueryChange = screenModel::updateModelPickerQuery,
+                        onModelPickerFilterSelected = screenModel::selectModelPickerFilter,
                         onSheetDragStart = ::startSheetDrag,
                         onSheetDrag = ::dragSheet,
                         onSheetDragEnd = ::endSheetDrag,
@@ -418,6 +459,11 @@ private fun QuickCreateScreen(screenModel: QuickCreateScreenModel) {
                         onSheetDrag = ::dragSheet,
                         onSheetDragEnd = ::endSheetDrag,
                         onSheetDragCancel = ::cancelSheetDrag,
+                    )
+                    QuickCreateSheet.GENERATION_CONFIRM -> QuickCreateGenerationConfirmSheet(
+                        uiState = uiState,
+                        onConfirm = screenModel::confirmGeneration,
+                        onDismiss = screenModel::closeActiveSheet,
                     )
                     null -> Unit
                 }
@@ -511,6 +557,7 @@ private fun QuickCreateModeTitle(
 @Composable
 private fun CreationScrollableArea(
     uiState: QuickCreateUiState,
+    onResultAction: (QuickCreateResultAction, QuickCreateConversationItemUi) -> Unit,
 ) {
     val hasConversation = uiState.conversationItems.isNotEmpty() ||
         uiState.submittedPrompt.isNotBlank() ||
@@ -520,6 +567,7 @@ private fun CreationScrollableArea(
     if (hasConversation) {
         QuickCreateConversationArea(
             uiState = uiState,
+            onResultAction = onResultAction,
         )
     } else {
         Spacer(modifier = Modifier.fillMaxSize())
@@ -552,7 +600,10 @@ private fun QuickCreatePreviewContent(
                 )
 
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    CreationScrollableArea(uiState = uiState)
+                    CreationScrollableArea(
+                        uiState = uiState,
+                        onResultAction = { _, _ -> },
+                    )
                 }
 
                 if (uiState.showCreationInput) {

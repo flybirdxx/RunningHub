@@ -1,0 +1,26 @@
+﻿Source/doc/test RM-14 line evidence after final gate fix.
+
+composeApp/src/commonTest/kotlin/com/runninghub/app/ui/copy/RedesignStateCopyMatrixContractTest.kt:21
+fun `copy specs keep required resources and blocking semantics explicit`() {
+
+composeApp/src/commonTest/kotlin/com/runninghub/app/ui/copy/RedesignStateCopyMatrixContractTest.kt:22-28
+bottomSheetIds and blockingIds are computed from the matrix, so the test fails if carrier or blocking semantics drift.
+
+composeApp/src/commonTest/kotlin/com/runninghub/app/ui/copy/RedesignStateCopyMatrixContractTest.kt:30
+assertNotNull(spec.title, "Missing title resource for ${spec.id}")
+
+composeApp/src/commonTest/kotlin/com/runninghub/app/ui/copy/RedesignStateCopyMatrixContractTest.kt:35-36
+assertNotNull(spec.primaryAction, "Missing primary action for ${spec.id}")
+assertNotNull(spec.secondaryAction, "Missing secondary action for ${spec.id}")
+
+composeApp/src/commonTest/kotlin/com/runninghub/app/ui/copy/RedesignStateCopyMatrixContractTest.kt:38-58
+The test asserts exact BottomSheet ids and exact blocking ids.
+
+artifacts/ultrawork-runninghub-redesign-notepad-2026-06-30.md:545
+Final gate fix records that the old non-null assertions were removed and replaced with title resource, BottomSheet action, and blocking-id checks.
+
+artifacts/ultrawork-runninghub-redesign-notepad-2026-06-30.md:553
+Final gate rerun records ./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests com.runninghub.app.ui.copy.RedesignStateCopyMatrixContractTest -> BUILD SUCCESSFUL in 10s.
+
+docs/governance/ui-copy-message-inventory.md:33-44
+The governance inventory records the RM-14 state copy matrix path, resource-only policy, and key carrier boundaries.

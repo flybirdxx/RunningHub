@@ -169,6 +169,20 @@ class QuickCreateInspirationStateHolder(
         }
     }
 
+    /**
+     * 将 Plaza 使用同款意图应用到当前编辑器。
+     *
+     * 该入口只写入已知可编辑参数和参考素材，不提交生成任务；成功应用后通过 [onTemplateApplied]
+     * 触发既有计费预览链路，确保后续生成仍经过价格确认。
+     *
+     * @param intent Plaza 作品详情转换出的复用意图。
+     */
+    fun applyPlazaReuseIntent(intent: QuickCreatePlazaReuseIntent) {
+        if (intent.sourceWorkId.isBlank()) return
+        uiState.update { state -> state.applyPlazaReuseIntent(intent) }
+        onTemplateApplied()
+    }
+
     private fun QuickCreateUiState.applyTemplateDetail(
         detail: QuickCreateInspirationTemplateDetail,
     ): QuickCreateUiState {
@@ -177,6 +191,96 @@ class QuickCreateInspirationStateHolder(
             "VIDEO" -> applyVideoTemplateDetail(detail)
             else -> applyImageTemplateDetail(detail)
         }
+    }
+
+    private fun QuickCreateUiState.applyPlazaReuseIntent(
+        intent: QuickCreatePlazaReuseIntent,
+    ): QuickCreateUiState =
+        when (intent.referenceMediaKind) {
+            QuickCreatePlazaReuseMediaKind.VIDEO -> applyVideoPlazaReuseIntent(intent)
+            else -> applyImagePlazaReuseIntent(intent)
+        }
+
+    private fun QuickCreateUiState.applyImagePlazaReuseIntent(
+        intent: QuickCreatePlazaReuseIntent,
+    ): QuickCreateUiState {
+        val selectedModel = serviceImageModels.matchPlazaReuseIntent(intent) ?: selectedImageServiceModel
+        val plazaParams = intent.plazaServiceParams()
+        val serviceParams = selectedModel?.let { model ->
+            QuickCreationServiceSchema.defaultParams(model, plazaParams) + plazaParams
+        } ?: plazaParams
+        val imageModel = imageConfig.model
+        val imageItems = serviceImageModels.toQuickCreateServiceModelUiItems(selectedModel)
+        val nextConfig = imageConfig.copy(
+            prompt = intent.prompt?.takeIf { it.isNotBlank() } ?: imageConfig.prompt,
+            aspectRatio = intent.aspectRatio?.toImageAspectRatio()
+                ?.takeIf { it in imageModel.supportedRatios }
+                ?: imageConfig.aspectRatio,
+            resolution = intent.resolution?.toImageResolution()
+                ?.takeIf { it in imageModel.supportedResolutions }
+                ?: imageConfig.resolution,
+            count = intent.quantity?.takeIf { it > 0 } ?: imageConfig.count,
+            mediaReferences = intent.toMediaReferences(
+                activeUploadAliases = selectedModel?.let { model ->
+                    QuickCreationServiceSchema.activeUploadParamAliases(
+                        model = model,
+                        serviceParams = serviceParams,
+                    )
+                }.orEmpty(),
+            ),
+        )
+        return copy(
+            currentMode = QuickCreateMode.CREATION,
+            currentTab = QuickCreateTab.IMAGE,
+            inspirationLoading = false,
+            selectedImageServiceModel = selectedModel,
+            serviceImageModelItems = imageItems,
+            selectedImageServiceModelUi = imageItems.firstOrNull { it.selected },
+            imageConfig = nextConfig,
+            imageServiceParams = serviceParams,
+            estimatedCost = nextConfig.estimatedCost,
+        )
+    }
+
+    private fun QuickCreateUiState.applyVideoPlazaReuseIntent(
+        intent: QuickCreatePlazaReuseIntent,
+    ): QuickCreateUiState {
+        val selectedModel = serviceVideoModels.matchPlazaReuseIntent(intent) ?: selectedVideoServiceModel
+        val plazaParams = intent.plazaServiceParams()
+        val serviceParams = selectedModel?.let { model ->
+            QuickCreationServiceSchema.defaultParams(model, plazaParams) + plazaParams
+        } ?: plazaParams
+        val videoModel = videoConfig.model
+        val videoItems = serviceVideoModels.toQuickCreateServiceModelUiItems(selectedModel)
+        val nextConfig = videoConfig.copy(
+            prompt = intent.prompt?.takeIf { it.isNotBlank() } ?: videoConfig.prompt,
+            aspectRatio = intent.aspectRatio?.toVideoAspectRatio()
+                ?.takeIf { it in videoModel.supportedRatios }
+                ?: videoConfig.aspectRatio,
+            resolution = intent.resolution?.toVideoResolution()
+                ?.takeIf { it in videoModel.supportedResolutions }
+                ?: videoConfig.resolution,
+            count = intent.quantity?.takeIf { it > 0 } ?: videoConfig.count,
+            mediaReferences = intent.toMediaReferences(
+                activeUploadAliases = selectedModel?.let { model ->
+                    QuickCreationServiceSchema.activeUploadParamAliases(
+                        model = model,
+                        serviceParams = serviceParams,
+                    )
+                }.orEmpty(),
+            ),
+        )
+        return copy(
+            currentMode = QuickCreateMode.CREATION,
+            currentTab = QuickCreateTab.VIDEO,
+            inspirationLoading = false,
+            selectedVideoServiceModel = selectedModel,
+            serviceVideoModelItems = videoItems,
+            selectedVideoServiceModelUi = videoItems.firstOrNull { it.selected },
+            videoConfig = nextConfig,
+            videoServiceParams = serviceParams,
+            estimatedCost = nextConfig.estimatedCost,
+        )
     }
 
     private fun QuickCreateUiState.applyImageTemplateDetail(
@@ -271,6 +375,73 @@ class QuickCreateInspirationStateHolder(
         firstOrNull { model ->
             (detail.bindingId != null && model.bindingId == detail.bindingId) ||
                 (detail.skuId != null && model.skuId == detail.skuId)
+        }
+
+    private fun List<QuickCreationServiceModel>.matchPlazaReuseIntent(
+        intent: QuickCreatePlazaReuseIntent,
+    ): QuickCreationServiceModel? =
+        firstOrNull { model ->
+            (intent.templateId != null && model.bindingId == intent.templateId) ||
+                (intent.skuId != null && model.skuId == intent.skuId)
+        }
+
+    private fun QuickCreatePlazaReuseIntent.plazaServiceParams(): Map<String, String> =
+        buildMap {
+            aspectRatio?.takeIf { it.isNotBlank() }?.let { put("aspectRatio", it) }
+            resolution?.takeIf { it.isNotBlank() }?.let { put("resolution", it) }
+            quantity?.takeIf { it > 0 }?.let { put("quantity", it.toString()) }
+        }
+
+    private fun String.toImageAspectRatio(): ImageAspectRatio? =
+        ImageAspectRatio.entries.firstOrNull { it.apiValue.equals(this, ignoreCase = true) }
+
+    private fun String.toVideoAspectRatio(): VideoAspectRatio? =
+        VideoAspectRatio.entries.firstOrNull { it.apiValue.equals(this, ignoreCase = true) }
+
+    private fun String.toImageResolution(): ImageResolution? =
+        ImageResolution.entries.firstOrNull { it.apiValue.equals(this, ignoreCase = true) }
+
+    private fun String.toVideoResolution(): VideoResolution? =
+        VideoResolution.entries.firstOrNull { it.apiValue.equals(this, ignoreCase = true) }
+
+    private fun QuickCreatePlazaReuseIntent.toMediaReferences(
+        activeUploadAliases: Map<String, QuickCreationServiceUploadFieldAlias>,
+    ): List<MediaReference> {
+        val url = referenceMediaUrl?.takeIf { it.isNotBlank() } ?: return emptyList()
+        val mediaType = referenceMediaKind?.toQuickCreateMediaType() ?: return emptyList()
+        val fieldParamKey = activeUploadAliases.values
+            .firstOrNull { alias ->
+                alias.mediaKind?.toQuickCreateMediaType() == mediaType
+            }
+            ?.paramKey
+        return listOf(
+            MediaReference(
+                id = "plaza_${sourceWorkId.plazaReuseReferenceIdPart()}_${mediaType.name}",
+                type = mediaType,
+                uri = url,
+                displayName = url.substringAfterLast('/').ifBlank { sourceWorkId },
+                fileSizeBytes = 0L,
+                fieldParamKey = fieldParamKey,
+                uploadStatus = UploadStatus.DONE,
+                uploadProgress = 1f,
+                remoteUrl = url,
+            ),
+        )
+    }
+
+    private fun String.plazaReuseReferenceIdPart(): String =
+        map { char ->
+            when (char) {
+                in 'A'..'Z', in 'a'..'z', in '0'..'9' -> char
+                else -> '_'
+            }
+        }.joinToString("").ifBlank { "work" }
+
+    private fun QuickCreatePlazaReuseMediaKind.toQuickCreateMediaType(): QuickCreateMediaType =
+        when (this) {
+            QuickCreatePlazaReuseMediaKind.IMAGE -> QuickCreateMediaType.IMAGE
+            QuickCreatePlazaReuseMediaKind.VIDEO -> QuickCreateMediaType.VIDEO
+            QuickCreatePlazaReuseMediaKind.AUDIO -> QuickCreateMediaType.AUDIO
         }
 
     private fun QuickCreateInspirationTemplateDetail.templateMediaReferences(

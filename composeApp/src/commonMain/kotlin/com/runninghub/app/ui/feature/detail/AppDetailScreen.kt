@@ -110,6 +110,8 @@ import com.runninghub.core.storage.Permission
 import com.runninghub.core.model.TaskOutput
 import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.feature.detail.presentation.AppDetailErrorText
+import com.runninghub.feature.detail.presentation.AppDetailCreationEntryUiModel
+import com.runninghub.feature.detail.presentation.AppDetailCreationPrimaryAction
 import com.runninghub.feature.detail.presentation.AppDetailInputControl
 import com.runninghub.feature.detail.presentation.AppDetailInputFieldUiModel
 import com.runninghub.feature.detail.presentation.AppDetailInputRowUiModel
@@ -118,11 +120,23 @@ import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.detail.presentation.AppDetailUiState
 import com.runninghub.feature.detail.presentation.AppDetailUploadingState
 import com.runninghub.feature.detail.presentation.appDetailInputKey
+import com.runninghub.feature.detail.presentation.creationEntry
 import com.runninghub.feature.detail.presentation.inputRows
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_detail_back_content_description
+import runninghub.composeapp.generated.resources.app_detail_creation_cost_title
+import runninghub.composeapp.generated.resources.app_detail_creation_cost_unknown
+import runninghub.composeapp.generated.resources.app_detail_creation_generate_action
+import runninghub.composeapp.generated.resources.app_detail_creation_input_filled
+import runninghub.composeapp.generated.resources.app_detail_creation_input_missing
+import runninghub.composeapp.generated.resources.app_detail_creation_purpose_title
+import runninghub.composeapp.generated.resources.app_detail_creation_required_inputs_title
+import runninghub.composeapp.generated.resources.app_detail_creation_technical_empty
+import runninghub.composeapp.generated.resources.app_detail_creation_technical_item_format
+import runninghub.composeapp.generated.resources.app_detail_creation_technical_title
+import runninghub.composeapp.generated.resources.app_detail_creation_view_result_action
 import runninghub.composeapp.generated.resources.app_detail_default_app_name
 import runninghub.composeapp.generated.resources.app_detail_description_title
 import runninghub.composeapp.generated.resources.app_detail_error_load_failed
@@ -275,12 +289,30 @@ private fun DetailContent(
                 contentPadding = PaddingValues(bottom = 168.dp),
                 modifier = Modifier.fillMaxSize()
             ) {
-                item(key = "hero") {
-                    AppDetailHero(
-                        detail = detail,
-                        onBack = onBack,
-                        onAuthorClick = { detail.owner?.id?.let(onAuthorClick) }
-                    )
+                item(key = "creation_entry") {
+                    uiState.creationEntry?.let { entry ->
+                        AppDetailCreationEntry(
+                            entry = entry,
+                            detail = detail,
+                            isRunning = uiState.isRunningTask,
+                            taskStep = uiState.taskStep,
+                            onBack = onBack,
+                            onPrimaryAction = {
+                                when (entry.primaryAction.type) {
+                                    AppDetailCreationPrimaryAction.GENERATE_NOW,
+                                    AppDetailCreationPrimaryAction.RETRY -> onRunTask()
+                                    AppDetailCreationPrimaryAction.VIEW_RESULT -> Unit
+                                }
+                            },
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                        )
+                    }
+                }
+
+                if (uiState.taskStep == AppDetailTaskStep.IDLE && !uiState.isRunningTask) {
+                    item(key = "creation_spacing") {
+                        Spacer(Modifier.height(4.dp))
+                    }
                 }
 
                 // 任务提交后保留阶段进度，用户能区分“已提交”和“正在等待结果”的状态。
@@ -320,7 +352,7 @@ private fun DetailContent(
                     }
                 }
 
-                // 参数较多时默认折叠，减少详情内容和生成结果之间的滚动成本。
+                // 参数区紧跟创作入口，保证用户在详情首屏即可看到需要补齐的输入。
                 if (detail.inputNodes.isNotEmpty()) {
                     item(key = "input_header") {
                         SectionHeader(
@@ -347,6 +379,15 @@ private fun DetailContent(
                         }
                     }
                 }
+
+                item(key = "about_detail") {
+                    AppDetailHero(
+                        detail = detail,
+                        onBack = onBack,
+                        onAuthorClick = { detail.owner?.id?.let(onAuthorClick) },
+                        showBackButton = false,
+                    )
+                }
             }
 
             RunTaskBottomBar(
@@ -366,10 +407,300 @@ private fun DetailContent(
    ═══════════════════════════════════════════════════ */
 
 @Composable
+private fun AppDetailCreationEntry(
+    entry: AppDetailCreationEntryUiModel,
+    detail: AppDetail,
+    isRunning: Boolean,
+    taskStep: AppDetailTaskStep,
+    onBack: () -> Unit,
+    onPrimaryAction: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .clip(RoundedCornerShape(18.dp))
+            .background(DarkSurface)
+            .padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(DarkSurfaceVariant),
+            ) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(Res.string.app_detail_back_content_description),
+                    tint = Color.White,
+                )
+            }
+            CompactDetailCover(detail = detail)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    text = entry.title.ifBlank { stringResource(Res.string.app_detail_default_app_name) },
+                    color = Color.White,
+                    fontSize = 20.sp,
+                    lineHeight = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(Res.string.app_detail_creation_purpose_title),
+                    color = Primary300,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Text(
+                    text = entry.purpose,
+                    color = Neutral400,
+                    fontSize = 13.sp,
+                    lineHeight = 18.sp,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+
+        CreationInfoRow(
+            title = stringResource(Res.string.app_detail_creation_cost_title),
+            value = entry.estimatedCost.amountLabel ?: stringResource(Res.string.app_detail_creation_cost_unknown),
+        )
+
+        if (entry.requiredInputs.isNotEmpty()) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(Res.string.app_detail_creation_required_inputs_title),
+                    color = Color.White,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                entry.requiredInputs.take(4).forEach { input ->
+                    CreationInputRow(
+                        title = input.title,
+                        filled = input.filled,
+                    )
+                }
+            }
+        }
+
+        CreationPrimaryButton(
+            label = if (isRunning) {
+                taskStep.toRunningStatusLabel()
+            } else {
+                entry.primaryAction.type.toCreationActionLabel()
+            },
+            enabled = entry.primaryAction.enabled && !isRunning,
+            loading = isRunning,
+            onClick = onPrimaryAction,
+        )
+
+        CollapsibleSection(
+            title = stringResource(Res.string.app_detail_creation_technical_title),
+            initiallyExpanded = entry.technicalDetailsExpanded,
+        ) {
+            if (entry.technicalDetails.isEmpty()) {
+                Text(
+                    text = stringResource(Res.string.app_detail_creation_technical_empty),
+                    color = Neutral400,
+                    fontSize = 13.sp,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                )
+            } else {
+                Column(
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    entry.technicalDetails.forEach { detailItem ->
+                        Text(
+                            text = stringResource(
+                                Res.string.app_detail_creation_technical_item_format,
+                                detailItem.key,
+                                detailItem.value,
+                            ),
+                            color = Neutral400,
+                            fontSize = 12.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompactDetailCover(detail: AppDetail) {
+    val coverUrl = detail.covers.firstOrNull()?.url
+    Box(
+        modifier = Modifier
+            .size(86.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(DarkSurfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (!coverUrl.isNullOrBlank()) {
+            SmartAsyncImage(
+                imageUrl = coverUrl,
+                contentDescription = detail.name,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Icon(
+                Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = Primary300,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CreationInfoRow(title: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(DarkSurfaceVariant)
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            color = Neutral400,
+            fontSize = 13.sp,
+        )
+        Text(
+            text = value,
+            color = Color.White,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun CreationInputRow(title: String, filled: Boolean) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(DarkSurfaceVariant.copy(alpha = 0.74f))
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = title,
+            color = Color.White,
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = stringResource(
+                if (filled) {
+                    Res.string.app_detail_creation_input_filled
+                } else {
+                    Res.string.app_detail_creation_input_missing
+                },
+            ),
+            color = if (filled) SuccessDark else Primary300,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+    }
+}
+
+@Composable
+private fun CreationPrimaryButton(
+    label: String,
+    enabled: Boolean,
+    loading: Boolean,
+    onClick: () -> Unit,
+) {
+    val buttonColor = when {
+        loading -> Primary500.copy(alpha = 0.6f)
+        enabled -> Primary500
+        else -> Neutral500
+    }
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(48.dp)
+            .clip(RoundedCornerShape(14.dp))
+            .background(buttonColor)
+            .then(if (enabled && !loading) Modifier.clickable(onClick = onClick) else Modifier),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (loading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = Color.White,
+                )
+                Spacer(Modifier.width(8.dp))
+            } else {
+                Icon(
+                    Icons.Default.PlayArrow,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+            }
+            Text(
+                text = label,
+                color = Color.White,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+            )
+        }
+    }
+}
+
+@Composable
+private fun AppDetailCreationPrimaryAction.toCreationActionLabel(): String = when (this) {
+    AppDetailCreationPrimaryAction.GENERATE_NOW -> stringResource(Res.string.app_detail_creation_generate_action)
+    AppDetailCreationPrimaryAction.VIEW_RESULT -> stringResource(Res.string.app_detail_creation_view_result_action)
+    AppDetailCreationPrimaryAction.RETRY -> stringResource(Res.string.app_detail_rerun_action)
+}
+
+@Composable
+private fun AppDetailTaskStep.toRunningStatusLabel(): String = when (this) {
+    AppDetailTaskStep.SUBMITTING -> stringResource(Res.string.app_detail_status_submitting)
+    AppDetailTaskStep.QUEUEING -> stringResource(Res.string.app_detail_status_queueing)
+    AppDetailTaskStep.RUNNING -> stringResource(Res.string.app_detail_status_running)
+    AppDetailTaskStep.COMPLETING -> stringResource(Res.string.app_detail_status_completing)
+    else -> stringResource(Res.string.app_detail_status_running_fallback)
+}
+
+@Composable
 private fun AppDetailHero(
     detail: AppDetail,
     onBack: () -> Unit,
-    onAuthorClick: () -> Unit
+    onAuthorClick: () -> Unit,
+    showBackButton: Boolean = true,
 ) {
     val covers = detail.covers.mapNotNull { it.url }
 
@@ -404,21 +735,23 @@ private fun AppDetailHero(
                     )
             )
 
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .statusBarsPadding()
-                    .padding(start = 12.dp, top = 10.dp)
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.42f))
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = stringResource(Res.string.app_detail_back_content_description),
-                    tint = Color.White
-                )
+            if (showBackButton) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .statusBarsPadding()
+                        .padding(start = 12.dp, top = 10.dp)
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(Color.Black.copy(alpha = 0.42f))
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(Res.string.app_detail_back_content_description),
+                        tint = Color.White
+                    )
+                }
             }
         }
 

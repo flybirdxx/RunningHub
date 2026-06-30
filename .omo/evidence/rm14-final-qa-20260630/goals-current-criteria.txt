@@ -1,0 +1,20 @@
+﻿Source: .omo/ulw-loop/goals.json
+Captured after final gate evidence refresh: 2026-06-30T09:05:25.093Z
+
+C001
+status: pass
+capturedAt: 2026-06-30T08:33:30.199Z
+scenario: Roadmap order evidence: before each RM code change, artifacts/ultrawork-runninghub-redesign-notepad-2026-06-30.md contains that RM landing design, RED target, code changes, and GREEN evidence in RM order.
+capturedEvidence: RM-14 order proof: artifacts/ultrawork-runninghub-redesign-notepad-2026-06-30.md shows RM-14 landing design before RED evidence, code changes, and GREEN evidence; roadmap RM-14 was read before code; git diff --check exit 0 with LF/CRLF warnings only.
+
+C002
+status: pass
+capturedAt: 2026-06-30T09:05:10.949Z
+scenario: RM-14 behavior proof: composeApp exposes a complete RM-14 state copy matrix with resource-backed copy specs, explicit carrier surfaces, no Kotlin final Chinese string literals, and documented governance inventory.
+capturedEvidence: RM-14 final behavior proof after evidence refresh: RedesignStateCopyMatrixContractTest now checks title resources, BottomSheet primary/secondary actions, exact BottomSheet ids, and exact blocking ids instead of weak non-null property checks; ./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests com.runninghub.app.ui.copy.RedesignStateCopyMatrixContractTest -> BUILD SUCCESSFUL in 5s; static scan -> NO_CHINESE_STRING_LITERALS; code review, QA, and gate evidence artifacts refreshed after stale-report blocker.
+
+C003
+status: pass
+capturedAt: 2026-06-30T09:05:25.093Z
+scenario: Regression gate proof: after each RM item, run the roadmap acceptance commands that match risk, including feature allTests where touched, :composeApp:assembleDebug, checkArchitectureBoundaries, checkLongTermGovernance, and record any unavailable device QA explicitly.
+capturedEvidence: RM-14 final regression proof after evidence refresh: ./gradlew.bat --console=plain :composeApp:testDebugUnitTest --tests com.runninghub.app.ui.copy.RedesignStateCopyMatrixContractTest -> BUILD SUCCESSFUL in 5s; git diff --check exit 0 with LF/CRLF warnings only; Select-String literal scan for CJK string literals in RedesignStateCopyMatrix.kt -> NO_CHINESE_STRING_LITERALS; previous full RM-14 acceptance remains exit 0 in 31.6s; adb unavailable remains explicitly unverified.

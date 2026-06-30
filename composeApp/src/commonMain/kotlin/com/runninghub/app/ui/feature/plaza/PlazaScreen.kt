@@ -44,6 +44,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -75,6 +76,17 @@ import com.runninghub.app.ui.component.RhVideoPreviewOverlay
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.VideoPreviewItem
 import com.runninghub.app.ui.component.VideoThumbnail
+import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCard
+import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardAction
+import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardMetricState
+import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardPreviewState
+import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardPreviewType as DsPlazaWorkCardPreviewType
+import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardState
+import com.runninghub.app.ui.designsystem.components.sheets.ReuseTemplateParameterState
+import com.runninghub.app.ui.designsystem.components.sheets.ReuseTemplateParameterStatus
+import com.runninghub.app.ui.designsystem.components.sheets.ReuseTemplateSheet
+import com.runninghub.app.ui.designsystem.components.sheets.ReuseTemplateSheetState
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.theme.BrandLime
 import com.runninghub.app.ui.theme.RhAppBackground as RhBackground
 import com.runninghub.app.ui.theme.RhAppCard as RhCard
@@ -95,6 +107,11 @@ import com.runninghub.feature.community.presentation.PlazaFallbackCardText
 import com.runninghub.feature.community.presentation.PlazaFallbackTagLabel
 import com.runninghub.feature.community.presentation.PlazaMode
 import com.runninghub.feature.community.presentation.PlazaPresentationError
+import com.runninghub.feature.community.presentation.PlazaReuseParameterStatus
+import com.runninghub.feature.community.presentation.PlazaReuseParameterUiModel
+import com.runninghub.feature.community.presentation.PlazaWorkCardUiModel
+import com.runninghub.feature.community.presentation.PlazaWorkDetailUiModel
+import com.runninghub.feature.community.presentation.PlazaWorkPreviewType
 import com.runninghub.feature.community.presentation.PlazaUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
@@ -133,12 +150,26 @@ import runninghub.composeapp.generated.resources.plaza_sort_recommend
 import runninghub.composeapp.generated.resources.plaza_title
 import runninghub.composeapp.generated.resources.plaza_untitled_creation
 import runninghub.composeapp.generated.resources.plaza_untitled_short
+import runninghub.composeapp.generated.resources.plaza_reuse_missing_parameter
+import runninghub.composeapp.generated.resources.plaza_reuse_parameter_aspect_ratio
+import runninghub.composeapp.generated.resources.plaza_reuse_parameter_model_template
+import runninghub.composeapp.generated.resources.plaza_reuse_parameter_prompt
+import runninghub.composeapp.generated.resources.plaza_reuse_parameter_quantity
+import runninghub.composeapp.generated.resources.plaza_reuse_parameter_reference
+import runninghub.composeapp.generated.resources.plaza_reuse_parameter_resolution
+import runninghub.composeapp.generated.resources.plaza_reuse_sheet_dismiss
+import runninghub.composeapp.generated.resources.plaza_reuse_sheet_source_protection
+import runninghub.composeapp.generated.resources.plaza_reuse_sheet_title
+import runninghub.composeapp.generated.resources.plaza_use_same_action
+import runninghub.composeapp.generated.resources.plaza_use_same_generate_action
 import runninghub.composeapp.generated.resources.plaza_use_count_format
 import runninghub.composeapp.generated.resources.plaza_video_media_type_fallback
 import runninghub.composeapp.generated.resources.plaza_workflow_media_type_fallback
 import kotlinx.coroutines.flow.distinctUntilChanged
 
-class PlazaVoyagerScreen : Screen {
+class PlazaVoyagerScreen(
+    private val onUseSameWork: (PlazaWorkDetailUiModel) -> Unit = {},
+) : Screen {
     override val key: ScreenKey = uniqueScreenKey
 
     @Composable
@@ -157,6 +188,9 @@ class PlazaVoyagerScreen : Screen {
             onLoadMoreCreations = screenModel::loadMoreCreations,
             onLoadMoreShorts = screenModel::loadMoreShorts,
             onShortCategorySelected = screenModel::selectShortCategory,
+            onOpenWorkDetail = screenModel::openWorkDetail,
+            onDismissWorkDetail = screenModel::dismissWorkDetail,
+            onUseSameWork = onUseSameWork,
         )
     }
 }
@@ -172,6 +206,9 @@ fun PlazaScreenContent(
     onLoadMoreCreations: () -> Unit,
     onLoadMoreShorts: () -> Unit,
     onShortCategorySelected: (String?) -> Unit,
+    onOpenWorkDetail: (String) -> Unit = {},
+    onDismissWorkDetail: () -> Unit = {},
+    onUseSameWork: (PlazaWorkDetailUiModel) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val windowInfo = LocalRhWindowInfo.current
@@ -341,22 +378,19 @@ fun PlazaScreenContent(
                                     EmptyTile(message = stringResource(Res.string.plaza_empty_creations))
                                 }
                             } else {
-                                staggeredItemsIndexed(uiState.creations, key = { _, card -> card.id }) { creationIndex, card ->
-                                    val videoPreviewItem = plazaCreationVideoPreviewItem(card)
-                                    PlazaCreationTile(
-                                        card = card,
-                                        fallbackText = uiState.fallbackCreationTexts[card.id],
-                                        onPreviewClick = {
-                                            if (videoPreviewItem != null) {
-                                                previewSelectedIndex = null
-                                                previewShortItem = videoPreviewItem
-                                            } else {
-                                                previewShortItem = null
-                                                previewSelectedIndex = plazaCreationPreviewIndex(
-                                                    creations = uiState.creations,
-                                                    creationIndex = creationIndex,
-                                                )
+                                staggeredItemsIndexed(uiState.workCards, key = { _, card -> card.id }) { _, workCard ->
+                                    PlazaWorkCard(
+                                        state = workCard.toPlazaWorkCardState(),
+                                        onClick = { onOpenWorkDetail(workCard.id) },
+                                        onAction = { action ->
+                                            when (action) {
+                                                PlazaWorkCardAction.UseSame -> onOpenWorkDetail(workCard.id)
                                             }
+                                        },
+                                        previewContent = { preview ->
+                                            PlazaWorkCardPreview(
+                                                preview = preview,
+                                            )
                                         },
                                     )
                                 }
@@ -387,6 +421,18 @@ fun PlazaScreenContent(
                 RhVideoPreviewOverlay(
                     item = item,
                     onDismiss = { previewShortItem = null },
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+
+            uiState.selectedWorkDetail?.let { detail ->
+                PlazaReuseTemplateOverlay(
+                    detail = detail,
+                    onDismiss = onDismissWorkDetail,
+                    onConfirm = {
+                        onUseSameWork(detail)
+                        onDismissWorkDetail()
+                    },
                     modifier = Modifier.fillMaxSize(),
                 )
             }

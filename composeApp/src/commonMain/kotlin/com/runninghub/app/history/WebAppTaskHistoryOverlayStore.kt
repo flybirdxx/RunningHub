@@ -1,4 +1,4 @@
-package com.runninghub.app.ui.feature.history
+package com.runninghub.app.history
 
 import com.runninghub.feature.detail.presentation.AppDetailSubmittedTask
 import com.runninghub.feature.task.domain.GenerationHistoryItem

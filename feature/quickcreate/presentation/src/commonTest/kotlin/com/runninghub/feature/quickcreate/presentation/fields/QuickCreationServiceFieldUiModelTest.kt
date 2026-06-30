@@ -156,4 +156,115 @@ class QuickCreationServiceFieldUiModelTest {
         assertEquals(null, fields[1].uploadMediaType)
         assertEquals(listOf("mp4", "wav"), fields[1].uploadHint.acceptFormats)
     }
+
+    @Test
+    fun `parameter sheet state prioritizes common fields and folds technical fields`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "IMAGE",
+            groupName = null,
+            bindingId = "binding-params",
+            skuId = "sku-params",
+            name = "Params model",
+            description = null,
+            fields = listOf(
+                field("prompt", "prompt", "STRING", title = "Prompt"),
+                field("aspectRatio", "aspectRatio", "LIST", title = "Aspect", defaultValue = "16:9"),
+                field("resolution", "resolution", "LIST", title = "Resolution", defaultValue = "1K"),
+                field("count", "count", "INTEGER", title = "Count", defaultValue = "1"),
+                field("upload", "uploadImages", "IMAGE_UPLOAD", title = "Upload"),
+                field("endpoint", "endpoint", "STRING", title = "Endpoint", defaultValue = "/v1/run"),
+                field("seed", "seed", "INTEGER", title = "Seed"),
+                field("negative", "negativePrompt", "STRING", title = "Negative prompt"),
+                field("node", "workflowNode", "STRING", title = "Workflow node", defaultValue = "12"),
+            ),
+        )
+
+        val fields = model.quickCreationServiceFieldUiItems(params = emptyMap())
+        val sheet = quickCreateParameterSheetState(fields)
+
+        assertEquals(
+            listOf("aspectRatio", "resolution", "count", "uploadImages"),
+            sheet.commonFields.map { it.paramKey },
+        )
+        assertEquals(listOf("prompt"), sheet.promptFields.map { it.paramKey })
+        assertEquals(
+            listOf("endpoint", "seed", "negativePrompt", "workflowNode"),
+            sheet.advancedFields.map { it.paramKey },
+        )
+        assertEquals(QuickCreationServiceFieldDisplayLabel.AspectRatio, fields.first { it.paramKey == "aspectRatio" }.displayLabel)
+        assertEquals(QuickCreationServiceFieldDisplayLabel.Resolution, fields.first { it.paramKey == "resolution" }.displayLabel)
+        assertEquals(QuickCreationServiceFieldDisplayLabel.Count, fields.first { it.paramKey == "count" }.displayLabel)
+        assertEquals(QuickCreationServiceFieldDisplayLabel.TechnicalEndpoint, fields.first { it.paramKey == "endpoint" }.displayLabel)
+        assertEquals(QuickCreationServiceFieldSection.ADVANCED, fields.first { it.paramKey == "endpoint" }.section)
+        assertEquals(true, sheet.advancedCollapsed)
+        assertEquals(false, sheet.empty)
+    }
+
+    @Test
+    fun `field ui status exposes missing conflict readonly and selected option states`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "IMAGE",
+            groupName = null,
+            bindingId = "binding-status",
+            skuId = "sku-status",
+            name = "Status model",
+            description = null,
+            fields = listOf(
+                field(
+                    fieldKey = "style",
+                    paramKey = "style",
+                    fieldType = "LIST",
+                    title = "Style",
+                    defaultValue = "realistic",
+                    options = listOf(
+                        QuickCreationServiceFieldOption(label = "写实", value = "realistic"),
+                        QuickCreationServiceFieldOption(label = "水彩", value = "watercolor"),
+                    ),
+                ),
+                field(
+                    fieldKey = "mode",
+                    paramKey = "mode",
+                    fieldType = "LIST",
+                    title = "Mode",
+                    defaultValue = "safe",
+                    options = listOf(QuickCreationServiceFieldOption(label = "安全", value = "safe")),
+                ),
+                field("readonly", "readonly", "LIST", title = "Readonly", defaultValue = "auto"),
+                field("negative", "negativePrompt", "STRING", title = "Negative", required = true),
+            ),
+        )
+
+        val fields = model.quickCreationServiceFieldUiItems(params = mapOf("mode" to "unknown"))
+
+        assertEquals(
+            listOf(
+                QuickCreationServiceFieldOptionVisualState.SELECTED,
+                QuickCreationServiceFieldOptionVisualState.DEFAULT,
+            ),
+            fields.first { it.paramKey == "style" }.options.map { it.visualState },
+        )
+        assertEquals(QuickCreationServiceFieldVisualState.ERROR, fields.first { it.paramKey == "mode" }.visualState)
+        assertEquals(QuickCreationServiceFieldVisualState.DISABLED, fields.first { it.paramKey == "readonly" }.visualState)
+        assertEquals(QuickCreationServiceFieldVisualState.ERROR, fields.first { it.paramKey == "negativePrompt" }.visualState)
+        assertEquals(QuickCreationServiceFieldSection.ADVANCED, fields.first { it.paramKey == "negativePrompt" }.section)
+    }
 }
+
+private fun field(
+    fieldKey: String,
+    paramKey: String,
+    fieldType: String,
+    title: String,
+    required: Boolean = false,
+    defaultValue: String? = null,
+    options: List<QuickCreationServiceFieldOption> = emptyList(),
+): QuickCreationServiceField =
+    QuickCreationServiceField(
+        fieldKey = fieldKey,
+        paramKey = paramKey,
+        fieldType = fieldType,
+        required = required,
+        defaultValue = defaultValue,
+        options = options,
+        inputExtra = QuickCreationServiceFieldExtra(title = title),
+    )

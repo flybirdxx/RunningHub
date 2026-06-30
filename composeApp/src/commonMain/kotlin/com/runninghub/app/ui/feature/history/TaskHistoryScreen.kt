@@ -37,6 +37,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -56,6 +59,23 @@ import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.previewTaskHistoryUiState
 import com.runninghub.app.ui.component.SmartAsyncImage
+import com.runninghub.app.ui.designsystem.components.badges.RhTaskStatus
+import com.runninghub.app.ui.designsystem.components.billing.BillingInfoCard
+import com.runninghub.app.ui.designsystem.components.billing.BillingInfoRow
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCard
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardActionState
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardActionType
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardCostKind
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardCostState
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardState
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardStatusState
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardStatusType
+import com.runninghub.app.ui.designsystem.components.result.ResultPreview
+import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionState
+import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionType
+import com.runninghub.app.ui.designsystem.components.result.ResultPreviewMediaState
+import com.runninghub.app.ui.designsystem.components.result.ResultPreviewMediaType
+import com.runninghub.app.ui.designsystem.components.result.ResultPreviewState
 import com.runninghub.app.ui.theme.BrandLime
 import com.runninghub.app.ui.theme.RhAppBackground
 import com.runninghub.app.ui.theme.RhAppCard
@@ -67,14 +87,18 @@ import com.runninghub.app.ui.theme.RhAppText
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.task_history_action_cancel
 import runninghub.composeapp.generated.resources.task_history_action_cancel_requested
+import runninghub.composeapp.generated.resources.task_history_action_download
 import runninghub.composeapp.generated.resources.task_history_action_no_retry_params
 import runninghub.composeapp.generated.resources.task_history_action_no_reusable_params
 import runninghub.composeapp.generated.resources.task_history_action_output_detail_loaded
 import runninghub.composeapp.generated.resources.task_history_action_retry
 import runninghub.composeapp.generated.resources.task_history_action_retry_params_prepared
+import runninghub.composeapp.generated.resources.task_history_action_refund_status
 import runninghub.composeapp.generated.resources.task_history_action_reuse
 import runninghub.composeapp.generated.resources.task_history_action_reusable_params_prepared_format
+import runninghub.composeapp.generated.resources.task_history_action_save
 import runninghub.composeapp.generated.resources.task_history_action_view
+import runninghub.composeapp.generated.resources.task_history_action_view_result
 import runninghub.composeapp.generated.resources.task_history_chevron
 import runninghub.composeapp.generated.resources.task_history_detail_api_key_type_member
 import runninghub.composeapp.generated.resources.task_history_detail_basic_info
@@ -101,9 +125,16 @@ import runninghub.composeapp.generated.resources.task_history_detail_metric_dura
 import runninghub.composeapp.generated.resources.task_history_detail_metric_final_amount
 import runninghub.composeapp.generated.resources.task_history_detail_metric_result
 import runninghub.composeapp.generated.resources.task_history_detail_metric_rhb
+import runninghub.composeapp.generated.resources.task_history_detail_no_billing
 import runninghub.composeapp.generated.resources.task_history_detail_output_notice
+import runninghub.composeapp.generated.resources.task_history_detail_prompt_parameters
+import runninghub.composeapp.generated.resources.task_history_detail_refund_check_available
+import runninghub.composeapp.generated.resources.task_history_detail_refund_not_required
 import runninghub.composeapp.generated.resources.task_history_detail_request_info
 import runninghub.composeapp.generated.resources.task_history_detail_response_info
+import runninghub.composeapp.generated.resources.task_history_detail_save_not_saved
+import runninghub.composeapp.generated.resources.task_history_detail_save_unavailable
+import runninghub.composeapp.generated.resources.task_history_detail_technical_details
 import runninghub.composeapp.generated.resources.task_history_detail_title
 import runninghub.composeapp.generated.resources.task_history_detail_unknown_value
 import runninghub.composeapp.generated.resources.task_history_empty_filter
@@ -139,6 +170,8 @@ import runninghub.composeapp.generated.resources.task_history_source_workflow
 import runninghub.composeapp.generated.resources.task_history_status_failed
 import runninghub.composeapp.generated.resources.task_history_status_in_progress
 import runninghub.composeapp.generated.resources.task_history_status_success
+import runninghub.composeapp.generated.resources.task_history_status_canceled
+import runninghub.composeapp.generated.resources.task_history_status_unknown
 import runninghub.composeapp.generated.resources.task_history_task_id_format
 import runninghub.composeapp.generated.resources.task_history_timeline_completed_format
 import runninghub.composeapp.generated.resources.task_history_timeline_failed_format
@@ -151,7 +184,20 @@ import com.runninghub.feature.task.domain.GenerationTaskDetail
 import com.runninghub.feature.task.domain.GenerationTaskDetailField
 import com.runninghub.feature.task.domain.GenerationTaskDetailFieldKey
 import com.runninghub.feature.task.presentation.TaskHistoryActionMessage
+import com.runninghub.feature.task.presentation.TaskHistoryCardAction
+import com.runninghub.feature.task.presentation.TaskHistoryCardStatus
+import com.runninghub.feature.task.presentation.TaskHistoryCostKind
+import com.runninghub.feature.task.presentation.TaskHistoryDetailAction
+import com.runninghub.feature.task.presentation.TaskHistoryDetailBillingKind
+import com.runninghub.feature.task.presentation.TaskHistoryDetailMediaType
+import com.runninghub.feature.task.presentation.TaskHistoryDetailRefundState
+import com.runninghub.feature.task.presentation.TaskHistoryDetailSaveState
+import com.runninghub.feature.task.presentation.TaskHistoryDetailSectionType
+import com.runninghub.feature.task.presentation.TaskHistoryDetailStatus
+import com.runninghub.feature.task.presentation.TaskHistoryDetailTechnicalKind
+import com.runninghub.feature.task.presentation.TaskHistoryDetailUiModel
 import com.runninghub.feature.task.presentation.TaskHistoryEntry
+import com.runninghub.feature.task.presentation.TaskHistoryExpiryUi
 import com.runninghub.feature.task.presentation.TaskHistoryFilter
 import com.runninghub.feature.task.presentation.TaskHistoryPresentationError
 import com.runninghub.feature.task.presentation.TaskHistoryUiState
@@ -263,7 +309,7 @@ internal fun TaskHistoryContent(
             }
         }
     }
-        if (uiState.selectedTaskDetail != null || uiState.isTaskDetailLoading) {
+        if (uiState.selectedTaskDetailUi != null || uiState.isTaskDetailLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -271,7 +317,7 @@ internal fun TaskHistoryContent(
                     .clickable(onClick = onCloseTaskDetail),
             )
             TaskDetailDrawer(
-                detail = uiState.selectedTaskDetail,
+                detail = uiState.selectedTaskDetailUi,
                 isLoading = uiState.isTaskDetailLoading,
                 onClose = onCloseTaskDetail,
                 modifier = Modifier.align(Alignment.CenterEnd),
@@ -497,102 +543,39 @@ private fun TaskTimelineRow(
     onRetryTask: (String) -> Unit,
     onCancelTask: (String) -> Unit,
 ) {
-    val failed = item.status.equals("failed", ignoreCase = true)
-    val viewAction = stringResource(Res.string.task_history_action_view)
-    val reuseAction = stringResource(Res.string.task_history_action_reuse)
-    val retryAction = stringResource(Res.string.task_history_action_retry)
-    val cancelAction = stringResource(Res.string.task_history_action_cancel)
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(RhSurface)
-            .border(1.dp, if (failed) StatusError.copy(alpha = 0.45f) else RhLine, RoundedCornerShape(8.dp))
-            .clickable { onOpenTaskDetail(item.taskId) }
-            .padding(8.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        TaskThumbnail(item)
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
-            Text(
-                text = item.title,
-                color = RhText,
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
+    HistoryTaskCard(
+        state = item.toHistoryTaskCardState(),
+        onClick = { onOpenTaskDetail(item.taskId) },
+        onAction = { action ->
+            when (action) {
+                HistoryTaskCardActionType.ViewResult -> item.outputId?.let(onViewOutput)
+                HistoryTaskCardActionType.Retry -> onRetryTask(item.taskId)
+                HistoryTaskCardActionType.Cancel -> onCancelTask(item.taskId)
+                HistoryTaskCardActionType.ReuseParameters -> onReuseParams(item.taskId)
+                HistoryTaskCardActionType.ViewDetail -> onOpenTaskDetail(item.taskId)
+            }
+        },
+        thumbnailContent = {
+            TaskThumbnail(
+                item = item,
+                modifier = Modifier.fillMaxSize(),
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                SourceBadge(item.source)
-            }
-            if (item.taskId.isNotBlank()) {
-                Text(
-                    stringResource(Res.string.task_history_task_id_format, item.taskId),
-                    color = RhMuted,
-                    style = MaterialTheme.typography.labelSmall,
-                    softWrap = true,
-                )
-            }
-            item.timelineMetaText()?.let { timelineText ->
-                Text(
-                    timelineText,
-                    color = RhMuted,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-        Column(
-            modifier = Modifier.width(104.dp),
-            horizontalAlignment = Alignment.End,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            TaskStatusPill(status = item.status)
-            item.costLabelText()?.let { costLabel ->
-                Text(
-                    costLabel,
-                    color = RhText,
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Text(
-                stringResource(Res.string.task_history_output_count_format, item.outputCount),
-                color = RhMuted,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (item.canViewOutput) {
-                    SmallAction(viewAction, highlighted = false, onClick = { item.outputId?.let(onViewOutput) })
-                }
-                if (item.status.isCompletedStatus() && item.canReuseParams) {
-                    SmallAction(reuseAction, highlighted = true, onClick = { onReuseParams(item.taskId) })
-                } else if (failed && item.canRetry) {
-                    SmallAction(retryAction, highlighted = true, onClick = { onRetryTask(item.taskId) })
-                } else if (item.canCancel) {
-                    SmallAction(cancelAction, highlighted = true, onClick = { onCancelTask(item.taskId) })
-                }
-            }
-        }
-    }
+        },
+    )
 }
 
 @Composable
-private fun TaskThumbnail(item: TaskHistoryEntry) {
+private fun TaskThumbnail(
+    item: TaskHistoryEntry,
+    modifier: Modifier = Modifier.size(84.dp),
+) {
     val color = when {
         item.status.isCompletedStatus() -> Color(0xFF2F3F2C)
         item.status.equals("failed", ignoreCase = true) -> Color(0xFF3F2020)
         else -> Color(0xFF1D2A35)
     }
     Box(
-        modifier = Modifier
-            .size(84.dp)
+        modifier = modifier
             .clip(RoundedCornerShape(6.dp))
             .background(color)
             .border(1.dp, RhLine, RoundedCornerShape(6.dp)),
@@ -620,7 +603,7 @@ private fun TaskThumbnail(item: TaskHistoryEntry) {
 
 @Composable
 private fun TaskDetailDrawer(
-    detail: GenerationTaskDetail?,
+    detail: TaskHistoryDetailUiModel?,
     isLoading: Boolean,
     onClose: () -> Unit,
     modifier: Modifier = Modifier,
@@ -680,38 +663,25 @@ private fun TaskDetailDrawer(
 }
 
 @Composable
-private fun TaskDetailContent(detail: GenerationTaskDetail) {
+private fun TaskDetailContent(detail: TaskHistoryDetailUiModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        TaskDetailSummary(detail)
-        TaskDetailMetrics(detail)
-        TaskDetailInfoSection(
-            title = stringResource(Res.string.task_history_detail_basic_info),
-            fields = detail.basicFields,
-        )
-        TaskDetailInfoSection(
-            title = stringResource(Res.string.task_history_detail_cost_info),
-            fields = detail.costFields,
-        )
-        TaskDetailOutputs(detail.outputs)
-        TaskDetailJsonSection(
-            title = stringResource(Res.string.task_history_detail_request_info),
-            json = detail.requestInfo,
-        )
-        TaskDetailJsonSection(
-            title = stringResource(Res.string.task_history_detail_response_info),
-            json = detail.responseInfo,
-        )
+        val layout = detail.toTaskDetailLayoutState()
+        TaskDetailStatusSummary(detail)
+        TaskDetailResultPreview(layout)
+        TaskDetailBillingSection(layout)
+        TaskDetailPromptParameters(layout)
+        TaskDetailTechnicalDetails(layout)
         Spacer(Modifier.height(16.dp))
     }
 }
 
 @Composable
-private fun TaskDetailSummary(detail: GenerationTaskDetail) {
+private fun TaskDetailStatusSummary(detail: TaskHistoryDetailUiModel) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -722,7 +692,7 @@ private fun TaskDetailSummary(detail: GenerationTaskDetail) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = detail.title ?: detail.taskId,
+            text = detail.title,
             color = RhText,
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.Bold,
@@ -734,7 +704,7 @@ private fun TaskDetailSummary(detail: GenerationTaskDetail) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             detail.sourceLabel?.takeIf { it.isNotBlank() }?.let { SourceBadge(it) }
-            TaskStatusPill(detail.status)
+            TaskStatusPill(detail.status.toLegacyStatusText())
         }
         Text(
             text = detail.taskId,
@@ -747,61 +717,40 @@ private fun TaskDetailSummary(detail: GenerationTaskDetail) {
 }
 
 @Composable
-private fun TaskDetailMetrics(detail: GenerationTaskDetail) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            DetailMetric(
-                label = stringResource(Res.string.task_history_detail_metric_rhb),
-                value = detail.rhCoins ?: stringResource(Res.string.task_history_detail_unknown_value),
-                modifier = Modifier.weight(1f),
+private fun TaskDetailResultPreview(layout: TaskDetailLayoutState) {
+    ResultPreview(
+        state = layout.resultPreview,
+        onAction = {},
+        mediaContent = { media ->
+            SmartAsyncImage(
+                imageUrl = media.renderUrl,
+                contentDescription = layout.resultPreview.title,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+                shape = RoundedCornerShape(6.dp),
             )
-            DetailMetric(
-                label = stringResource(Res.string.task_history_detail_metric_final_amount),
-                value = detail.finalAmount.toDetailMoneyText(),
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            DetailMetric(
-                label = stringResource(Res.string.task_history_detail_metric_duration),
-                value = detail.duration?.toDurationLabelText()
-                    ?: stringResource(Res.string.task_history_detail_unknown_value),
-                modifier = Modifier.weight(1f),
-            )
-            DetailMetric(
-                label = stringResource(Res.string.task_history_detail_metric_result),
-                value = statusPillLabelText(detail.status),
-                modifier = Modifier.weight(1f),
-            )
-        }
-    }
+        },
+    )
+    Text(
+        text = layout.saveStateLabel,
+        color = RhMuted,
+        style = MaterialTheme.typography.labelSmall,
+    )
+    Text(
+        text = layout.refundStateLabel,
+        color = RhMuted,
+        style = MaterialTheme.typography.labelSmall,
+    )
 }
 
 @Composable
-private fun DetailMetric(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(RhCard)
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp))
-            .padding(horizontal = 10.dp, vertical = 9.dp),
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(label, color = RhMuted, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-        Text(value, color = RhText, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-    }
+private fun TaskDetailBillingSection(layout: TaskDetailLayoutState) {
+    BillingInfoCard(rows = layout.billingRows)
 }
 
 @Composable
-private fun TaskDetailInfoSection(
-    title: String,
-    fields: List<GenerationTaskDetailField>,
-) {
-    if (fields.isEmpty()) return
+private fun TaskDetailPromptParameters(layout: TaskDetailLayoutState) {
+    if (layout.promptParameters.isEmpty()) return
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -810,26 +759,88 @@ private fun TaskDetailInfoSection(
             .border(1.dp, RhLine, RoundedCornerShape(8.dp)),
     ) {
         Text(
-            text = title,
+            text = stringResource(Res.string.task_history_detail_prompt_parameters),
             color = RhText,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
         )
-        fields.forEach { field ->
+        layout.promptParameters.forEach { param ->
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(1.dp)
                     .background(RhLine),
             )
-            DetailFieldRow(field)
+            DetailKeyValueRow(label = param.label, value = param.value)
         }
     }
 }
 
 @Composable
-private fun DetailFieldRow(field: GenerationTaskDetailField) {
+private fun TaskDetailTechnicalDetails(layout: TaskDetailLayoutState) {
+    if (layout.technicalSections.isEmpty()) return
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(Res.string.task_history_detail_technical_details),
+            color = RhText,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+        )
+        layout.technicalSections.forEach { section ->
+            TaskDetailTechnicalSection(section)
+        }
+    }
+}
+
+@Composable
+private fun TaskDetailTechnicalSection(section: TaskDetailTechnicalSectionState) {
+    var expanded by remember(section.title, section.content) { mutableStateOf(section.initiallyExpanded) }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .background(RhCard)
+            .border(1.dp, RhLine, RoundedCornerShape(8.dp)),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { expanded = !expanded }
+                .padding(horizontal = 10.dp, vertical = 9.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = section.title,
+                color = RhText,
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+            )
+            Text(stringResource(Res.string.task_history_chevron), color = RhMuted, style = MaterialTheme.typography.titleMedium)
+        }
+        if (expanded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(RhLine),
+            )
+            Text(
+                text = section.content,
+                color = RhMuted,
+                style = MaterialTheme.typography.labelSmall,
+                fontFamily = FontFamily.Monospace,
+                softWrap = true,
+                modifier = Modifier.padding(10.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailKeyValueRow(label: String, value: String) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -838,7 +849,7 @@ private fun DetailFieldRow(field: GenerationTaskDetailField) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = detailFieldLabelText(field.key),
+            text = label,
             color = RhMuted,
             style = MaterialTheme.typography.labelSmall,
             modifier = Modifier.width(92.dp),
@@ -846,89 +857,11 @@ private fun DetailFieldRow(field: GenerationTaskDetailField) {
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = detailFieldValueText(field),
+            text = value,
             color = RhText,
             style = MaterialTheme.typography.labelSmall,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f),
-            softWrap = true,
-        )
-    }
-}
-
-@Composable
-private fun TaskDetailOutputs(outputs: List<GenerationHistoryOutput>) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(RhCard)
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp))
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            text = stringResource(Res.string.task_history_detail_generation_result),
-            color = RhText,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = stringResource(Res.string.task_history_detail_output_notice),
-            color = RhMuted,
-            style = MaterialTheme.typography.labelSmall,
-        )
-        if (outputs.isEmpty()) {
-            Text(
-                text = stringResource(Res.string.task_history_detail_empty_outputs),
-                color = RhMuted,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(vertical = 24.dp).fillMaxWidth(),
-                textAlign = TextAlign.Center,
-            )
-        } else {
-            outputs.forEach { output ->
-                val imageUrl = output.thumbnailUrl?.takeIf { it.isNotBlank() } ?: output.url
-                SmartAsyncImage(
-                    imageUrl = imageUrl,
-                    contentDescription = output.outputName ?: output.outputId,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 140.dp, max = 260.dp),
-                    contentScale = ContentScale.Fit,
-                    shape = RoundedCornerShape(6.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TaskDetailJsonSection(
-    title: String,
-    json: String?,
-) {
-    val text = json?.takeIf { it.isNotBlank() } ?: return
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(RhCard)
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp))
-            .padding(10.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = title,
-            color = RhText,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold,
-        )
-        Text(
-            text = text,
-            color = RhMuted,
-            style = MaterialTheme.typography.labelSmall,
-            fontFamily = FontFamily.Monospace,
             softWrap = true,
         )
     }
@@ -1025,11 +958,212 @@ private fun GenerationHistoryOutput.expireLabelText(): String? =
     expireDays?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.task_history_remaining_days_format, it) }
         ?: expireTime?.takeIf { it.isNotBlank() }
 
+@Composable
+private fun TaskHistoryDetailUiModel.toTaskDetailLayoutState(): TaskDetailLayoutState {
+    val previewOutput = result?.outputs?.firstOrNull()
+    val resultPreview = ResultPreviewState(
+        title = stringResource(Res.string.task_history_detail_generation_result),
+        taskIdLabel = null,
+        statusLabel = status.toTaskDetailStatusLabel(),
+        status = status.toRhTaskStatus(),
+        media = previewOutput?.toResultPreviewMediaState(),
+        expiryLabel = result?.expiry?.toDetailExpiryLabel(),
+        actions = actions.map { it.toResultPreviewActionState() },
+    )
+    return TaskDetailLayoutState(
+        sectionOrder = sectionOrder.map { it.toTaskDetailLayoutSectionType() },
+        resultPreview = resultPreview,
+        billingRows = billing?.rows?.map { it.toBillingInfoRow() }
+            ?: listOf(BillingInfoRow(stringResource(Res.string.task_history_detail_cost_info), stringResource(Res.string.task_history_detail_no_billing))),
+        saveStateLabel = saveState.toTaskDetailSaveStateLabel(),
+        refundStateLabel = refundState.toTaskDetailRefundStateLabel(),
+        promptParameters = promptParameters.map { TaskDetailPromptParameterState(label = it.key, value = it.value) },
+        technicalSections = technicalSections.map {
+            TaskDetailTechnicalSectionState(
+                title = it.kind.toTaskDetailTechnicalTitle(),
+                content = it.content,
+                initiallyExpanded = it.initiallyExpanded,
+            )
+        },
+    )
+}
+
+private fun TaskHistoryDetailSectionType.toTaskDetailLayoutSectionType(): TaskDetailLayoutSectionType = when (this) {
+    TaskHistoryDetailSectionType.STATUS_SUMMARY -> TaskDetailLayoutSectionType.StatusSummary
+    TaskHistoryDetailSectionType.RESULT_PREVIEW -> TaskDetailLayoutSectionType.ResultPreview
+    TaskHistoryDetailSectionType.ACTIONS -> TaskDetailLayoutSectionType.Actions
+    TaskHistoryDetailSectionType.BILLING -> TaskDetailLayoutSectionType.Billing
+    TaskHistoryDetailSectionType.PROMPT_PARAMETERS -> TaskDetailLayoutSectionType.PromptParameters
+    TaskHistoryDetailSectionType.TECHNICAL_DETAILS -> TaskDetailLayoutSectionType.TechnicalDetails
+}
+
+@Composable
+private fun TaskHistoryDetailStatus.toTaskDetailStatusLabel(): String = when (this) {
+    TaskHistoryDetailStatus.SUCCESS -> stringResource(Res.string.task_history_status_success)
+    TaskHistoryDetailStatus.FAILED -> stringResource(Res.string.task_history_status_failed)
+    TaskHistoryDetailStatus.IN_PROGRESS -> stringResource(Res.string.task_history_status_in_progress)
+    TaskHistoryDetailStatus.CANCELED -> stringResource(Res.string.task_history_status_canceled)
+    TaskHistoryDetailStatus.UNKNOWN -> stringResource(Res.string.task_history_status_unknown)
+}
+
+private fun TaskHistoryDetailStatus.toRhTaskStatus(): RhTaskStatus = when (this) {
+    TaskHistoryDetailStatus.SUCCESS -> RhTaskStatus.Success
+    TaskHistoryDetailStatus.FAILED -> RhTaskStatus.Failed
+    TaskHistoryDetailStatus.IN_PROGRESS -> RhTaskStatus.Running
+    TaskHistoryDetailStatus.CANCELED -> RhTaskStatus.Canceled
+    TaskHistoryDetailStatus.UNKNOWN -> RhTaskStatus.Running
+}
+
+private fun TaskHistoryDetailStatus.toLegacyStatusText(): String = when (this) {
+    TaskHistoryDetailStatus.SUCCESS -> "SUCCESS"
+    TaskHistoryDetailStatus.FAILED -> "FAILED"
+    TaskHistoryDetailStatus.IN_PROGRESS -> "RUNNING"
+    TaskHistoryDetailStatus.CANCELED -> "CANCELED"
+    TaskHistoryDetailStatus.UNKNOWN -> "UNKNOWN"
+}
+
+private fun com.runninghub.feature.task.presentation.TaskHistoryDetailOutputUi.toResultPreviewMediaState(): ResultPreviewMediaState? {
+    val mediaType = when (mediaType) {
+        TaskHistoryDetailMediaType.IMAGE -> ResultPreviewMediaType.Image
+        TaskHistoryDetailMediaType.VIDEO -> ResultPreviewMediaType.Video
+        TaskHistoryDetailMediaType.FILE -> return null
+    }
+    return ResultPreviewMediaState(
+        url = url,
+        previewUrl = previewUrl,
+        mediaType = mediaType,
+        aspectRatio = aspectRatio,
+    )
+}
+
+@Composable
+private fun TaskHistoryExpiryUi.toDetailExpiryLabel(): String? =
+    remainingDays?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.task_history_remaining_days_format, it) }
+        ?: expireTime?.takeIf { it.isNotBlank() }
+
+@Composable
+private fun TaskHistoryDetailAction.toResultPreviewActionState(): ResultPreviewActionState =
+    ResultPreviewActionState(
+        type = when (this) {
+            TaskHistoryDetailAction.SAVE -> ResultPreviewActionType.Save
+            TaskHistoryDetailAction.DOWNLOAD -> ResultPreviewActionType.Download
+            TaskHistoryDetailAction.REUSE_PARAMETERS -> ResultPreviewActionType.ReuseParameters
+            TaskHistoryDetailAction.RETRY -> ResultPreviewActionType.Retry
+            TaskHistoryDetailAction.REFUND_STATUS -> ResultPreviewActionType.RefundStatus
+        },
+        label = when (this) {
+            TaskHistoryDetailAction.SAVE -> stringResource(Res.string.task_history_action_save)
+            TaskHistoryDetailAction.DOWNLOAD -> stringResource(Res.string.task_history_action_download)
+            TaskHistoryDetailAction.REUSE_PARAMETERS -> stringResource(Res.string.task_history_action_reuse)
+            TaskHistoryDetailAction.RETRY -> stringResource(Res.string.task_history_action_retry)
+            TaskHistoryDetailAction.REFUND_STATUS -> stringResource(Res.string.task_history_action_refund_status)
+        },
+    )
+
+@Composable
+private fun com.runninghub.feature.task.presentation.TaskHistoryDetailBillingRowUi.toBillingInfoRow(): BillingInfoRow =
+    BillingInfoRow(
+        label = when (kind) {
+            TaskHistoryDetailBillingKind.RH_COINS -> stringResource(Res.string.task_history_detail_metric_rhb)
+            TaskHistoryDetailBillingKind.FINAL_AMOUNT -> stringResource(Res.string.task_history_detail_metric_final_amount)
+            TaskHistoryDetailBillingKind.OTHER -> stringResource(Res.string.task_history_detail_cost_info)
+        },
+        value = value,
+        emphasized = kind == TaskHistoryDetailBillingKind.RH_COINS || kind == TaskHistoryDetailBillingKind.FINAL_AMOUNT,
+    )
+
+@Composable
+private fun TaskHistoryDetailSaveState.toTaskDetailSaveStateLabel(): String = when (this) {
+    TaskHistoryDetailSaveState.NOT_SAVED -> stringResource(Res.string.task_history_detail_save_not_saved)
+    TaskHistoryDetailSaveState.UNAVAILABLE -> stringResource(Res.string.task_history_detail_save_unavailable)
+}
+
+@Composable
+private fun TaskHistoryDetailRefundState.toTaskDetailRefundStateLabel(): String = when (this) {
+    TaskHistoryDetailRefundState.NOT_REQUIRED -> stringResource(Res.string.task_history_detail_refund_not_required)
+    TaskHistoryDetailRefundState.CHECK_AVAILABLE -> stringResource(Res.string.task_history_detail_refund_check_available)
+}
+
+@Composable
+private fun TaskHistoryDetailTechnicalKind.toTaskDetailTechnicalTitle(): String = when (this) {
+    TaskHistoryDetailTechnicalKind.REQUEST_INFO -> stringResource(Res.string.task_history_detail_request_info)
+    TaskHistoryDetailTechnicalKind.RESPONSE_INFO -> stringResource(Res.string.task_history_detail_response_info)
+}
+
+@Composable
+private fun TaskHistoryEntry.toHistoryTaskCardState(): HistoryTaskCardState = HistoryTaskCardState(
+    title = title,
+    thumbnailUrl = thumbnailUrl,
+    status = cardStatus.toHistoryTaskCardStatusState(),
+    sourceLabel = sourceLabelText(source),
+    cost = cost?.let { cost ->
+        HistoryTaskCardCostState(
+            kind = cost.kind.toHistoryTaskCardCostKind(),
+            amountLabel = "${cost.amountText} ${cost.unit}",
+        )
+    },
+    durationLabel = costTime?.takeIf { it.isNotBlank() },
+    expiryLabel = expiry?.remainingDays?.takeIf { it.isNotBlank() }?.let { days ->
+        stringResource(Res.string.task_history_remaining_days_format, days)
+    } ?: expiry?.expireTime?.takeIf { it.isNotBlank() },
+    outputCountLabel = stringResource(Res.string.task_history_output_count_format, outputCount),
+    primaryAction = primaryAction?.toHistoryTaskCardActionState(),
+    secondaryActions = secondaryActions.map { it.toHistoryTaskCardActionState() },
+)
+
+@Composable
+private fun TaskHistoryCardStatus.toHistoryTaskCardStatusState(): HistoryTaskCardStatusState =
+    HistoryTaskCardStatusState(
+        type = toHistoryTaskCardStatusType(),
+        label = when (this) {
+            TaskHistoryCardStatus.SUCCESS -> stringResource(Res.string.task_history_status_success)
+            TaskHistoryCardStatus.FAILED -> stringResource(Res.string.task_history_status_failed)
+            TaskHistoryCardStatus.IN_PROGRESS -> stringResource(Res.string.task_history_status_in_progress)
+            TaskHistoryCardStatus.CANCELED -> stringResource(Res.string.task_history_status_canceled)
+            TaskHistoryCardStatus.UNKNOWN -> stringResource(Res.string.task_history_status_unknown)
+        },
+    )
+
+private fun TaskHistoryCardStatus.toHistoryTaskCardStatusType(): HistoryTaskCardStatusType = when (this) {
+    TaskHistoryCardStatus.SUCCESS -> HistoryTaskCardStatusType.Success
+    TaskHistoryCardStatus.FAILED -> HistoryTaskCardStatusType.Failed
+    TaskHistoryCardStatus.IN_PROGRESS -> HistoryTaskCardStatusType.InProgress
+    TaskHistoryCardStatus.CANCELED -> HistoryTaskCardStatusType.Canceled
+    TaskHistoryCardStatus.UNKNOWN -> HistoryTaskCardStatusType.Unknown
+}
+
+@Composable
+private fun TaskHistoryCardAction.toHistoryTaskCardActionState(): HistoryTaskCardActionState =
+    HistoryTaskCardActionState(
+        type = toHistoryTaskCardActionType(),
+        label = when (this) {
+            TaskHistoryCardAction.VIEW_RESULT -> stringResource(Res.string.task_history_action_view_result)
+            TaskHistoryCardAction.RETRY -> stringResource(Res.string.task_history_action_retry)
+            TaskHistoryCardAction.CANCEL -> stringResource(Res.string.task_history_action_cancel)
+            TaskHistoryCardAction.REUSE_PARAMETERS -> stringResource(Res.string.task_history_action_reuse)
+            TaskHistoryCardAction.VIEW_DETAIL -> stringResource(Res.string.task_history_action_view)
+        },
+    )
+
+private fun TaskHistoryCardAction.toHistoryTaskCardActionType(): HistoryTaskCardActionType = when (this) {
+    TaskHistoryCardAction.VIEW_RESULT -> HistoryTaskCardActionType.ViewResult
+    TaskHistoryCardAction.RETRY -> HistoryTaskCardActionType.Retry
+    TaskHistoryCardAction.CANCEL -> HistoryTaskCardActionType.Cancel
+    TaskHistoryCardAction.REUSE_PARAMETERS -> HistoryTaskCardActionType.ReuseParameters
+    TaskHistoryCardAction.VIEW_DETAIL -> HistoryTaskCardActionType.ViewDetail
+}
+
+private fun TaskHistoryCostKind.toHistoryTaskCardCostKind(): HistoryTaskCardCostKind = when (this) {
+    TaskHistoryCostKind.RHB -> HistoryTaskCardCostKind.Rhb
+    TaskHistoryCostKind.FIAT -> HistoryTaskCardCostKind.Fiat
+    TaskHistoryCostKind.UNKNOWN -> HistoryTaskCardCostKind.Unknown
+}
+
 private fun List<TaskHistoryEntry>.filteredBy(filter: TaskHistoryFilter): List<TaskHistoryEntry> = when (filter) {
     TaskHistoryFilter.ALL -> this
-    TaskHistoryFilter.COMPLETED -> filter { it.status.isCompletedStatus() }
-    TaskHistoryFilter.FAILED -> filter { it.status.equals("failed", ignoreCase = true) }
-    TaskHistoryFilter.IN_PROGRESS -> filter { !it.status.isCompletedStatus() && !it.status.equals("failed", ignoreCase = true) }
+    TaskHistoryFilter.COMPLETED -> filter { it.cardStatus == TaskHistoryCardStatus.SUCCESS }
+    TaskHistoryFilter.FAILED -> filter { it.cardStatus == TaskHistoryCardStatus.FAILED }
+    TaskHistoryFilter.IN_PROGRESS -> filter { it.cardStatus == TaskHistoryCardStatus.IN_PROGRESS }
 }
 
 private fun String.isCompletedStatus(): Boolean = lowercase() in listOf("success", "completed", "done")
@@ -1083,57 +1217,6 @@ private fun sourceLabelText(source: String): String = when {
     source.contains("web", ignoreCase = true) -> stringResource(Res.string.task_history_source_webapp)
     else -> stringResource(Res.string.task_history_source_quick_create)
 }
-
-@Composable
-private fun detailFieldLabelText(key: GenerationTaskDetailFieldKey): String = when (key) {
-    GenerationTaskDetailFieldKey.TASK_ID -> stringResource(Res.string.task_history_detail_field_task_id)
-    GenerationTaskDetailFieldKey.CALL_TIME -> stringResource(Res.string.task_history_detail_field_call_time)
-    GenerationTaskDetailFieldKey.TASK_NAME -> stringResource(Res.string.task_history_detail_field_task_name)
-    GenerationTaskDetailFieldKey.TASK_SOURCE -> stringResource(Res.string.task_history_detail_field_task_source)
-    GenerationTaskDetailFieldKey.CALL_TYPE -> stringResource(Res.string.task_history_detail_field_call_type)
-    GenerationTaskDetailFieldKey.ACCOUNT -> stringResource(Res.string.task_history_detail_field_account)
-    GenerationTaskDetailFieldKey.API_KEY -> stringResource(Res.string.task_history_detail_field_api_key)
-    GenerationTaskDetailFieldKey.API_KEY_TYPE -> stringResource(Res.string.task_history_detail_field_api_key_type)
-    GenerationTaskDetailFieldKey.MODE -> stringResource(Res.string.task_history_detail_field_mode)
-    GenerationTaskDetailFieldKey.ORIGINAL_AMOUNT -> stringResource(Res.string.task_history_detail_field_original_amount)
-    GenerationTaskDetailFieldKey.DISCOUNT_RATIO -> stringResource(Res.string.task_history_detail_field_discount_ratio)
-    GenerationTaskDetailFieldKey.DISCOUNT_AMOUNT -> stringResource(Res.string.task_history_detail_field_discount_amount)
-    GenerationTaskDetailFieldKey.FINAL_AMOUNT -> stringResource(Res.string.task_history_detail_field_final_amount)
-    GenerationTaskDetailFieldKey.RH_COINS -> stringResource(Res.string.task_history_detail_field_rh_coins)
-}
-
-@Composable
-private fun detailFieldValueText(field: GenerationTaskDetailField): String =
-    if (field.key == GenerationTaskDetailFieldKey.API_KEY_TYPE && field.value == "1") {
-        stringResource(Res.string.task_history_detail_api_key_type_member)
-    } else {
-        field.value
-    }
-
-@Composable
-private fun String?.toDetailMoneyText(): String {
-    val value = this?.trim()?.takeIf { it.isNotEmpty() }
-        ?: return stringResource(Res.string.task_history_detail_unknown_value)
-    return when {
-        value.startsWith("¥") || value.startsWith("￥") || value.startsWith("$") -> value
-        value.contains("CNY", ignoreCase = true) || value.contains("RMB", ignoreCase = true) -> value
-        else -> "¥$value"
-    }
-}
-
-private fun String.toDurationLabelText(): String {
-    val seconds = trim().toLongOrNull() ?: return this
-    val hours = seconds / 3600
-    val minutes = (seconds % 3600) / 60
-    val remainingSeconds = seconds % 60
-    return if (hours > 0) {
-        "${hours.toTwoDigits()}:${minutes.toTwoDigits()}:${remainingSeconds.toTwoDigits()}"
-    } else {
-        "${minutes.toTwoDigits()}:${remainingSeconds.toTwoDigits()}"
-    }
-}
-
-private fun Long.toTwoDigits(): String = toString().padStart(2, '0')
 
 @Composable
 private fun TaskHistoryActionMessage.toDisplayActionMessage(): String = when (this) {

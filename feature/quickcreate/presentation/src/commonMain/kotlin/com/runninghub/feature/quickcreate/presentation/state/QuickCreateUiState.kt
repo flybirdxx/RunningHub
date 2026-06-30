@@ -2,6 +2,7 @@ package com.runninghub.feature.quickcreate.presentation.state
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingPreviewUi
 import com.runninghub.feature.quickcreate.presentation.draft.DraftData
 import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
@@ -9,6 +10,7 @@ import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistor
 import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryUiItem
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationTagUi
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationTemplateUi
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateModelPickerFilter
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailUiItem
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectUiItem
@@ -45,6 +47,8 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * @property taskStatus 当前页面主生成任务状态。
  * [QuickCreateTaskUiStatus.IDLE] 表示没有提交中的任务；非空闲状态由生成和轮询流程回写。该字段表示最新任务，
  * 对话区历史应读取 [conversationItems]，不能用它推断所有旧任务状态。
+ * @property taskId 当前页面最新远端任务 ID。
+ * `null` 表示任务尚未创建或当前状态不需要关联远端任务；非空时可用于“查看任务/查看详情”入口。
  * @property statusText 生成、上传或轮询阶段展示的辅助状态文案语义。
  * `null` 表示当前没有需要固定展示的阶段说明；非空值由 composeApp 映射为本地化资源或受控运行时说明，
  * 本字段不得保存 Token、Cookie、API Key、密码等敏感数据，也不得作为持久任务状态来源。
@@ -65,6 +69,8 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * @property feePreviewRequestKey 最近一次成功通过计费预览的请求指纹。
  * `null` 表示还没有任何可用于正式提交的远端计费结果；生成流程必须用当前提交请求重新计算指纹并匹配该值，
  * 防止用户在价格预览完成后修改参数却仍沿用旧价格提交。
+ * @property billingPreview 最近一次成功返回的可展示结算摘要。
+ * `null` 表示当前没有可展示的远端结算明细；该字段不保存服务端原始错误或结算模式原文。
  * @property activeSheet 当前打开的底部业务弹层。
  * `null` 表示没有弹层；非空值只能同时表示一个模型选择或参数编辑弹层。
  * @property inspirationLoading 是否正在加载灵感标签、模板列表或模板详情。
@@ -137,6 +143,9 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * `null` 表示没有可展示选中项；非空时应与 [selectedImageServiceModel] 指向同一模型。
  * @property selectedVideoServiceModelUi 当前视频模型选择器中的选中项。
  * `null` 表示没有可展示选中项；非空时应与 [selectedVideoServiceModel] 指向同一模型。
+ * @property modelPickerQuery 模型选择器当前搜索词，属于 Presentation 状态而不是 Composable 临时变量。
+ * @property modelPickerFilter 模型选择器当前分类筛选项。
+ * @property modelPickerModelSnapshot 模型目录刷新间隙使用的可展示快照，避免 Sheet 闪回加载态。
  * @property imageServiceParams 图片服务动态字段参数。
  * Key 为服务端字段参数名，Value 为用户输入或默认值；空 Map 表示当前图片模型没有动态字段或尚未初始化。
  * @property videoServiceParams 视频服务动态字段参数。
@@ -151,6 +160,7 @@ data class QuickCreateUiState(
     val videoConfig: VideoConfig = VideoConfig(),
     val submittedPrompt: String = "",
     val taskStatus: QuickCreateTaskUiStatus = QuickCreateTaskUiStatus.IDLE,
+    val taskId: String? = null,
     val statusText: QuickCreateTaskStatusText? = null,
     val results: List<QuickCreateResultUi> = emptyList(),
     val conversationItems: List<QuickCreateConversationItemUi> = emptyList(),
@@ -159,6 +169,7 @@ data class QuickCreateUiState(
     val feePreviewLoading: Boolean = false,
     val feePreviewError: QuickCreateUiMessage? = null,
     val feePreviewRequestKey: String? = null,
+    val billingPreview: QuickCreateBillingPreviewUi? = null,
     val activeSheet: QuickCreateSheet? = null,
     val inspirationLoading: Boolean = false,
     val inspirationTags: List<QuickCreateInspirationTagUi> = emptyList(),
@@ -195,6 +206,9 @@ data class QuickCreateUiState(
     val serviceVideoModelItems: List<QuickCreateServiceModelUi> = emptyList(),
     val selectedImageServiceModelUi: QuickCreateServiceModelUi? = null,
     val selectedVideoServiceModelUi: QuickCreateServiceModelUi? = null,
+    val modelPickerQuery: String = "",
+    val modelPickerFilter: QuickCreateModelPickerFilter = QuickCreateModelPickerFilter.Image,
+    val modelPickerModelSnapshot: List<QuickCreateServiceModelUi> = emptyList(),
     val imageServiceParams: Map<String, String> = emptyMap(),
     val videoServiceParams: Map<String, String> = emptyMap(),
     val draftData: DraftData? = null,

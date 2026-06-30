@@ -63,10 +63,13 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_compact_add_media_content_description
+import runninghub.composeapp.generated.resources.quick_create_compact_char_count_format
 import runninghub.composeapp.generated.resources.quick_create_compact_generate_content_description
+import runninghub.composeapp.generated.resources.quick_create_compact_generate_with_detail_format
 import runninghub.composeapp.generated.resources.quick_create_compact_image_params_format
 import runninghub.composeapp.generated.resources.quick_create_compact_image_prompt_placeholder
 import runninghub.composeapp.generated.resources.quick_create_compact_model_loading
+import runninghub.composeapp.generated.resources.quick_create_compact_prompt_required_hint
 import runninghub.composeapp.generated.resources.quick_create_compact_remove_media_content_description
 import runninghub.composeapp.generated.resources.quick_create_compact_video_params_summary
 import runninghub.composeapp.generated.resources.quick_create_compact_video_prompt_placeholder
@@ -88,7 +91,7 @@ import runninghub.composeapp.generated.resources.quick_create_send_generate
  * @param prompt 当前提示词。
  * @param onPromptChange 提示词变更回调。
  * @param charCount 当前提示词字符数。
- * @param nearLimit `true` 表示接近字数上限；本布局暂不展示计数，只影响提交可用性。
+     * @param nearLimit `true` 表示接近字数上限，计数文案转为警示色。
  * @param overLimit `true` 表示超过字数上限，输入栏描边转为错误色。
  * @param mediaReferences 当前全局素材列表，空列表表示没有素材缩略图。
  * @param selectedServiceModel 当前选中的服务端模型摘要；为空时使用本地兼容模型名。
@@ -166,6 +169,10 @@ internal fun QuickCreateCompactComposer(
                 CompactPromptField(
                     prompt = prompt,
                     onPromptChange = onPromptChange,
+                    charCount = charCount,
+                    nearLimit = nearLimit,
+                    overLimit = overLimit,
+                    showRequiredHint = !hasPrompt,
                     placeholder = if (isImage) {
                         stringResource(Res.string.quick_create_compact_image_prompt_placeholder)
                     } else {
@@ -267,41 +274,92 @@ private fun CompactControlRow(
 private fun CompactPromptField(
     prompt: String,
     onPromptChange: (String) -> Unit,
+    charCount: Int,
+    nearLimit: Boolean,
+    overLimit: Boolean,
+    showRequiredHint: Boolean,
     placeholder: String,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .heightIn(min = 34.dp, max = 72.dp),
-        contentAlignment = Alignment.CenterStart,
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (prompt.isEmpty()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 34.dp, max = 72.dp),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            if (prompt.isEmpty()) {
+                Text(
+                    text = placeholder,
+                    color = QuickCreateDesignTokens.Muted,
+                    fontSize = 15.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            BasicTextField(
+                value = prompt,
+                onValueChange = { value ->
+                    if (value.length <= MAX_PROMPT_CHARS) {
+                        onPromptChange(value)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                textStyle = TextStyle(
+                    color = QuickCreateDesignTokens.Text,
+                    fontSize = 15.sp,
+                    lineHeight = 20.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
+                cursorBrush = SolidColor(QuickCreateDesignTokens.Purple),
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (showRequiredHint) {
+                Text(
+                    text = stringResource(Res.string.quick_create_compact_prompt_required_hint),
+                    color = QuickCreateDesignTokens.Muted,
+                    fontSize = 11.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                Box(modifier = Modifier.weight(1f))
+            }
             Text(
-                text = placeholder,
-                color = QuickCreateDesignTokens.Muted,
-                fontSize = 15.sp,
+                text = stringResource(
+                    Res.string.quick_create_compact_char_count_format,
+                    charCount,
+                    MAX_PROMPT_CHARS,
+                ),
+                color = compactPromptCharCountColor(
+                    nearLimit = nearLimit,
+                    overLimit = overLimit,
+                ),
+                fontSize = 11.sp,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        BasicTextField(
-            value = prompt,
-            onValueChange = { value ->
-                if (value.length <= MAX_PROMPT_CHARS) {
-                    onPromptChange(value)
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-            textStyle = TextStyle(
-                color = QuickCreateDesignTokens.Text,
-                fontSize = 15.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Medium,
-            ),
-            cursorBrush = SolidColor(QuickCreateDesignTokens.Purple),
-        )
     }
 }
+
+private fun compactPromptCharCountColor(
+    nearLimit: Boolean,
+    overLimit: Boolean,
+): Color =
+    when {
+        overLimit -> Color(0xFFF87171)
+        nearLimit -> Color(0xFFFBBF24)
+        else -> QuickCreateDesignTokens.Muted
+    }
 
 @Composable
 private fun CompactMediaUploadStrip(
@@ -519,18 +577,21 @@ private fun CompactGenerateButton(
     onGenerate: () -> Unit,
     onAddMedia: () -> Unit,
 ) {
-    val buttonClick = if (hasPrompt) onGenerate else onAddMedia
+    val primaryAction = compactPrimaryAction(hasPrompt)
+    val buttonClick = when (primaryAction) {
+        CompactPrimaryAction.AddMedia -> onAddMedia
+        CompactPrimaryAction.Generate -> onGenerate
+    }
     val buttonShape = if (hasPrompt) RoundedCornerShape(18.dp) else CircleShape
     val sendButtonLabel = quickCreateSendButtonLabel(
         cost = cost,
         feePreviewLoading = feePreviewLoading,
         feePreviewError = feePreviewError,
     )
-    val confirmingFee = hasPrompt && sendButtonLabel == QuickCreateSendButtonLabel.Confirming
     val buttonModifier = if (hasPrompt) {
         Modifier
             .height(36.dp)
-            .widthIn(min = 68.dp)
+            .widthIn(min = 76.dp)
     } else {
         Modifier.size(36.dp)
     }
@@ -559,9 +620,6 @@ private fun CompactGenerateButton(
                     color = QuickCreateDesignTokens.Text,
                     strokeWidth = 2.dp,
                 )
-            } else if (confirmingFee) {
-                // 价格预览中只展示环形加载态，避免紧凑按钮继续用“价格确认中”文案占位。
-                FeePreviewLoadingIndicator()
             } else if (!hasPrompt) {
                 Icon(
                     imageVector = Icons.Default.Add,
@@ -579,9 +637,9 @@ private fun CompactGenerateButton(
                     tint = QuickCreateDesignTokens.Text,
                 )
             }
-            if (hasPrompt && !confirmingFee) {
+            if (hasPrompt) {
                 Text(
-                    text = quickCreateSendButtonText(sendButtonLabel),
+                    text = quickCreateCompactGenerateButtonText(sendButtonLabel),
                     color = QuickCreateDesignTokens.Text,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
@@ -592,14 +650,33 @@ private fun CompactGenerateButton(
     }
 }
 
-@Composable
-private fun FeePreviewLoadingIndicator() {
-    CircularProgressIndicator(
-        modifier = Modifier.size(15.dp),
-        color = QuickCreateDesignTokens.Text,
-        strokeWidth = 2.dp,
-    )
+internal enum class CompactPrimaryAction {
+    AddMedia,
+    Generate,
 }
+
+internal enum class CompactGenerateTextMode {
+    GenerateOnly,
+    GenerateWithDetail,
+}
+
+internal fun compactPrimaryAction(hasPrompt: Boolean): CompactPrimaryAction =
+    if (hasPrompt) {
+        CompactPrimaryAction.Generate
+    } else {
+        CompactPrimaryAction.AddMedia
+    }
+
+internal fun compactGenerateTextMode(
+    label: QuickCreateSendButtonLabel,
+): CompactGenerateTextMode =
+    when (label) {
+        QuickCreateSendButtonLabel.Generate -> CompactGenerateTextMode.GenerateOnly
+        QuickCreateSendButtonLabel.Confirming,
+        QuickCreateSendButtonLabel.Pending,
+        is QuickCreateSendButtonLabel.Amount,
+        -> CompactGenerateTextMode.GenerateWithDetail
+    }
 
 @Composable
 private fun quickCreateSendButtonText(label: QuickCreateSendButtonLabel): String =
@@ -610,6 +687,16 @@ private fun quickCreateSendButtonText(label: QuickCreateSendButtonLabel): String
         is QuickCreateSendButtonLabel.Amount -> stringResource(
             Res.string.quick_create_send_amount_format,
             label.cashAmount,
+        )
+    }
+
+@Composable
+private fun quickCreateCompactGenerateButtonText(label: QuickCreateSendButtonLabel): String =
+    when (compactGenerateTextMode(label)) {
+        CompactGenerateTextMode.GenerateOnly -> quickCreateSendButtonText(label)
+        CompactGenerateTextMode.GenerateWithDetail -> stringResource(
+            Res.string.quick_create_compact_generate_with_detail_format,
+            quickCreateSendButtonText(label),
         )
     }
 

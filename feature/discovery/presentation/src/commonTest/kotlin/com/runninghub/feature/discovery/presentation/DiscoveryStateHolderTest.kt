@@ -5,6 +5,7 @@ import com.runninghub.core.model.Author
 import com.runninghub.core.model.CoverMediaType
 import com.runninghub.core.model.PageData
 import com.runninghub.core.model.Tag
+import com.runninghub.core.model.TagSimple
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogError
 import com.runninghub.feature.discovery.domain.CatalogQuery
@@ -157,6 +158,54 @@ class DiscoveryStateHolderTest {
         advanceUntilIdle()
 
         assertEquals(CatalogPresentationError.ServiceUnavailable, screenModel.uiState.value.error)
+    }
+
+    @Test
+    fun `app card model exposes creation path slots`() = runTest(dispatcher) {
+        val repository = FakeWebAppCatalogRepository()
+        repository.enqueueAppListResult(
+            Result.success(
+                page(
+                    app("video-template").copy(
+                        title = "Video Template",
+                        description = "Generate a short product clip",
+                        coverUrl = "https://cdn.example.com/video-cover.png",
+                        coverMediaType = CoverMediaType.VIDEO,
+                        tags = listOf(TagSimple(id = "video", name = "视频生成")),
+                        useCount = "42",
+                    ),
+                    hasNext = false,
+                ),
+            ),
+        )
+        val screenModel = DiscoveryStateHolder(repository, this)
+
+        screenModel.loadInitialData()
+        advanceUntilIdle()
+
+        val card = screenModel.uiState.value.appCards.single()
+        assertEquals("video-template", card.id)
+        assertEquals("Video Template", card.templateName)
+        assertEquals(DiscoveryAppCapability.VIDEO, card.capability)
+        assertEquals("https://cdn.example.com/video-cover.png", card.preview.url)
+        assertEquals(DiscoveryAppPreviewType.VIDEO, card.preview.type)
+        assertEquals(DiscoveryAppEstimatedCostKind.UNKNOWN, card.estimatedCost.kind)
+        assertEquals(DiscoveryAppCardPrimaryAction.GENERATE, card.primaryAction)
+        assertEquals(DiscoveryAppCardMetricKind.USE_COUNT, card.supportingMetric?.kind)
+    }
+
+    @Test
+    fun `search result card model keeps empty search state separate`() = runTest(dispatcher) {
+        val repository = FakeWebAppCatalogRepository()
+        repository.enqueueSearchResponse().complete(Result.success(page(hasNext = false)))
+        val screenModel = DiscoveryStateHolder(repository, this)
+
+        screenModel.searchSubmit("missing")
+        advanceUntilIdle()
+
+        assertEquals(emptyList(), screenModel.uiState.value.searchResultCards)
+        assertEquals(false, screenModel.uiState.value.isSearching)
+        assertEquals(null, screenModel.uiState.value.searchError)
     }
 
     @Test

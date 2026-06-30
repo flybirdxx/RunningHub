@@ -148,6 +148,7 @@ class QuickCreateFeePreviewInteractor(
                     feePreviewLoading = false,
                     feePreviewError = null,
                     feePreviewRequestKey = null,
+                    billingPreview = null,
                     estimatedCost = it.currentLocalEstimatedCost(),
                 )
             }
@@ -157,7 +158,14 @@ class QuickCreateFeePreviewInteractor(
             return
         }
 
-        uiState.update { it.copy(feePreviewLoading = true, feePreviewError = null, feePreviewRequestKey = null) }
+        uiState.update {
+            it.copy(
+                feePreviewLoading = true,
+                feePreviewError = null,
+                feePreviewRequestKey = null,
+                billingPreview = null,
+            )
+        }
         feePreviewJob = scope.launch {
             delay(FEE_PREVIEW_DEBOUNCE_MS)
             when (val request = buildFeePreviewRequest(uiState.value)) {
@@ -270,6 +278,10 @@ class QuickCreateFeePreviewInteractor(
                 feePreviewLoading = false,
                 feePreviewError = null,
                 feePreviewRequestKey = request.request.quickCreateFeeRequestKey(),
+                billingPreview = QuickCreateBillingPreviewUi(
+                    requiredCashAmount = catalogCost,
+                    free = catalogCost == 0.0,
+                ),
             )
         }
         return true
@@ -331,7 +343,14 @@ class QuickCreateFeePreviewInteractor(
         }
 
     private fun clearFeePreviewState() {
-        uiState.update { it.copy(feePreviewLoading = false, feePreviewError = null, feePreviewRequestKey = null) }
+        uiState.update {
+            it.copy(
+                feePreviewLoading = false,
+                feePreviewError = null,
+                feePreviewRequestKey = null,
+                billingPreview = null,
+            )
+        }
     }
 
     private fun applyFeePreview(
@@ -348,6 +367,7 @@ class QuickCreateFeePreviewInteractor(
         } else {
             null
         }
+        val billingPreview = preview.toQuickCreateBillingPreviewUi()
 
         // 余额不足时保留本地估价，避免失败的服务端预览把按钮价格改成一个不可提交的价格。
         uiState.update {
@@ -360,6 +380,7 @@ class QuickCreateFeePreviewInteractor(
                 feePreviewLoading = false,
                 feePreviewError = previewError,
                 feePreviewRequestKey = if (previewError == null) requestKey else null,
+                billingPreview = billingPreview,
             )
         }
     }
@@ -372,6 +393,7 @@ class QuickCreateFeePreviewInteractor(
                 feePreviewLoading = false,
                 feePreviewError = error.toQuickCreateUiMessage(QuickCreatePresentationError.FeePreviewFailed),
                 feePreviewRequestKey = null,
+                billingPreview = null,
             )
         }
     }

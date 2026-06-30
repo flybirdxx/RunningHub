@@ -73,6 +73,9 @@ enum class QuickCreateSheet {
 
     /** 当前模型的参数编辑面板。 */
     PARAMS,
+
+    /** 正式提交前的生成价格确认面板。 */
+    GENERATION_CONFIRM,
 }
 
 /**

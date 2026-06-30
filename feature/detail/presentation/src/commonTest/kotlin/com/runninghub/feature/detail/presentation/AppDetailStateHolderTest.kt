@@ -116,6 +116,56 @@ class AppDetailStateHolderTest {
     }
 
     @Test
+    fun `creation entry prioritizes purpose inputs cost and generate action`() = runTest {
+        val stateHolder = createStateHolder(
+            catalogRepository = FakeWebAppCatalogRepository(
+                appDetailResult = Result.success(
+                    appDetail(
+                        id = "350",
+                        inputNodes = listOf(
+                            inputNode(
+                                nodeId = "prompt-node",
+                                fieldName = "prompt",
+                                fieldValue = "",
+                                description = "Prompt",
+                            ),
+                            inputNode(
+                                nodeId = "ratio-node",
+                                fieldName = "aspectRatio",
+                                fieldValue = "1:1",
+                                description = "画面比例",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
+            taskRepository = FakeWebAppTaskRepository(),
+        )
+
+        stateHolder.loadDetail("350")
+        advanceUntilIdle()
+
+        val creationEntry = stateHolder.uiState.value.creationEntry
+        assertEquals("Detail 350", creationEntry?.title)
+        assertEquals("description", creationEntry?.purpose)
+        assertEquals(
+            listOf(
+                AppDetailCreationSection.PURPOSE,
+                AppDetailCreationSection.REQUIRED_INPUTS,
+                AppDetailCreationSection.ESTIMATED_COST,
+                AppDetailCreationSection.PRIMARY_ACTION,
+                AppDetailCreationSection.TECHNICAL_DETAILS,
+            ),
+            creationEntry?.firstScreenSections,
+        )
+        assertEquals(2, creationEntry?.requiredInputs?.size)
+        assertEquals(false, creationEntry?.technicalDetailsExpanded)
+        assertEquals(AppDetailEstimatedCostKind.UNKNOWN, creationEntry?.estimatedCost?.kind)
+        assertEquals(AppDetailCreationPrimaryAction.GENERATE_NOW, creationEntry?.primaryAction?.type)
+        assertEquals(true, creationEntry?.primaryAction?.enabled)
+    }
+
+    @Test
     fun `media uri result uploads file and writes returned file name`() = runTest {
         val mediaReader = FakeAppDetailMediaReader(
             displayName = "input.webp",
@@ -445,14 +495,17 @@ class AppDetailStateHolderTest {
         nodeId: String = "node",
         fieldName: String = "field",
         fieldValue: String? = "default",
+        fieldType: String = "STRING",
+        fieldData: String? = null,
+        description: String? = "Description",
     ): InputNode =
         InputNode(
             nodeId = nodeId,
             nodeName = "Node $nodeId",
             fieldName = fieldName,
             fieldValue = fieldValue,
-            fieldData = null,
-            fieldType = "STRING",
-            description = "Description",
+            fieldData = fieldData,
+            fieldType = fieldType,
+            description = description,
         )
 }

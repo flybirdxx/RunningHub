@@ -48,6 +48,8 @@ enum class ProfileError {
  * `null` 表示尚未加载、未登录或加载失败；不能用它单独判断本地会话是否有效。
  * @property accountStatus API Key 对应的账户状态，来源于 [UserRepository.getAccountStatus]。
  * `null` 表示未绑定可用 API Key、查询失败或请求尚未完成；页面不应把 null 展示为余额为 0。
+ * @property isAccountStatusLoadFailed 账户状态接口是否在最近一次刷新中失败。
+ * `true` 表示余额或预计可生成次数只能展示降级语义，不得把缺失值当作 0 或真实资产。
  * @property isLoggedIn 当前本地认证仓库判断到的会话可用性。
  * `true` 表示存在可尝试使用的登录凭据；`false` 表示应展示未登录态或引导登录。
  * @property error 等待页面展示的一次性稳定错误语义。
@@ -62,11 +64,20 @@ data class ProfileUiState(
     val isLoading: Boolean = true,
     val user: User? = null,
     val accountStatus: AccountStatus? = null,
+    val isAccountStatusLoadFailed: Boolean = false,
     val isLoggedIn: Boolean = false,
     val error: ProfileError? = null,
     val showApiKeyDialog: Boolean = false,
     val showCookieDialog: Boolean = false,
-)
+) {
+    /**
+     * Profile 资产中心聚合状态。
+     *
+     * 该属性由当前用户资料、账户状态和稳定错误语义推导，避免 composeApp 临时拼装钱包、会员和消费明细规则。
+     */
+    val assetCenter: ProfileAssetCenterUiModel
+        get() = toProfileAssetCenterUiModel()
+}
 
 /**
  * 持有个人中心页面状态并协调资料、账户状态和创作凭据操作。
@@ -121,7 +132,7 @@ class ProfileStateHolder(
      */
     fun refreshUserData() {
         coroutineScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            _uiState.update { it.copy(isLoading = true, error = null, isAccountStatusLoadFailed = false) }
 
             val loggedIn = authRepository.isLoggedIn()
             if (!loggedIn) {
@@ -156,7 +167,14 @@ class ProfileStateHolder(
 
                 // 账户状态是个人中心的增强信息，失败时不覆盖已加载的用户资料，避免局部接口异常扩大影响面。
                 userRepository.getAccountStatus().onSuccess { status ->
-                    _uiState.update { it.copy(accountStatus = status) }
+                    _uiState.update {
+                        it.copy(
+                            accountStatus = status,
+                            isAccountStatusLoadFailed = false,
+                        )
+                    }
+                }.onFailure {
+                    _uiState.update { it.copy(isAccountStatusLoadFailed = true) }
                 }
             } catch (_: Exception) {
                 // Profile 不展示底层异常消息，避免远端 msg 或本地诊断文本成为最终 UI 文案。

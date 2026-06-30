@@ -35,6 +35,52 @@ data class PlazaCreationPage(
 )
 
 /**
+ * Plaza 复用流程可识别的参考媒体类型。
+ *
+ * 该类型只描述作品结果媒体可否作为快捷创作参考素材使用，不代表最终生成任务类型；
+ * QuickCreate 仍需根据当前模型和用户确认后的参数决定实际提交请求。
+ */
+enum class PlazaReuseMediaKind {
+    /** 图片作品，可作为图片参考素材。 */
+    IMAGE,
+
+    /** 视频作品，可作为视频参考素材。 */
+    VIDEO,
+
+    /** 音频作品，可作为音频参考素材。 */
+    AUDIO,
+
+    /** 服务端未返回或无法识别媒体类型。 */
+    UNKNOWN,
+}
+
+/**
+ * Plaza 作品可复用参数快照。
+ *
+ * 广场列表接口可能只返回部分字段，因此所有参数都允许为空。Presentation 必须把空值展示为缺失项，
+ * 不能把缺失模板、SKU、Prompt 或参考图当作完整复用参数，也不能绕过 QuickCreate 的价格确认。
+ *
+ * @property templateId 可复用模板 ID；为空表示服务端未返回模板绑定。
+ * @property skuId 可复用服务 SKU；为空表示服务端未返回 SKU。
+ * @property prompt 可编辑 Prompt 初稿；为空表示需要用户在 Create 中补齐。
+ * @property aspectRatio 可复用比例协议值，例如 `3:4`；为空表示未知。
+ * @property resolution 可复用分辨率协议值；为空表示未知。
+ * @property quantity 可复用生成数量；为空表示沿用 Create 当前默认值。
+ * @property referenceMediaUrl 可带入 Create 的参考媒体 URL；为空表示没有可复用参考素材。
+ * @property referenceMediaType 参考媒体类型；未知时为 [PlazaReuseMediaKind.UNKNOWN]。
+ */
+data class PlazaCreationReuseSnapshot(
+    val templateId: String? = null,
+    val skuId: String? = null,
+    val prompt: String? = null,
+    val aspectRatio: String? = null,
+    val resolution: String? = null,
+    val quantity: Int? = null,
+    val referenceMediaUrl: String? = null,
+    val referenceMediaType: PlazaReuseMediaKind = PlazaReuseMediaKind.UNKNOWN,
+)
+
+/**
  * Plaza 创作内容卡片。
  *
  * @property id 内容稳定标识。
@@ -51,6 +97,7 @@ data class PlazaCreationPage(
  * @property collectCount 收藏数文案，保留服务端格式。
  * @property liked 当前用户是否已点赞。
  * @property collected 当前用户是否已收藏。
+ * @property reuseSnapshot 当前作品可复用参数快照；字段可部分缺失，UI 需要明确展示缺失态。
  */
 data class PlazaCreationCard(
     val id: String,
@@ -67,6 +114,7 @@ data class PlazaCreationCard(
     val collectCount: String? = null,
     val liked: Boolean = false,
     val collected: Boolean = false,
+    val reuseSnapshot: PlazaCreationReuseSnapshot = PlazaCreationReuseSnapshot(),
 )
 
 /**

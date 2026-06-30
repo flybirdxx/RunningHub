@@ -5,6 +5,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -116,8 +117,17 @@ class QuickCreateModelCatalogInteractor(
                 selected = state.selectedVideoServiceModel,
                 preferPersistedSelection = preferPersistedSelection,
             )
-            val imageItems = imageModels.toQuickCreateServiceModelUiItems(selectedImage)
-            val videoItems = videoModels.toQuickCreateServiceModelUiItems(selectedVideo)
+            val imageItems = imageModels.toQuickCreateServiceModelUiItems(
+                selected = selectedImage,
+                targetTab = QuickCreateTab.IMAGE,
+            )
+            val videoItems = videoModels.toQuickCreateServiceModelUiItems(
+                selected = selectedVideo,
+                targetTab = QuickCreateTab.VIDEO,
+            )
+            val modelPickerSnapshot = (imageItems + videoItems)
+                .distinctBy { it.identityKey }
+                .ifEmpty { state.modelPickerModelSnapshot }
 
             state.copy(
                 serviceModelsLoading = loading,
@@ -129,6 +139,7 @@ class QuickCreateModelCatalogInteractor(
                 serviceVideoModelItems = videoItems,
                 selectedImageServiceModelUi = imageItems.firstOrNull { it.selected },
                 selectedVideoServiceModelUi = videoItems.firstOrNull { it.selected },
+                modelPickerModelSnapshot = modelPickerSnapshot,
                 imageServiceParams = if (hasSameServiceSelection(selectedImage, state.selectedImageServiceModel)) {
                     state.imageServiceParams
                 } else {
@@ -170,11 +181,18 @@ class QuickCreateModelCatalogInteractor(
     private fun updateImageServiceModelSelection(selectedModel: QuickCreationServiceModel) {
         sessionImageSelectionIdentityKey = selectedModel.quickCreateServiceModelIdentityKey()
         uiState.update {
-            val imageItems = it.serviceImageModels.toQuickCreateServiceModelUiItems(selectedModel)
+            val imageItems = it.serviceImageModels.toQuickCreateServiceModelUiItems(
+                selected = selectedModel,
+                targetTab = QuickCreateTab.IMAGE,
+            )
+            val modelPickerSnapshot = (imageItems + it.serviceVideoModelItems)
+                .distinctBy { item -> item.identityKey }
+                .ifEmpty { it.modelPickerModelSnapshot }
             it.copy(
                 selectedImageServiceModel = selectedModel,
                 serviceImageModelItems = imageItems,
                 selectedImageServiceModelUi = imageItems.firstOrNull { item -> item.selected },
+                modelPickerModelSnapshot = modelPickerSnapshot,
                 imageServiceParams = QuickCreationServiceSchema.defaultParams(selectedModel),
             )
         }
@@ -210,11 +228,18 @@ class QuickCreateModelCatalogInteractor(
     private fun updateVideoServiceModelSelection(selectedModel: QuickCreationServiceModel) {
         sessionVideoSelectionIdentityKey = selectedModel.quickCreateServiceModelIdentityKey()
         uiState.update {
-            val videoItems = it.serviceVideoModels.toQuickCreateServiceModelUiItems(selectedModel)
+            val videoItems = it.serviceVideoModels.toQuickCreateServiceModelUiItems(
+                selected = selectedModel,
+                targetTab = QuickCreateTab.VIDEO,
+            )
+            val modelPickerSnapshot = (it.serviceImageModelItems + videoItems)
+                .distinctBy { item -> item.identityKey }
+                .ifEmpty { it.modelPickerModelSnapshot }
             it.copy(
                 selectedVideoServiceModel = selectedModel,
                 serviceVideoModelItems = videoItems,
                 selectedVideoServiceModelUi = videoItems.firstOrNull { item -> item.selected },
+                modelPickerModelSnapshot = modelPickerSnapshot,
                 videoServiceParams = QuickCreationServiceSchema.defaultParams(selectedModel),
             )
         }

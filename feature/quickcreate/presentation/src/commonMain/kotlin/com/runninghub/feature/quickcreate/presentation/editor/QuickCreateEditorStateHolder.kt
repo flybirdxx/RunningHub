@@ -1,5 +1,6 @@
 package com.runninghub.feature.quickcreate.presentation.editor
 
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateModelPickerFilter
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.draft.QuickCreateDraftRestore
 
@@ -47,6 +48,7 @@ class QuickCreateEditorStateHolder(
                 feePreviewLoading = false,
                 feePreviewError = null,
                 feePreviewRequestKey = null,
+                billingPreview = null,
             )
         }
         onFeePreviewRequired()
@@ -91,6 +93,7 @@ class QuickCreateEditorStateHolder(
                 imageConfig = it.imageConfig.copy(prompt = restore.imagePrompt),
                 videoConfig = it.videoConfig.copy(prompt = restore.videoPrompt),
                 feePreviewRequestKey = null,
+                billingPreview = null,
             )
         }
     }
@@ -101,7 +104,26 @@ class QuickCreateEditorStateHolder(
      * 弹层状态使用单个枚举表示，新的弹层会覆盖旧弹层，保证页面不会同时展示模型和参数两个面板。
      */
     fun showModelPickerSheet() {
-        uiState.update { it.copy(activeSheet = QuickCreateSheet.MODEL_PICKER) }
+        uiState.update {
+            it.copy(
+                activeSheet = QuickCreateSheet.MODEL_PICKER,
+                modelPickerQuery = "",
+                modelPickerFilter = when (it.currentTab) {
+                    QuickCreateTab.IMAGE -> QuickCreateModelPickerFilter.Image
+                    QuickCreateTab.VIDEO -> QuickCreateModelPickerFilter.Video
+                },
+            )
+        }
+    }
+
+    /** 更新模型选择器搜索词；过滤结果由 Presentation 纯函数统一计算。 */
+    fun updateModelPickerQuery(query: String) {
+        uiState.update { it.copy(modelPickerQuery = query) }
+    }
+
+    /** 更新模型选择器分类筛选项，不直接切换当前创作 Tab。 */
+    fun selectModelPickerFilter(filter: QuickCreateModelPickerFilter) {
+        uiState.update { it.copy(modelPickerFilter = filter) }
     }
 
     /**

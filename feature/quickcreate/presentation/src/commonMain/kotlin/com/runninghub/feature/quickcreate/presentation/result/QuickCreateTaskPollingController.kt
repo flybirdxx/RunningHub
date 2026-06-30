@@ -58,6 +58,7 @@ class QuickCreateTaskPollingController(
                 submittedPrompt = "",
                 conversationItems = emptyList(),
                 taskStatus = QuickCreateTaskUiStatus.IDLE,
+                taskId = null,
                 statusText = null,
             )
         }
@@ -72,16 +73,19 @@ class QuickCreateTaskPollingController(
             when (status) {
                 is QuickCreateTaskStatus.Submitting -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
+                    taskId = null,
                     statusText = QuickCreateTaskStatusText.SubmittingTask,
                     error = null,
                 )
                 is QuickCreateTaskStatus.Queuing -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.QUEUING,
+                    taskId = status.taskId,
                     statusText = QuickCreateTaskStatusText.Queuing,
                     error = null,
                 )
                 is QuickCreateTaskStatus.Running -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.RUNNING,
+                    taskId = status.taskId,
                     statusText = QuickCreateTaskStatusText.Running(status.progress),
                     error = null,
                 )
@@ -100,6 +104,7 @@ class QuickCreateTaskPollingController(
                     refreshHistory = true
                     it.withLatestTaskDisplay(
                         taskStatus = QuickCreateTaskUiStatus.SUCCESS,
+                        taskId = status.taskId,
                         statusText = QuickCreateTaskStatusText.Success,
                         error = null,
                         results = results,
@@ -109,17 +114,20 @@ class QuickCreateTaskPollingController(
                     val error = status.errorMessage.toQuickCreateTaskIssueError()
                     it.withLatestTaskDisplay(
                         taskStatus = QuickCreateTaskUiStatus.FAILED,
+                        taskId = status.taskId,
                         statusText = QuickCreateTaskStatusText.Error(error),
                         error = error.asQuickCreateUiMessage(),
                     )
                 }
                 is QuickCreateTaskStatus.Cancelled -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.CANCELED,
+                    taskId = status.taskId,
                     statusText = QuickCreateTaskStatusText.Canceled,
                     error = null,
                 )
                 is QuickCreateTaskStatus.Error -> it.withLatestTaskDisplay(
                     taskStatus = QuickCreateTaskUiStatus.IDLE,
+                    taskId = null,
                     statusText = null,
                     error = status.message.toQuickCreateTaskIssueError().asQuickCreateUiMessage(),
                 )
@@ -133,17 +141,20 @@ class QuickCreateTaskPollingController(
 
 private fun QuickCreateUiState.withLatestTaskDisplay(
     taskStatus: QuickCreateTaskUiStatus,
+    taskId: String?,
     statusText: QuickCreateTaskStatusText?,
     error: QuickCreateUiMessage?,
     results: List<QuickCreateResultUi> = this.results,
 ): QuickCreateUiState =
     copy(
         taskStatus = taskStatus,
+        taskId = taskId,
         statusText = statusText,
         error = error,
         results = results,
         conversationItems = conversationItems.updateLatestTaskDisplay(
             taskStatus = taskStatus,
+            taskId = taskId,
             statusText = statusText,
             results = results,
         ),
@@ -151,6 +162,7 @@ private fun QuickCreateUiState.withLatestTaskDisplay(
 
 private fun List<QuickCreateConversationItemUi>.updateLatestTaskDisplay(
     taskStatus: QuickCreateTaskUiStatus,
+    taskId: String?,
     statusText: QuickCreateTaskStatusText?,
     results: List<QuickCreateResultUi>,
 ): List<QuickCreateConversationItemUi> =
@@ -159,6 +171,7 @@ private fun List<QuickCreateConversationItemUi>.updateLatestTaskDisplay(
     } else {
         dropLast(1) + last().copy(
             taskStatus = taskStatus,
+            taskId = taskId,
             statusText = statusText,
             results = results,
         )

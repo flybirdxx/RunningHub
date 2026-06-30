@@ -81,7 +81,15 @@ data class DiscoveryUiState(
     val searchPage: Int = 1,
     val searchHasMore: Boolean = false,
     val searchError: CatalogPresentationError? = null,
-)
+) {
+    /** 发现主列表的创作入口卡片语义，供应用壳直接渲染 AppCard。 */
+    val appCards: List<DiscoveryAppCardUiModel>
+        get() = apps.map { it.toDiscoveryAppCardUiModel() }
+
+    /** 搜索结果的创作入口卡片语义，和主列表分开保存以保留搜索空态。 */
+    val searchResultCards: List<DiscoveryAppCardUiModel>
+        get() = searchResults.map { it.toDiscoveryAppCardUiModel() }
+}
 
 private const val PAGE_SIZE = 30
 

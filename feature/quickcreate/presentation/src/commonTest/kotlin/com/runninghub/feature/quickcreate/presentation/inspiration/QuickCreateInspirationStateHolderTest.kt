@@ -197,6 +197,48 @@ class QuickCreateInspirationStateHolderTest {
     }
 
     @Test
+    fun `apply plaza reuse intent writes editable image state and requests fee preview`() = runTest {
+        var templateAppliedCount = 0
+        val imageModel = serviceModel(
+            bindingId = "image-binding",
+            skuId = "image-sku",
+            fields = listOf(uploadField(fieldKey = "imageUrls", paramKey = "imageUrls")),
+        )
+        val repository = FakeInspirationRepository()
+        val state = MutableStateFlow(
+            QuickCreateUiState(
+                currentMode = QuickCreateMode.CREATION,
+                serviceImageModels = listOf(imageModel),
+                selectedImageServiceModel = imageModel,
+            )
+        )
+        val holder = createHolder(repository, state, this, onTemplateApplied = { templateAppliedCount++ })
+
+        holder.applyPlazaReuseIntent(
+            QuickCreatePlazaReuseIntent(
+                sourceWorkId = "work-1",
+                sourceAuthorName = "Ada",
+                prompt = "cinematic mountain house",
+                aspectRatio = "3:4",
+                resolution = "1K",
+                referenceMediaUrl = "https://example.com/work.png",
+                referenceMediaKind = QuickCreatePlazaReuseMediaKind.IMAGE,
+            )
+        )
+
+        assertEquals(1, templateAppliedCount)
+        assertEquals(emptyList(), repository.requestedTemplateDetailIds)
+        assertEquals(QuickCreateMode.CREATION, state.value.currentMode)
+        assertEquals(QuickCreateTab.IMAGE, state.value.currentTab)
+        assertEquals("cinematic mountain house", state.value.imageConfig.prompt)
+        assertEquals(ImageAspectRatio.RATIO_3_4, state.value.imageConfig.aspectRatio)
+        assertEquals("1K", state.value.imageConfig.resolution.apiValue)
+        assertEquals("imageUrls", state.value.imageConfig.mediaReferences.single().fieldParamKey)
+        assertEquals("https://example.com/work.png", state.value.imageConfig.mediaReferences.single().remoteUrl)
+        assertFalse(state.value.feePreviewLoading)
+    }
+
+    @Test
     fun `apply template failure keeps editor state and does not invoke callback`() = runTest {
         var templateAppliedCount = 0
         val repository = FakeInspirationRepository().apply {

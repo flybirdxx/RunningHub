@@ -4,6 +4,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
@@ -19,6 +20,8 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreatePlazaReuseIntent
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateModelPickerFilter
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
@@ -51,6 +54,7 @@ import kotlinx.coroutines.flow.asStateFlow
  */
 class QuickCreatePresentationStateHolderFactory(
     private val historyRepository: QuickCreationTaskHistoryRepository,
+    private val inspirationRepository: QuickCreationInspirationRepository,
     private val modelCatalogRepository: QuickCreationModelCatalogRepository,
     private val generationRepository: QuickCreationGenerationRepository,
     private val feePreviewRepository: QuickCreationFeePreviewRepository,
@@ -70,6 +74,7 @@ class QuickCreatePresentationStateHolderFactory(
     fun create(scope: CoroutineScope): QuickCreatePresentationStateHolder =
         QuickCreatePresentationStateHolder(
             historyRepository = historyRepository,
+            inspirationRepository = inspirationRepository,
             modelCatalogRepository = modelCatalogRepository,
             generationRepository = generationRepository,
             feePreviewRepository = feePreviewRepository,
@@ -106,6 +111,7 @@ class QuickCreatePresentationStateHolderFactory(
  */
 class QuickCreatePresentationStateHolder(
     historyRepository: QuickCreationTaskHistoryRepository,
+    inspirationRepository: QuickCreationInspirationRepository,
     modelCatalogRepository: QuickCreationModelCatalogRepository,
     generationRepository: QuickCreationGenerationRepository,
     feePreviewRepository: QuickCreationFeePreviewRepository,
@@ -130,6 +136,7 @@ class QuickCreatePresentationStateHolder(
 
     private val coordinator = QuickCreateCoordinator(
         historyRepository = historyRepository,
+        inspirationRepository = inspirationRepository,
         mediaResolver = mediaResolver,
         draftRepository = draftRepository,
         modelSelectionRepository = modelSelectionRepository,
@@ -298,6 +305,17 @@ class QuickCreatePresentationStateHolder(
         coordinator.restoreDraft()
     }
 
+    /**
+     * 将 Plaza 使用同款意图写入当前编辑区。
+     *
+     * 该入口只套用可复用参数并触发已有计费预览，不直接提交生成任务；真正生成仍必须经过价格确认流程。
+     *
+     * @param intent Plaza 作品详情转换出的可复用参数意图。
+     */
+    fun applyPlazaReuseIntent(intent: QuickCreatePlazaReuseIntent) {
+        coordinator.applyPlazaReuseIntent(intent)
+    }
+
     /** 放弃当前可恢复草稿。 */
     fun discardDraft() {
         coordinator.discardDraft()
@@ -333,6 +351,16 @@ class QuickCreatePresentationStateHolder(
     /** 打开模型选择弹层。 */
     fun showModelPickerSheet() {
         coordinator.showModelPickerSheet()
+    }
+
+    /** 更新模型选择器搜索词。 */
+    fun updateModelPickerQuery(query: String) {
+        coordinator.updateModelPickerQuery(query)
+    }
+
+    /** 更新模型选择器分类筛选项。 */
+    fun selectModelPickerFilter(filter: QuickCreateModelPickerFilter) {
+        coordinator.selectModelPickerFilter(filter)
     }
 
     /** 打开参数调节弹层。 */
@@ -574,5 +602,10 @@ class QuickCreatePresentationStateHolder(
     /** 提交当前快捷创作任务。 */
     fun generate() {
         coordinator.generate()
+    }
+
+    /** 用户确认生成价格后继续提交当前快捷创作任务。 */
+    fun confirmGeneration() {
+        coordinator.confirmGeneration()
     }
 }

@@ -106,6 +106,8 @@ data class GenerationHistoryOutput(
  * @property outputs 详情接口返回的任务输出文件列表。
  * @property basicFields 基础信息字段集合，字段名使用稳定枚举，UI 决定最终中文标签。
  * @property costFields 计费信息字段集合，字段名使用稳定枚举，UI 决定最终中文标签。
+ * @property requestParameters 已脱敏的关键请求参数摘要，供结果详情页展示 Prompt 和可复用参数。
+ * 该字段不得包含 API Key、Authorization、Cookie、Token 或验证码等敏感信息。
  * @property requestInfo 已脱敏后的请求 JSON 文本；为空表示服务端未返回。
  * @property responseInfo 已脱敏后的响应 JSON 文本；为空表示服务端未返回。
  */
@@ -120,6 +122,7 @@ data class GenerationTaskDetail(
     val outputs: List<GenerationHistoryOutput> = emptyList(),
     val basicFields: List<GenerationTaskDetailField> = emptyList(),
     val costFields: List<GenerationTaskDetailField> = emptyList(),
+    val requestParameters: Map<String, String> = emptyMap(),
     val requestInfo: String? = null,
     val responseInfo: String? = null,
 )

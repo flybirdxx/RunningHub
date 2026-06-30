@@ -1,6 +1,9 @@
 package com.runninghub.feature.quickcreate.presentation.modelcatalog
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationServicePricing
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -105,6 +108,85 @@ class QuickCreateServiceModelUiModelTest {
         assertTrue(base.isSameQuickCreationServiceModel(serviceModel(bindingId = "binding", skuId = "sku-a")))
         assertFalse(base.isSameQuickCreationServiceModel(serviceModel(bindingId = "binding", skuId = "sku-b")))
     }
+
+    @Test
+    fun `model card semantics expose capability scene price and technical tags without ui reading source`() {
+        val model = serviceModel(
+            categoryId = "VIDEO",
+            groupName = "短视频",
+            name = "Seedance2.0-Mini/text-to-video",
+            apiType = "text-to-video",
+            apiSource = "bytedance",
+            pricing = QuickCreationServicePricing(priceSummaryRaw = "12.0000 RHB"),
+        ).toQuickCreateServiceModelUi(selected = true)
+
+        assertEquals(QuickCreateServiceModelKind.Video, model.kind)
+        assertEquals(QuickCreateServiceModelScene.VideoGeneration, model.scene)
+        assertEquals(QuickCreateServiceModelPrice.Known("12 RHB"), model.price)
+        assertEquals(listOf("text-to-video", "bytedance"), model.technicalTags)
+        assertTrue(model.selected)
+    }
+
+    @Test
+    fun `model ui keeps target tab from catalog source instead of inferred capability`() {
+        val item = listOf(
+            serviceModel(
+                categoryId = "CUSTOM",
+                name = "实验模型",
+                apiType = "unknown",
+            ),
+        ).toQuickCreateServiceModelUiItems(
+            selected = null,
+            targetTab = QuickCreateTab.IMAGE,
+        ).single()
+
+        assertEquals(QuickCreateServiceModelKind.Other, item.kind)
+        assertEquals(QuickCreateTab.IMAGE, item.targetTab)
+    }
+
+    @Test
+    fun `model picker state filters by query and category while distinguishing empty reasons`() {
+        val imageModel = serviceModel(
+            categoryId = "IMAGE",
+            bindingId = "image-binding",
+            skuId = "image-sku",
+            name = "全能图片G-2.0-文生图-官方版",
+            apiType = "text-to-image",
+        ).toQuickCreateServiceModelUi(selected = true)
+        val videoModel = serviceModel(
+            categoryId = "VIDEO",
+            bindingId = "video-binding",
+            skuId = "video-sku",
+            name = "Seedance2.0-Mini/text-to-video",
+            apiType = "text-to-video",
+        ).toQuickCreateServiceModelUi()
+
+        val videoOnly = quickCreateModelPickerState(
+            QuickCreateUiState(
+                serviceImageModelItems = listOf(imageModel),
+                serviceVideoModelItems = listOf(videoModel),
+                modelPickerQuery = "Seedance",
+                modelPickerFilter = QuickCreateModelPickerFilter.Video,
+            ),
+        )
+        val noSearchResult = quickCreateModelPickerState(
+            QuickCreateUiState(
+                serviceImageModelItems = listOf(imageModel),
+                serviceVideoModelItems = listOf(videoModel),
+                modelPickerQuery = "不存在",
+                modelPickerFilter = QuickCreateModelPickerFilter.Image,
+            ),
+        )
+        val emptyCatalog = quickCreateModelPickerState(
+            QuickCreateUiState(
+                modelPickerFilter = QuickCreateModelPickerFilter.Image,
+            ),
+        )
+
+        assertEquals(listOf("video-binding|video-sku"), videoOnly.visibleItems.map { it.identityKey })
+        assertEquals(QuickCreateModelPickerEmptyReason.SearchNoResult, noSearchResult.emptyReason)
+        assertEquals(QuickCreateModelPickerEmptyReason.EmptyCatalog, emptyCatalog.emptyReason)
+    }
 }
 
 private fun serviceModel(
@@ -112,16 +194,23 @@ private fun serviceModel(
     skuId: String = "sku",
     name: String = "模型",
     groupName: String? = null,
+    categoryId: String = "IMAGE",
+    apiType: String? = null,
+    apiSource: String? = null,
     fields: List<com.runninghub.feature.quickcreate.domain.QuickCreationServiceField> = emptyList(),
+    pricing: QuickCreationServicePricing? = null,
 ): QuickCreationServiceModel =
     QuickCreationServiceModel(
-        categoryId = "IMAGE",
+        categoryId = categoryId,
         groupName = groupName,
         bindingId = bindingId,
         skuId = skuId,
         name = name,
         description = null,
+        apiType = apiType,
+        apiSource = apiSource,
         fields = fields,
+        pricing = pricing,
     )
 
 private fun serviceField(paramKey: String): com.runninghub.feature.quickcreate.domain.QuickCreationServiceField =

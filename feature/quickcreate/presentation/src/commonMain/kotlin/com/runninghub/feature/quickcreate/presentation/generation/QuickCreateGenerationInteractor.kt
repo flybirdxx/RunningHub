@@ -9,10 +9,12 @@ import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
+import com.runninghub.feature.quickcreate.presentation.billing.requiresQuickCreateGenerationConfirmation
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateConversationItemUi
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadCoordinator
@@ -60,6 +62,20 @@ class QuickCreateGenerationInteractor(
      * 并在素材和字段都就绪后根据当前 Tab 调用图片或视频生成接口。
      */
     fun generate() {
+        generate(confirmed = false)
+    }
+
+    /**
+     * 确认生成价格后提交当前快捷创作任务。
+     *
+     * 该入口只应由生成确认弹层调用；它复用 [generate] 的校验、上传等待和 request key 检查，
+     * 但跳过“再次打开确认弹层”这一步，避免用户确认后仍被同一价格二次拦截。
+     */
+    fun confirmGeneration() {
+        generate(confirmed = true)
+    }
+
+    private fun generate(confirmed: Boolean) {
         if (generationJob?.isActive == true) {
             blockDuplicateGenerate()
             return
@@ -85,6 +101,10 @@ class QuickCreateGenerationInteractor(
             is QuickCreateGenerationRequestBuildResult.ImageReady,
             is QuickCreateGenerationRequestBuildResult.VideoReady -> Unit
         }
+        if (!confirmed && submitSnapshot.requiresQuickCreateGenerationConfirmation()) {
+            uiState.update { it.copy(activeSheet = QuickCreateSheet.GENERATION_CONFIRM, error = null) }
+            return
+        }
 
         generationJob = scope.launch {
             uiState.update {
@@ -94,8 +114,10 @@ class QuickCreateGenerationInteractor(
                 it.clearSubmittedPromptDraft(submitSnapshot.currentTab).copy(
                     submittedPrompt = promptSnapshot,
                     taskStatus = QuickCreateTaskUiStatus.SUBMITTING,
+                    taskId = null,
                     statusText = QuickCreateTaskStatusText.SubmittingTask,
                     error = null,
+                    activeSheet = null,
                     results = emptyList(),
                     conversationItems = it.conversationItems + QuickCreateConversationItemUi(
                         prompt = promptSnapshot,
@@ -184,6 +206,7 @@ class QuickCreateGenerationInteractor(
         uiState.update {
             it.copy(
                 taskStatus = QuickCreateTaskUiStatus.IDLE,
+                taskId = null,
                 statusText = null,
                 error = error,
                 conversationItems = it.conversationItems.releaseLatestActiveTask(),
@@ -227,6 +250,7 @@ private fun List<QuickCreateConversationItemUi>.releaseLatestActiveTask(): List<
     }
     return dropLast(1) + latest.copy(
         taskStatus = QuickCreateTaskUiStatus.IDLE,
+        taskId = null,
         statusText = null,
         results = emptyList(),
     )

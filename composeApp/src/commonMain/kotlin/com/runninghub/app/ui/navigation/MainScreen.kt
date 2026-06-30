@@ -2,9 +2,7 @@ package com.runninghub.app.ui.navigation
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -14,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Build
@@ -46,28 +43,31 @@ import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
+import com.runninghub.app.ui.designsystem.components.navigation.AppBottomBar
+import com.runninghub.app.ui.designsystem.components.navigation.AppBottomBarItemState
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.feature.discovery.DiscoveryVoyagerScreen
 import com.runninghub.app.ui.feature.history.TaskHistoryVoyagerScreen
 import com.runninghub.app.ui.feature.plaza.PlazaVoyagerScreen
 import com.runninghub.app.ui.feature.profile.ProfileVoyagerScreen
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateVoyagerScreen
-import com.runninghub.app.ui.theme.BrandLime
-import com.runninghub.app.ui.theme.RhAppBottomBar
-import com.runninghub.app.ui.theme.RhAppLine
-import com.runninghub.app.ui.theme.RhAppMuted
 import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
+import com.runninghub.feature.community.domain.PlazaReuseMediaKind
+import com.runninghub.feature.community.presentation.PlazaWorkDetailUiModel
+import com.runninghub.feature.community.presentation.PlazaWorkPreviewType
 import com.runninghub.feature.auth.domain.GetLastKnownBalanceUseCase
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreatePlazaReuseIntent
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreatePlazaReuseMediaKind
+import org.jetbrains.compose.resources.StringResource
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.koinInject
 import runninghub.composeapp.generated.resources.Res
@@ -87,14 +87,74 @@ import runninghub.composeapp.generated.resources.main_navigation_tab_studio
  * Composition。这样可以保留明确的状态所有权，同时避免不可见页面继续执行轮询、上传或自动刷新。
  */
 enum class BottomNavTab(
+    internal val role: MainNavigationRole,
+    internal val labelResource: StringResource,
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector,
 ) {
-    Discovery(Icons.Filled.Explore, Icons.Outlined.Explore),
-    QuickCreate(Icons.Filled.Star, Icons.Outlined.Star),
-    Studio(Icons.Filled.Build, Icons.Outlined.Build),
-    History(Icons.Filled.History, Icons.Outlined.History),
-    Profile(Icons.Filled.Person, Icons.Outlined.Person),
+    QuickCreate(
+        MainNavigationRole.Creation,
+        Res.string.main_navigation_tab_quick_create,
+        Icons.Filled.Star,
+        Icons.Outlined.Star,
+    ),
+    Discovery(
+        MainNavigationRole.Discovery,
+        Res.string.main_navigation_tab_discovery,
+        Icons.Filled.Explore,
+        Icons.Outlined.Explore,
+    ),
+    Studio(
+        MainNavigationRole.Inspiration,
+        Res.string.main_navigation_tab_studio,
+        Icons.Filled.Build,
+        Icons.Outlined.Build,
+    ),
+    History(
+        MainNavigationRole.Tasks,
+        Res.string.main_navigation_tab_history,
+        Icons.Filled.History,
+        Icons.Outlined.History,
+    ),
+    Profile(
+        MainNavigationRole.Account,
+        Res.string.main_navigation_tab_profile,
+        Icons.Filled.Person,
+        Icons.Outlined.Person,
+    ),
+}
+
+/**
+ * 一级导航的产品职责定义。
+ *
+ * 该定义只描述用户理解导航所需的中文职责，不改变底层 Voyager Screen 映射。
+ */
+internal enum class MainNavigationRole(
+    val label: String,
+    val description: String,
+) {
+    Creation("创作", "默认主路径入口"),
+    Discovery("发现", "模板、应用、模型入口"),
+    Inspiration("灵感", "社区作品和使用同款"),
+    Tasks("任务", "运行状态、历史、结果和账单"),
+    Account("账户", "钱包、会员和设置"),
+}
+
+/**
+ * 主导航默认入口和展示顺序。
+ *
+ * Roadmap RM-03 要求在不重命名 enum、不移动 Screen 注册关系的前提下，把用户可见职责调整为
+ * “创作 / 发现 / 灵感 / 任务 / 账户”。页面渲染和测试都应通过该对象读取顺序，避免各处自行遍历 entries。
+ */
+internal object MainNavigationDefaults {
+    val defaultTab: BottomNavTab = BottomNavTab.QuickCreate
+    val orderedTabs: List<BottomNavTab> = listOf(
+        BottomNavTab.QuickCreate,
+        BottomNavTab.Discovery,
+        BottomNavTab.Studio,
+        BottomNavTab.History,
+        BottomNavTab.Profile,
+    )
 }
 
 /**
@@ -104,13 +164,7 @@ enum class BottomNavTab(
  * 读取，避免不同导航形态出现文案漂移。
  */
 @Composable
-private fun BottomNavTab.displayLabel(): String = when (this) {
-    BottomNavTab.Discovery -> stringResource(Res.string.main_navigation_tab_discovery)
-    BottomNavTab.QuickCreate -> stringResource(Res.string.main_navigation_tab_quick_create)
-    BottomNavTab.Studio -> stringResource(Res.string.main_navigation_tab_studio)
-    BottomNavTab.History -> stringResource(Res.string.main_navigation_tab_history)
-    BottomNavTab.Profile -> stringResource(Res.string.main_navigation_tab_profile)
-}
+private fun BottomNavTab.displayLabel(): String = stringResource(labelResource)
 
 /**
  * 持有主导航一级 Tab 对应的 Voyager Screen 实例。
@@ -148,12 +202,58 @@ internal class MainTabScreenRegistry(
  * 该 Screen 只负责 Tab 选择和首页壳层展示；余额角标通过 [GetLastKnownBalanceUseCase]
  * 读取弱缓存，不直接依赖 storage 或 DataStore 边界。
  */
+private fun PlazaWorkDetailUiModel.toQuickCreatePlazaReuseIntent(): QuickCreatePlazaReuseIntent {
+    val snapshot = source.reuseSnapshot
+    return QuickCreatePlazaReuseIntent(
+        sourceWorkId = id,
+        sourceAuthorName = authorName,
+        templateId = snapshot.templateId,
+        skuId = snapshot.skuId,
+        prompt = snapshot.prompt,
+        aspectRatio = snapshot.aspectRatio,
+        resolution = snapshot.resolution,
+        quantity = snapshot.quantity,
+        referenceMediaUrl = snapshot.referenceMediaUrl,
+        referenceMediaKind = toQuickCreatePlazaReuseMediaKind(),
+    )
+}
+
+private fun PlazaWorkDetailUiModel.toQuickCreatePlazaReuseMediaKind(): QuickCreatePlazaReuseMediaKind? =
+    when (source.reuseSnapshot.referenceMediaType) {
+        PlazaReuseMediaKind.IMAGE -> QuickCreatePlazaReuseMediaKind.IMAGE
+        PlazaReuseMediaKind.VIDEO -> QuickCreatePlazaReuseMediaKind.VIDEO
+        PlazaReuseMediaKind.AUDIO -> QuickCreatePlazaReuseMediaKind.AUDIO
+        PlazaReuseMediaKind.UNKNOWN -> when (preview.type) {
+            PlazaWorkPreviewType.Image -> QuickCreatePlazaReuseMediaKind.IMAGE
+            PlazaWorkPreviewType.Video -> QuickCreatePlazaReuseMediaKind.VIDEO
+            PlazaWorkPreviewType.Placeholder -> null
+        }
+    }
+
 class MainVoyagerScreen : Screen {
     override val key: ScreenKey = uniqueScreenKey
 
     @Composable
     override fun Content() {
-        var selectedTab by rememberSaveable { mutableStateOf(BottomNavTab.Discovery) }
+        var selectedTab by rememberSaveable { mutableStateOf(MainNavigationDefaults.defaultTab) }
+        var pendingPlazaReuseIntent by remember { mutableStateOf<QuickCreatePlazaReuseIntent?>(null) }
+        val screenRegistry = remember {
+            MainTabScreenRegistry(
+                quickCreateScreen = QuickCreateVoyagerScreen(
+                    consumePlazaReuseIntent = {
+                        pendingPlazaReuseIntent.also {
+                            pendingPlazaReuseIntent = null
+                        }
+                    },
+                ),
+                plazaScreen = PlazaVoyagerScreen(
+                    onUseSameWork = { detail ->
+                        pendingPlazaReuseIntent = detail.toQuickCreatePlazaReuseIntent()
+                        selectedTab = BottomNavTab.QuickCreate
+                    },
+                ),
+            )
+        }
         val getLastKnownBalance = koinInject<GetLastKnownBalanceUseCase>()
         var creditCoins by rememberSaveable { mutableStateOf("--") }
 
@@ -197,7 +297,7 @@ class MainVoyagerScreen : Screen {
             // 宽屏使用侧边导航，避免底部 Tab 在横向空间充足时占用内容高度。
             Row(modifier = Modifier.fillMaxSize()) {
                 NavigationRail {
-                    BottomNavTab.entries.forEach { tab ->
+                    MainNavigationDefaults.orderedTabs.forEach { tab ->
                         val tabLabel = tab.displayLabel()
                         NavigationRailItem(
                             selected = selectedTab == tab,
@@ -210,14 +310,16 @@ class MainVoyagerScreen : Screen {
                             },
                             label = { Text(tabLabel) },
                             colors = NavigationRailItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                selectedIconColor = RhTheme.colors.brandPrimary,
+                                selectedTextColor = RhTheme.colors.brandPrimary,
+                                unselectedIconColor = RhTheme.colors.textTertiary,
+                                unselectedTextColor = RhTheme.colors.textTertiary,
                             ),
                         )
                     }
                 }
                 Box(modifier = Modifier.weight(1f).fillMaxHeight()) {
-                    TabContent(selectedTab)
+                    TabContent(selectedTab, screenRegistry)
                     CreditIndicator(
                         coins = creditCoins,
                         onClick = { selectedTab = BottomNavTab.Profile },
@@ -231,24 +333,33 @@ class MainVoyagerScreen : Screen {
                 modifier = Modifier.fillMaxSize(),
                 bottomBar = {
                     if (!imeVisible) {
-                        CompactBottomBar(
-                            selectedTab = selectedTab,
-                            onSelected = { selectedTab = it },
+                        val orderedTabs = MainNavigationDefaults.orderedTabs
+                        AppBottomBar(
+                            items = orderedTabs.map { tab ->
+                                val tabLabel = tab.displayLabel()
+                                AppBottomBarItemState(
+                                    label = tabLabel,
+                                    contentDescription = tabLabel,
+                                    selectedIcon = tab.selectedIcon,
+                                    unselectedIcon = tab.unselectedIcon,
+                                    selected = selectedTab == tab,
+                                )
+                            },
+                            onItemSelected = { index -> selectedTab = orderedTabs[index] },
                         )
                     }
                 },
             ) { innerPadding ->
                 Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-                    TabContent(selectedTab)
+                    TabContent(selectedTab, screenRegistry)
                 }
             }
         }
     }
 
     @Composable
-    private fun TabContent(tab: BottomNavTab) {
+    private fun TabContent(tab: BottomNavTab, screenRegistry: MainTabScreenRegistry) {
         val saveableStateHolder = rememberSaveableStateHolder()
-        val screenRegistry = remember { MainTabScreenRegistry() }
 
         Box(Modifier.fillMaxSize()) {
             saveableStateHolder.SaveableStateProvider(tab.name) {
@@ -258,91 +369,6 @@ class MainVoyagerScreen : Screen {
                 screenRegistry.screenFor(tab).Content()
             }
         }
-    }
-}
-
-@Composable
-private fun CompactBottomBar(
-    selectedTab: BottomNavTab,
-    onSelected: (BottomNavTab) -> Unit,
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(72.dp),
-        color = RhAppBottomBar,
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp,
-    ) {
-        Column(modifier = Modifier.fillMaxSize()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(RhAppLine.copy(alpha = 0.72f)),
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(start = 12.dp, top = 2.dp, end = 12.dp, bottom = 16.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                BottomNavTab.entries.forEach { tab ->
-                    CompactBottomBarItem(
-                        tab = tab,
-                        selected = selectedTab == tab,
-                        onClick = { onSelected(tab) },
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CompactBottomBarItem(
-    tab: BottomNavTab,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val labelColor = if (selected) BrandLime else RhAppMuted
-    val iconColor = if (selected) Color.Black else RhAppMuted
-    val tabLabel = tab.displayLabel()
-
-    Column(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Box(
-            modifier = Modifier
-                .size(width = 44.dp, height = 28.dp)
-                .background(
-                    color = if (selected) BrandLime else Color.Transparent,
-                    shape = RoundedCornerShape(18.dp),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                contentDescription = tabLabel,
-                tint = iconColor,
-                modifier = Modifier.size(20.dp),
-            )
-        }
-        Text(
-            text = tabLabel,
-            color = labelColor,
-            fontSize = 11.sp,
-            lineHeight = 12.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 

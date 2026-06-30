@@ -15,6 +15,8 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoModel
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreatePlazaReuseIntent
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateModelPickerFilter
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 
@@ -195,6 +197,17 @@ class QuickCreateScreenModel(
     }
 
     /** 放弃当前可恢复草稿。 */
+    /**
+     * 将 Plaza 使用同款意图交给 QuickCreate Presentation。
+     *
+     * ScreenModel 只转发跨 Tab 意图；参数落入编辑区后仍由 Presentation 的计费预览与生成确认流程接管。
+     *
+     * @param intent Plaza 作品转换出的复用参数意图。
+     */
+    fun applyPlazaReuseIntent(intent: QuickCreatePlazaReuseIntent) {
+        presentation.applyPlazaReuseIntent(intent)
+    }
+
     fun discardDraft() {
         presentation.discardDraft()
     }
@@ -229,6 +242,16 @@ class QuickCreateScreenModel(
     /** 打开模型选择弹层。 */
     fun showModelPickerSheet() {
         presentation.showModelPickerSheet()
+    }
+
+    /** 更新模型选择器搜索词。 */
+    fun updateModelPickerQuery(query: String) {
+        presentation.updateModelPickerQuery(query)
+    }
+
+    /** 更新模型选择器分类筛选项。 */
+    fun selectModelPickerFilter(filter: QuickCreateModelPickerFilter) {
+        presentation.selectModelPickerFilter(filter)
     }
 
     /** 打开参数调节弹层。 */
@@ -467,8 +490,28 @@ class QuickCreateScreenModel(
         presentation.clearResults()
     }
 
+    /**
+     * 将结果卡保存的 Prompt 快照写回当前编辑区。
+     *
+     * 该入口只恢复用户可编辑 Prompt，不直接复用远端任务 ID、结果 URL 或平台保存状态；恢复后由编辑器状态持有者
+     * 重新调度计费预览和草稿保存，避免旧任务参数绕过当前价格确认。
+     */
+    fun restoreConversationPrompt(prompt: String) {
+        val value = prompt.trim()
+        if (value.isEmpty()) return
+        when (uiState.value.currentTab) {
+            QuickCreateTab.IMAGE -> presentation.updateImagePrompt(value)
+            QuickCreateTab.VIDEO -> presentation.updateVideoPrompt(value)
+        }
+    }
+
     /** 提交当前快捷创作任务。 */
     fun generate() {
         presentation.generate()
+    }
+
+    /** 用户确认生成价格后继续提交当前快捷创作任务。 */
+    fun confirmGeneration() {
+        presentation.confirmGeneration()
     }
 }

@@ -6,10 +6,9 @@ import com.runninghub.app.ui.feature.community.CommunityScreenModel
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreenModel
 import com.runninghub.app.ui.feature.detail.AppDetailScreenModel
 import com.runninghub.app.ui.feature.discovery.DiscoveryScreenModel
-import com.runninghub.app.ui.feature.history.TaskHistoryInvalidationBus
 import com.runninghub.app.ui.feature.history.TaskHistoryScreenModel
+import com.runninghub.app.history.WebAppTaskHistoryOverlayStore
 import com.runninghub.app.ui.feature.history.UnifiedGenerationHistoryRepository
-import com.runninghub.app.ui.feature.history.WebAppTaskHistoryOverlayStore
 import com.runninghub.app.ui.feature.login.LoginScreenModel
 import com.runninghub.app.ui.feature.plaza.PlazaScreenModel
 import com.runninghub.app.ui.feature.profile.ProfileScreenModel
@@ -18,6 +17,7 @@ import com.runninghub.app.ui.feature.search.SearchScreenModel
 import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationStateHolderFactory
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
+import com.runninghub.feature.task.presentation.TaskHistoryInvalidationBus
 import com.runninghub.feature.task.presentation.TaskHistoryInvalidationEvents
 import com.runninghub.feature.task.presentation.TaskHistoryInvalidationNotifier
 import kotlinx.coroutines.Dispatchers
@@ -46,6 +46,7 @@ val appModule = module {
         val historyInvalidationNotifier = get<TaskHistoryInvalidationNotifier>()
         QuickCreatePresentationStateHolderFactory(
             historyRepository = get(),
+            inspirationRepository = get(),
             modelCatalogRepository = get(),
             generationRepository = get(),
             feePreviewRepository = get(),

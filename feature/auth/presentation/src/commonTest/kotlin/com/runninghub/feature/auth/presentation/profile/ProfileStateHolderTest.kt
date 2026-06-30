@@ -1,7 +1,9 @@
 package com.runninghub.feature.auth.presentation.profile
 
 import com.runninghub.core.model.AccountStatus
+import com.runninghub.core.model.MemberInfo
 import com.runninghub.core.model.User
+import com.runninghub.core.model.WalletInfo
 import com.runninghub.feature.auth.domain.AuthRepository
 import com.runninghub.feature.auth.domain.ProfileCredentialRepository
 import com.runninghub.feature.auth.domain.UserRepository
@@ -12,9 +14,118 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileStateHolderTest {
+    @Test
+    fun `asset center separates rhb points wallet balance and unknown generation capacity`() = runTest {
+        val stateHolder = createStateHolder(
+            profileCredentialRepository = FakeProfileCredentialRepository(),
+            authRepository = FakeAuthRepository(isLoggedIn = true, currentUserId = "user-1"),
+            userRepository = FakeUserRepository(
+                userInfoResult = Result.success(
+                    testUser(
+                        totalCoin = "12880",
+                        walletInfo = WalletInfo(
+                            balance = 248.6,
+                            currency = "CNY",
+                            currencySymbol = "¥",
+                        ),
+                    ),
+                ),
+                accountStatusResult = Result.success(
+                    AccountStatus(
+                        remainCoins = "12000",
+                        currentTaskCounts = "0",
+                        remainMoney = "248.60",
+                        currency = "CNY",
+                        apiType = "member",
+                    ),
+                ),
+            ),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        val wallet = stateHolder.uiState.value.assetCenter.wallet
+
+        assertTrue(stateHolder.uiState.value.assetCenter.visible)
+        assertEquals("12000", wallet.rhbPoints)
+        assertEquals("248.60", wallet.walletBalance)
+        assertEquals("CNY", wallet.walletCurrency)
+        assertEquals(ProfileWalletRisk.GenerationCapacityUnknown, wallet.risk)
+    }
+
+    @Test
+    fun `asset center keeps logged out profile free of wallet and member data`() = runTest {
+        val stateHolder = createStateHolder(
+            profileCredentialRepository = FakeProfileCredentialRepository(),
+            authRepository = FakeAuthRepository(isLoggedIn = false),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        assertFalse(stateHolder.uiState.value.assetCenter.visible)
+        assertEquals(ProfileAssetLoadState.Hidden, stateHolder.uiState.value.assetCenter.loadState)
+    }
+
+    @Test
+    fun `membership center exposes expired status without inventing benefits`() = runTest {
+        val stateHolder = createStateHolder(
+            profileCredentialRepository = FakeProfileCredentialRepository(),
+            authRepository = FakeAuthRepository(isLoggedIn = true, currentUserId = "user-1"),
+            userRepository = FakeUserRepository(
+                userInfoResult = Result.success(
+                    testUser(
+                        memberInfo = MemberInfo(
+                            memberName = "RunningHub Pro",
+                            memberExpiredTime = "2026-06-01 00:00:00",
+                            userType = "PRO",
+                            memberRemainingDays = "0",
+                            expired = true,
+                        ),
+                    ),
+                ),
+            ),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        val membership = stateHolder.uiState.value.assetCenter.membership
+
+        assertEquals(ProfileMembershipStatus.Expired, membership.status)
+        assertEquals(ProfileMembershipAction.Renew, membership.primaryAction)
+        assertEquals(ProfileMembershipBenefitStatus.Unavailable, membership.benefitStatus)
+    }
+
+    @Test
+    fun `transaction center is explicit empty and task navigation requires related task id`() {
+        val state = ProfileTransactionCenterUiModel(
+            loadState = ProfileAssetLoadState.Empty,
+            transactions = listOf(
+                ProfileTransactionUiModel(
+                    id = "tx-1",
+                    type = ProfileTransactionType.Generation,
+                    amount = "-12 RHB",
+                    status = ProfileTransactionStatus.Succeeded,
+                    relatedTaskId = "task-1",
+                ),
+                ProfileTransactionUiModel(
+                    id = "tx-2",
+                    type = ProfileTransactionType.Recharge,
+                    amount = "+100 CNY",
+                    status = ProfileTransactionStatus.Pending,
+                    relatedTaskId = null,
+                ),
+            ),
+        )
+
+        assertTrue(ProfileTransactionCenterUiModel.Empty.transactions.isEmpty())
+        assertTrue(state.transactions.first().canOpenTaskDetail)
+        assertFalse(state.transactions.last().canOpenTaskDetail)
+    }
+
     @Test
     fun `bindApiKey delegates credential write through domain repository`() = runTest {
         val profileCredentialRepository = FakeProfileCredentialRepository()
@@ -182,9 +293,10 @@ class ProfileStateHolderTest {
 
     private class FakeUserRepository(
         private val userInfoResult: Result<User> = Result.failure(NotImplementedError()),
+        private val accountStatusResult: Result<AccountStatus> = Result.failure(NotImplementedError()),
     ) : UserRepository {
         override suspend fun getAccountStatus(): Result<AccountStatus> =
-            Result.failure(NotImplementedError())
+            accountStatusResult
 
         override suspend fun getUserInfo(userId: String?): Result<User> =
             userInfoResult
@@ -202,3 +314,25 @@ class ProfileStateHolderTest {
             Result.failure(NotImplementedError())
     }
 }
+
+private fun testUser(
+    totalCoin: String? = "0",
+    memberInfo: MemberInfo? = null,
+    walletInfo: WalletInfo? = null,
+): User =
+    User(
+        id = "user-1",
+        nickName = "Creator",
+        headIcon = null,
+        mobile = "13800138000",
+        totalCoin = totalCoin,
+        memberInfo = memberInfo,
+        walletInfo = walletInfo,
+        apiKey = null,
+        apiType = "runninghub",
+        introduce = null,
+        fanCount = "0",
+        followCount = "0",
+        likeCount = "0",
+        collectCount = "0",
+    )

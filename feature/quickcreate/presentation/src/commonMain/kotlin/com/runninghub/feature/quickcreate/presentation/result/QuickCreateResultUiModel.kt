@@ -84,6 +84,7 @@ data class QuickCreateResultUi(
  * 空字符串表示该条目由兼容旧状态构造或提交参数没有可展示提示词；UI 不应显示空提示词气泡。
  * @property taskStatus 该条目的生成阶段。
  * [QuickCreateTaskUiStatus.IDLE] 表示不需要展示任务卡；非空闲状态会展示对应占位、结果或错误状态。
+ * @property taskId 服务端任务 ID；排队、运行和终态可用于展示任务入口，提交前或兼容旧状态时为 `null`。
  * @property aspectRatio 点击生成时保存的宽高比协议值，例如 `16:9`；`null` 表示旧状态缺少参数快照。
  * @property resolution 点击生成时保存的分辨率协议值，例如 `2K`；`null` 表示旧状态缺少参数快照。
  * @property statusText 该条目的辅助状态语义。
@@ -94,8 +95,94 @@ data class QuickCreateResultUi(
 data class QuickCreateConversationItemUi(
     val prompt: String,
     val taskStatus: QuickCreateTaskUiStatus,
+    val taskId: String? = null,
     val aspectRatio: String? = null,
     val resolution: String? = null,
     val statusText: QuickCreateTaskStatusText? = null,
     val results: List<QuickCreateResultUi> = emptyList(),
 )
+
+/**
+ * 快捷创作结果卡可暴露给页面层的后续动作。
+ *
+ * 该枚举只表达动作语义，不执行导航、保存、下载或剪贴板副作用；具体能力由 composeApp 或平台层决定。
+ * 这样可以让 queued / running / success / failed / canceled 的按钮集合在 Feature Presentation 中保持稳定，
+ * 同时避免 Presentation 依赖平台 API。
+ */
+enum class QuickCreateResultAction {
+    ViewTask,
+    ViewResult,
+    Save,
+    Download,
+    ReuseParameters,
+    CopyPrompt,
+    TryAgain,
+    Retry,
+    ViewDetail,
+    RefundStatus,
+}
+
+/**
+ * 结果卡动作的可渲染状态。
+ *
+ * @property action 稳定动作语义，由 composeApp 映射为本地化文案和具体回调。
+ * @property enabled 当前动作是否可点击；不可点击时 UI 仍可展示该入口但不得执行副作用。
+ */
+data class QuickCreateResultActionUi(
+    val action: QuickCreateResultAction,
+    val enabled: Boolean = true,
+)
+
+/**
+ * 根据任务阶段生成结果卡下一步动作集合。
+ *
+ * 动作集合在 Presentation 层集中维护，避免 Composable 通过中文文案或远端状态字符串临时判断按钮。
+ * 保存、下载、查看任务等平台副作用仅作为语义输出；真正执行前必须由页面或平台层再次确认能力边界。
+ */
+fun quickCreateResultActions(
+    taskStatus: QuickCreateTaskUiStatus,
+    taskId: String?,
+    prompt: String,
+    results: List<QuickCreateResultUi>,
+): List<QuickCreateResultActionUi> {
+    val hasTaskId = !taskId.isNullOrBlank()
+    val hasPrompt = prompt.isNotBlank()
+    val hasResults = results.isNotEmpty()
+    return when (taskStatus) {
+        QuickCreateTaskUiStatus.IDLE,
+        QuickCreateTaskUiStatus.SUBMITTING -> emptyList()
+        QuickCreateTaskUiStatus.QUEUING,
+        QuickCreateTaskUiStatus.RUNNING -> buildList {
+            if (hasTaskId) {
+                add(QuickCreateResultActionUi(QuickCreateResultAction.ViewTask))
+            }
+        }
+        QuickCreateTaskUiStatus.SUCCESS -> buildList {
+            if (hasResults) {
+                add(QuickCreateResultActionUi(QuickCreateResultAction.ViewResult))
+            }
+            add(QuickCreateResultActionUi(QuickCreateResultAction.TryAgain))
+            if (hasResults) {
+                add(QuickCreateResultActionUi(QuickCreateResultAction.Save))
+                add(QuickCreateResultActionUi(QuickCreateResultAction.Download))
+                add(QuickCreateResultActionUi(QuickCreateResultAction.ReuseParameters))
+            }
+            if (hasPrompt) {
+                add(QuickCreateResultActionUi(QuickCreateResultAction.CopyPrompt))
+            }
+        }
+        QuickCreateTaskUiStatus.FAILED -> buildList {
+            add(QuickCreateResultActionUi(QuickCreateResultAction.Retry))
+            if (hasTaskId) {
+                add(QuickCreateResultActionUi(QuickCreateResultAction.ViewDetail))
+            }
+            add(QuickCreateResultActionUi(QuickCreateResultAction.RefundStatus))
+        }
+        QuickCreateTaskUiStatus.CANCELED -> buildList {
+            if (hasTaskId) {
+                add(QuickCreateResultActionUi(QuickCreateResultAction.ViewDetail))
+            }
+            add(QuickCreateResultActionUi(QuickCreateResultAction.TryAgain))
+        }
+    }
+}

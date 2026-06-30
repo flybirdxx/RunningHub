@@ -1,5 +1,6 @@
 package com.runninghub.app.ui.feature.history
 
+import com.runninghub.app.history.WebAppTaskHistoryOverlayStore
 import com.runninghub.core.model.TaskExecutionStatus
 import com.runninghub.core.model.TaskHistoryItem
 import com.runninghub.core.model.TaskHistoryOutput

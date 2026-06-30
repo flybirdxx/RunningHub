@@ -384,6 +384,8 @@ class WebAppTaskRepositoryImplTest {
         assertTrue(!capturedBody.contains("apiKey"))
         assertTrue(!detail.requestInfo.orEmpty().contains("secret-api-key"))
         assertTrue(detail.requestInfo.orEmpty().contains(""""apiKey": "******""""))
+        assertEquals("city", detail.requestParameters["prompt"])
+        assertEquals(null, detail.requestParameters["apiKey"])
     }
 
     private fun repositoryWithMock(

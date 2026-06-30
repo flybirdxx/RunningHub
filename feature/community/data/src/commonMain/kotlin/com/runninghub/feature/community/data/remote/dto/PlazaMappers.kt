@@ -2,6 +2,8 @@ package com.runninghub.feature.community.data.remote.dto
 
 import com.runninghub.feature.community.domain.PlazaCreationCard
 import com.runninghub.feature.community.domain.PlazaCreationPage
+import com.runninghub.feature.community.domain.PlazaCreationReuseSnapshot
+import com.runninghub.feature.community.domain.PlazaReuseMediaKind
 import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
 import com.runninghub.feature.community.domain.PlazaShortPage
@@ -40,6 +42,11 @@ fun PlazaCreationCardDto.toDomain(): PlazaCreationCard =
         collectCount = statisticsInfo?.collectCount,
         liked = liked,
         collected = collected,
+        reuseSnapshot = PlazaCreationReuseSnapshot(
+            prompt = intro?.takeIf { it.isNotBlank() },
+            referenceMediaUrl = creationShowreelInfo?.fileUrl?.takeIf { it.isNotBlank() },
+            referenceMediaType = creationShowreelInfo?.fileType.toPlazaReuseMediaKind(),
+        ),
     )
 
 /**
@@ -59,6 +66,22 @@ fun PlazaTagDto.toDomain(): PlazaTag =
 
 private fun PlazaTagDto.childTagIds(): List<String> =
     childTags.flatMap { child -> listOf(child.id) + child.childTagIds() }
+
+private fun String?.toPlazaReuseMediaKind(): PlazaReuseMediaKind {
+    val marker = this?.uppercase().orEmpty()
+    return when {
+        marker.contains("VIDEO") || marker.contains("MP4") || marker.contains("MOV") ->
+            PlazaReuseMediaKind.VIDEO
+        marker.contains("AUDIO") || marker.contains("MP3") || marker.contains("WAV") ->
+            PlazaReuseMediaKind.AUDIO
+        marker.contains("IMAGE") ||
+            marker.contains("PNG") ||
+            marker.contains("JPG") ||
+            marker.contains("JPEG") ||
+            marker.contains("WEBP") -> PlazaReuseMediaKind.IMAGE
+        else -> PlazaReuseMediaKind.UNKNOWN
+    }
+}
 
 /**
  * 将短片分类 DTO 映射为 Domain 分类。

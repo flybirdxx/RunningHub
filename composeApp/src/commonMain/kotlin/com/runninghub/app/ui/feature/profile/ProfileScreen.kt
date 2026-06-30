@@ -23,17 +23,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.MonetizationOn
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.WorkspacePremium
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -68,13 +65,34 @@ import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.previewProfileUiState
 import com.runninghub.app.ui.component.LoadingIndicator
+import com.runninghub.app.ui.designsystem.components.billing.MembershipAction
+import com.runninghub.app.ui.designsystem.components.billing.MembershipCard
+import com.runninghub.app.ui.designsystem.components.billing.MembershipCardState
+import com.runninghub.app.ui.designsystem.components.billing.MembershipStatusVisualState
+import com.runninghub.app.ui.designsystem.components.billing.TransactionListItem
+import com.runninghub.app.ui.designsystem.components.billing.TransactionListItemState
+import com.runninghub.app.ui.designsystem.components.billing.TransactionStatusVisualState
+import com.runninghub.app.ui.designsystem.components.billing.TransactionTypeVisualState
+import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceAction
+import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceCard
+import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceCardState
+import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceRiskState
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.RunningHubThemeExt
-import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.core.model.MemberInfo
 import com.runninghub.core.model.User
-import com.runninghub.core.model.WalletInfo
+import com.runninghub.feature.auth.presentation.profile.ProfileAssetCenterUiModel
+import com.runninghub.feature.auth.presentation.profile.ProfileAssetLoadState
+import com.runninghub.feature.auth.presentation.profile.ProfileMembershipAction
+import com.runninghub.feature.auth.presentation.profile.ProfileMembershipCenterUiModel
+import com.runninghub.feature.auth.presentation.profile.ProfileMembershipStatus
+import com.runninghub.feature.auth.presentation.profile.ProfileTransactionCenterUiModel
+import com.runninghub.feature.auth.presentation.profile.ProfileTransactionStatus
+import com.runninghub.feature.auth.presentation.profile.ProfileTransactionType
+import com.runninghub.feature.auth.presentation.profile.ProfileTransactionUiModel
 import com.runninghub.feature.auth.presentation.profile.ProfileUiState
+import com.runninghub.feature.auth.presentation.profile.ProfileWalletCenterUiModel
+import com.runninghub.feature.auth.presentation.profile.ProfileWalletRisk
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import runninghub.composeapp.generated.resources.Res
@@ -86,21 +104,41 @@ import runninghub.composeapp.generated.resources.profile_member_badge_separator
 import runninghub.composeapp.generated.resources.profile_member_expiry_format
 import runninghub.composeapp.generated.resources.profile_member_level_content_description
 import runninghub.composeapp.generated.resources.profile_member_remaining_days_format
+import runninghub.composeapp.generated.resources.profile_membership_active
+import runninghub.composeapp.generated.resources.profile_membership_benefit_unavailable
+import runninghub.composeapp.generated.resources.profile_membership_expired
+import runninghub.composeapp.generated.resources.profile_membership_level_label
+import runninghub.composeapp.generated.resources.profile_membership_none
+import runninghub.composeapp.generated.resources.profile_membership_remaining_unknown
+import runninghub.composeapp.generated.resources.profile_membership_renew_action
 import runninghub.composeapp.generated.resources.profile_menu_about
 import runninghub.composeapp.generated.resources.profile_menu_clear_cache
 import runninghub.composeapp.generated.resources.profile_menu_edit_profile
 import runninghub.composeapp.generated.resources.profile_menu_logout
 import runninghub.composeapp.generated.resources.profile_menu_more_content_description
-import runninghub.composeapp.generated.resources.profile_menu_recharge_center
-import runninghub.composeapp.generated.resources.profile_menu_renew_membership
-import runninghub.composeapp.generated.resources.profile_menu_wallet_details
 import runninghub.composeapp.generated.resources.profile_not_logged_in_subtitle
 import runninghub.composeapp.generated.resources.profile_not_logged_in_title
 import runninghub.composeapp.generated.resources.profile_settings_content_description
-import runninghub.composeapp.generated.resources.profile_summary_member_remaining
-import runninghub.composeapp.generated.resources.profile_summary_rh_coin
-import runninghub.composeapp.generated.resources.profile_summary_wallet
+import runninghub.composeapp.generated.resources.profile_transaction_empty
+import runninghub.composeapp.generated.resources.profile_transaction_status_failed
+import runninghub.composeapp.generated.resources.profile_transaction_status_pending
+import runninghub.composeapp.generated.resources.profile_transaction_status_succeeded
+import runninghub.composeapp.generated.resources.profile_transaction_status_unknown
+import runninghub.composeapp.generated.resources.profile_transaction_title
+import runninghub.composeapp.generated.resources.profile_transaction_type_generation
+import runninghub.composeapp.generated.resources.profile_transaction_type_membership
+import runninghub.composeapp.generated.resources.profile_transaction_type_recharge
+import runninghub.composeapp.generated.resources.profile_transaction_type_refund
 import runninghub.composeapp.generated.resources.profile_unbound_mobile
+import runninghub.composeapp.generated.resources.profile_wallet_balance_failed
+import runninghub.composeapp.generated.resources.profile_wallet_capacity_unknown
+import runninghub.composeapp.generated.resources.profile_wallet_cny_label
+import runninghub.composeapp.generated.resources.profile_wallet_details_action
+import runninghub.composeapp.generated.resources.profile_wallet_insufficient_balance
+import runninghub.composeapp.generated.resources.profile_wallet_low_balance
+import runninghub.composeapp.generated.resources.profile_wallet_recharge_action
+import runninghub.composeapp.generated.resources.profile_wallet_rhb_label
+import runninghub.composeapp.generated.resources.profile_wallet_unknown
 
 /**
  * 个人中心页的 Voyager Screen。
@@ -145,6 +183,10 @@ fun ProfileScreenContent(
     modifier: Modifier = Modifier,
     uiState: ProfileUiState,
     onRefresh: () -> Unit = {},
+    onRecharge: () -> Unit = {},
+    onOpenWalletDetails: () -> Unit = {},
+    onRenewMembership: () -> Unit = {},
+    onOpenTaskDetail: (String) -> Unit = {},
     onLogout: () -> Unit = {},
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
@@ -182,7 +224,13 @@ fun ProfileScreenContent(
                         ) {
                             ProfileHeader(user = uiState.user)
                             Spacer(Modifier.height(16.dp))
-                            AccountSummarySection(user = uiState.user)
+                            AssetCenterSection(
+                                assetCenter = uiState.assetCenter,
+                                onRecharge = onRecharge,
+                                onOpenWalletDetails = onOpenWalletDetails,
+                                onRenewMembership = onRenewMembership,
+                                onOpenTaskDetail = onOpenTaskDetail,
+                            )
                             Spacer(Modifier.height(16.dp))
                             ProfileMenuSection(onLogout = onLogout)
                             Spacer(Modifier.height(32.dp))
@@ -322,87 +370,193 @@ private fun MemberBadge(
 }
 
 @Composable
-private fun AccountSummarySection(user: User?) {
-    val remainingText = memberRemainingText(user?.memberInfo)
-    Card(
+private fun AssetCenterSection(
+    assetCenter: ProfileAssetCenterUiModel,
+    onRecharge: () -> Unit,
+    onOpenWalletDetails: () -> Unit,
+    onRenewMembership: () -> Unit,
+    onOpenTaskDetail: (String) -> Unit,
+) {
+    if (!assetCenter.visible) return
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        WalletBalanceCard(
+            state = assetCenter.wallet.toWalletBalanceCardState(),
+            onAction = { action ->
+                when (action) {
+                    is WalletBalanceAction.Recharge -> onRecharge()
+                    is WalletBalanceAction.Details -> onOpenWalletDetails()
+                }
+            },
+        )
+        MembershipCard(
+            state = assetCenter.membership.toMembershipCardState(),
+            onAction = { action ->
+                when (action) {
+                    is MembershipAction.Renew -> onRenewMembership()
+                }
+            },
+        )
+        TransactionSection(
+            transactionCenter = assetCenter.transactions,
+            onOpenTaskDetail = onOpenTaskDetail,
+        )
+    }
+}
+
+@Composable
+private fun TransactionSection(
+    transactionCenter: ProfileTransactionCenterUiModel,
+    onOpenTaskDetail: (String) -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Dimens.RadiusLG),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            AccountSummaryItem(
-                label = stringResource(Res.string.profile_summary_rh_coin),
-                value = formatNumber(user?.totalCoin ?: "0"),
-                icon = Icons.Default.MonetizationOn,
-                tint = RunningHubThemeExt.colors.premiumGold,
-                modifier = Modifier.weight(1f),
+            Text(
+                text = stringResource(Res.string.profile_transaction_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.SemiBold,
             )
-            AccountSummaryItem(
-                label = stringResource(Res.string.profile_summary_wallet),
-                value = walletBalance(user?.walletInfo),
-                icon = Icons.Default.AccountBalanceWallet,
-                tint = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.weight(1f),
-            )
-            AccountSummaryItem(
-                label = stringResource(Res.string.profile_summary_member_remaining),
-                value = remainingText ?: "--",
-                icon = Icons.Default.WorkspacePremium,
-                tint = RunningHubThemeExt.colors.premiumOrange,
-                modifier = Modifier.weight(1f),
-            )
+            if (transactionCenter.transactions.isEmpty() || transactionCenter.loadState == ProfileAssetLoadState.Empty) {
+                Text(
+                    text = stringResource(Res.string.profile_transaction_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.outline,
+                )
+            } else {
+                transactionCenter.transactions.forEach { transaction ->
+                    TransactionListItem(
+                        state = transaction.toTransactionListItemState(),
+                        onOpenTaskDetail = onOpenTaskDetail,
+                    )
+                }
+            }
         }
     }
 }
 
 @Composable
-private fun AccountSummaryItem(
-    label: String,
-    value: String,
-    icon: ImageVector,
-    tint: Color,
-    modifier: Modifier = Modifier,
-) {
-    Column(
-        modifier = modifier,
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = tint,
-            modifier = Modifier.size(22.dp),
-        )
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.outline,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth(),
-        )
+private fun ProfileWalletCenterUiModel.toWalletBalanceCardState(): WalletBalanceCardState =
+    WalletBalanceCardState(
+        rhbPointsLabel = stringResource(Res.string.profile_wallet_rhb_label),
+        rhbPointsValue = rhbPoints ?: stringResource(Res.string.profile_wallet_unknown),
+        walletBalanceLabel = stringResource(Res.string.profile_wallet_cny_label),
+        walletBalanceValue = walletBalance?.let { "$walletCurrency $it" }
+            ?: stringResource(Res.string.profile_wallet_unknown),
+        risk = risk.toWalletBalanceRiskState(),
+        primaryAction = WalletBalanceAction.Recharge(stringResource(Res.string.profile_wallet_recharge_action)),
+        secondaryAction = WalletBalanceAction.Details(stringResource(Res.string.profile_wallet_details_action)),
+    )
+
+@Composable
+private fun ProfileWalletRisk.toWalletBalanceRiskState(): WalletBalanceRiskState =
+    when (this) {
+        ProfileWalletRisk.None -> WalletBalanceRiskState.None()
+        ProfileWalletRisk.BalanceUnavailable -> {
+            WalletBalanceRiskState.BalanceUnavailable(stringResource(Res.string.profile_wallet_balance_failed))
+        }
+        ProfileWalletRisk.GenerationCapacityUnknown -> {
+            WalletBalanceRiskState.GenerationCapacityUnknown(stringResource(Res.string.profile_wallet_capacity_unknown))
+        }
+        ProfileWalletRisk.LowBalance -> {
+            WalletBalanceRiskState.LowBalance(stringResource(Res.string.profile_wallet_low_balance))
+        }
+        ProfileWalletRisk.InsufficientBalance -> {
+            WalletBalanceRiskState.InsufficientBalance(stringResource(Res.string.profile_wallet_insufficient_balance))
+        }
     }
-}
+
+@Composable
+private fun ProfileMembershipCenterUiModel.toMembershipCardState(): MembershipCardState =
+    MembershipCardState(
+        levelLabel = stringResource(Res.string.profile_membership_level_label),
+        levelName = levelName ?: stringResource(Res.string.profile_membership_none),
+        remainingLabel = membershipRemainingLabel(),
+        status = status.toMembershipStatusVisualState(),
+        benefitSummary = stringResource(Res.string.profile_membership_benefit_unavailable),
+        primaryAction = when (primaryAction) {
+            ProfileMembershipAction.Renew -> {
+                MembershipAction.Renew(stringResource(Res.string.profile_membership_renew_action))
+            }
+        },
+    )
+
+@Composable
+private fun ProfileMembershipCenterUiModel.membershipRemainingLabel(): String =
+    when (status) {
+        ProfileMembershipStatus.None -> stringResource(Res.string.profile_membership_none)
+        ProfileMembershipStatus.Expired -> stringResource(Res.string.profile_membership_expired)
+        ProfileMembershipStatus.Active -> remainingDays
+            ?.let { stringResource(Res.string.profile_member_remaining_days_format, it) }
+            ?: expiresAt?.let { stringResource(Res.string.profile_member_expiry_format, it) }
+            ?: stringResource(Res.string.profile_membership_active)
+        ProfileMembershipStatus.Unknown -> stringResource(Res.string.profile_membership_remaining_unknown)
+    }
+
+private fun ProfileMembershipStatus.toMembershipStatusVisualState(): MembershipStatusVisualState =
+    when (this) {
+        ProfileMembershipStatus.None -> MembershipStatusVisualState.None
+        ProfileMembershipStatus.Active -> MembershipStatusVisualState.Active
+        ProfileMembershipStatus.Expired -> MembershipStatusVisualState.Expired
+        ProfileMembershipStatus.Unknown -> MembershipStatusVisualState.Unknown
+    }
+
+@Composable
+private fun ProfileTransactionUiModel.toTransactionListItemState(): TransactionListItemState =
+    TransactionListItemState(
+        id = id,
+        type = type.toTransactionTypeVisualState(),
+        title = type.toTransactionTitle(),
+        amount = amount,
+        status = status.toTransactionStatusVisualState(),
+        statusLabel = status.toTransactionStatusLabel(),
+        relatedTaskId = relatedTaskId,
+    )
+
+private fun ProfileTransactionType.toTransactionTypeVisualState(): TransactionTypeVisualState =
+    when (this) {
+        ProfileTransactionType.Generation -> TransactionTypeVisualState.Generation
+        ProfileTransactionType.Refund -> TransactionTypeVisualState.Refund
+        ProfileTransactionType.Recharge -> TransactionTypeVisualState.Recharge
+        ProfileTransactionType.Membership -> TransactionTypeVisualState.Membership
+    }
+
+@Composable
+private fun ProfileTransactionType.toTransactionTitle(): String =
+    when (this) {
+        ProfileTransactionType.Generation -> stringResource(Res.string.profile_transaction_type_generation)
+        ProfileTransactionType.Refund -> stringResource(Res.string.profile_transaction_type_refund)
+        ProfileTransactionType.Recharge -> stringResource(Res.string.profile_transaction_type_recharge)
+        ProfileTransactionType.Membership -> stringResource(Res.string.profile_transaction_type_membership)
+    }
+
+private fun ProfileTransactionStatus.toTransactionStatusVisualState(): TransactionStatusVisualState =
+    when (this) {
+        ProfileTransactionStatus.Succeeded -> TransactionStatusVisualState.Succeeded
+        ProfileTransactionStatus.Pending -> TransactionStatusVisualState.Pending
+        ProfileTransactionStatus.Failed -> TransactionStatusVisualState.Failed
+        ProfileTransactionStatus.Unknown -> TransactionStatusVisualState.Unknown
+    }
+
+@Composable
+private fun ProfileTransactionStatus.toTransactionStatusLabel(): String =
+    when (this) {
+        ProfileTransactionStatus.Succeeded -> stringResource(Res.string.profile_transaction_status_succeeded)
+        ProfileTransactionStatus.Pending -> stringResource(Res.string.profile_transaction_status_pending)
+        ProfileTransactionStatus.Failed -> stringResource(Res.string.profile_transaction_status_failed)
+        ProfileTransactionStatus.Unknown -> stringResource(Res.string.profile_transaction_status_unknown)
+    }
 
 @Composable
 private fun ProfileMenuSection(onLogout: () -> Unit) {
@@ -417,24 +571,6 @@ private fun ProfileMenuSection(onLogout: () -> Unit) {
             ProfileMenuItem(
                 icon = Icons.Default.Edit,
                 title = stringResource(Res.string.profile_menu_edit_profile),
-                onClick = {},
-            )
-            MenuDivider()
-            ProfileMenuItem(
-                icon = Icons.Default.WorkspacePremium,
-                title = stringResource(Res.string.profile_menu_renew_membership),
-                onClick = {},
-            )
-            MenuDivider()
-            ProfileMenuItem(
-                icon = Icons.Default.MonetizationOn,
-                title = stringResource(Res.string.profile_menu_recharge_center),
-                onClick = {},
-            )
-            MenuDivider()
-            ProfileMenuItem(
-                icon = Icons.Default.AccountBalanceWallet,
-                title = stringResource(Res.string.profile_menu_wallet_details),
                 onClick = {},
             )
             MenuDivider()
@@ -570,41 +706,6 @@ private fun memberRemainingText(memberInfo: MemberInfo?): String? {
         ?.substringBefore(" ")
     // 服务端返回日期字符串，UI 层只负责拼接本地化后缀，不解析时区或改变日期精度。
     return expiry?.let { stringResource(Res.string.profile_member_expiry_format, it) }
-}
-
-private fun walletBalance(walletInfo: WalletInfo?): String {
-    val balance = walletInfo?.balance ?: 0.0
-    return "${currencySymbol(walletInfo)}${formatMoney(balance)}"
-}
-
-private fun formatMoney(value: Double): String {
-    return if (value % 1.0 == 0.0) {
-        value.toInt().toString()
-    } else {
-        value.toString()
-    }
-}
-
-private fun formatNumber(value: String): String {
-    val num = value.replace(",", "").toDoubleOrNull() ?: return value
-    return when {
-        // 个人页在 commonMain 渲染，不能依赖 JVM 的 String.format，否则 iOS 目标无法编译。
-        num >= 10000 -> "${formatOneDecimal(num / 10000)}w"
-        num >= 1000 -> "${formatOneDecimal(num / 1000)}k"
-        else -> num.toInt().toString()
-    }
-}
-
-private fun currencySymbol(walletInfo: WalletInfo?): String {
-    val symbol = walletInfo?.currencySymbol
-        ?.takeIf { it.isNotBlank() && !it.contains('\uFFFD') && !it.contains('\u951F') }
-    if (symbol != null) return symbol
-
-    return when (walletInfo?.currency?.uppercase()) {
-        "CNY", "RMB" -> "\u00A5"
-        "USD" -> "$"
-        else -> "\u00A5"
-    }
 }
 
 @Composable

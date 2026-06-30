@@ -12,6 +12,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
 import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingPreviewUi
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateFeePreviewInteractor
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateFeeRequestKey
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
@@ -24,6 +25,7 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskSta
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.result.quickCreateTaskStatusDisplay
 import com.runninghub.feature.quickcreate.presentation.result.toQuickCreateTaskPresentationStatus
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaUploadCoordinator
@@ -96,6 +98,76 @@ class QuickCreateGenerationInteractorTest {
         assertEquals(1, uiState.value.conversationItems.size)
         assertEquals("green icon", uiState.value.conversationItems.single().prompt)
         assertEquals(QuickCreateTaskUiStatus.SUBMITTING, uiState.value.conversationItems.single().taskStatus)
+    }
+
+    @Test
+    fun `generate opens confirmation sheet for paid request before repository submit`() = runTest {
+        val repository = RecordingGenerationRepository()
+        val initialState = QuickCreateUiState(
+            imageConfig = ImageConfig(prompt = "green icon"),
+            estimatedCost = 0.76,
+            billingPreview = QuickCreateBillingPreviewUi(
+                requiredCashAmount = 0.76,
+                userCashBalance = 156.376,
+                cashCurrency = "CNY",
+            ),
+        )
+        val request = (
+            QuickCreateGenerationRequestFactory()
+                .buildCurrentGenerationRequest(initialState, validateUploads = true)
+                as QuickCreateGenerationRequestBuildResult.ImageReady
+            ).request
+        val uiState = MutableStateFlow(
+            initialState.copy(feePreviewRequestKey = request.quickCreateFeeRequestKey())
+        )
+        val interactor = createInteractor(
+            generationRepository = repository,
+            uiState = uiState,
+            scope = this,
+        )
+
+        interactor.generate()
+        runCurrent()
+
+        assertEquals(0, repository.imageGenerateCalls)
+        assertEquals(QuickCreateSheet.GENERATION_CONFIRM, uiState.value.activeSheet)
+        assertEquals(QuickCreateTaskUiStatus.IDLE, uiState.value.taskStatus)
+        assertEquals("", uiState.value.submittedPrompt)
+    }
+
+    @Test
+    fun `confirm generation submits paid request after confirmation sheet`() = runTest {
+        val repository = RecordingGenerationRepository()
+        val initialState = QuickCreateUiState(
+            imageConfig = ImageConfig(prompt = "green icon"),
+            estimatedCost = 0.76,
+            billingPreview = QuickCreateBillingPreviewUi(
+                requiredCashAmount = 0.76,
+                userCashBalance = 156.376,
+                cashCurrency = "CNY",
+            ),
+        )
+        val request = (
+            QuickCreateGenerationRequestFactory()
+                .buildCurrentGenerationRequest(initialState, validateUploads = true)
+                as QuickCreateGenerationRequestBuildResult.ImageReady
+            ).request
+        val uiState = MutableStateFlow(
+            initialState.copy(feePreviewRequestKey = request.quickCreateFeeRequestKey())
+        )
+        val interactor = createInteractor(
+            generationRepository = repository,
+            uiState = uiState,
+            scope = this,
+        )
+
+        interactor.generate()
+        interactor.confirmGeneration()
+        runCurrent()
+
+        assertEquals(1, repository.imageGenerateCalls)
+        assertEquals(null, uiState.value.activeSheet)
+        assertEquals("green icon", uiState.value.submittedPrompt)
     }
 
     @Test

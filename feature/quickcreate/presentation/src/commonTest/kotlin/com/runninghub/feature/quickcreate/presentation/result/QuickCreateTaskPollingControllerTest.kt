@@ -41,6 +41,7 @@ class QuickCreateTaskPollingControllerTest {
         )
 
         assertEquals(1, queuedCallbacks)
+        assertEquals("task-1", uiState.value.taskId)
         assertEquals(QuickCreateTaskUiStatus.FAILED, uiState.value.taskStatus)
         assertEquals(
             QuickCreateTaskStatusText.Error(QuickCreatePresentationError.TaskFailed),
@@ -94,6 +95,7 @@ class QuickCreateTaskPollingControllerTest {
         val results = uiState.value.results
         assertEquals(1, successCallbacks)
         assertEquals(QuickCreateTaskUiStatus.SUCCESS, statusSeenByCallback)
+        assertEquals("task-1", uiState.value.taskId)
         assertEquals(QuickCreateTaskUiStatus.SUCCESS, uiState.value.taskStatus)
         assertEquals(QuickCreateTaskStatusText.Success, uiState.value.statusText)
         assertEquals(3, results.size)
@@ -192,6 +194,7 @@ class QuickCreateTaskPollingControllerTest {
         assertEquals(QuickCreateTaskUiStatus.SUCCESS, items[0].taskStatus)
         assertEquals("new prompt", items[1].prompt)
         assertEquals(QuickCreateTaskUiStatus.SUCCESS, items[1].taskStatus)
+        assertEquals("task-2", items[1].taskId)
         assertEquals(listOf("https://example.com/new.png"), items[1].results.map { it.url })
     }
 
@@ -234,6 +237,7 @@ class QuickCreateTaskPollingControllerTest {
         controller.collect(flowOf(QuickCreateTaskStatus.Cancelled("task-1")))
 
         assertEquals(QuickCreateTaskUiStatus.CANCELED, uiState.value.taskStatus)
+        assertEquals("task-1", uiState.value.taskId)
         assertEquals(QuickCreateTaskStatusText.Canceled, uiState.value.statusText)
         assertEquals(null, uiState.value.error)
     }

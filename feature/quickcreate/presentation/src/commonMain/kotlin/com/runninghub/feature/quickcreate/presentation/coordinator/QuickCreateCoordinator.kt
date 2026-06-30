@@ -4,6 +4,7 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationProjectRepository
@@ -24,7 +25,10 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationInteractor
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryStateHolder
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreateInspirationStateHolder
+import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreatePlazaReuseIntent
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateModelCatalogInteractor
+import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateModelPickerFilter
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectStateHolder
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
@@ -64,6 +68,7 @@ import kotlinx.coroutines.flow.update
  */
 class QuickCreateCoordinator(
     private val historyRepository: QuickCreationTaskHistoryRepository,
+    private val inspirationRepository: QuickCreationInspirationRepository,
     private val mediaResolver: QuickCreateMediaResolver,
     private val draftRepository: QuickCreateDraftRepository,
     private val modelSelectionRepository: QuickCreateModelSelectionRepository,
@@ -141,6 +146,12 @@ class QuickCreateCoordinator(
         uiState = uiState,
         onFeePreviewRequired = { scheduleFeePreview() },
         onDraftChanged = { autoSaveDraft() },
+    )
+    private val inspirationStateHolder = QuickCreateInspirationStateHolder(
+        inspirationRepository = inspirationRepository,
+        scope = scope,
+        uiState = uiState,
+        onTemplateApplied = { scheduleFeePreview() },
     )
 
     /**
@@ -337,6 +348,17 @@ class QuickCreateCoordinator(
     /**
      * 放弃当前可恢复草稿。
      */
+    /**
+     * 将 Plaza 使用同款参数写入编辑区并刷新计费预览。
+     *
+     * 该入口不调用生成提交，只负责承接外部作品参数；生成仍由 [confirmGeneration] 前置的价格确认流程控制。
+     *
+     * @param intent Plaza 作品转换出的复用参数意图。
+     */
+    fun applyPlazaReuseIntent(intent: QuickCreatePlazaReuseIntent) {
+        inspirationStateHolder.applyPlazaReuseIntent(intent)
+    }
+
     fun discardDraft() {
         draftStateHolder.discardDraft()
     }
@@ -383,6 +405,16 @@ class QuickCreateCoordinator(
      */
     fun showModelPickerSheet() {
         editorStateHolder.showModelPickerSheet()
+    }
+
+    /** 更新模型选择器搜索词。 */
+    fun updateModelPickerQuery(query: String) {
+        editorStateHolder.updateModelPickerQuery(query)
+    }
+
+    /** 更新模型选择器分类筛选项。 */
+    fun selectModelPickerFilter(filter: QuickCreateModelPickerFilter) {
+        editorStateHolder.selectModelPickerFilter(filter)
     }
 
     /**
@@ -676,6 +708,15 @@ class QuickCreateCoordinator(
      */
     fun generate() {
         generationInteractor.generate()
+    }
+
+    /**
+     * 用户在生成确认面板中确认价格后继续提交任务。
+     *
+     * 该入口只转发给生成 Interactor，避免 Coordinator 重新承载计费确认细节。
+     */
+    fun confirmGeneration() {
+        generationInteractor.confirmGeneration()
     }
 
     private fun scheduleFeePreview() {

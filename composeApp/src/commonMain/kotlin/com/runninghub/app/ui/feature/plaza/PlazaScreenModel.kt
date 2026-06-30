@@ -57,6 +57,20 @@ class PlazaScreenModel(
      *
      * @param tagId 用户选择的标签 ID；`null` 表示清空标签筛选。
      */
+    /**
+     * 打开 Plaza 作品详情确认面板。
+     *
+     * @param workId 用户选择的 Plaza 作品稳定 ID。
+     */
+    fun openWorkDetail(workId: String) {
+        stateHolder.openWorkDetail(workId)
+    }
+
+    /** 关闭当前 Plaza 作品详情确认面板。 */
+    fun dismissWorkDetail() {
+        stateHolder.dismissWorkDetail()
+    }
+
     fun selectTag(tagId: String?) {
         stateHolder.selectTag(tagId)
     }

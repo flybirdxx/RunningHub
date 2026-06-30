@@ -11,6 +11,10 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationReposito
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryItem
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryOutput
 import com.runninghub.feature.quickcreate.domain.QuickCreationHistoryPage
+import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTag
+import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplateDetail
+import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplatePage
+import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationProject
@@ -42,6 +46,7 @@ class QuickCreateCoordinatorTest {
         val state = MutableStateFlow(QuickCreateUiState())
         val coordinator = QuickCreateCoordinator(
             historyRepository = dependencies,
+            inspirationRepository = dependencies,
             mediaResolver = RecordingQuickCreateMediaResolver(),
             draftRepository = dependencies,
             modelSelectionRepository = dependencies,
@@ -85,7 +90,8 @@ class QuickCreateCoordinatorTest {
         QuickCreationProjectRepository,
         QuickCreationGenerationRepository,
         QuickCreationFeePreviewRepository,
-        QuickCreationMediaUploadRepository {
+        QuickCreationMediaUploadRepository,
+        QuickCreationInspirationRepository {
 
         var draftChecks = 0
         val modelRequests = mutableListOf<QuickCreationServiceKind>()
@@ -205,6 +211,19 @@ class QuickCreateCoordinatorTest {
 
         override suspend fun getQuickCreationProjectDetail(projectId: String): Result<QuickCreationProject> =
             unexpected("getQuickCreationProjectDetail")
+
+        override suspend fun getInspirationTags(): Result<List<QuickCreateInspirationTag>> =
+            unexpected("getInspirationTags")
+
+        override suspend fun getInspirationTemplates(
+            page: Int,
+            size: Int,
+            tagId: String?,
+        ): Result<QuickCreateInspirationTemplatePage> =
+            unexpected("getInspirationTemplates")
+
+        override suspend fun getInspirationTemplateDetail(templateId: String): Result<QuickCreateInspirationTemplateDetail> =
+            unexpected("getInspirationTemplateDetail")
     }
 
     /**

@@ -89,6 +89,7 @@ data class QuickCreationResolvedFieldOption(
  * @property title 字段标题，来自服务端标题；为空时使用字段 key 兜底。
  * @property description 字段说明；`null` 表示服务端未提供有效说明。
  * @property kind 字段输入形态，决定 Presentation 层选择选项、文本还是上传控件。
+ * @property required 字段是否必填；Presentation 可据此展示缺失状态，真实阻断仍由 Domain 校验执行。
  * @property options 选项字段的候选值；非选项字段为空列表。
  * @property currentValue 当前字段值，优先使用标准 `paramKey`，其次使用 `fieldKey` 和默认值。
  * @property placeholder 文本输入占位内容；未配置时使用 [paramKey] 兜底。
@@ -104,6 +105,7 @@ data class QuickCreationResolvedServiceField(
     val title: String,
     val description: String?,
     val kind: QuickCreationResolvedFieldKind,
+    val required: Boolean,
     val options: List<QuickCreationResolvedFieldOption>,
     val currentValue: String,
     val placeholder: String,
@@ -527,6 +529,7 @@ private fun QuickCreationServiceField.toResolvedField(
         title = title(),
         description = inputExtra?.paramDescription?.takeIf { it.isNotBlank() },
         kind = resolvedKind(),
+        required = required,
         options = options.map { option ->
             QuickCreationResolvedFieldOption(
                 label = option.label,
@@ -554,6 +557,7 @@ private fun QuickCreationServiceFieldInputChild.toResolvedField(
         title = title(),
         description = paramDescription?.takeIf { it.isNotBlank() },
         kind = resolvedKind(),
+        required = required,
         options = options.map { option ->
             QuickCreationResolvedFieldOption(
                 label = option.label,
@@ -573,14 +577,14 @@ private fun QuickCreationServiceFieldInputChild.toResolvedField(
 
 private fun QuickCreationServiceField.resolvedKind(): QuickCreationResolvedFieldKind =
     when {
-        options.isNotEmpty() -> QuickCreationResolvedFieldKind.OPTIONS
+        options.isNotEmpty() || isSelectionField() -> QuickCreationResolvedFieldKind.OPTIONS
         supportsTextEntry() -> QuickCreationResolvedFieldKind.TEXT
         else -> QuickCreationResolvedFieldKind.UPLOAD
     }
 
 private fun QuickCreationServiceFieldInputChild.resolvedKind(): QuickCreationResolvedFieldKind =
     when {
-        options.isNotEmpty() -> QuickCreationResolvedFieldKind.OPTIONS
+        options.isNotEmpty() || isSelectionField() -> QuickCreationResolvedFieldKind.OPTIONS
         supportsTextEntry() -> QuickCreationResolvedFieldKind.TEXT
         else -> QuickCreationResolvedFieldKind.UPLOAD
     }
@@ -730,11 +734,25 @@ private fun QuickCreationServiceFieldInputChild.isUploadField(): Boolean {
         type.contains("AUDIO")
 }
 
+private fun QuickCreationServiceField.isSelectionField(): Boolean =
+    fieldType.isSelectionFieldType()
+
+private fun QuickCreationServiceFieldInputChild.isSelectionField(): Boolean =
+    fieldType.isSelectionFieldType()
+
+private fun String.isSelectionFieldType(): Boolean {
+    val type = uppercase()
+    return type.contains("LIST") ||
+        type.contains("SELECT") ||
+        type.contains("ENUM") ||
+        type.contains("OPTION")
+}
+
 private fun QuickCreationServiceField.isRenderable(): Boolean =
-    visible && (options.isNotEmpty() || supportsTextEntry() || isUploadField())
+    visible && (options.isNotEmpty() || isSelectionField() || supportsTextEntry() || isUploadField())
 
 private fun QuickCreationServiceFieldInputChild.isRenderable(): Boolean =
-    visible && (options.isNotEmpty() || supportsTextEntry() || isUploadField())
+    visible && (options.isNotEmpty() || isSelectionField() || supportsTextEntry() || isUploadField())
 
 private fun QuickCreationServiceField.title(): String =
     inputExtra?.title?.takeIf { it.isNotBlank() } ?: fieldKey

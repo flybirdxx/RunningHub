@@ -67,6 +67,38 @@ data class QuickCreationServiceUploadHint(
         acceptFormats.isNotEmpty() || maxUploadCount != null || maxUploadSizeMegabytes != null
 }
 
+enum class QuickCreationServiceFieldSection {
+    COMMON,
+    UPLOAD,
+    PROMPT,
+    ADVANCED,
+}
+
+sealed interface QuickCreationServiceFieldDisplayLabel {
+    data object AspectRatio : QuickCreationServiceFieldDisplayLabel
+    data object Resolution : QuickCreationServiceFieldDisplayLabel
+    data object Count : QuickCreationServiceFieldDisplayLabel
+    data object TechnicalEndpoint : QuickCreationServiceFieldDisplayLabel
+    data object Seed : QuickCreationServiceFieldDisplayLabel
+    data object NegativePrompt : QuickCreationServiceFieldDisplayLabel
+    data object Prompt : QuickCreationServiceFieldDisplayLabel
+    data object Upload : QuickCreationServiceFieldDisplayLabel
+    data class ServerText(val value: String) : QuickCreationServiceFieldDisplayLabel
+}
+
+enum class QuickCreationServiceFieldVisualState {
+    DEFAULT,
+    DISABLED,
+    ERROR,
+}
+
+enum class QuickCreationServiceFieldOptionVisualState {
+    DEFAULT,
+    SELECTED,
+    DISABLED,
+    ERROR,
+}
+
 /**
  * 服务端动态字段选项的 UI 模型。
  *
@@ -78,6 +110,7 @@ data class QuickCreationServiceFieldOptionUi(
     val label: String,
     val value: String,
     val selected: Boolean,
+    val visualState: QuickCreationServiceFieldOptionVisualState,
 )
 
 /**
@@ -104,8 +137,12 @@ data class QuickCreationServiceFieldOptionUi(
 data class QuickCreationServiceFieldUi(
     val paramKey: String,
     val title: String,
+    val displayLabel: QuickCreationServiceFieldDisplayLabel,
     val description: String?,
+    val section: QuickCreationServiceFieldSection,
+    val visualState: QuickCreationServiceFieldVisualState,
     val controlType: QuickCreationServiceFieldControlType,
+    val required: Boolean,
     val options: List<QuickCreationServiceFieldOptionUi>,
     val textValue: String,
     val placeholder: String,
@@ -124,6 +161,30 @@ data class QuickCreationServiceFieldUi(
      */
     fun constrainTextInput(value: String): String =
         maxLength?.takeIf { it >= 0 }?.let { value.take(it) } ?: value
+}
+
+data class QuickCreateParameterSheetState(
+    val commonFields: List<QuickCreationServiceFieldUi>,
+    val promptFields: List<QuickCreationServiceFieldUi>,
+    val advancedFields: List<QuickCreationServiceFieldUi>,
+    val advancedCollapsed: Boolean = true,
+) {
+    val empty: Boolean
+        get() = commonFields.isEmpty() && advancedFields.isEmpty()
+}
+
+fun quickCreateParameterSheetState(
+    serviceFields: List<QuickCreationServiceFieldUi>,
+): QuickCreateParameterSheetState {
+    val flattenedFields = serviceFields.flattenQuickCreationServiceFields()
+    return QuickCreateParameterSheetState(
+        commonFields = flattenedFields.filter { field ->
+            field.section == QuickCreationServiceFieldSection.COMMON ||
+                field.section == QuickCreationServiceFieldSection.UPLOAD
+        },
+        promptFields = flattenedFields.filter { field -> field.section == QuickCreationServiceFieldSection.PROMPT },
+        advancedFields = flattenedFields.filter { field -> field.section == QuickCreationServiceFieldSection.ADVANCED },
+    )
 }
 
 /**
@@ -146,16 +207,27 @@ fun QuickCreationServiceModel?.quickCreationServiceFieldUiItems(
 private fun QuickCreationResolvedServiceField.toQuickCreationServiceFieldUi(
     indentLevel: Int,
 ): QuickCreationServiceFieldUi {
+    val displayLabel = quickCreationServiceFieldDisplayLabel()
     return QuickCreationServiceFieldUi(
         paramKey = paramKey,
         title = title,
+        displayLabel = displayLabel,
         description = description,
+        section = quickCreationServiceFieldSection(displayLabel),
+        visualState = quickCreationServiceFieldVisualState(),
         controlType = kind.toQuickCreationServiceFieldControlType(),
+        required = required,
         options = options.map { option ->
+            val selected = currentValue == option.value
             QuickCreationServiceFieldOptionUi(
                 label = option.label,
                 value = option.value,
-                selected = currentValue == option.value,
+                selected = selected,
+                visualState = if (selected) {
+                    QuickCreationServiceFieldOptionVisualState.SELECTED
+                } else {
+                    QuickCreationServiceFieldOptionVisualState.DEFAULT
+                },
             )
         },
         textValue = currentValue,
@@ -186,3 +258,70 @@ private fun QuickCreationUploadMediaKind.toQuickCreationServiceUploadMediaType()
         QuickCreationUploadMediaKind.VIDEO -> QuickCreationServiceUploadMediaType.VIDEO
         QuickCreationUploadMediaKind.AUDIO -> QuickCreationServiceUploadMediaType.AUDIO
     }
+
+private fun QuickCreationResolvedServiceField.quickCreationServiceFieldDisplayLabel():
+    QuickCreationServiceFieldDisplayLabel {
+    val key = paramKey.quickCreationNormalizedFieldKey()
+    return when {
+        key.isPromptFieldKey() -> QuickCreationServiceFieldDisplayLabel.Prompt
+        key.contains("aspectratio") || key == "ratio" -> QuickCreationServiceFieldDisplayLabel.AspectRatio
+        key.contains("resolution") || key == "size" -> QuickCreationServiceFieldDisplayLabel.Resolution
+        key == "count" || key.contains("num") || key.contains("batch") -> QuickCreationServiceFieldDisplayLabel.Count
+        key.contains("endpoint") -> QuickCreationServiceFieldDisplayLabel.TechnicalEndpoint
+        key.contains("seed") -> QuickCreationServiceFieldDisplayLabel.Seed
+        key.contains("negative") -> QuickCreationServiceFieldDisplayLabel.NegativePrompt
+        kind == QuickCreationResolvedFieldKind.UPLOAD -> QuickCreationServiceFieldDisplayLabel.Upload
+        else -> QuickCreationServiceFieldDisplayLabel.ServerText(title.ifBlank { paramKey })
+    }
+}
+
+private fun QuickCreationResolvedServiceField.quickCreationServiceFieldSection(
+    displayLabel: QuickCreationServiceFieldDisplayLabel,
+): QuickCreationServiceFieldSection {
+    val key = paramKey.quickCreationNormalizedFieldKey()
+    return when {
+        displayLabel == QuickCreationServiceFieldDisplayLabel.Prompt -> QuickCreationServiceFieldSection.PROMPT
+        kind == QuickCreationResolvedFieldKind.UPLOAD -> QuickCreationServiceFieldSection.UPLOAD
+        displayLabel == QuickCreationServiceFieldDisplayLabel.AspectRatio ||
+            displayLabel == QuickCreationServiceFieldDisplayLabel.Resolution ||
+            displayLabel == QuickCreationServiceFieldDisplayLabel.Count -> QuickCreationServiceFieldSection.COMMON
+        key.contains("endpoint") ||
+            key.contains("seed") ||
+            key.contains("negative") ||
+            key.contains("workflow") ||
+            key.contains("node") ||
+            key.contains("lora") ||
+            key.contains("model") -> QuickCreationServiceFieldSection.ADVANCED
+        else -> QuickCreationServiceFieldSection.ADVANCED
+    }
+}
+
+private fun QuickCreationResolvedServiceField.quickCreationServiceFieldVisualState():
+    QuickCreationServiceFieldVisualState {
+    val hasInvalidOption = kind == QuickCreationResolvedFieldKind.OPTIONS &&
+        options.isNotEmpty() &&
+        currentValue.isNotBlank() &&
+        options.none { option -> option.value == currentValue }
+    return when {
+        paramKey.isBlank() -> QuickCreationServiceFieldVisualState.DISABLED
+        kind == QuickCreationResolvedFieldKind.OPTIONS && options.isEmpty() ->
+            QuickCreationServiceFieldVisualState.DISABLED
+        required && currentValue.isBlank() -> QuickCreationServiceFieldVisualState.ERROR
+        hasInvalidOption -> QuickCreationServiceFieldVisualState.ERROR
+        else -> QuickCreationServiceFieldVisualState.DEFAULT
+    }
+}
+
+private fun List<QuickCreationServiceFieldUi>.flattenQuickCreationServiceFields():
+    List<QuickCreationServiceFieldUi> =
+    flatMap { field -> listOf(field) + field.childFields.flattenQuickCreationServiceFields() }
+
+private fun String.quickCreationNormalizedFieldKey(): String =
+    lowercase()
+        .filterNot { it == '_' || it == '-' || it.isWhitespace() }
+
+private fun String.isPromptFieldKey(): Boolean =
+    this == "prompt" ||
+        this == "text" ||
+        this == "input" ||
+        this == "positiveprompt"

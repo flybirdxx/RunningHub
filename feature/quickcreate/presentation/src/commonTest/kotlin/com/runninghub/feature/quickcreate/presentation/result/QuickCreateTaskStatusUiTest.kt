@@ -3,6 +3,7 @@ package com.runninghub.feature.quickcreate.presentation.result
 import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class QuickCreateTaskStatusUiTest {
     @Test
@@ -58,5 +59,55 @@ class QuickCreateTaskStatusUiTest {
 
         assertEquals(QuickCreateTaskIndicator.Error, display.indicator)
         assertEquals(QuickCreateTaskStatusText.Canceled, display.text)
+    }
+
+    @Test
+    fun `result actions expose stable next steps for task statuses`() {
+        val runningActions = quickCreateResultActions(
+            taskStatus = QuickCreateTaskUiStatus.RUNNING,
+            taskId = "task-1",
+            prompt = "green icon",
+            results = emptyList(),
+        )
+        val successActions = quickCreateResultActions(
+            taskStatus = QuickCreateTaskUiStatus.SUCCESS,
+            taskId = "task-2",
+            prompt = "green icon",
+            results = listOf(
+                QuickCreateResultUi(
+                    url = "https://example.com/result.png",
+                    type = "png",
+                    mediaType = QuickCreateResultMediaType.IMAGE,
+                )
+            ),
+        )
+        val failedActions = quickCreateResultActions(
+            taskStatus = QuickCreateTaskUiStatus.FAILED,
+            taskId = "task-3",
+            prompt = "green icon",
+            results = emptyList(),
+        )
+
+        assertEquals(listOf(QuickCreateResultAction.ViewTask), runningActions.map { it.action })
+        assertEquals(
+            listOf(
+                QuickCreateResultAction.ViewResult,
+                QuickCreateResultAction.TryAgain,
+                QuickCreateResultAction.Save,
+                QuickCreateResultAction.Download,
+                QuickCreateResultAction.ReuseParameters,
+                QuickCreateResultAction.CopyPrompt,
+            ),
+            successActions.map { it.action },
+        )
+        assertEquals(
+            listOf(
+                QuickCreateResultAction.Retry,
+                QuickCreateResultAction.ViewDetail,
+                QuickCreateResultAction.RefundStatus,
+            ),
+            failedActions.map { it.action },
+        )
+        assertTrue(successActions.all { it.enabled })
     }
 }

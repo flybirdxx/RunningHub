@@ -33,6 +33,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -42,6 +46,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.runninghub.app.ui.designsystem.components.parameters.ParameterSelector
+import com.runninghub.app.ui.designsystem.components.parameters.ParameterSelectorOptionState
+import com.runninghub.app.ui.designsystem.components.parameters.ParameterSelectorOptionVisualState
+import com.runninghub.app.ui.designsystem.components.parameters.ParameterSelectorState
+import com.runninghub.app.ui.designsystem.components.sheets.AdvancedSettingsSectionState
+import com.runninghub.app.ui.designsystem.components.sheets.AdvancedSettingsSheet
+import com.runninghub.app.ui.designsystem.components.sheets.AdvancedSettingsSheetState
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateDesignTokens
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateModelGlyph
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheetHandle
@@ -55,8 +66,11 @@ import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldControlType
+import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldDisplayLabel
+import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldOptionVisualState
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldUi
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceUploadMediaType
+import com.runninghub.feature.quickcreate.presentation.fields.quickCreateParameterSheetState
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
@@ -66,6 +80,17 @@ import runninghub.composeapp.generated.resources.quick_create_params_done
 import runninghub.composeapp.generated.resources.quick_create_params_empty_parameters
 import runninghub.composeapp.generated.resources.quick_create_params_endpoint_label
 import runninghub.composeapp.generated.resources.quick_create_params_endpoint_value
+import runninghub.composeapp.generated.resources.quick_create_params_field_aspect_ratio
+import runninghub.composeapp.generated.resources.quick_create_params_field_count
+import runninghub.composeapp.generated.resources.quick_create_params_field_endpoint
+import runninghub.composeapp.generated.resources.quick_create_params_field_negative_prompt
+import runninghub.composeapp.generated.resources.quick_create_params_field_prompt
+import runninghub.composeapp.generated.resources.quick_create_params_field_resolution
+import runninghub.composeapp.generated.resources.quick_create_params_field_seed
+import runninghub.composeapp.generated.resources.quick_create_params_field_upload
+import runninghub.composeapp.generated.resources.quick_create_params_advanced_title
+import runninghub.composeapp.generated.resources.quick_create_params_advanced_expand
+import runninghub.composeapp.generated.resources.quick_create_params_advanced_collapse
 import runninghub.composeapp.generated.resources.quick_create_params_model_label
 import runninghub.composeapp.generated.resources.quick_create_params_parameter_count_format
 import runninghub.composeapp.generated.resources.quick_create_params_sheet_title
@@ -129,66 +154,87 @@ internal fun QuickCreateParamsSheet(
     onSheetDragEnd: () -> Unit = {},
     onSheetDragCancel: () -> Unit = {},
 ) {
+    var advancedExpanded by remember { mutableStateOf(false) }
+    val parameterSheetState = quickCreateParameterSheetState(serviceFields)
+    val mediaReferences = if (isImage) {
+        uiState.imageConfig.mediaReferences
+    } else {
+        uiState.videoConfig.mediaReferences
+    }
+    val onParamChange: (String, String) -> Unit = { paramKey, value ->
+        if (isImage) {
+            onImageServiceParamChange(paramKey, value)
+        } else {
+            onVideoServiceParamChange(paramKey, value)
+        }
+    }
+    val commonSection = AdvancedSettingsSectionState(
+        id = "common",
+        title = stringResource(Res.string.quick_create_params_common_title),
+        selectors = emptyList(),
+        contentCount = parameterSheetState.commonFields.size,
+    )
+    val advancedSection = AdvancedSettingsSectionState(
+        id = "advanced",
+        title = stringResource(Res.string.quick_create_params_advanced_title),
+        selectors = emptyList(),
+        collapsed = !advancedExpanded,
+        contentCount = parameterSheetState.advancedFields.size,
+    )
     AnimatedVisibility(
         visible = visible,
         enter = slideInVertically { it } + fadeIn(),
         exit = slideOutVertically { it } + fadeOut(),
         modifier = modifier,
     ) {
-        Surface(
+        AdvancedSettingsSheet(
+            state = AdvancedSettingsSheetState(
+                title = stringResource(Res.string.quick_create_params_sheet_title),
+                commonSection = commonSection,
+                advancedSection = advancedSection,
+                emptyText = stringResource(Res.string.quick_create_params_empty_parameters),
+                doneLabel = stringResource(Res.string.quick_create_params_done),
+                advancedToggleText = stringResource(
+                    if (advancedExpanded) {
+                        Res.string.quick_create_params_advanced_collapse
+                    } else {
+                        Res.string.quick_create_params_advanced_expand
+                    },
+                ),
+                closeContentDescription = stringResource(
+                    Res.string.quick_create_params_close_content_description,
+                ),
+            ),
+            onOptionSelected = { paramKey, value -> onParamChange(paramKey, value) },
+            onAdvancedToggle = { advancedExpanded = !advancedExpanded },
+            onDismiss = onDismiss,
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            color = QuickCreateDesignTokens.PanelStrong,
-            border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-            ) {
+            dragHandle = {
                 QuickCreateSheetHandle(
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
                     onDragStart = onSheetDragStart,
                     onDrag = onSheetDrag,
                     onDragEnd = onSheetDragEnd,
                     onDragCancel = onSheetDragCancel,
                 )
-                ParamsSheetHeader(onDismiss = onDismiss)
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 560.dp)
-                        .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(18.dp),
-                ) {
-                    ModelSummaryCard(uiState = uiState, isImage = isImage)
-                    CommonSectionTitle()
-                    ServiceParamsSection(
-                        serviceFields = serviceFields,
-                        mediaReferences = if (isImage) {
-                            uiState.imageConfig.mediaReferences
-                        } else {
-                            uiState.videoConfig.mediaReferences
-                        },
-                        isImage = isImage,
-                        onParamChange = { paramKey, value ->
-                            if (isImage) {
-                                onImageServiceParamChange(paramKey, value)
-                            } else {
-                                onVideoServiceParamChange(paramKey, value)
-                            }
-                        },
-                        onServiceUploadFieldClick = onServiceUploadFieldClick,
-                        onRemoveMedia = onRemoveMedia,
-                    )
-                    ParamsActionBar(
-                        parameterCount = serviceFields.visibleFieldCount(),
-                        onDone = onDismiss,
-                    )
-                }
-            }
-        }
+            },
+            leadingContent = {
+                ModelSummaryCard(uiState = uiState, isImage = isImage)
+            },
+            sectionContent = { section ->
+                ServiceParamsSection(
+                    serviceFields = if (section.id == "advanced") {
+                        parameterSheetState.advancedFields
+                    } else {
+                        parameterSheetState.commonFields
+                    },
+                    mediaReferences = mediaReferences,
+                    isImage = isImage,
+                    onParamChange = onParamChange,
+                    onServiceUploadFieldClick = onServiceUploadFieldClick,
+                    onRemoveMedia = onRemoveMedia,
+                )
+            },
+        )
     }
 }
 
@@ -366,7 +412,7 @@ private fun ServiceParamCard(
     onRemoveMedia: (String) -> Unit,
 ) {
     ParamCard(
-        title = field.title,
+        title = field.displayLabel.asParameterLabelText(),
         keyName = field.paramKey,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -405,43 +451,20 @@ private fun ServiceOptionsControl(
         )
         return
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        field.options.chunked(3).forEach { rowOptions ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                rowOptions.forEach { option ->
-                    Surface(
-                        modifier = Modifier.weight(1f).height(34.dp),
-                        onClick = { onParamChange(field.paramKey, option.value) },
-                        color = if (option.selected) Color(0xAA5A4590) else Color(0xFF1C1E23),
-                        shape = RoundedCornerShape(8.dp),
-                        border = BorderStroke(
-                            1.dp,
-                            if (option.selected) QuickCreateDesignTokens.Purple else QuickCreateDesignTokens.Stroke,
-                        ),
-                    ) {
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = option.label.ifBlank { option.value },
-                                color = if (option.selected) {
-                                    QuickCreateDesignTokens.PurpleSoft
-                                } else {
-                                    Color(0xFFD2D3D8)
-                                },
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 8.dp),
-                            )
-                        }
-                    }
-                }
-                repeat(3 - rowOptions.size) {
-                    Spacer(modifier = Modifier.weight(1f))
-                }
-            }
-        }
-    }
+    ParameterSelector(
+        state = ParameterSelectorState(
+            id = field.paramKey,
+            title = field.displayLabel.asParameterLabelText(),
+            options = field.options.map { option ->
+                ParameterSelectorOptionState(
+                    id = option.value,
+                    label = option.label.ifBlank { option.value },
+                    visualState = option.visualState.toParameterSelectorVisualState(),
+                )
+            },
+        ),
+        onOptionSelected = onParamChange,
+    )
 }
 
 @Composable
@@ -635,6 +658,37 @@ private fun QuickCreationServiceUploadMediaType?.toQuickCreateMediaType(
         QuickCreationServiceUploadMediaType.VIDEO -> QuickCreateMediaType.VIDEO
         QuickCreationServiceUploadMediaType.AUDIO -> QuickCreateMediaType.AUDIO
         null -> if (fallbackToImage) QuickCreateMediaType.IMAGE else null
+    }
+
+@Composable
+private fun QuickCreationServiceFieldDisplayLabel.asParameterLabelText(): String =
+    when (this) {
+        QuickCreationServiceFieldDisplayLabel.AspectRatio ->
+            stringResource(Res.string.quick_create_params_field_aspect_ratio)
+        QuickCreationServiceFieldDisplayLabel.Resolution ->
+            stringResource(Res.string.quick_create_params_field_resolution)
+        QuickCreationServiceFieldDisplayLabel.Count ->
+            stringResource(Res.string.quick_create_params_field_count)
+        QuickCreationServiceFieldDisplayLabel.TechnicalEndpoint ->
+            stringResource(Res.string.quick_create_params_field_endpoint)
+        QuickCreationServiceFieldDisplayLabel.Seed ->
+            stringResource(Res.string.quick_create_params_field_seed)
+        QuickCreationServiceFieldDisplayLabel.NegativePrompt ->
+            stringResource(Res.string.quick_create_params_field_negative_prompt)
+        QuickCreationServiceFieldDisplayLabel.Prompt ->
+            stringResource(Res.string.quick_create_params_field_prompt)
+        QuickCreationServiceFieldDisplayLabel.Upload ->
+            stringResource(Res.string.quick_create_params_field_upload)
+        is QuickCreationServiceFieldDisplayLabel.ServerText -> value
+    }
+
+private fun QuickCreationServiceFieldOptionVisualState.toParameterSelectorVisualState():
+    ParameterSelectorOptionVisualState =
+    when (this) {
+        QuickCreationServiceFieldOptionVisualState.DEFAULT -> ParameterSelectorOptionVisualState.DEFAULT
+        QuickCreationServiceFieldOptionVisualState.SELECTED -> ParameterSelectorOptionVisualState.SELECTED
+        QuickCreationServiceFieldOptionVisualState.DISABLED -> ParameterSelectorOptionVisualState.DISABLED
+        QuickCreationServiceFieldOptionVisualState.ERROR -> ParameterSelectorOptionVisualState.ERROR
     }
 
 private fun List<QuickCreationServiceFieldUi>.flattenServiceFields(): List<QuickCreationServiceFieldUi> =

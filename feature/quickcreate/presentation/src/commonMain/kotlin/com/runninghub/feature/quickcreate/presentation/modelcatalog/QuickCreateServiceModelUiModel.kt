@@ -1,6 +1,8 @@
 package com.runninghub.feature.quickcreate.presentation.modelcatalog
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 
 private const val COMPACT_ALL_PURPOSE_IMAGE_NO_SPACE = "\u5168\u80fd\u56fe\u7247G-2.0"
 private const val COMPACT_ALL_PURPOSE_IMAGE_WITH_SPACE = "\u5168\u80fd\u56fe\u7247 G-2.0"
@@ -9,6 +11,63 @@ private const val COMPACT_ALL_PURPOSE_IMAGE_G2_LEGACY_WITH_SPACE = "\u5168\u80fd
 private const val COMPACT_ALL_PURPOSE_IMAGE_G2_LABEL = "\u5168\u80fd\u56fe\u7247 G-2.0"
 private const val COMPACT_OFFICIAL_SUFFIX = "\u5b98\u65b9\u7248"
 private const val COMPACT_OFFICIAL_STABLE_SUFFIX = "\u5b98\u65b9\u7a33\u5b9a\u7248"
+
+/** 模型选择器中用于主分类和图标映射的生成能力类别。 */
+enum class QuickCreateServiceModelKind {
+    Image,
+    Video,
+    Audio,
+    Other,
+}
+
+/** 模型卡片中用于说明适用场景的稳定语义。 */
+enum class QuickCreateServiceModelScene {
+    ImageGeneration,
+    VideoGeneration,
+    AudioGeneration,
+    General,
+}
+
+/** 模型卡片中的目录价格摘要语义，真实扣费仍以生成前 fee-preview 为准。 */
+sealed interface QuickCreateServiceModelPrice {
+    data object Unknown : QuickCreateServiceModelPrice
+
+    data object Free : QuickCreateServiceModelPrice
+
+    data class Known(val text: String) : QuickCreateServiceModelPrice
+}
+
+/** 模型选择器的分类筛选项。 */
+enum class QuickCreateModelPickerFilter {
+    Image,
+    Video,
+    Audio,
+    Other,
+}
+
+/** 模型选择器空态原因，用于区分目录为空和搜索无结果。 */
+enum class QuickCreateModelPickerEmptyReason {
+    Loading,
+    EmptyCatalog,
+    SearchNoResult,
+}
+
+/**
+ * 模型选择器在 Presentation 层的可渲染状态。
+ *
+ * @property query 当前搜索词。
+ * @property selectedFilter 当前分类筛选项。
+ * @property visibleItems 搜索和筛选后可展示的模型卡片。
+ * @property loading 是否正在加载目录且没有可用快照。
+ * @property emptyReason 列表为空时的原因；非空列表下为 `null`。
+ */
+data class QuickCreateModelPickerState(
+    val query: String,
+    val selectedFilter: QuickCreateModelPickerFilter,
+    val visibleItems: List<QuickCreateServiceModelUi>,
+    val loading: Boolean,
+    val emptyReason: QuickCreateModelPickerEmptyReason?,
+)
 
 /**
  * 快捷创作服务端模型在 Presentation 层使用的 UI 模型。
@@ -25,6 +84,11 @@ private const val COMPACT_OFFICIAL_STABLE_SUFFIX = "\u5b98\u65b9\u7a33\u5b9a\u72
  * @property groupTitle 模型选择面板中的分组标题语义；服务端未返回分组时交给 UI 边界资源化。
  * @property subtitle 模型副标题语义，当前由服务端分组和可配置参数数量组成。
  * [QuickCreateServiceModelSubtitle.None] 表示没有辅助信息，调用方可不渲染副标题行。
+ * @property kind 模型主要输出能力，用于分类、图标和目标 tab 映射。
+ * @property targetTab 选择该模型后应该落到的快捷创作 tab，由模型目录来源决定。
+ * @property scene 模型适用场景的稳定语义，最终文案由 composeApp 资源层映射。
+ * @property price 目录层价格摘要；未知不等于免费，生成前仍需 fee-preview。
+ * @property technicalTags 服务端 API 类型或来源等辅助标签，不作为主标题展示。
  * @property selected 当前模型是否为该类别下的选中项。
  * 选中态在映射层按服务身份计算，避免 UI 直接比较 Domain 字段。
  */
@@ -35,6 +99,11 @@ data class QuickCreateServiceModelUi(
     val compactName: String,
     val groupTitle: QuickCreateServiceModelGroupTitle,
     val subtitle: QuickCreateServiceModelSubtitle,
+    val kind: QuickCreateServiceModelKind,
+    val targetTab: QuickCreateTab,
+    val scene: QuickCreateServiceModelScene,
+    val price: QuickCreateServiceModelPrice,
+    val technicalTags: List<String>,
     val selected: Boolean,
 )
 
@@ -192,9 +261,13 @@ fun QuickCreationServiceModel.quickCreationServiceModelSubtitle(): QuickCreateSe
  */
 fun List<QuickCreationServiceModel>.toQuickCreateServiceModelUiItems(
     selected: QuickCreationServiceModel?,
+    targetTab: QuickCreateTab? = null,
 ): List<QuickCreateServiceModelUi> =
     map { model ->
-        model.toQuickCreateServiceModelUi(selected = model.isSameQuickCreationServiceModel(selected))
+        model.toQuickCreateServiceModelUi(
+            selected = model.isSameQuickCreationServiceModel(selected),
+            targetTab = targetTab,
+        )
     }
 
 /**
@@ -205,6 +278,7 @@ fun List<QuickCreationServiceModel>.toQuickCreateServiceModelUiItems(
  */
 fun QuickCreationServiceModel.toQuickCreateServiceModelUi(
     selected: Boolean = false,
+    targetTab: QuickCreateTab? = null,
 ): QuickCreateServiceModelUi {
     val displayNameText = name.takeIf { it.isNotBlank() }
     val compactDisplayName = (displayNameText ?: "").toQuickCreateCompactServiceModelLabel()
@@ -218,6 +292,7 @@ fun QuickCreationServiceModel.toQuickCreateServiceModelUi(
     val displayName = displayNameText
         ?.let(QuickCreateServiceModelDisplayName::ServerText)
         ?: QuickCreateServiceModelDisplayName.Unnamed
+    val kind = quickCreateServiceModelKind()
     return QuickCreateServiceModelUi(
         source = this,
         identityKey = quickCreateServiceModelIdentityKey(),
@@ -228,7 +303,41 @@ fun QuickCreationServiceModel.toQuickCreateServiceModelUi(
             ?.let(QuickCreateServiceModelGroupTitle::ServerText)
             ?: QuickCreateServiceModelGroupTitle.Other,
         subtitle = quickCreationServiceModelSubtitle(),
+        kind = kind,
+        targetTab = targetTab ?: kind.quickCreateServiceModelTargetTab(),
+        scene = kind.quickCreateServiceModelScene(),
+        price = quickCreateServiceModelPrice(),
+        technicalTags = quickCreateServiceModelTechnicalTags(),
         selected = selected,
+    )
+}
+
+/** 根据当前页面状态生成模型选择器的过滤结果。 */
+fun quickCreateModelPickerState(
+    state: QuickCreateUiState,
+): QuickCreateModelPickerState {
+    val currentItems = (state.serviceImageModelItems + state.serviceVideoModelItems)
+        .distinctBy { it.identityKey }
+    val allItems = currentItems.ifEmpty { state.modelPickerModelSnapshot }
+    val query = state.modelPickerQuery.trim()
+    val visibleItems = allItems
+        .filter { state.modelPickerFilter.accepts(it.kind) }
+        .filter { query.isBlank() || it.matchesModelPickerQuery(query) }
+    val loading = state.serviceModelsLoading && allItems.isEmpty()
+    val emptyReason = when {
+        visibleItems.isNotEmpty() -> null
+        loading -> QuickCreateModelPickerEmptyReason.Loading
+        allItems.isEmpty() -> QuickCreateModelPickerEmptyReason.EmptyCatalog
+        query.isNotBlank() -> QuickCreateModelPickerEmptyReason.SearchNoResult
+        else -> QuickCreateModelPickerEmptyReason.EmptyCatalog
+    }
+
+    return QuickCreateModelPickerState(
+        query = state.modelPickerQuery,
+        selectedFilter = state.modelPickerFilter,
+        visibleItems = visibleItems,
+        loading = loading,
+        emptyReason = emptyReason,
     )
 }
 
@@ -273,3 +382,144 @@ private fun String.toQuickCreateCompactServiceModelLabel(): String {
 
 private fun String.hasQuickCreateModelFamilyToken(): Boolean =
     any { it.isDigit() }
+
+private fun QuickCreateModelPickerFilter.accepts(kind: QuickCreateServiceModelKind): Boolean =
+    when (this) {
+        QuickCreateModelPickerFilter.Image -> kind == QuickCreateServiceModelKind.Image
+        QuickCreateModelPickerFilter.Video -> kind == QuickCreateServiceModelKind.Video
+        QuickCreateModelPickerFilter.Audio -> kind == QuickCreateServiceModelKind.Audio
+        QuickCreateModelPickerFilter.Other -> kind == QuickCreateServiceModelKind.Other
+    }
+
+private fun QuickCreateServiceModelKind.quickCreateServiceModelScene(): QuickCreateServiceModelScene =
+    when (this) {
+        QuickCreateServiceModelKind.Image -> QuickCreateServiceModelScene.ImageGeneration
+        QuickCreateServiceModelKind.Video -> QuickCreateServiceModelScene.VideoGeneration
+        QuickCreateServiceModelKind.Audio -> QuickCreateServiceModelScene.AudioGeneration
+        QuickCreateServiceModelKind.Other -> QuickCreateServiceModelScene.General
+    }
+
+private fun QuickCreateServiceModelKind.quickCreateServiceModelTargetTab(): QuickCreateTab =
+    if (this == QuickCreateServiceModelKind.Image) QuickCreateTab.IMAGE else QuickCreateTab.VIDEO
+
+private fun QuickCreationServiceModel.quickCreateServiceModelKind(): QuickCreateServiceModelKind {
+    val type = apiType.normalizedCapabilityText()
+    return when {
+        type.isVideoOutputCapability() -> QuickCreateServiceModelKind.Video
+        type.isAudioOutputCapability() -> QuickCreateServiceModelKind.Audio
+        type.isImageOutputCapability() -> QuickCreateServiceModelKind.Image
+        else -> when (categoryId.uppercase()) {
+            "IMAGE" -> QuickCreateServiceModelKind.Image
+            "VIDEO" -> QuickCreateServiceModelKind.Video
+            "AUDIO" -> QuickCreateServiceModelKind.Audio
+            else -> QuickCreateServiceModelKind.Other
+        }
+    }
+}
+
+private fun QuickCreationServiceModel.quickCreateServiceModelPrice(): QuickCreateServiceModelPrice {
+    if (pricing?.isFree == true) return QuickCreateServiceModelPrice.Free
+    val text = pricing?.priceSummaryRaw
+        ?: pricing?.flatPriceRaw
+        ?: pricing?.dimensionPricingRaw
+    return text
+        ?.trim()
+        ?.takeIf { it.isNotBlank() }
+        ?.trimInsignificantPriceZeros()
+        ?.let(QuickCreateServiceModelPrice::Known)
+        ?: QuickCreateServiceModelPrice.Unknown
+}
+
+private fun QuickCreationServiceModel.quickCreateServiceModelTechnicalTags(): List<String> =
+    buildList {
+        apiType.cleanCapabilityTag()?.let(::add)
+        apiSource.cleanCapabilityTag()?.let(::add)
+    }.ifEmpty {
+        inferredCapabilityTags()
+    }.distinct().take(2)
+
+private fun QuickCreateServiceModelUi.matchesModelPickerQuery(query: String): Boolean {
+    val normalizedQuery = query.lowercase()
+    return buildList {
+        add(compactName)
+        displayName.serverTextOrNull()?.let(::add)
+        groupTitle.serverTextOrNull()?.let(::add)
+        technicalTags.forEach(::add)
+        price.knownTextOrNull()?.let(::add)
+        add(identityKey)
+    }.any { it.lowercase().contains(normalizedQuery) }
+}
+
+private fun QuickCreateServiceModelDisplayName.serverTextOrNull(): String? =
+    when (this) {
+        QuickCreateServiceModelDisplayName.Unnamed -> null
+        is QuickCreateServiceModelDisplayName.ServerText -> value
+    }
+
+private fun QuickCreateServiceModelGroupTitle.serverTextOrNull(): String? =
+    when (this) {
+        QuickCreateServiceModelGroupTitle.Other -> null
+        is QuickCreateServiceModelGroupTitle.ServerText -> value
+    }
+
+private fun QuickCreateServiceModelPrice.knownTextOrNull(): String? =
+    when (this) {
+        QuickCreateServiceModelPrice.Free,
+        QuickCreateServiceModelPrice.Unknown,
+        -> null
+        is QuickCreateServiceModelPrice.Known -> text
+    }
+
+private fun QuickCreationServiceModel.inferredCapabilityTags(): List<String> {
+    val text = apiType.normalizedCapabilityText()
+    val explicitTag = listOf(
+        "multi-image-to-3d",
+        "image-to-3d",
+        "text-to-3d",
+        "reference-to-video",
+        "image-to-video",
+        "text-to-video",
+        "image-to-image",
+        "text-to-image",
+        "text-to-audio",
+        "image-to-audio",
+    ).firstOrNull(text::contains)
+
+    return listOf(
+        explicitTag
+            ?: categoryId.cleanCapabilityTag()
+            ?: "unknown",
+    ).filterNot { it.equals("unknown", ignoreCase = true) }
+}
+
+private fun String?.cleanCapabilityTag(): String? =
+    orEmpty()
+        .trim()
+        .takeIf { it.isNotBlank() }
+        ?.takeUnless { it.equals("unknown", ignoreCase = true) }
+
+private fun String?.normalizedCapabilityText(): String =
+    orEmpty().lowercase()
+
+private fun String.isVideoOutputCapability(): Boolean =
+    contains("video") ||
+        contains("\u89c6\u9891")
+
+private fun String.isAudioOutputCapability(): Boolean =
+    contains("audio") ||
+        contains("music") ||
+        contains("\u97f3\u9891") ||
+        contains("\u97f3\u4e50")
+
+private fun String.isImageOutputCapability(): Boolean =
+    contains("image") &&
+        !isVideoOutputCapability() &&
+        !isAudioOutputCapability() &&
+        !contains("3d")
+
+private fun String.trimInsignificantPriceZeros(): String =
+    replace(Regex("""(\d+)\.(\d*?[1-9])0+(?=\D|$)|(\d+)\.0+(?=\D|$)""")) { match ->
+        val integer = match.groups[1]?.value ?: match.groups[3]?.value.orEmpty()
+        val fraction = match.groups[2]?.value
+        if (fraction == null) integer else "$integer.$fraction"
+    }

@@ -2180,18 +2180,19 @@ class LongTermGovernancePlugin : Plugin<Project> {
     /**
      * 约束 History 迁移期兼容桥，避免它在中期治理阶段扩散成新的长期架构事实。
      *
-     * 当前 History 页仍需要 QuickCreate 历史详情、取消和参数复用能力，现有 Task Data 的 WebApp
-     * 历史接口还不能替代它。因此兼容桥可以暂时留在 composeApp 组合层，但只能有一个明确文件；
-     * 未来 Task Data 正式实现 GenerationHistoryRepository 后，应删除该桥和 AppModule 绑定。
+     * 当前 History 页仍需要 QuickCreate 历史详情、取消、参数复用以及 WebApp 历史补充能力，现有
+     * Task Data 的 WebApp 历史接口还不能替代它。因此统一兼容桥可以暂时留在 composeApp 组合层，
+     * 但只能有一个明确文件；未来 Task Data 正式实现 GenerationHistoryRepository 后，应删除该桥
+     * 和 AppModule 绑定。
      */
     private fun Project.checkHistoryCompatibilityBridgeGuard(violations: MutableList<String>) {
-        val adapterPath =
-            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/QuickCreateGenerationHistoryRepositoryAdapter.kt"
+        val bridgePath =
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/UnifiedGenerationHistoryRepository.kt"
         val appModulePath = "composeApp/src/commonMain/kotlin/com/runninghub/app/di/AppModule.kt"
         val taskDataModulePath = "feature/task/data/src/commonMain/kotlin/com/runninghub/feature/task/data/di/TaskDataModule.kt"
         val taskDataBuildPath = "feature/task/data/build.gradle.kts"
 
-        val adapterFile = rootDir.resolve(adapterPath)
+        val bridgeFile = rootDir.resolve(bridgePath)
         val appModuleFile = rootDir.resolve(appModulePath)
         val taskDataModuleFile = rootDir.resolve(taskDataModulePath)
         val taskDataBuildFile = rootDir.resolve(taskDataBuildPath)
@@ -2217,7 +2218,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
         if (appRoot.isDirectory) {
             appRoot.walkTopDown()
                 .filter { it.isFile && it.extension == "kt" }
-                .filterNot { it.relativeTo(rootDir).invariantSeparatorsPath == adapterPath }
+                .filterNot { it.relativeTo(rootDir).invariantSeparatorsPath == bridgePath }
                 .forEach { file ->
                     val text = file.readText()
                     if (text.contains("QuickCreationHistoryItem") ||
@@ -2230,27 +2231,30 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 }
         }
 
-        if (adapterFile.isFile) {
-            val adapterText = adapterFile.readText()
-            if (!adapterText.contains("internal class QuickCreateGenerationHistoryRepositoryAdapter")) {
-                violations += "$adapterPath must keep the QuickCreate history bridge internal to composeApp until it is deleted."
-            }
-            if (!adapterText.contains("QuickCreationTaskHistoryRepository") ||
-                !adapterText.contains("GenerationHistoryRepository")
+        if (bridgeFile.isFile) {
+            val bridgeText = bridgeFile.readText()
+            if (!bridgeText.contains("internal class UnifiedGenerationHistoryRepository") ||
+                !bridgeText.contains("internal class QuickCreateGenerationHistoryRepositoryAdapter")
             ) {
-                violations += "$adapterPath must remain an explicit QuickCreate-to-GenerationHistory adapter; do not hide the bridge behind broader app code."
+                violations += "$bridgePath must keep the unified History compatibility bridge internal to composeApp until it is deleted."
             }
-            if (!appModuleText.contains("QuickCreateGenerationHistoryRepositoryAdapter") ||
-                !appModuleText.contains("single<GenerationHistoryRepository> { QuickCreateGenerationHistoryRepositoryAdapter(get()) }")
+            if (!bridgeText.contains("QuickCreationTaskHistoryRepository") ||
+                !bridgeText.contains("WebAppTaskHistoryRepository") ||
+                !bridgeText.contains("GenerationHistoryRepository")
+            ) {
+                violations += "$bridgePath must remain an explicit QuickCreate/WebApp-to-GenerationHistory bridge; do not hide migration wiring behind broader app code."
+            }
+            if (!appModuleText.contains("UnifiedGenerationHistoryRepository") ||
+                !appModuleText.contains("single<GenerationHistoryRepository> { UnifiedGenerationHistoryRepository(get(), get(), get()) }")
             ) {
                 violations += "$appModulePath must bind the temporary History bridge explicitly, or delete the bridge after Task Data provides GenerationHistoryRepository."
             }
             if (taskDataProvidesUnifiedHistory) {
-                violations += "$adapterPath must be deleted once TaskDataModule binds GenerationHistoryRepository."
+                violations += "$bridgePath must be deleted once TaskDataModule binds GenerationHistoryRepository."
             }
         } else {
-            if (appModuleText.contains("QuickCreateGenerationHistoryRepositoryAdapter")) {
-                violations += "$appModulePath still references deleted QuickCreateGenerationHistoryRepositoryAdapter."
+            if (appModuleText.contains("UnifiedGenerationHistoryRepository")) {
+                violations += "$appModulePath still references deleted UnifiedGenerationHistoryRepository."
             }
             if (!taskDataProvidesUnifiedHistory) {
                 violations += "History compatibility bridge is missing, but TaskDataModule does not bind GenerationHistoryRepository yet."

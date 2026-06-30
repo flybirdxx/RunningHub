@@ -225,6 +225,7 @@ internal fun OpenApiCallLogDetailDataDto.toDomain(requestedTaskId: String): Gene
         ?: costInfo?.finalAmount.asDetailText()
         ?: costInfo?.amount.asDetailText()
         ?: basicInfo?.amount.asDetailText()
+    val rawRequestInfo = requestInfo?.apiRequestParams
     return GenerationTaskDetail(
         taskId = resolvedTaskId,
         title = title,
@@ -236,7 +237,8 @@ internal fun OpenApiCallLogDetailDataDto.toDomain(requestedTaskId: String): Gene
         outputs = list.mapIndexedNotNull { index, output -> output.toGenerationHistoryOutput(resolvedTaskId, index) },
         basicFields = basicInfo.toBasicFields(resolvedTaskId, title),
         costFields = costInfo.toCostFields(),
-        requestInfo = requestInfo?.apiRequestParams?.toSanitizedJsonString(),
+        requestParameters = rawRequestInfo.toRequestParameterSummary(),
+        requestInfo = rawRequestInfo?.toSanitizedJsonString(),
         responseInfo = responseInfo?.toSanitizedPrettyJsonString(),
     )
 }
@@ -319,6 +321,59 @@ private fun String.toSanitizedJsonString(): String? {
     }
 }
 
+private fun String?.toRequestParameterSummary(): Map<String, String> {
+    val raw = this?.trim()?.takeIf { it.isNotBlank() } ?: return emptyMap()
+    val root = try {
+        DETAIL_JSON.parseToJsonElement(raw) as? JsonObject
+    } catch (_: Exception) {
+        null
+    } ?: return emptyMap()
+    return buildMap {
+        root.collectNodeInfoParameters(this)
+        root.forEach { (key, value) ->
+            putSafeRequestParameter(key, value)
+        }
+    }
+}
+
+private fun JsonObject.collectNodeInfoParameters(target: MutableMap<String, String>) {
+    listOf("nodeInfoList", "inputNodeList", "nodes").forEach { key ->
+        val array = this[key] as? JsonArray ?: return@forEach
+        array.forEach { element ->
+            val node = element as? JsonObject ?: return@forEach
+            val fieldName = node["fieldName"].asParameterText()
+                ?: node["field"].asParameterText()
+                ?: node["name"].asParameterText()
+                ?: return@forEach
+            val fieldValue = node["fieldValue"]
+                ?: node["value"]
+                ?: node["defaultValue"]
+                ?: return@forEach
+            target.putSafeRequestParameter(fieldName, fieldValue)
+        }
+    }
+}
+
+private fun MutableMap<String, String>.putSafeRequestParameter(key: String, value: JsonElement?) {
+    val normalizedKey = key.trim().takeIf { it.isNotBlank() } ?: return
+    if (normalizedKey.isSensitiveJsonKey()) return
+    if (normalizedKey in REQUEST_PARAMETER_CONTAINER_KEYS) return
+    val text = value.asParameterText() ?: return
+    if (text.isBlank() || text == "null") return
+    if (normalizedKey !in this) {
+        this[normalizedKey] = text
+    }
+}
+
+private fun JsonElement?.asParameterText(): String? {
+    val element = this ?: return null
+    return when (element) {
+        is JsonPrimitive -> element.contentOrNull ?: element.toString()
+        is JsonObject -> element.toSanitizedPrettyJsonString()
+        is JsonArray -> element.toSanitizedPrettyJsonString()
+    }.trim().takeIf { it.isNotBlank() }
+}
+
 private fun JsonElement.toSanitizedPrettyJsonString(): String =
     DETAIL_JSON.encodeToString(JsonElement.serializer(), redactSensitiveJson())
 
@@ -371,6 +426,12 @@ private val SENSITIVE_JSON_KEYS = setOf(
     "validtoken",
     "accesstoken",
     "refreshtoken",
+)
+private val REQUEST_PARAMETER_CONTAINER_KEYS = setOf(
+    "nodeInfoList",
+    "inputNodeList",
+    "nodes",
+    "webappId",
 )
 private const val REDACTED_SECRET = "******"
 private val SENSITIVE_TEXT_PATTERN =
