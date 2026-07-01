@@ -99,18 +99,12 @@ sealed interface QuickCreateSendButtonLabel {
     data object Confirming : QuickCreateSendButtonLabel
 
     /**
-     * 计费预览失败或价格已失效，按钮应提示价格待确认。
+     * 计费预览失败或价格已失效，按钮应提示运行前确认费用。
      */
     data object Pending : QuickCreateSendButtonLabel
 
-    /**
-     * 当前计费预览可用且需要展示现金金额。
-     *
-     * @property cashAmount 已格式化但不含货币符号的现金金额，单位为人民币元。
-     * 字符串固定保留两位小数；空字符串不应出现，负数仅用于异常服务端价格排查。
-     */
     data class Amount(
-        val cashAmount: String,
+        val billingAmount: QuickCreateBillingAmount,
     ) : QuickCreateSendButtonLabel
 
     /**
@@ -126,25 +120,27 @@ sealed interface QuickCreateSendButtonLabel {
  * 不读取余额、不发起计费请求，也不接触 Data 层。加载态和错误态优先于金额展示，
  * 这样可以避免旧价格预览结果在新请求尚未完成时误导用户提交任务。
  *
- * @param cost 最近一次价格预览得到的现金金额，单位为人民币元；`0.0` 表示无需展示金额。
- * @param feePreviewLoading `true` 表示当前正在确认价格，按钮应提示等待；`false` 表示无进行中的价格请求。
- * @param feePreviewError 最近一次价格预览失败原因语义；非空时按钮提示价格待确认，避免展示过期金额。
+ * @param feePreviewLoading `true` 表示当前正在确认费用，按钮应提示等待；`false` 表示无进行中的费用请求。
+ * @param feePreviewError 最近一次价格预览失败原因语义；非空时按钮提示运行前确认费用，避免展示过期金额。
+ * @param billingPreview 最近一次接口返回的可展示计费摘要；为空时按钮提示运行前确认费用。
  * @return 可由 composeApp 映射为最终文案的稳定展示状态。
  */
 fun quickCreateSendButtonLabel(
-    cost: Double,
     feePreviewLoading: Boolean,
     feePreviewError: QuickCreateUiMessage?,
+    billingPreview: QuickCreateBillingPreviewUi? = null,
 ): QuickCreateSendButtonLabel =
     when {
         feePreviewLoading -> QuickCreateSendButtonLabel.Confirming
         feePreviewError != null -> QuickCreateSendButtonLabel.Pending
-        cost > 0.0 -> QuickCreateSendButtonLabel.Amount(quickCreateFormatCashAmount(cost))
-        else -> QuickCreateSendButtonLabel.Generate
+        billingPreview == null -> QuickCreateSendButtonLabel.Pending
+        billingPreview.free -> QuickCreateSendButtonLabel.Generate
+        else -> billingPreview.quickCreateBillingAmount()
+            ?.let { QuickCreateSendButtonLabel.Amount(it) }
+            ?: QuickCreateSendButtonLabel.Pending
     }
 
 fun quickCreatePriceBadgeState(
-    cost: Double,
     feePreviewLoading: Boolean,
     feePreviewError: QuickCreateUiMessage?,
     billingPreview: QuickCreateBillingPreviewUi? = null,
@@ -154,22 +150,16 @@ fun quickCreatePriceBadgeState(
         feePreviewError == QuickCreatePresentationError.FeePreviewNotPassed.asQuickCreateUiMessage() ||
             billingPreview?.insufficient == true -> QuickCreatePriceBadgeState.Insufficient
         feePreviewError != null -> QuickCreatePriceBadgeState.Pending
-        billingPreview?.free == true -> QuickCreatePriceBadgeState.Free
-        billingPreview != null -> billingPreview.quickCreatePriceBadgeState()
-        cost > 0.0 -> QuickCreatePriceBadgeState.Amount(
-            QuickCreateBillingAmount(
-                amount = quickCreateFormatCashAmount(cost),
-                unit = QuickCreateBillingUnit.CnyCash,
-            ),
-        )
-        else -> QuickCreatePriceBadgeState.Free
+        billingPreview == null -> QuickCreatePriceBadgeState.Pending
+        billingPreview.free -> QuickCreatePriceBadgeState.Free
+        else -> billingPreview.quickCreatePriceBadgeState()
     }
 
 fun QuickCreationFeePreview.toQuickCreateBillingPreviewUi(): QuickCreateBillingPreviewUi =
     QuickCreateBillingPreviewUi(
         requiredRhAmount = requiredRhAmount,
         requiredCashAmount = requiredCashAmount,
-        userCashBalance = userCashBalance.takeIf { it > 0.0 },
+        userCashBalance = userCashBalance?.takeIf { it >= 0.0 },
         cashCurrency = cashCurrency,
         free = free,
         insufficient = !passed || insufficientType != null,
@@ -179,7 +169,6 @@ fun quickCreateGenerationConfirmState(
     state: QuickCreateUiState,
 ): QuickCreateGenerationConfirmState {
     val priceBadge = quickCreatePriceBadgeState(
-        cost = state.estimatedCost,
         feePreviewLoading = state.feePreviewLoading,
         feePreviewError = state.feePreviewError,
         billingPreview = state.billingPreview,
@@ -214,20 +203,23 @@ private fun quickCreateFormatCashAmount(value: Double): String {
 }
 
 private fun QuickCreateBillingPreviewUi.quickCreatePriceBadgeState(): QuickCreatePriceBadgeState =
+    quickCreateBillingAmount()
+        ?.let { QuickCreatePriceBadgeState.Amount(it) }
+        ?: QuickCreatePriceBadgeState.Pending
+
+private fun QuickCreateBillingPreviewUi.quickCreateBillingAmount(): QuickCreateBillingAmount? =
     when {
-        requiredRhAmount > 0.0 -> QuickCreatePriceBadgeState.Amount(
+        requiredRhAmount > 0.0 ->
             QuickCreateBillingAmount(
                 amount = requiredRhAmount.quickCreateFormatRhAmount(),
                 unit = QuickCreateBillingUnit.RhbPoints,
-            ),
-        )
-        requiredCashAmount > 0.0 -> QuickCreatePriceBadgeState.Amount(
+            )
+        requiredCashAmount > 0.0 ->
             QuickCreateBillingAmount(
                 amount = quickCreateFormatCashAmount(requiredCashAmount),
                 unit = QuickCreateBillingUnit.CnyCash,
-            ),
-        )
-        else -> QuickCreatePriceBadgeState.Free
+            )
+        else -> null
     }
 
 private fun Double.quickCreateFormatRhAmount(): String {

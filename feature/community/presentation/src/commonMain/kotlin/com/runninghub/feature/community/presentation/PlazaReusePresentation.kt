@@ -37,7 +37,6 @@ enum class PlazaReuseParameterStatus {
     /** 当前参数已知，可带入 Create。 */
     Available,
 
-    /** 当前参数缺失，需要用户在 Create 中补齐或调整。 */
     Missing,
 }
 
@@ -66,15 +65,14 @@ data class PlazaReuseParameterUiModel(
 /**
  * Plaza 作品可复用参数摘要。
  *
- * 字段固定为产品允许复用和用户可修改的核心参数。缺失项必须保留在摘要中，
- * 让详情和 Sheet 告诉用户进入 Create 后还需要补齐什么。
+ * 字段固定为产品允许复用和用户可修改的核心参数。UI 只展示接口实际返回的可用项，
+ * 缺失项不得被文案包装成后续填写任务。
  */
 data class PlazaReuseSummaryUiModel(
     val modelTemplate: PlazaReuseParameterUiModel,
     val prompt: PlazaReuseParameterUiModel,
     val aspectRatio: PlazaReuseParameterUiModel,
     val resolution: PlazaReuseParameterUiModel,
-    val quantity: PlazaReuseParameterUiModel,
     val referenceMedia: PlazaReuseParameterUiModel,
 )
 
@@ -150,7 +148,6 @@ private fun PlazaCreationCard.toPlazaReuseSummaryUiModel(): PlazaReuseSummaryUiM
         prompt = reuseSnapshot.prompt.toParameter(),
         aspectRatio = reuseSnapshot.aspectRatio.toParameter(),
         resolution = reuseSnapshot.resolution.toParameter(),
-        quantity = reuseSnapshot.quantity?.toString().toParameter(),
         referenceMedia = reuseSnapshot.referenceMediaUrl.toParameter(),
     )
 

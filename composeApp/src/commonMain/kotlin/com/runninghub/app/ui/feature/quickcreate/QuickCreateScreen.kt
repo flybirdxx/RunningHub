@@ -209,8 +209,7 @@ private fun QuickCreateScreen(
             QuickCreateResultAction.ViewResult,
             QuickCreateResultAction.Save,
             QuickCreateResultAction.Download,
-            QuickCreateResultAction.ViewDetail,
-            QuickCreateResultAction.RefundStatus -> Unit
+            QuickCreateResultAction.ViewDetail -> Unit
         }
     }
 
@@ -318,14 +317,6 @@ private fun QuickCreateScreen(
                     onRemoveMedia = screenModel::removeMediaReference,
                     onOpenModelSheet = screenModel::showModelPickerSheet,
                     onOpenParamsSheet = screenModel::showParamsSheet,
-                    onImageRatioChange = screenModel::updateImageAspectRatio,
-                    onImageResChange = screenModel::updateImageResolution,
-                    onImageQualityChange = screenModel::updateImageQuality,
-                    onImageCountChange = screenModel::updateImageCount,
-                    onVideoRatioChange = screenModel::updateVideoAspectRatio,
-                    onVideoResChange = screenModel::updateVideoResolution,
-                    onVideoDurationChange = screenModel::updateVideoDuration,
-                    onToggleAudio = screenModel::toggleGenerateAudio,
                     onRestoreDraft = screenModel::restoreDraft,
                     onDiscardDraft = screenModel::discardDraft,
                     onGenerate = screenModel::generate,
@@ -414,18 +405,8 @@ private fun QuickCreateScreen(
                         uiState = uiState,
                         serviceFields = paramsServiceFields,
                         onDismiss = screenModel::closeActiveSheet,
-                        onImageModelSelected = {
-                            screenModel.updateImageModel(it)
-                        },
                         onImageServiceParamChange = screenModel::updateImageServiceParam,
                         onVideoServiceParamChange = screenModel::updateVideoServiceParam,
-                        onToggleRealistic = screenModel::toggleRealisticMode,
-                        onImageSeedChange = screenModel::updateImageSeed,
-                        onVideoSeedChange = screenModel::updateVideoSeed,
-                        onImageRatioChange = screenModel::updateImageAspectRatio,
-                        onImageResChange = screenModel::updateImageResolution,
-                        onImageQualityChange = screenModel::updateImageQuality,
-                        onImageCountChange = screenModel::updateImageCount,
                         onServiceUploadFieldClick = { mediaType, fieldParamKey ->
                             when (mediaType) {
                                 QuickCreateMediaType.IMAGE -> controller.pickMedia(
@@ -617,14 +598,6 @@ private fun QuickCreatePreviewContent(
                         onRemoveMedia = {},
                         onOpenModelSheet = {},
                         onOpenParamsSheet = {},
-                        onImageRatioChange = {},
-                        onImageResChange = {},
-                        onImageQualityChange = {},
-                        onImageCountChange = {},
-                        onVideoRatioChange = {},
-                        onVideoResChange = {},
-                        onVideoDurationChange = {},
-                        onToggleAudio = {},
                         onRestoreDraft = {},
                         onDiscardDraft = {},
                         onGenerate = {},
@@ -717,14 +690,6 @@ private fun QuickCreateBottomPanelAdaptivePreview(
                 onRemoveMedia = {},
                 onOpenModelSheet = {},
                 onOpenParamsSheet = {},
-                onImageRatioChange = {},
-                onImageResChange = {},
-                onImageQualityChange = {},
-                onImageCountChange = {},
-                onVideoRatioChange = {},
-                onVideoResChange = {},
-                onVideoDurationChange = {},
-                onToggleAudio = {},
                 onRestoreDraft = {},
                 onDiscardDraft = {},
                 onGenerate = {},

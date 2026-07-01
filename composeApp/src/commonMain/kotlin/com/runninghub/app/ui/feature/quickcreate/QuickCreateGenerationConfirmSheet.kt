@@ -5,8 +5,6 @@ import com.runninghub.app.ui.designsystem.components.badges.RhPriceBadgeState
 import com.runninghub.app.ui.designsystem.components.billing.BillingInfoRow
 import com.runninghub.app.ui.designsystem.components.billing.GenerationConfirmSheet
 import com.runninghub.app.ui.designsystem.components.billing.GenerationConfirmSheetState
-import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingAmount
-import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingUnit
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreatePriceBadgeState
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateGenerationConfirmState
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
@@ -14,17 +12,11 @@ import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_billing_balance_label
 import runninghub.composeapp.generated.resources.quick_create_billing_balance_unavailable
-import runninghub.composeapp.generated.resources.quick_create_billing_cny_amount_format
 import runninghub.composeapp.generated.resources.quick_create_billing_expected_cost_label
-import runninghub.composeapp.generated.resources.quick_create_billing_failure_policy_label
-import runninghub.composeapp.generated.resources.quick_create_billing_failure_policy_value
-import runninghub.composeapp.generated.resources.quick_create_billing_member_discount_label
-import runninghub.composeapp.generated.resources.quick_create_billing_no_member_discount
 import runninghub.composeapp.generated.resources.quick_create_billing_price_confirming
 import runninghub.composeapp.generated.resources.quick_create_billing_price_free
 import runninghub.composeapp.generated.resources.quick_create_billing_price_insufficient
 import runninghub.composeapp.generated.resources.quick_create_billing_price_pending
-import runninghub.composeapp.generated.resources.quick_create_billing_rhb_amount_format
 import runninghub.composeapp.generated.resources.quick_create_generation_confirm_action
 import runninghub.composeapp.generated.resources.quick_create_generation_confirm_cancel
 import runninghub.composeapp.generated.resources.quick_create_generation_confirm_title
@@ -63,14 +55,6 @@ private fun quickCreateGenerationConfirmSheetState(
                 value = confirmState.currentBalance?.let { quickCreateBillingAmountText(it) }
                     ?: stringResource(Res.string.quick_create_billing_balance_unavailable),
             ),
-            BillingInfoRow(
-                label = stringResource(Res.string.quick_create_billing_member_discount_label),
-                value = stringResource(Res.string.quick_create_billing_no_member_discount),
-            ),
-            BillingInfoRow(
-                label = stringResource(Res.string.quick_create_billing_failure_policy_label),
-                value = stringResource(Res.string.quick_create_billing_failure_policy_value),
-            ),
         ),
         confirmActionLabel = stringResource(Res.string.quick_create_generation_confirm_action),
         dismissActionLabel = stringResource(Res.string.quick_create_generation_confirm_cancel),
@@ -97,17 +81,4 @@ private fun QuickCreatePriceBadgeState.asRhPriceBadgeState(
         QuickCreatePriceBadgeState.Free -> RhPriceBadgeState.Free
         QuickCreatePriceBadgeState.Insufficient -> RhPriceBadgeState.Insufficient
         is QuickCreatePriceBadgeState.Amount -> RhPriceBadgeState.Amount(priceLabel)
-    }
-
-@Composable
-private fun quickCreateBillingAmountText(amount: QuickCreateBillingAmount): String =
-    when (amount.unit) {
-        QuickCreateBillingUnit.RhbPoints -> stringResource(
-            Res.string.quick_create_billing_rhb_amount_format,
-            amount.amount,
-        )
-        QuickCreateBillingUnit.CnyCash -> stringResource(
-            Res.string.quick_create_billing_cny_amount_format,
-            amount.amount,
-        )
     }

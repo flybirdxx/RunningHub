@@ -37,9 +37,9 @@ class RhPlazaReuseComponentsContractTest {
     }
 
     @Test
-    fun `reuse template sheet keeps missing parameters visible before create`() {
+    fun `reuse template sheet carries only available parameters before create`() {
         val state = ReuseTemplateSheetState(
-            title = "使用同款生成",
+            title = "使用同款",
             sourceTitle = "电影感山间小屋",
             sourceAuthor = "Ada",
             sourceProtectionText = "保留原作者来源",
@@ -49,19 +49,14 @@ class RhPlazaReuseComponentsContractTest {
                     value = "cinematic mountain house",
                     status = ReuseTemplateParameterStatus.Available,
                 ),
-                ReuseTemplateParameterState(
-                    label = "模型/模板",
-                    value = null,
-                    status = ReuseTemplateParameterStatus.Missing,
-                ),
             ),
-            confirmActionLabel = "使用同款生成",
+            confirmActionLabel = "带入创作页",
             dismissActionLabel = "取消",
         )
 
         assertEquals("Ada", state.sourceAuthor)
         assertTrue(state.parameters.any { it.status == ReuseTemplateParameterStatus.Available })
-        assertTrue(state.parameters.any { it.status == ReuseTemplateParameterStatus.Missing })
+        assertFalse(state.parameters.any { it.status == ReuseTemplateParameterStatus.Missing })
         assertFalse(state.confirmBypassesPriceConfirmation)
     }
 }

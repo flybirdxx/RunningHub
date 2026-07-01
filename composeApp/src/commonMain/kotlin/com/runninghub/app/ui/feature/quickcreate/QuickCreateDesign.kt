@@ -1,7 +1,6 @@
 package com.runninghub.app.ui.feature.quickcreate
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -28,8 +27,6 @@ import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_assistant_avatar_label
-import runninghub.composeapp.generated.resources.quick_create_poster_brand_vertical
-import runninghub.composeapp.generated.resources.quick_create_poster_future_vertical
 
 /**
  * 快捷创作新版暗色界面的局部视觉 token。
@@ -52,27 +49,23 @@ internal object QuickCreateDesignTokens {
     val Cyan = Color(0xFF16D8FF)
     val Pink = Color(0xFFFF5CF4)
 }
-
 /**
  * 绘制设计稿中反复出现的深色玻璃面板。
  *
  * @param modifier 外层布局修饰符。
  * @param radius 面板圆角，默认匹配底部输入栏与卡片。
- * @param borderColor 面板描边色，用于区分普通面板与选中态。
  * @param content 面板内部内容。
  */
 @Composable
 internal fun QuickCreateGlassPanel(
     modifier: Modifier = Modifier,
     radius: Dp = 18.dp,
-    borderColor: Color = QuickCreateDesignTokens.Stroke,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Surface(
         modifier = modifier,
         color = QuickCreateDesignTokens.Panel,
         shape = RoundedCornerShape(radius),
-        border = BorderStroke(1.dp, borderColor),
         content = {
             Box(content = content)
         },
@@ -227,100 +220,4 @@ internal fun QuickCreateModelGlyph(
         contentAlignment = Alignment.Center,
         content = content,
     )
-}
-
-/**
- * 赛博霓虹猫海报占位。
- *
- * 真实生成图片加载失败、尚未生成或预览环境没有远端图片时使用该占位。绘制内容严格服务于
- * 设计稿的结构还原：左侧中文竖排、右侧 RUNNINGHUB 竖排、城市灯柱、白猫主体与条形码。
- */
-@Composable
-internal fun QuickCreateCyberCatPoster(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                Brush.linearGradient(
-                    colors = listOf(Color(0xFF07142E), Color(0xFF310D45), Color(0xFF050612)),
-                ),
-            ),
-    ) {
-        Canvas(modifier = Modifier.matchParentSize()) {
-            val w = size.width
-            val h = size.height
-            repeat(14) { index ->
-                val x = w * (0.04f + index * 0.07f)
-                val barH = h * (0.2f + (index % 5) * 0.07f)
-                drawRect(
-                    color = if (index % 2 == 0) QuickCreateDesignTokens.Cyan.copy(alpha = 0.55f) else QuickCreateDesignTokens.Pink.copy(alpha = 0.58f),
-                    topLeft = Offset(x, 0f),
-                    size = Size(w * (0.012f + (index % 3) * 0.008f), barH),
-                )
-            }
-            drawOval(
-                color = Color(0xFFF1CFC6),
-                topLeft = Offset(w * 0.39f, h * 0.38f),
-                size = Size(w * 0.36f, h * 0.48f),
-            )
-            drawCircle(
-                color = Color(0xFFF4D6C8),
-                radius = w * 0.2f,
-                center = Offset(w * 0.57f, h * 0.34f),
-            )
-            drawPath(
-                path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(w * 0.38f, h * 0.26f)
-                    lineTo(w * 0.45f, h * 0.12f)
-                    lineTo(w * 0.51f, h * 0.30f)
-                    close()
-                },
-                color = Color(0xFFF4D6C8),
-            )
-            drawPath(
-                path = androidx.compose.ui.graphics.Path().apply {
-                    moveTo(w * 0.65f, h * 0.30f)
-                    lineTo(w * 0.73f, h * 0.12f)
-                    lineTo(w * 0.78f, h * 0.32f)
-                    close()
-                },
-                color = Color(0xFFF4D6C8),
-            )
-            drawCircle(Color(0xFF081124), radius = w * 0.07f, center = Offset(w * 0.50f, h * 0.35f))
-            drawCircle(Color(0xFF081124), radius = w * 0.07f, center = Offset(w * 0.65f, h * 0.35f))
-            drawLine(
-                color = Color.Black,
-                start = Offset(w * 0.57f, h * 0.35f),
-                end = Offset(w * 0.59f, h * 0.35f),
-                strokeWidth = 3.dp.toPx(),
-            )
-            drawCircle(
-                color = Color(0xFF31113D),
-                radius = w * 0.045f,
-                center = Offset(w * 0.57f, h * 0.55f),
-                style = Stroke(width = 1.5.dp.toPx()),
-            )
-            repeat(18) { index ->
-                drawRect(
-                    color = Color(0xFFEBD7FF),
-                    topLeft = Offset(w * (0.08f + index * 0.014f), h * 0.88f),
-                    size = Size(if (index % 3 == 0) 2.dp.toPx() else 1.dp.toPx(), h * 0.055f),
-                )
-            }
-        }
-        androidx.compose.material3.Text(
-            text = stringResource(Res.string.quick_create_poster_future_vertical),
-            color = QuickCreateDesignTokens.Pink,
-            fontSize = 28.sp,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Black,
-            modifier = Modifier.align(Alignment.CenterStart),
-        )
-        androidx.compose.material3.Text(
-            text = stringResource(Res.string.quick_create_poster_brand_vertical),
-            color = QuickCreateDesignTokens.Pink,
-            fontSize = 20.sp,
-            fontWeight = androidx.compose.ui.text.font.FontWeight.Black,
-            modifier = Modifier.align(Alignment.CenterEnd),
-        )
-    }
 }

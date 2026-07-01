@@ -49,7 +49,7 @@ enum class ProfileError {
  * @property accountStatus API Key 对应的账户状态，来源于 [UserRepository.getAccountStatus]。
  * `null` 表示未绑定可用 API Key、查询失败或请求尚未完成；页面不应把 null 展示为余额为 0。
  * @property isAccountStatusLoadFailed 账户状态接口是否在最近一次刷新中失败。
- * `true` 表示余额或预计可生成次数只能展示降级语义，不得把缺失值当作 0 或真实资产。
+ * `true` 表示余额或运行前费用只能展示降级语义，不得把缺失值当作 0 或真实资产。
  * @property isLoggedIn 当前本地认证仓库判断到的会话可用性。
  * `true` 表示存在可尝试使用的登录凭据；`false` 表示应展示未登录态或引导登录。
  * @property error 等待页面展示的一次性稳定错误语义。
@@ -73,7 +73,7 @@ data class ProfileUiState(
     /**
      * Profile 资产中心聚合状态。
      *
-     * 该属性由当前用户资料、账户状态和稳定错误语义推导，避免 composeApp 临时拼装钱包、会员和消费明细规则。
+     * 该属性由当前用户资料、账户状态和稳定错误语义推导，避免 composeApp 临时拼装钱包和会员状态。
      */
     val assetCenter: ProfileAssetCenterUiModel
         get() = toProfileAssetCenterUiModel()

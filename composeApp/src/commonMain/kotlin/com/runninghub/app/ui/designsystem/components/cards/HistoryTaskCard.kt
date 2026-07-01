@@ -1,6 +1,5 @@
 package com.runninghub.app.ui.designsystem.components.cards
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -148,7 +147,6 @@ fun HistoryTaskCard(
         onClick = onClick,
         color = RhTheme.colors.surfaceElevated,
         shape = RoundedCornerShape(RhTheme.shapes.lg),
-        border = BorderStroke(1.dp, RhTheme.colors.borderDefault),
     ) {
         Row(
             modifier = Modifier.padding(RhSpacing.md),

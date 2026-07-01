@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -57,12 +56,7 @@ import com.runninghub.app.ui.feature.quickcreate.QuickCreateDesignTokens
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateModelGlyph
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheetHandle
 import com.runninghub.app.ui.feature.quickcreate.presentation.asServiceModelText
-import com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer.asImageModelText
 import com.runninghub.app.ui.feature.quickcreate.presentation.upload.QuickCreateServiceUploadFieldPicker
-import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
-import com.runninghub.feature.quickcreate.presentation.editor.ImageModel
-import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
-import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.fields.QuickCreationServiceFieldControlType
@@ -78,16 +72,6 @@ import runninghub.composeapp.generated.resources.quick_create_params_close_conte
 import runninghub.composeapp.generated.resources.quick_create_params_common_title
 import runninghub.composeapp.generated.resources.quick_create_params_done
 import runninghub.composeapp.generated.resources.quick_create_params_empty_parameters
-import runninghub.composeapp.generated.resources.quick_create_params_endpoint_label
-import runninghub.composeapp.generated.resources.quick_create_params_endpoint_value
-import runninghub.composeapp.generated.resources.quick_create_params_field_aspect_ratio
-import runninghub.composeapp.generated.resources.quick_create_params_field_count
-import runninghub.composeapp.generated.resources.quick_create_params_field_endpoint
-import runninghub.composeapp.generated.resources.quick_create_params_field_negative_prompt
-import runninghub.composeapp.generated.resources.quick_create_params_field_prompt
-import runninghub.composeapp.generated.resources.quick_create_params_field_resolution
-import runninghub.composeapp.generated.resources.quick_create_params_field_seed
-import runninghub.composeapp.generated.resources.quick_create_params_field_upload
 import runninghub.composeapp.generated.resources.quick_create_params_advanced_title
 import runninghub.composeapp.generated.resources.quick_create_params_advanced_expand
 import runninghub.composeapp.generated.resources.quick_create_params_advanced_collapse
@@ -98,6 +82,12 @@ import runninghub.composeapp.generated.resources.quick_create_params_upload_form
 import runninghub.composeapp.generated.resources.quick_create_params_upload_hint_separator
 import runninghub.composeapp.generated.resources.quick_create_params_upload_max_count_format
 import runninghub.composeapp.generated.resources.quick_create_params_upload_max_size_format
+import runninghub.composeapp.generated.resources.quick_create_service_model_unnamed
+
+internal val QuickCreateParamsSectionGap = 10.dp
+internal val QuickCreateParamFieldMinHeight = 72.dp
+internal val QuickCreateParamFieldPadding = 10.dp
+internal val QuickCreateParamFieldGap = 8.dp
 
 /**
  * 展示设计稿版快捷创作参数底部面板。
@@ -110,18 +100,10 @@ import runninghub.composeapp.generated.resources.quick_create_params_upload_max_
  * @param uiState 快捷创作页面状态。
  * @param serviceFields 当前服务端动态字段列表，已按当前参数解析可见性和 child 激活状态。
  * @param onDismiss 关闭面板回调。
- * @param onImageModelSelected 本地兼容图片模型选择回调，本设计稿中不直接展示本地模型列表。
  * @param onImageServiceParamChange 图片服务动态字段变更回调。
  * @param onVideoServiceParamChange 视频服务动态字段变更回调。
- * @param onToggleRealistic 视频真人模式切换回调，本设计稿中不直接触发。
- * @param onImageSeedChange 图片 Seed 变更回调，本设计稿中不直接触发。
- * @param onVideoSeedChange 视频 Seed 变更回调，本设计稿中不直接触发。
  * @param onServiceUploadFieldClick 字段级上传回调。
  * @param onRemoveMedia 移除字段素材回调。
- * @param onImageRatioChange 图片宽高比变更回调。
- * @param onImageResChange 图片分辨率变更回调。
- * @param onImageQualityChange 图片质量变更回调。
- * @param onImageCountChange 图片生成数量变更回调。
  * @param modifier 外层定位修饰符。
  * @param onSheetDragStart 用户按住顶部手柄开始拖动时触发。
  * @param onSheetDrag 顶部手柄拖动中的纵向像素变化，正数表示向下。
@@ -129,25 +111,16 @@ import runninghub.composeapp.generated.resources.quick_create_params_upload_max_
  * @param onSheetDragCancel 手柄拖动被系统取消时触发。
  */
 @Composable
-@Suppress("UNUSED_PARAMETER")
 internal fun QuickCreateParamsSheet(
     visible: Boolean,
     isImage: Boolean,
     uiState: QuickCreateUiState,
     serviceFields: List<QuickCreationServiceFieldUi>,
     onDismiss: () -> Unit,
-    onImageModelSelected: (ImageModel) -> Unit,
     onImageServiceParamChange: (String, String) -> Unit,
     onVideoServiceParamChange: (String, String) -> Unit,
-    onToggleRealistic: () -> Unit,
-    onImageSeedChange: (Int?) -> Unit = {},
-    onVideoSeedChange: (Int?) -> Unit = {},
     onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit = { _, _ -> },
     onRemoveMedia: (String) -> Unit = {},
-    onImageRatioChange: (ImageAspectRatio) -> Unit = {},
-    onImageResChange: (ImageResolution) -> Unit = {},
-    onImageQualityChange: (ImageQuality) -> Unit = {},
-    onImageCountChange: (Int) -> Unit = {},
     modifier: Modifier = Modifier,
     onSheetDragStart: () -> Unit = {},
     onSheetDrag: (Float) -> Unit = {},
@@ -275,12 +248,11 @@ private fun ModelSummaryCard(uiState: QuickCreateUiState, isImage: Boolean) {
         uiState.selectedVideoServiceModelUi
     }
     val modelName = selectedServiceModel?.displayName?.asServiceModelText()
-        ?: uiState.imageConfig.model.label.asImageModelText()
+        ?: stringResource(Res.string.quick_create_service_model_unnamed)
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFF15181D),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -306,20 +278,6 @@ private fun ModelSummaryCard(uiState: QuickCreateUiState, isImage: Boolean) {
                 )
                 Text(
                     text = stringResource(Res.string.quick_create_params_model_label),
-                    color = QuickCreateDesignTokens.Muted,
-                    fontSize = 12.sp,
-                )
-            }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = stringResource(Res.string.quick_create_params_endpoint_value),
-                    color = QuickCreateDesignTokens.Text,
-                    fontSize = 13.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = stringResource(Res.string.quick_create_params_endpoint_label),
                     color = QuickCreateDesignTokens.Muted,
                     fontSize = 12.sp,
                 )
@@ -364,13 +322,13 @@ private fun ServiceParamsSection(
     onRemoveMedia: (String) -> Unit,
 ) {
     val flattenedFields = serviceFields.flattenServiceFields()
-        .filterNot { field -> field.isPromptParameterField() }
+        .filterNot { field -> field.isPromptParameterField() || field.isTechnicalEndpointField() }
     if (flattenedFields.isEmpty()) {
         EmptyParamsCard()
         return
     }
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(QuickCreateParamsSectionGap)) {
         flattenedFields.forEach { field ->
             ServiceParamCard(
                 field = field,
@@ -390,7 +348,6 @@ private fun EmptyParamsCard() {
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFF13161B),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
     ) {
         Text(
             text = stringResource(Res.string.quick_create_params_empty_parameters),
@@ -411,24 +368,38 @@ private fun ServiceParamCard(
     onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
     onRemoveMedia: (String) -> Unit,
 ) {
-    ParamCard(
-        title = field.displayLabel.asParameterLabelText(),
-        keyName = field.paramKey,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        when (field.controlType) {
-            QuickCreationServiceFieldControlType.OPTIONS -> ServiceOptionsControl(
+    when (field.controlType) {
+        QuickCreationServiceFieldControlType.OPTIONS -> {
+            if (field.options.isEmpty()) {
+                ParamField(title = field.title, modifier = Modifier.fillMaxWidth()) {
+                    ServiceOptionsControl(
+                        field = field,
+                        onParamChange = onParamChange,
+                    )
+                }
+            } else {
+                ServiceOptionsControl(
+                    field = field,
+                    onParamChange = onParamChange,
+                )
+            }
+        }
+        QuickCreationServiceFieldControlType.TEXT -> ParamField(
+            title = field.title,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            ServiceTextControl(
                 field = field,
                 onParamChange = onParamChange,
             )
-            QuickCreationServiceFieldControlType.TEXT -> ServiceTextControl(
-                field = field,
-                onParamChange = onParamChange,
-            )
-            QuickCreationServiceFieldControlType.UPLOAD -> ServiceUploadControl(
+        }
+        QuickCreationServiceFieldControlType.UPLOAD -> ParamField(
+            title = field.title,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            ServiceUploadControl(
                 field = field,
                 mediaReferences = mediaReferences,
-                isImage = isImage,
                 onServiceUploadFieldClick = onServiceUploadFieldClick,
                 onRemoveMedia = onRemoveMedia,
             )
@@ -454,7 +425,7 @@ private fun ServiceOptionsControl(
     ParameterSelector(
         state = ParameterSelectorState(
             id = field.paramKey,
-            title = field.displayLabel.asParameterLabelText(),
+            title = field.title,
             options = field.options.map { option ->
                 ParameterSelectorOptionState(
                     id = option.value,
@@ -526,13 +497,12 @@ private fun ServiceTextControl(
 private fun ServiceUploadControl(
     field: QuickCreationServiceFieldUi,
     mediaReferences: List<MediaReference>,
-    isImage: Boolean,
     onServiceUploadFieldClick: (QuickCreateMediaType, String) -> Unit,
     onRemoveMedia: (String) -> Unit,
 ) {
     QuickCreateServiceUploadFieldPicker(
         paramKey = field.paramKey,
-        mediaType = field.uploadMediaType.toQuickCreateMediaType(fallbackToImage = isImage),
+        mediaType = field.uploadMediaType.toQuickCreateMediaType(),
         hint = field.uploadHint.asUploadHintText(),
         mediaReferences = mediaReferences,
         onUploadFieldClick = onServiceUploadFieldClick,
@@ -541,43 +511,28 @@ private fun ServiceUploadControl(
 }
 
 @Composable
-private fun ParamCard(
+private fun ParamField(
     title: String,
-    keyName: String,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     Surface(
-        modifier = modifier.heightIn(min = 96.dp),
+        modifier = modifier.heightIn(min = QuickCreateParamFieldMinHeight),
         shape = RoundedCornerShape(12.dp),
         color = Color(0xFF13161B),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(QuickCreateParamFieldPadding),
+            verticalArrangement = Arrangement.spacedBy(QuickCreateParamFieldGap),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = title,
-                    color = QuickCreateDesignTokens.Text,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Black,
-                )
-                Spacer(Modifier.width(8.dp))
-                Surface(
-                    color = Color(0xFF282A30),
-                    shape = RoundedCornerShape(5.dp),
-                ) {
-                    Text(
-                        text = keyName,
-                        color = Color(0xFFC7C8CF),
-                        fontSize = 10.sp,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-            }
+            Text(
+                text = title,
+                color = QuickCreateDesignTokens.Text,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             content()
         }
     }
@@ -592,7 +547,6 @@ private fun ParamsActionBar(
         modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
         shape = RoundedCornerShape(14.dp),
         color = Color(0xFF15171B),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -650,36 +604,12 @@ private fun com.runninghub.feature.quickcreate.presentation.fields.QuickCreation
         },
     ).joinToString(stringResource(Res.string.quick_create_params_upload_hint_separator))
 
-private fun QuickCreationServiceUploadMediaType?.toQuickCreateMediaType(
-    fallbackToImage: Boolean,
-): QuickCreateMediaType? =
+internal fun QuickCreationServiceUploadMediaType?.toQuickCreateMediaType(): QuickCreateMediaType? =
     when (this) {
         QuickCreationServiceUploadMediaType.IMAGE -> QuickCreateMediaType.IMAGE
         QuickCreationServiceUploadMediaType.VIDEO -> QuickCreateMediaType.VIDEO
         QuickCreationServiceUploadMediaType.AUDIO -> QuickCreateMediaType.AUDIO
-        null -> if (fallbackToImage) QuickCreateMediaType.IMAGE else null
-    }
-
-@Composable
-private fun QuickCreationServiceFieldDisplayLabel.asParameterLabelText(): String =
-    when (this) {
-        QuickCreationServiceFieldDisplayLabel.AspectRatio ->
-            stringResource(Res.string.quick_create_params_field_aspect_ratio)
-        QuickCreationServiceFieldDisplayLabel.Resolution ->
-            stringResource(Res.string.quick_create_params_field_resolution)
-        QuickCreationServiceFieldDisplayLabel.Count ->
-            stringResource(Res.string.quick_create_params_field_count)
-        QuickCreationServiceFieldDisplayLabel.TechnicalEndpoint ->
-            stringResource(Res.string.quick_create_params_field_endpoint)
-        QuickCreationServiceFieldDisplayLabel.Seed ->
-            stringResource(Res.string.quick_create_params_field_seed)
-        QuickCreationServiceFieldDisplayLabel.NegativePrompt ->
-            stringResource(Res.string.quick_create_params_field_negative_prompt)
-        QuickCreationServiceFieldDisplayLabel.Prompt ->
-            stringResource(Res.string.quick_create_params_field_prompt)
-        QuickCreationServiceFieldDisplayLabel.Upload ->
-            stringResource(Res.string.quick_create_params_field_upload)
-        is QuickCreationServiceFieldDisplayLabel.ServerText -> value
+        null -> null
     }
 
 private fun QuickCreationServiceFieldOptionVisualState.toParameterSelectorVisualState():
@@ -698,7 +628,7 @@ private fun List<QuickCreationServiceFieldUi>.flattenServiceFields(): List<Quick
 
 private fun List<QuickCreationServiceFieldUi>.visibleFieldCount(): Int =
     flattenServiceFields()
-        .count { field -> !field.isPromptParameterField() }
+        .count { field -> !field.isPromptParameterField() && !field.isTechnicalEndpointField() }
 
 private fun QuickCreationServiceFieldUi.isPromptParameterField(): Boolean {
     val normalizedKey = paramKey.trim().lowercase()
@@ -708,3 +638,6 @@ private fun QuickCreationServiceFieldUi.isPromptParameterField(): Boolean {
         normalizedKey == "positiveprompt" ||
         normalizedKey == "positive_prompt"
 }
+
+private fun QuickCreationServiceFieldUi.isTechnicalEndpointField(): Boolean =
+    displayLabel == QuickCreationServiceFieldDisplayLabel.TechnicalEndpoint

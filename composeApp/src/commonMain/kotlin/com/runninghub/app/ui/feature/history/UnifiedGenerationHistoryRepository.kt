@@ -301,9 +301,6 @@ internal fun GenerationHistoryItem.toFallbackTaskDetail(): GenerationTaskDetail 
         title = taskType ?: modelId,
         sourceLabel = source.key,
         status = status,
-        duration = costTime,
-        rhCoins = costCurrency?.takeIf { it == RH_COIN_CURRENCY }?.let { costAmount.toHistoryAmountText() },
-        finalAmount = costCurrency?.takeIf { it != RH_COIN_CURRENCY }?.let { "${costAmount.toHistoryAmountText()} $it" },
         outputs = outputs,
         requestParameters = params,
     )
@@ -312,12 +309,7 @@ private fun GenerationTaskDetail.withCachedListContext(item: GenerationHistoryIt
     copy(
         title = title ?: item.taskType ?: item.modelId,
         sourceLabel = sourceLabel?.takeUnless { it.equals("API", ignoreCase = true) } ?: item.source.key,
-        duration = duration ?: item.costTime,
-        rhCoins = rhCoins ?: item.costCurrency?.takeIf { it == RH_COIN_CURRENCY }?.let { item.costAmount.toHistoryAmountText() },
-        finalAmount = finalAmount
-            ?: item.costCurrency?.takeIf { it != RH_COIN_CURRENCY }?.let { "${item.costAmount.toHistoryAmountText()} $it" },
         outputs = if (outputs.isEmpty()) item.outputs else outputs,
-        requestParameters = if (requestParameters.isEmpty()) item.params else requestParameters,
     )
 
 private fun Double.toHistoryAmountText(): String {

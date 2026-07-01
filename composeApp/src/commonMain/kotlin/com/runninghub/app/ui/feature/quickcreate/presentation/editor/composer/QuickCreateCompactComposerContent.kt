@@ -46,13 +46,14 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateCatThumbnail
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateDesignTokens
+import com.runninghub.app.ui.feature.quickcreate.quickCreateBillingAmountText
 import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingPreviewUi
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
-import com.runninghub.feature.quickcreate.presentation.generation.quickCreateGenerationParameterSnapshot
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateCompactServiceModelLabel
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.quickCreateCompactServiceModelLabel
@@ -66,17 +67,20 @@ import runninghub.composeapp.generated.resources.quick_create_compact_add_media_
 import runninghub.composeapp.generated.resources.quick_create_compact_char_count_format
 import runninghub.composeapp.generated.resources.quick_create_compact_generate_content_description
 import runninghub.composeapp.generated.resources.quick_create_compact_generate_with_detail_format
-import runninghub.composeapp.generated.resources.quick_create_compact_image_params_format
 import runninghub.composeapp.generated.resources.quick_create_compact_image_prompt_placeholder
 import runninghub.composeapp.generated.resources.quick_create_compact_model_loading
+import runninghub.composeapp.generated.resources.quick_create_compact_model_unavailable
 import runninghub.composeapp.generated.resources.quick_create_compact_prompt_required_hint
 import runninghub.composeapp.generated.resources.quick_create_compact_remove_media_content_description
-import runninghub.composeapp.generated.resources.quick_create_compact_video_params_summary
 import runninghub.composeapp.generated.resources.quick_create_compact_video_prompt_placeholder
-import runninghub.composeapp.generated.resources.quick_create_send_amount_format
+import runninghub.composeapp.generated.resources.quick_create_params_empty_parameters
 import runninghub.composeapp.generated.resources.quick_create_send_fee_confirming
 import runninghub.composeapp.generated.resources.quick_create_send_fee_pending
 import runninghub.composeapp.generated.resources.quick_create_send_generate
+import runninghub.composeapp.generated.resources.quick_create_service_model_parameter_count_format
+
+internal val CompactMediaStripHeight = 96.dp
+internal val CompactMediaSlotSize = 88.dp
 
 /**
  * 渲染快捷创作当前默认启用的设计稿版底部输入条。
@@ -157,10 +161,7 @@ internal fun QuickCreateCompactComposer(
             modifier = Modifier.fillMaxWidth(),
             color = QuickCreateDesignTokens.Panel,
             shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(
-                1.dp,
-                if (overLimit) Color(0xFFF87171) else QuickCreateDesignTokens.Stroke,
-            ),
+            border = if (overLimit) BorderStroke(1.dp, Color(0xFFF87171)) else null,
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -182,22 +183,20 @@ internal fun QuickCreateCompactComposer(
                 CompactControlRow(
                     modelText = quickCreateCompactServiceModelLabel(
                         model = selectedServiceModel,
-                        fallback = if (isImage) {
-                            uiState.imageConfig.model.label.asImageModelText()
-                        } else {
-                            uiState.videoConfig.model.label.asVideoModelText()
-                        },
                         loading = serviceModelsLoading,
                     ).asCompactModelText(),
-                    paramsText = compactParamsSummary(uiState, isImage),
+                    paramsText = compactParamsSummary(
+                        selectedServiceModel = selectedServiceModel,
+                        serviceModelsLoading = serviceModelsLoading,
+                    ),
                     modelSelected = uiState.activeSheet == QuickCreateSheet.MODEL_PICKER,
                     paramsSelected = uiState.activeSheet == QuickCreateSheet.PARAMS,
                     hasPrompt = hasPrompt,
                     enabled = if (hasPrompt) canGenerate else !isTaskActive,
                     isLoading = isTaskActive,
-                    cost = uiState.estimatedCost,
                     feePreviewLoading = uiState.feePreviewLoading,
                     feePreviewError = uiState.feePreviewError,
+                    billingPreview = uiState.billingPreview,
                     onOpenModelSheet = onOpenModelSheet,
                     onOpenParamsSheet = onOpenParamsSheet,
                     onGenerate = onGenerate,
@@ -224,9 +223,9 @@ private fun CompactControlRow(
     hasPrompt: Boolean,
     enabled: Boolean,
     isLoading: Boolean,
-    cost: Double,
     feePreviewLoading: Boolean,
     feePreviewError: QuickCreateUiMessage?,
+    billingPreview: QuickCreateBillingPreviewUi?,
     onOpenModelSheet: () -> Unit,
     onOpenParamsSheet: () -> Unit,
     onGenerate: () -> Unit,
@@ -261,9 +260,9 @@ private fun CompactControlRow(
             hasPrompt = hasPrompt,
             enabled = enabled,
             isLoading = isLoading,
-            cost = cost,
             feePreviewLoading = feePreviewLoading,
             feePreviewError = feePreviewError,
+            billingPreview = billingPreview,
             onGenerate = onGenerate,
             onAddMedia = onLaunchImagePicker,
         )
@@ -370,7 +369,7 @@ private fun CompactMediaUploadStrip(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(116.dp)
+            .height(CompactMediaStripHeight)
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -379,13 +378,13 @@ private fun CompactMediaUploadStrip(
             CompactMediaPreviewSlot(
                 reference = reference,
                 onRemove = onRemove,
-                modifier = Modifier.size(108.dp),
+                modifier = Modifier.size(CompactMediaSlotSize),
             )
         }
         CompactMediaAddSlot(
             onAdd = onAdd,
             framed = mediaReferences.isNotEmpty(),
-            modifier = Modifier.size(108.dp),
+            modifier = Modifier.size(CompactMediaSlotSize),
         )
     }
 }
@@ -571,9 +570,9 @@ private fun CompactGenerateButton(
     hasPrompt: Boolean,
     enabled: Boolean,
     isLoading: Boolean,
-    cost: Double,
     feePreviewLoading: Boolean,
     feePreviewError: QuickCreateUiMessage?,
+    billingPreview: QuickCreateBillingPreviewUi?,
     onGenerate: () -> Unit,
     onAddMedia: () -> Unit,
 ) {
@@ -584,9 +583,9 @@ private fun CompactGenerateButton(
     }
     val buttonShape = if (hasPrompt) RoundedCornerShape(18.dp) else CircleShape
     val sendButtonLabel = quickCreateSendButtonLabel(
-        cost = cost,
         feePreviewLoading = feePreviewLoading,
         feePreviewError = feePreviewError,
+        billingPreview = billingPreview,
     )
     val buttonModifier = if (hasPrompt) {
         Modifier
@@ -684,10 +683,7 @@ private fun quickCreateSendButtonText(label: QuickCreateSendButtonLabel): String
         QuickCreateSendButtonLabel.Confirming -> stringResource(Res.string.quick_create_send_fee_confirming)
         QuickCreateSendButtonLabel.Pending -> stringResource(Res.string.quick_create_send_fee_pending)
         QuickCreateSendButtonLabel.Generate -> stringResource(Res.string.quick_create_send_generate)
-        is QuickCreateSendButtonLabel.Amount -> stringResource(
-            Res.string.quick_create_send_amount_format,
-            label.cashAmount,
-        )
+        is QuickCreateSendButtonLabel.Amount -> quickCreateBillingAmountText(label.billingAmount)
     }
 
 @Composable
@@ -711,18 +707,26 @@ private fun QuickCreateCompactServiceModelLabel.asCompactModelText(): String =
         QuickCreateCompactServiceModelLabel.Loading ->
             stringResource(Res.string.quick_create_compact_model_loading)
         is QuickCreateCompactServiceModelLabel.ModelName -> value
-        is QuickCreateCompactServiceModelLabel.FallbackName -> value
+        QuickCreateCompactServiceModelLabel.Unavailable ->
+            stringResource(Res.string.quick_create_compact_model_unavailable)
     }
 
 @Composable
-private fun compactParamsSummary(uiState: QuickCreateUiState, isImage: Boolean): String =
-    if (isImage) {
-        val parameterSnapshot = uiState.quickCreateGenerationParameterSnapshot()
-        stringResource(
-            Res.string.quick_create_compact_image_params_format,
-            parameterSnapshot.aspectRatio,
-            parameterSnapshot.resolution,
-        )
-    } else {
-        stringResource(Res.string.quick_create_compact_video_params_summary)
+private fun compactParamsSummary(
+    selectedServiceModel: QuickCreateServiceModelUi?,
+    serviceModelsLoading: Boolean,
+): String {
+    if (selectedServiceModel == null) {
+        return if (serviceModelsLoading) {
+            stringResource(Res.string.quick_create_compact_model_loading)
+        } else {
+            stringResource(Res.string.quick_create_compact_model_unavailable)
+        }
     }
+    val parameterCount = selectedServiceModel.source.fields.size
+    return if (parameterCount > 0) {
+        stringResource(Res.string.quick_create_service_model_parameter_count_format, parameterCount)
+    } else {
+        stringResource(Res.string.quick_create_params_empty_parameters)
+    }
+}

@@ -3,9 +3,6 @@ package com.runninghub.feature.quickcreate.presentation.billing
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreview
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
-import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
-import com.runninghub.feature.quickcreate.domain.QuickCreationServicePricing
-import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
 import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
@@ -14,7 +11,6 @@ import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestBuildResult
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.toQuickCreateUiMessage
 import kotlinx.coroutines.CoroutineScope
@@ -26,7 +22,6 @@ import kotlinx.coroutines.launch
 
 // 计费预览需要等待用户连续编辑结束后再请求，避免每个输入字符都触发远程计费接口。
 private const val FEE_PREVIEW_DEBOUNCE_MS = 500L
-private val DYNAMIC_IMAGE_PRICE_PARAM_KEYS = setOf("resolution", "quality")
 
 // 计费预览与正式生成共用请求构建规则；这里仅把已构建请求按媒体类型分发到不同 Repository 入口。
 private sealed interface QuickCreateFeePreviewRequest {
@@ -136,7 +131,8 @@ class QuickCreateFeePreviewInteractor(
      * 根据最新页面状态安排一次计费预览。
      *
      * 调用方可以在模型、参数、素材或模板变化后直接调用该方法。方法会先取消旧任务，再检查当前状态是否
-     * 已具备计费预览条件；如果请求无法构建或素材仍在上传，则立即清理预览 loading 和错误，并回退到本地估算价格。
+     * 已具备计费预览条件；如果请求无法构建或素材仍在上传，则立即清理预览 loading、错误和金额，
+     * 由 UI 显示运行前确认费用。
      */
     fun schedule() {
         feePreviewJob?.cancel()
@@ -149,17 +145,14 @@ class QuickCreateFeePreviewInteractor(
                     feePreviewError = null,
                     feePreviewRequestKey = null,
                     billingPreview = null,
-                    estimatedCost = it.currentLocalEstimatedCost(),
+                    estimatedCost = 0.0,
                 )
             }
             return
         }
-        if (tryApplyCatalogPricedImageRequest(request)) {
-            return
-        }
-
         uiState.update {
             it.copy(
+                estimatedCost = 0.0,
                 feePreviewLoading = true,
                 feePreviewError = null,
                 feePreviewRequestKey = null,
@@ -263,83 +256,11 @@ class QuickCreateFeePreviewInteractor(
         }
     }
 
-    private fun tryApplyCatalogPricedImageRequest(request: QuickCreateFeePreviewRequest): Boolean {
-        if (request !is QuickCreateFeePreviewRequest.Image) return false
-        val state = uiState.value
-        val catalogCost = state.currentServiceCatalogEstimatedCost() ?: return false
-        if (state.selectedImageServiceModel.requiresRemoteImageFeePreview(state.imageServiceParams)) {
-            return false
-        }
-
-        // 只有固定单价目录模型可以直接确认价格；带动态计价字段的模型必须让远端 fee-preview 计算最终金额。
-        uiState.update {
-            it.copy(
-                estimatedCost = catalogCost,
-                feePreviewLoading = false,
-                feePreviewError = null,
-                feePreviewRequestKey = request.request.quickCreateFeeRequestKey(),
-                billingPreview = QuickCreateBillingPreviewUi(
-                    requiredCashAmount = catalogCost,
-                    free = catalogCost == 0.0,
-                ),
-            )
-        }
-        return true
-    }
-
-    private fun QuickCreationServiceModel?.requiresRemoteImageFeePreview(
-        serviceParams: Map<String, String>,
-    ): Boolean {
-        if (this == null) return false
-        if (pricing.hasDimensionPricing()) return true
-        return QuickCreationServiceSchema.activeParamKeys(this, serviceParams).any { key ->
-            key.isDynamicImagePriceParamKey()
-        }
-    }
-
-    private fun QuickCreationServicePricing?.hasDimensionPricing(): Boolean {
-        val normalized = this
-            ?.dimensionPricingRaw
-            ?.trim()
-            ?.lowercase()
-            ?.takeIf { it.isNotEmpty() }
-            ?: return false
-        return normalized !in setOf("null", "{}", "[]")
-    }
-
-    private fun String.isDynamicImagePriceParamKey(): Boolean {
-        val normalized = lowercase().filter { it.isLetterOrDigit() }
-        return DYNAMIC_IMAGE_PRICE_PARAM_KEYS.any { key ->
-            normalized == key || normalized.endsWith(key)
-        }
-    }
-
     private fun QuickCreateUiState.hasUnreadyFeePreviewMediaReferences(): Boolean =
         generationRequestFactory.currentRelevantMediaReferences(this).any { reference ->
             reference.uploadStatus == UploadStatus.FAILED ||
                 reference.uploadStatus == UploadStatus.UPLOADING ||
                 reference.uploadStatus == UploadStatus.PROCESSING
-        }
-
-    private fun QuickCreateUiState.currentLocalEstimatedCost(): Double =
-        currentServiceCatalogEstimatedCost()
-            ?: if (currentTab == QuickCreateTab.IMAGE) {
-                imageConfig.estimatedCost
-            } else {
-                videoConfig.estimatedCost
-            }
-
-    private fun QuickCreateUiState.currentServiceCatalogEstimatedCost(): Double? =
-        if (currentTab == QuickCreateTab.IMAGE) {
-            selectedImageServiceModel
-                ?.pricing
-                .quickCreateCashAmountOrNull()
-                ?.let { serviceUnitPrice -> serviceUnitPrice * imageConfig.count }
-        } else {
-            selectedVideoServiceModel
-                ?.pricing
-                .quickCreateCashAmountOrNull()
-                ?.let { serviceUnitPrice -> serviceUnitPrice * videoConfig.count }
         }
 
     private fun clearFeePreviewState() {
@@ -349,6 +270,7 @@ class QuickCreateFeePreviewInteractor(
                 feePreviewError = null,
                 feePreviewRequestKey = null,
                 billingPreview = null,
+                estimatedCost = 0.0,
             )
         }
     }
@@ -369,13 +291,12 @@ class QuickCreateFeePreviewInteractor(
         }
         val billingPreview = preview.toQuickCreateBillingPreviewUi()
 
-        // 余额不足时保留本地估价，避免失败的服务端预览把按钮价格改成一个不可提交的价格。
         uiState.update {
             it.copy(
                 estimatedCost = if (previewError == null) {
                     previewCost
                 } else {
-                    it.currentLocalEstimatedCost()
+                    0.0
                 },
                 feePreviewLoading = false,
                 feePreviewError = previewError,
@@ -386,10 +307,9 @@ class QuickCreateFeePreviewInteractor(
     }
 
     private fun applyFeePreviewError(error: Throwable) {
-        // 网络或服务端异常不覆盖本地估价，用户仍能看到当前配置的基础价格，同时生成入口会被错误状态拦截。
         uiState.update {
             it.copy(
-                estimatedCost = it.currentLocalEstimatedCost(),
+                estimatedCost = 0.0,
                 feePreviewLoading = false,
                 feePreviewError = error.toQuickCreateUiMessage(QuickCreatePresentationError.FeePreviewFailed),
                 feePreviewRequestKey = null,
@@ -398,26 +318,3 @@ class QuickCreateFeePreviewInteractor(
         }
     }
 }
-
-/**
- * 从服务模型目录价格摘要中提取可用于本地展示的现金单价。
- *
- * 该值只作为无远端预览时的本地兜底价，或固定单价图片模型的快捷确认价。
- * 带维度计价、resolution 或 quality 等动态字段的模型仍必须走 fee-preview，避免目录摘要覆盖真实价格。
- */
-internal fun QuickCreationServicePricing?.quickCreateCashAmountOrNull(): Double? {
-    if (this == null) return null
-    if (isFree || isTimeFree || freeRemaining > 0) return 0.0
-
-    return listOf(priceSummaryRaw, flatPriceRaw)
-        .asSequence()
-        .mapNotNull { raw -> raw?.quickCreateFirstPositiveNumberOrNull() }
-        .firstOrNull()
-}
-
-private fun String.quickCreateFirstPositiveNumberOrNull(): Double? =
-    Regex("""\d+(?:\.\d+)?""")
-        .find(this)
-        ?.value
-        ?.toDoubleOrNull()
-        ?.takeIf { it >= 0.0 }

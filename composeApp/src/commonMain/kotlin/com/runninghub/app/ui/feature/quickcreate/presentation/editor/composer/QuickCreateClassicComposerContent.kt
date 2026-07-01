@@ -2,7 +2,6 @@ package com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,15 +17,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.CircularProgressIndicator
@@ -40,7 +36,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -48,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.feature.quickcreate.AdaptivePromptTextField
 import com.runninghub.app.ui.feature.quickcreate.quickCreateNavigationText
+import com.runninghub.app.ui.feature.quickcreate.quickCreateBillingAmountText
 import com.runninghub.app.ui.feature.quickcreate.presentation.asServiceModelText
 import com.runninghub.feature.quickcreate.presentation.draft.DraftData
 import com.runninghub.feature.quickcreate.presentation.draft.QuickCreateDraftResumeSummary
@@ -75,7 +71,7 @@ import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.app.ui.theme.Secondary500
-import com.runninghub.app.util.formatCashAmount
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingPreviewUi
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
@@ -84,8 +80,6 @@ import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
-import runninghub.composeapp.generated.resources.quick_create_classic_audio_disabled
-import runninghub.composeapp.generated.resources.quick_create_classic_audio_enabled
 import runninghub.composeapp.generated.resources.quick_create_classic_default_model
 import runninghub.composeapp.generated.resources.quick_create_classic_default_model_subtitle
 import runninghub.composeapp.generated.resources.quick_create_classic_discard_draft
@@ -95,20 +89,11 @@ import runninghub.composeapp.generated.resources.quick_create_classic_draft_vide
 import runninghub.composeapp.generated.resources.quick_create_classic_generate_button_label
 import runninghub.composeapp.generated.resources.quick_create_classic_generate_content_description
 import runninghub.composeapp.generated.resources.quick_create_classic_image_prompt_placeholder
-import runninghub.composeapp.generated.resources.quick_create_classic_param_audio_label
-import runninghub.composeapp.generated.resources.quick_create_classic_param_chip_format
-import runninghub.composeapp.generated.resources.quick_create_classic_param_count_label
-import runninghub.composeapp.generated.resources.quick_create_classic_param_duration_label
-import runninghub.composeapp.generated.resources.quick_create_classic_param_quality_label
-import runninghub.composeapp.generated.resources.quick_create_classic_param_ratio_label
-import runninghub.composeapp.generated.resources.quick_create_classic_param_size_label
 import runninghub.composeapp.generated.resources.quick_create_classic_params_content_description
-import runninghub.composeapp.generated.resources.quick_create_classic_price_amount_format
 import runninghub.composeapp.generated.resources.quick_create_classic_price_pending
 import runninghub.composeapp.generated.resources.quick_create_classic_price_refreshing
 import runninghub.composeapp.generated.resources.quick_create_classic_restore_draft
 import runninghub.composeapp.generated.resources.quick_create_classic_video_prompt_placeholder
-import runninghub.composeapp.generated.resources.quick_create_send_amount_format
 import runninghub.composeapp.generated.resources.quick_create_send_fee_confirming
 import runninghub.composeapp.generated.resources.quick_create_send_fee_pending
 import runninghub.composeapp.generated.resources.quick_create_send_generate
@@ -117,7 +102,7 @@ import runninghub.composeapp.generated.resources.quick_create_send_generate
  * 渲染快捷创作旧版底部编辑器。
  *
  * 该组件保留在 editor 子区域内，是紧凑输入条之外的兼容布局分支。它只根据
- * [QuickCreateUiState] 的派生状态展示草稿恢复、tab、服务模型、媒体、快捷参数和提交按钮，
+ * [QuickCreateUiState] 的派生状态展示草稿恢复、tab、服务模型、媒体、参数入口和提交按钮，
  * 所有状态变更都通过回调交给 ScreenModel/Coordinator，避免旧布局重新引入网络、存储或上传职责。
  *
  * @param uiState 快捷创作页面完整状态，用于读取当前 tab、草稿、计费、模型和参数配置。
@@ -217,7 +202,7 @@ internal fun QuickCreateClassicComposer(
                     loading = uiState.serviceModelsLoading,
                     feePreviewLoading = uiState.feePreviewLoading,
                     feePreviewError = uiState.feePreviewError,
-                    cost = uiState.estimatedCost,
+                    billingPreview = uiState.billingPreview,
                     onClick = onOpenModelSheet,
                 )
 
@@ -228,21 +213,6 @@ internal fun QuickCreateClassicComposer(
                     onLaunchImagePicker = onLaunchImagePicker,
                     onLaunchVideoPicker = onLaunchVideoPicker,
                     onLaunchAudioPicker = onLaunchAudioPicker,
-                )
-
-                Spacer(Modifier.height(Dimens.SpaceSM))
-
-                QuickParamChipRow(
-                    uiState = uiState,
-                    isImage = isImage,
-                    onImageRatioChange = onImageRatioChange,
-                    onImageResChange = onImageResChange,
-                    onImageQualityChange = onImageQualityChange,
-                    onImageCountChange = onImageCountChange,
-                    onVideoRatioChange = onVideoRatioChange,
-                    onVideoResChange = onVideoResChange,
-                    onVideoDurationChange = onVideoDurationChange,
-                    onToggleAudio = onToggleAudio,
                 )
 
                 Spacer(Modifier.height(Dimens.SpaceSM))
@@ -308,9 +278,9 @@ internal fun QuickCreateClassicComposer(
                             !overLimit &&
                             !uiState.feePreviewLoading,
                         isLoading = isTaskActive,
-                        cost = uiState.estimatedCost,
                         feePreviewLoading = uiState.feePreviewLoading,
                         feePreviewError = uiState.feePreviewError,
+                        billingPreview = uiState.billingPreview,
                         onClick = onGenerate,
                         modifier = Modifier.weight(1f),
                     )
@@ -337,7 +307,6 @@ private fun DraftResumeRow(
         modifier = Modifier.fillMaxWidth(),
         color = Primary300.copy(alpha = 0.10f),
         shape = RoundedCornerShape(Dimens.RadiusMD),
-        border = BorderStroke(1.dp, Primary300.copy(alpha = 0.28f)),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 8.dp),
@@ -449,7 +418,7 @@ private fun TabPillRow(
 /**
  * 汇总当前服务端模型和计费预览状态。
  *
- * 模型详情和价格都由上游状态提供；本控件保留“价格待确认”的降级展示，
+ * 模型详情和价格都由上游状态提供；本控件保留“运行前确认费用”的降级展示，
  * 避免计费预览失败时在旧版编辑器里误导用户认为本次生成免费。
  */
 @Composable
@@ -458,7 +427,7 @@ private fun ServiceModelSummaryRow(
     loading: Boolean,
     feePreviewLoading: Boolean,
     feePreviewError: QuickCreateUiMessage?,
-    cost: Double,
+    billingPreview: QuickCreateBillingPreviewUi?,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -466,7 +435,6 @@ private fun ServiceModelSummaryRow(
         onClick = onClick,
         color = DarkSurfaceVariant,
         shape = RoundedCornerShape(Dimens.RadiusMD),
-        border = BorderStroke(1.dp, DarkOutlineVariant),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 8.dp),
@@ -506,11 +474,10 @@ private fun ServiceModelSummaryRow(
             val priceText = when {
                 feePreviewLoading -> stringResource(Res.string.quick_create_classic_price_refreshing)
                 feePreviewError != null -> stringResource(Res.string.quick_create_classic_price_pending)
-                cost > 0.0 -> stringResource(
-                    Res.string.quick_create_classic_price_amount_format,
-                    formatCashAmount(cost),
-                )
-                else -> null
+                billingPreview == null -> stringResource(Res.string.quick_create_classic_price_pending)
+                billingPreview.free -> null
+                else -> billingPreview.quickCreateBillingAmountText()
+                    ?: stringResource(Res.string.quick_create_classic_price_pending)
             }
             priceText?.let {
                 Surface(
@@ -539,152 +506,6 @@ private fun ServiceModelSummaryRow(
 }
 
 /**
- * 渲染旧版编辑器的快捷参数 chip 列。
- *
- * 图片和视频参数来自各自模型支持范围，点击 chip 只在当前可选值集合中循环到下一个值；
- * 这样可以避免 UI 直接构造服务端不支持的比例、尺寸或时长。
- */
-@Composable
-private fun QuickParamChipRow(
-    uiState: QuickCreateUiState,
-    isImage: Boolean,
-    onImageRatioChange: (ImageAspectRatio) -> Unit,
-    onImageResChange: (ImageResolution) -> Unit,
-    onImageQualityChange: (ImageQuality) -> Unit,
-    onImageCountChange: (Int) -> Unit,
-    onVideoRatioChange: (VideoAspectRatio) -> Unit,
-    onVideoResChange: (VideoResolution) -> Unit,
-    onVideoDurationChange: (VideoDuration) -> Unit,
-    onToggleAudio: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
-    ) {
-        if (isImage) {
-            val config = uiState.imageConfig
-            val ratios = ImageAspectRatio.entries.filter { it in config.model.supportedRatios }
-            val resolutions = ImageResolution.entries.filter { it in config.model.supportedResolutions }
-            val qualities = ImageQuality.entries.filter { it in config.model.supportedQualities }
-            CompactParamChip(
-                label = stringResource(Res.string.quick_create_classic_param_ratio_label),
-                value = config.aspectRatio.displayName,
-                icon = Icons.Default.Tune,
-                onClick = { onImageRatioChange(nextQuickCreateValue(ratios, config.aspectRatio)) },
-            )
-            CompactParamChip(
-                label = stringResource(Res.string.quick_create_classic_param_size_label),
-                value = config.resolution.displayName,
-                icon = Icons.Default.Tune,
-                onClick = { onImageResChange(nextQuickCreateValue(resolutions, config.resolution)) },
-            )
-            CompactParamChip(
-                label = stringResource(Res.string.quick_create_classic_param_quality_label),
-                value = config.quality.label.asImageQualityText(),
-                icon = Icons.Default.Tune,
-                onClick = { onImageQualityChange(nextQuickCreateValue(qualities, config.quality)) },
-            )
-            CompactParamChip(
-                label = stringResource(Res.string.quick_create_classic_param_count_label),
-                value = config.count.toString(),
-                icon = Icons.Default.Add,
-                onClick = { onImageCountChange(nextQuickCreateValue(listOf(1, 2, 4), config.count)) },
-            )
-        } else {
-            val config = uiState.videoConfig
-            val ratios = VideoAspectRatio.entries.filter { it in config.model.supportedRatios }
-            val resolutions = VideoResolution.entries.filter { it in config.model.supportedResolutions }
-            val durations = VideoDuration.entries.filter { it in config.model.supportedDurations }
-            CompactParamChip(
-                label = stringResource(Res.string.quick_create_classic_param_ratio_label),
-                value = config.aspectRatio.displayName,
-                icon = Icons.Default.Tune,
-                onClick = { onVideoRatioChange(nextQuickCreateValue(ratios, config.aspectRatio)) },
-            )
-            CompactParamChip(
-                label = stringResource(Res.string.quick_create_classic_param_size_label),
-                value = config.resolution.label.asVideoResolutionText(),
-                icon = Icons.Default.Tune,
-                onClick = { onVideoResChange(nextQuickCreateValue(resolutions, config.resolution)) },
-            )
-            CompactParamChip(
-                label = stringResource(Res.string.quick_create_classic_param_duration_label),
-                value = config.duration.label.asVideoDurationText(),
-                icon = Icons.Default.Tune,
-                onClick = { onVideoDurationChange(nextQuickCreateValue(durations, config.duration)) },
-            )
-            CompactParamChip(
-                label = stringResource(Res.string.quick_create_classic_param_audio_label),
-                value = if (config.generateAudio) {
-                    stringResource(Res.string.quick_create_classic_audio_enabled)
-                } else {
-                    stringResource(Res.string.quick_create_classic_audio_disabled)
-                },
-                icon = Icons.Default.MusicNote,
-                highlighted = config.generateAudio,
-                onClick = onToggleAudio,
-            )
-        }
-    }
-}
-
-/**
- * 展示单个旧版快捷参数 chip。
- *
- * highlighted 用于音频开关等二元状态，视觉上强调当前开启状态，但状态来源仍由上游
- * [QuickCreateUiState] 控制，避免 chip 内部持有额外状态。
- */
-@Composable
-private fun CompactParamChip(
-    label: String,
-    value: String,
-    icon: ImageVector,
-    highlighted: Boolean = false,
-    onClick: () -> Unit,
-) {
-    Surface(
-        onClick = onClick,
-        color = if (highlighted) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
-        shape = RoundedCornerShape(Dimens.RadiusSM),
-        border = BorderStroke(1.dp, if (highlighted) Primary300.copy(alpha = 0.42f) else DarkOutlineVariant),
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Icon(
-                icon,
-                contentDescription = null,
-                modifier = Modifier.size(13.dp),
-                tint = if (highlighted) Primary300 else Neutral500,
-            )
-            Text(
-                stringResource(Res.string.quick_create_classic_param_chip_format, label, value),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (highlighted) Primary300 else Neutral300,
-                maxLines = 1,
-            )
-        }
-    }
-}
-
-/**
- * 在候选集合中返回当前值之后的下一个值。
- *
- * 服务端模型可能限制可选比例、尺寸或时长，因此该函数只在传入的有效集合内循环；
- * 当集合为空或当前值不在集合中时，分别返回当前值或集合首项，避免旧版快捷参数入口崩溃。
- */
-private fun <T> nextQuickCreateValue(options: List<T>, current: T): T {
-    if (options.isEmpty()) return current
-    val currentIndex = options.indexOf(current)
-    return options[(if (currentIndex >= 0) currentIndex + 1 else 0) % options.size]
-}
-
-/**
  * 渲染旧版编辑器的生成按钮。
  *
  * 按钮文案复用统一的计费展示逻辑：价格刷新中、计费失败和实际金额都会影响文案，
@@ -694,9 +515,9 @@ private fun <T> nextQuickCreateValue(options: List<T>, current: T): T {
 private fun SendButton(
     enabled: Boolean,
     isLoading: Boolean,
-    cost: Double,
     feePreviewLoading: Boolean,
     feePreviewError: QuickCreateUiMessage?,
+    billingPreview: QuickCreateBillingPreviewUi?,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -725,9 +546,9 @@ private fun SendButton(
                 horizontalArrangement = Arrangement.Center,
             ) {
                 val sendButtonLabel = quickCreateSendButtonLabel(
-                    cost = cost,
                     feePreviewLoading = feePreviewLoading,
                     feePreviewError = feePreviewError,
+                    billingPreview = billingPreview,
                 )
                 val confirmingFee = sendButtonLabel == QuickCreateSendButtonLabel.Confirming
                 if (isLoading) {
@@ -755,7 +576,7 @@ private fun SendButton(
                     if (sendLabel.isNotBlank()) {
                         Text(
                             sendLabel,
-                            fontSize = if (cost > 0 || feePreviewError != null) 12.sp else 14.sp,
+                            fontSize = if (sendButtonLabel == QuickCreateSendButtonLabel.Generate) 14.sp else 12.sp,
                             fontWeight = FontWeight.SemiBold,
                             color = if (enabled) Color.White else Neutral500,
                             maxLines = 1,
@@ -789,8 +610,5 @@ private fun quickCreateSendButtonText(label: QuickCreateSendButtonLabel): String
         QuickCreateSendButtonLabel.Confirming -> stringResource(Res.string.quick_create_send_fee_confirming)
         QuickCreateSendButtonLabel.Pending -> stringResource(Res.string.quick_create_send_fee_pending)
         QuickCreateSendButtonLabel.Generate -> stringResource(Res.string.quick_create_send_generate)
-        is QuickCreateSendButtonLabel.Amount -> stringResource(
-            Res.string.quick_create_send_amount_format,
-            label.cashAmount,
-        )
+        is QuickCreateSendButtonLabel.Amount -> quickCreateBillingAmountText(label.billingAmount)
     }

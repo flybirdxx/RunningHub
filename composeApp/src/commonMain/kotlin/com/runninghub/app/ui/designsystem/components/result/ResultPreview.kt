@@ -1,6 +1,5 @@
 package com.runninghub.app.ui.designsystem.components.result
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -53,7 +52,6 @@ enum class ResultPreviewActionType {
     TryAgain,
     Retry,
     ViewDetail,
-    RefundStatus,
 }
 
 /**
@@ -126,58 +124,61 @@ fun ResultPreview(
         modifier = modifier.fillMaxWidth(),
         color = RhTheme.colors.surfaceElevated,
         shape = RoundedCornerShape(RhTheme.shapes.lg),
-        border = BorderStroke(1.dp, RhTheme.colors.borderDefault),
     ) {
         Column(
-            modifier = Modifier.padding(RhSpacing.md),
             verticalArrangement = Arrangement.spacedBy(RhSpacing.sm),
         ) {
-            Text(
-                text = state.title,
-                color = RhTheme.colors.textPrimary,
-                style = RhTypography.cardTitle,
-            )
-            state.taskIdLabel?.let { label ->
-                Text(
-                    text = label,
-                    color = RhTheme.colors.textTertiary,
-                    style = RhTypography.meta,
-                )
-            }
-            if (state.status != null) {
-                RhTaskStatusBadge(
-                    status = state.status,
-                    label = state.statusLabel,
-                )
-            } else {
-                Text(
-                    text = state.statusLabel,
-                    color = RhTheme.colors.textSecondary,
-                    style = RhTypography.caption,
-                )
-            }
             state.media?.let { media ->
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .then(media.aspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.height(220.dp))
-                        .clip(RoundedCornerShape(RhTheme.shapes.md)),
+                        .clip(RoundedCornerShape(topStart = RhTheme.shapes.lg, topEnd = RhTheme.shapes.lg)),
                 ) {
                     mediaContent(media)
                 }
             }
-            state.expiryLabel?.let { label ->
+            Column(
+                modifier = Modifier.padding(RhSpacing.md),
+                verticalArrangement = Arrangement.spacedBy(RhSpacing.sm),
+            ) {
                 Text(
-                    text = label,
-                    color = RhTheme.colors.statusWarning,
-                    style = RhTypography.meta,
+                    text = state.title,
+                    color = RhTheme.colors.textPrimary,
+                    style = RhTypography.cardTitle,
                 )
-            }
-            if (state.actions.isNotEmpty()) {
-                ResultPreviewActions(
-                    actions = state.actions,
-                    onAction = onAction,
-                )
+                state.taskIdLabel?.let { label ->
+                    Text(
+                        text = label,
+                        color = RhTheme.colors.textTertiary,
+                        style = RhTypography.meta,
+                    )
+                }
+                if (state.status != null) {
+                    RhTaskStatusBadge(
+                        status = state.status,
+                        label = state.statusLabel,
+                    )
+                } else {
+                    Text(
+                        text = state.statusLabel,
+                        color = RhTheme.colors.textSecondary,
+                        style = RhTypography.caption,
+                    )
+                }
+                state.expiryLabel?.let { label ->
+                    Text(
+                        text = label,
+                        color = RhTheme.colors.statusWarning,
+                        style = RhTypography.meta,
+                    )
+                }
+                if (state.actions.isNotEmpty()) {
+                    ResultPreviewActions(
+                        actions = state.actions,
+                        onAction = onAction,
+                    )
+                }
             }
         }
     }

@@ -175,7 +175,6 @@ class QuickCreateGenerationRequestFactory {
             quickCreationSkuId = state.selectedImageServiceModel?.skuId,
             quickCreationParams = imageQuickCreationParams(
                 model = state.selectedImageServiceModel,
-                config = config,
                 serviceParams = state.imageServiceParams,
             ),
             quickCreationListParams = imageQuickCreationListParams(
@@ -229,7 +228,6 @@ class QuickCreateGenerationRequestFactory {
             quickCreationSkuId = state.selectedVideoServiceModel?.skuId,
             quickCreationParams = videoQuickCreationParams(
                 model = state.selectedVideoServiceModel,
-                config = config,
                 serviceParams = state.videoServiceParams,
             ),
             quickCreationListParams = videoQuickCreationListParams(
@@ -318,12 +316,10 @@ class QuickCreateGenerationRequestFactory {
 
 private fun imageQuickCreationParams(
     model: QuickCreationServiceModel?,
-    config: ImageConfig,
     serviceParams: Map<String, String>,
 ): Map<String, String> =
     imageQuickCreationEffectiveParams(
         model = model,
-        config = config,
         serviceParams = serviceParams,
     )
 
@@ -341,12 +337,10 @@ private fun imageQuickCreationListParams(
 
 private fun videoQuickCreationParams(
     model: QuickCreationServiceModel?,
-    config: VideoConfig,
     serviceParams: Map<String, String>,
 ): Map<String, String> =
     videoQuickCreationEffectiveParams(
         model = model,
-        config = config,
         serviceParams = serviceParams,
     )
 

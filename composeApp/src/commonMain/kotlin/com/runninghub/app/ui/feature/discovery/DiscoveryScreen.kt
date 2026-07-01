@@ -1,9 +1,7 @@
 package com.runninghub.app.ui.feature.discovery
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,7 +14,6 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,17 +27,11 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.KeyboardArrowDown
-import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -66,20 +57,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import coil3.compose.AsyncImage
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.component.AppBarLogo
 import com.runninghub.app.ui.component.AppSearchBar
@@ -105,9 +92,7 @@ import com.runninghub.app.ui.theme.adaptiveGridColumns
 import com.runninghub.app.ui.theme.adaptiveGridSpacing
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
 import com.runninghub.app.util.formatOneDecimal
-import com.runninghub.core.model.CoverMediaType
 import com.runninghub.core.model.Tag
-import com.runninghub.core.model.TagSimple
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogSort
 import com.runninghub.feature.discovery.presentation.CatalogPresentationError
@@ -118,7 +103,6 @@ import com.runninghub.feature.discovery.presentation.DiscoveryAppCardUiModel
 import com.runninghub.feature.discovery.presentation.DiscoveryAppEstimatedCostKind
 import com.runninghub.feature.discovery.presentation.DiscoveryAppPreviewType
 import com.runninghub.feature.discovery.presentation.DiscoveryUiState
-import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import runninghub.composeapp.generated.resources.Res
@@ -131,22 +115,16 @@ import runninghub.composeapp.generated.resources.discovery_capability_image
 import runninghub.composeapp.generated.resources.discovery_capability_video
 import runninghub.composeapp.generated.resources.discovery_category_all
 import runninghub.composeapp.generated.resources.discovery_close_search_content_description
-import runninghub.composeapp.generated.resources.discovery_collect_stat_content_description
 import runninghub.composeapp.generated.resources.discovery_cost_unknown
-import runninghub.composeapp.generated.resources.discovery_default_author_name
 import runninghub.composeapp.generated.resources.discovery_empty_apps
 import runninghub.composeapp.generated.resources.discovery_end_of_results
 import runninghub.composeapp.generated.resources.discovery_error_empty_response
 import runninghub.composeapp.generated.resources.discovery_error_load_failed
 import runninghub.composeapp.generated.resources.discovery_error_search_failed
 import runninghub.composeapp.generated.resources.discovery_error_service_unavailable
-import runninghub.composeapp.generated.resources.discovery_home_banner_action
-import runninghub.composeapp.generated.resources.discovery_home_banner_eyebrow
-import runninghub.composeapp.generated.resources.discovery_home_banner_title
 import runninghub.composeapp.generated.resources.discovery_inline_search_hint
 import runninghub.composeapp.generated.resources.discovery_metric_use_count
 import runninghub.composeapp.generated.resources.discovery_metric_view_count
-import runninghub.composeapp.generated.resources.discovery_model_api_badge
 import runninghub.composeapp.generated.resources.discovery_search_content_description
 import runninghub.composeapp.generated.resources.discovery_search_empty_results_format
 import runninghub.composeapp.generated.resources.discovery_search_results_title
@@ -155,15 +133,12 @@ import runninghub.composeapp.generated.resources.discovery_sort_hottest
 import runninghub.composeapp.generated.resources.discovery_sort_newest
 import runninghub.composeapp.generated.resources.discovery_sort_recommend
 import runninghub.composeapp.generated.resources.discovery_sort_reputation
-import runninghub.composeapp.generated.resources.discovery_use_stat_content_description
-import runninghub.composeapp.generated.resources.discovery_view_stat_content_description
 
 class DiscoveryVoyagerScreen : Screen {
 
     @Composable
     override fun Content() {
         val navigator = LocalNavigator.currentOrThrow
-        val uriHandler = LocalUriHandler.current
         val screenModel = koinScreenModel<DiscoveryScreenModel>()
         val uiState by screenModel.uiState.collectAsState()
 
@@ -177,7 +152,6 @@ class DiscoveryVoyagerScreen : Screen {
             onSearchSubmit = screenModel::searchSubmit,
             onLoadMoreSearchResults = screenModel::loadMoreSearchResults,
             onAppClick = { appId -> navigator.push(AppDetailScreen(appId)) },
-            onModelBannerClick = { skuId -> uriHandler.openUri("$CALL_API_DETAIL_BASE_URL$skuId") },
             onCategorySelected = screenModel::selectCategory,
             onSortSelected = screenModel::selectSort,
             onRefresh = screenModel::refresh,
@@ -197,7 +171,6 @@ private fun DiscoveryContent(
     onSearchSubmit: (String) -> Unit = {},
     onLoadMoreSearchResults: () -> Unit = {},
     onAppClick: (String) -> Unit = {},
-    onModelBannerClick: (String) -> Unit = {},
     onCategorySelected: (Int) -> Unit = {},
     onSortSelected: (CatalogSort) -> Unit = {},
     onRefresh: () -> Unit = {},
@@ -322,11 +295,14 @@ private fun DiscoveryContent(
                     }
                 } else {
                     // ── Normal Discovery Content ──
-                    item(key = "home_model_banner", span = { GridItemSpan(maxLineSpan) }) {
-                        HomeModelBannerSection(
-                            windowSizeClass = windowSizeClass,
-                            onModelClick = onModelBannerClick,
-                        )
+                    if (uiState.banners.isNotEmpty()) {
+                        item(key = "featured_banners", span = { GridItemSpan(maxLineSpan) }) {
+                            DiscoveryBannerSection(
+                                banners = uiState.banners,
+                                windowSizeClass = windowSizeClass,
+                                onAppClick = onAppClick,
+                            )
+                        }
                     }
 
                     item(key = "categories", span = { GridItemSpan(maxLineSpan) }) {
@@ -537,209 +513,71 @@ private fun InlineSearchResults(
     }
 }
 
-// region Home Model Banner
+private const val DISCOVERY_BANNER_MAX_ITEMS = 6
 
-private const val CALL_API_DETAIL_BASE_URL = "https://www.runninghub.cn/call-api/api-detail/"
-
-private enum class ModelBannerMediaType {
-    IMAGE,
-    VIDEO,
-}
-
-private data class HomeModelBannerTile(
-    val skuId: String,
-    val title: String,
-    val mediaUrl: String,
-    val mediaType: ModelBannerMediaType,
-)
-
-private val homeModelBannerTiles = listOf(
-    HomeModelBannerTile(
-        skuId = "2031354034474311686",
-        title = "Qwen Image 2.0",
-        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-12/f889a4e2d48abe14e07346396c888af1.png",
-        mediaType = ModelBannerMediaType.IMAGE,
-    ),
-    HomeModelBannerTile(
-        skuId = "2026215209183760386",
-        title = "Seedream V5 Lite",
-        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-12/51c0e118e907ef0b0cafea99667eba6d.png",
-        mediaType = ModelBannerMediaType.IMAGE,
-    ),
-    HomeModelBannerTile(
-        skuId = "2039648613636050946",
-        title = "WAN 2.7",
-        mediaUrl = "https://rh-images.xiaoyaoyou.com/fae338274c9053123688d63ac419cd59/2026-04-27/aaeffcd7ce935afdcd816327b4e86a04.png",
-        mediaType = ModelBannerMediaType.IMAGE,
-    ),
-    HomeModelBannerTile(
-        skuId = "2034917373414539277",
-        title = "Seedance 2.0",
-        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-15/7f4f309e26148d357fa9d461e25ddcc5.mp4",
-        mediaType = ModelBannerMediaType.VIDEO,
-    ),
-    HomeModelBannerTile(
-        skuId = "2019623243725737985",
-        title = "Kling o3-pro",
-        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-15/593abc725f555ef4d79fae1981bb83bc.mp4",
-        mediaType = ModelBannerMediaType.VIDEO,
-    ),
-    HomeModelBannerTile(
-        skuId = "2039648613636050945",
-        title = "WAN 2.7 Video",
-        mediaUrl = "https://rh-images.xiaoyaoyou.com/22820eb19d5010de41dbf6856e984340/2026-06-15/29449b321bfd27201b18dd189dc30d93.mp4",
-        mediaType = ModelBannerMediaType.VIDEO,
-    ),
-)
-
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun HomeModelBannerSection(
+private fun DiscoveryBannerSection(
+    banners: List<WebApp>,
     windowSizeClass: WindowSizeClass,
     modifier: Modifier = Modifier,
-    onModelClick: (String) -> Unit = {},
+    onAppClick: (String) -> Unit = {},
 ) {
     val spacing = adaptiveGridSpacing(windowSizeClass)
-    val pageCount = homeModelBannerTiles.size + 1
-    val pagerState = rememberPagerState(pageCount = { pageCount })
+    val cardWidth = if (windowSizeClass.isWide) 360.dp else 286.dp
+    val cardHeight = if (windowSizeClass.isWide) 156.dp else 124.dp
+    val visibleBanners = banners.take(DISCOVERY_BANNER_MAX_ITEMS)
 
-    LaunchedEffect(pageCount) {
-        while (true) {
-            delay(5_000)
-            pagerState.animateScrollToPage((pagerState.currentPage + 1) % pageCount)
-        }
-    }
-
-    Column(modifier = modifier.padding(bottom = spacing)) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            HorizontalPager(
-                state = pagerState,
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = if (windowSizeClass.isWide) spacing else 0.dp),
-                pageSpacing = spacing,
-            ) { page ->
-                if (page == 0) {
-                    HomeModelBannerHeroSlide(
-                        modifier = Modifier.fillMaxWidth().aspectRatio(if (windowSizeClass.isWide) 21f / 9f else 16f / 9f),
-                        onClick = { onModelClick("2034917373414539277") },
-                    )
-                } else {
-                    val tile = homeModelBannerTiles[page - 1]
-                    HomeModelBannerMediaSlide(
-                        tile = tile,
-                        modifier = Modifier.fillMaxWidth().aspectRatio(if (windowSizeClass.isWide) 21f / 9f else 16f / 9f),
-                        onClick = { onModelClick(tile.skuId) },
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 10.dp)
-                    .background(
-                        color = Color.Black.copy(alpha = 0.4f),
-                        shape = RoundedCornerShape(14.dp),
-                    )
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                repeat(pageCount) { index ->
-                    Box(
-                        modifier = Modifier
-                            .size(if (index == pagerState.currentPage) 8.dp else 6.dp)
-                            .clip(CircleShape)
-                            .background(
-                                if (index == pagerState.currentPage) Color.White else Color.White.copy(alpha = 0.45f)
-                            ),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HomeModelBannerHeroSlide(
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        color = Color(0xFFCCFF00),
-        shape = RoundedCornerShape(0.dp),
+    LazyRow(
+        modifier = modifier.fillMaxWidth().padding(bottom = spacing),
+        contentPadding = PaddingValues(horizontal = spacing),
+        horizontalArrangement = Arrangement.spacedBy(spacing),
     ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column {
-                Text(
-                    text = stringResource(Res.string.discovery_home_banner_eyebrow),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = Color.Black,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(14.dp))
-                Text(
-                    text = stringResource(Res.string.discovery_home_banner_title),
-                    fontSize = 52.sp,
-                    lineHeight = 56.sp,
-                    fontWeight = FontWeight.Normal,
-                    color = Color.Black,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-                    .background(Color.Black),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(Res.string.discovery_home_banner_action),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White,
-                    letterSpacing = 2.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+        itemsIndexed(
+            items = visibleBanners,
+            key = { index, app -> app.id.ifBlank { "banner-$index" } },
+        ) { _, app ->
+            DiscoveryBannerCard(
+                app = app,
+                modifier = Modifier.width(cardWidth).height(cardHeight),
+                onClick = { onAppClick(app.id) },
+            )
         }
     }
 }
 
 @Composable
-private fun HomeModelBannerMediaSlide(
-    tile: HomeModelBannerTile,
+private fun DiscoveryBannerCard(
+    app: WebApp,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val previewUrl = app.coverUrl ?: app.thumbnailUrl ?: app.videoUrl
+    val showVideo = app.videoUrl != null && previewUrl == app.videoUrl
+    val metricText = app.useCount.takeIf { it.isNotBlank() }?.let { value ->
+        "${stringResource(Res.string.discovery_metric_use_count)} ${formatCount(value)}"
+    } ?: app.pv.takeIf { it.isNotBlank() }?.let { value ->
+        "${stringResource(Res.string.discovery_metric_view_count)} ${formatCount(value)}"
+    }
+
     Surface(
-        modifier = modifier.clickable(onClick = onClick),
-        color = Color(0xFF101010),
-        shape = RoundedCornerShape(0.dp),
+        modifier = modifier,
+        onClick = onClick,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(8.dp),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            when (tile.mediaType) {
-                ModelBannerMediaType.IMAGE -> {
-                    AsyncImage(
-                        model = tile.mediaUrl,
-                        contentDescription = tile.title,
+            if (!previewUrl.isNullOrBlank()) {
+                if (showVideo) {
+                    VideoThumbnail(
+                        url = previewUrl,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                } else {
+                    SmartAsyncImage(
+                        imageUrl = previewUrl,
+                        contentDescription = app.title,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                    )
-                }
-                ModelBannerMediaType.VIDEO -> {
-                    VideoThumbnail(
-                        url = tile.mediaUrl,
-                        modifier = Modifier.fillMaxSize(),
-                        autoPlay = true,
                     )
                 }
             }
@@ -750,7 +588,6 @@ private fun HomeModelBannerMediaSlide(
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
-                                Color.Black.copy(alpha = 0.08f),
                                 Color.Transparent,
                                 Color.Black.copy(alpha = 0.72f),
                             ),
@@ -759,33 +596,32 @@ private fun HomeModelBannerMediaSlide(
             )
 
             Column(
-                modifier = Modifier.align(Alignment.BottomStart).padding(18.dp),
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = stringResource(Res.string.discovery_model_api_badge),
-                    fontSize = 10.sp,
-                    lineHeight = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.78f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = tile.title,
-                    fontSize = 20.sp,
-                    lineHeight = 24.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = app.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
                     color = Color.White,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                metricText?.let { value ->
+                    Text(
+                        text = value,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.White.copy(alpha = 0.76f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
     }
 }
-
-// endregion
 
 @Composable
 private fun DiscoveryAdaptivePreview(
@@ -1123,185 +959,6 @@ private fun DiscoveryAppPreviewType.toDesignSystemPreviewType(): DsAppCardPrevie
 private fun DiscoveryAppCardPrimaryAction.toDesignSystemActionType(): AppCardActionType = when (this) {
     DiscoveryAppCardPrimaryAction.GENERATE -> AppCardActionType.Generate
     DiscoveryAppCardPrimaryAction.VIEW_DETAIL -> AppCardActionType.ViewDetail
-}
-
-@Composable
-private fun AppGridCard(
-    app: WebApp,
-    statsLimit: Int,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit = {},
-) {
-    val visibleStats = listOf(
-        Triple(
-            Icons.Default.Favorite,
-            app.collectCount,
-            stringResource(Res.string.discovery_collect_stat_content_description),
-        ),
-        Triple(
-            Icons.Default.Person,
-            app.useCount,
-            stringResource(Res.string.discovery_use_stat_content_description),
-        ),
-        Triple(
-            Icons.Default.Visibility,
-            app.pv,
-            stringResource(Res.string.discovery_view_stat_content_description),
-        ),
-    ).take(statsLimit.coerceIn(1, 3))
-
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .aspectRatio(3f / 4f)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(Dimens.RadiusMD),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Box(modifier = Modifier.fillMaxSize()) {
-            // Cover image fills entire card
-            when (app.coverMediaType) {
-                CoverMediaType.VIDEO -> {
-                    app.coverUrl?.let {
-                        VideoThumbnail(
-                            url = it,
-                            modifier = Modifier.fillMaxSize(),
-                        )
-                    }
-                }
-                else -> {
-                    AsyncImage(
-                        model = app.coverUrl ?: app.thumbnailUrl,
-                        contentDescription = app.title,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                    )
-                }
-            }
-
-            // Bottom gradient for text readability
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.55f)
-                    .align(Alignment.BottomCenter)
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.65f))
-                        )
-                    )
-            )
-
-            if (app.tags.isNotEmpty()) {
-                CardTagRow(
-                    tags = app.tags,
-                    modifier = Modifier
-                        .align(Alignment.TopStart)
-                        .padding(start = 10.dp, top = 10.dp, end = 10.dp),
-                )
-            }
-
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 10.dp, end = 10.dp, bottom = 10.dp),
-            ) {
-                Text(
-                    text = app.title.trim(),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Spacer(Modifier.height(6.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    SmartAsyncImage(
-                        imageUrl = app.author?.avatar,
-                        contentDescription = app.author?.name,
-                        modifier = Modifier
-                            .size(16.dp)
-                            .border(1.dp, Color.White.copy(alpha = 0.7f), CircleShape),
-                        shape = CircleShape,
-                    )
-                    Text(
-                        text = app.author?.name?.takeIf { it.isNotBlank() }
-                            ?: stringResource(Res.string.discovery_default_author_name),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = Color.White.copy(alpha = 0.88f),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    visibleStats.forEachIndexed { index, (icon, count, label) ->
-                        CardStatChip(
-                            icon = icon,
-                            count = count,
-                            label = label,
-                            modifier = if (index == visibleStats.lastIndex) Modifier else Modifier.padding(end = 1.dp),
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CardTagRow(
-    tags: List<TagSimple>,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        tags.take(3).forEach { tag ->
-            Text(
-                text = tag.name,
-                fontSize = 9.sp,
-                lineHeight = 10.sp,
-                color = Color.White,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier
-                    .widthIn(max = 58.dp)
-                    .background(Color.White.copy(alpha = 0.24f), RoundedCornerShape(4.dp))
-                    .padding(horizontal = 5.dp, vertical = 2.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun CardStatChip(
-    icon: ImageVector,
-    count: String,
-    modifier: Modifier = Modifier,
-    label: String,
-) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = modifier) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            modifier = Modifier.size(9.dp),
-            tint = Color.White.copy(alpha = 0.82f),
-        )
-        Spacer(Modifier.width(1.dp))
-        Text(
-            text = formatCount(count),
-            fontSize = 9.sp,
-            lineHeight = 10.sp,
-            color = Color.White.copy(alpha = 0.82f),
-            maxLines = 1,
-        )
-    }
 }
 
 // endregion

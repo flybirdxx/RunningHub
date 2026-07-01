@@ -1,7 +1,6 @@
 package com.runninghub.app.ui.feature.quickcreate
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,7 +64,6 @@ fun MediaChipCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(Dimens.RadiusSM),
         color = DarkSurfaceVariant,
-        border = BorderStroke(1.dp, DarkOutlineVariant),
     ) {
         Row(
             modifier = Modifier

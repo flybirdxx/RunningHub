@@ -5,7 +5,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -59,7 +58,6 @@ import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_result_action_copy_prompt
 import runninghub.composeapp.generated.resources.quick_create_result_action_download
-import runninghub.composeapp.generated.resources.quick_create_result_action_refund_status
 import runninghub.composeapp.generated.resources.quick_create_result_action_retry
 import runninghub.composeapp.generated.resources.quick_create_result_action_reuse_parameters
 import runninghub.composeapp.generated.resources.quick_create_result_action_save
@@ -167,7 +165,6 @@ private fun UserPromptBubble(prompt: String) {
             modifier = Modifier.widthIn(max = 250.dp),
             shape = RoundedCornerShape(12.dp),
             color = Color(0xEE0F1320),
-            border = BorderStroke(1.dp, Color(0xFF263044)),
         ) {
             Text(
                 text = prompt,
@@ -219,7 +216,6 @@ private fun GeneratedPosterCard(
                             .matchParentSize()
                             .alpha(if (cardAspectRatio != null) 1f else 0f),
                         contentScale = ContentScale.Crop,
-                        shape = RoundedCornerShape(16.dp),
                         onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
                     )
                 }
@@ -232,7 +228,6 @@ private fun GeneratedPosterCard(
                             .matchParentSize()
                             .alpha(if (cardAspectRatio != null) 1f else 0f),
                         contentScale = ContentScale.Crop,
-                        shape = RoundedCornerShape(16.dp),
                         onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
                     )
                 }
@@ -341,7 +336,6 @@ private fun QuickCreateResultAction.toResultPreviewActionType(): ResultPreviewAc
         QuickCreateResultAction.TryAgain -> ResultPreviewActionType.TryAgain
         QuickCreateResultAction.Retry -> ResultPreviewActionType.Retry
         QuickCreateResultAction.ViewDetail -> ResultPreviewActionType.ViewDetail
-        QuickCreateResultAction.RefundStatus -> ResultPreviewActionType.RefundStatus
     }
 
 private fun ResultPreviewActionType.toQuickCreateResultAction(): QuickCreateResultAction =
@@ -355,7 +349,6 @@ private fun ResultPreviewActionType.toQuickCreateResultAction(): QuickCreateResu
         ResultPreviewActionType.TryAgain -> QuickCreateResultAction.TryAgain
         ResultPreviewActionType.Retry -> QuickCreateResultAction.Retry
         ResultPreviewActionType.ViewDetail -> QuickCreateResultAction.ViewDetail
-        ResultPreviewActionType.RefundStatus -> QuickCreateResultAction.RefundStatus
     }
 
 @Composable
@@ -370,7 +363,6 @@ private fun QuickCreateResultAction.quickCreateResultActionLabel(): String =
         QuickCreateResultAction.TryAgain -> stringResource(Res.string.quick_create_result_action_try_again)
         QuickCreateResultAction.Retry -> stringResource(Res.string.quick_create_result_action_retry)
         QuickCreateResultAction.ViewDetail -> stringResource(Res.string.quick_create_result_action_view_detail)
-        QuickCreateResultAction.RefundStatus -> stringResource(Res.string.quick_create_result_action_refund_status)
     }
 
 @Composable

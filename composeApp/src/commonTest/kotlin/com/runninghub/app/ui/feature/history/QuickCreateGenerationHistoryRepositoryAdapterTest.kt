@@ -149,13 +149,67 @@ class QuickCreateGenerationHistoryRepositoryAdapterTest {
         assertEquals("https://example.com/web-detail.png", detail.outputs.single().url)
     }
 
-    private class FakeQuickCreationTaskHistoryRepository : QuickCreationTaskHistoryRepository {
-        var lastPage: Int? = null
-        var lastSize: Int? = null
-        var lastDetailOutputId: String? = null
-        var cancelledTaskId: String? = null
+    @Test
+    fun `task detail does not infer billing usage from cached list cost`() = runTest {
+        val quickRepository = FakeQuickCreationTaskHistoryRepository()
+        val webAppRepository = FakeWebAppTaskHistoryRepository(
+            items = listOf(
+                TaskHistoryItem(
+                    taskId = "web-task-1",
+                    outputs = emptyList(),
+                    status = TaskExecutionStatus.Success,
+                    taskCostTime = "00:42",
+                    createTime = "2026-06-28 13:58:00",
+                    taskName = "WebApp job",
+                    webappId = "webapp-1",
+                    moneyAmount = 1.23,
+                    currency = "CNY",
+                    coinAmount = 12.0,
+                )
+            )
+        )
+        val repository = UnifiedGenerationHistoryRepository(quickRepository, webAppRepository)
 
-        private val item = QuickCreationHistoryItem(
+        repository.listHistory(page = 1, size = 20).getOrThrow()
+        val detail = repository.getTaskDetail("web-task-1").getOrThrow()
+
+        assertEquals(null, detail.duration)
+        assertEquals(null, detail.rhCoins)
+        assertEquals(null, detail.finalAmount)
+    }
+
+    @Test
+    fun `task detail does not fill missing request parameters from cached list params`() = runTest {
+        val quickRepository = FakeQuickCreationTaskHistoryRepository(
+            item = QuickCreationHistoryItem(
+                taskId = "web-task-1",
+                status = "SUCCESS",
+                params = mapOf("prompt" to "cached prompt", "aspectRatio" to "16:9"),
+            )
+        )
+        val webAppRepository = FakeWebAppTaskHistoryRepository(
+            items = listOf(
+                TaskHistoryItem(
+                    taskId = "web-task-1",
+                    outputs = emptyList(),
+                    status = TaskExecutionStatus.Success,
+                    taskCostTime = "00:42",
+                    createTime = "2026-06-28 13:58:00",
+                    taskName = "WebApp job",
+                    webappId = "webapp-1",
+                )
+            )
+        )
+        val repository = UnifiedGenerationHistoryRepository(quickRepository, webAppRepository)
+
+        repository.listHistory(page = 1, size = 20).getOrThrow()
+        val detail = repository.getTaskDetail("web-task-1").getOrThrow()
+
+        assertEquals(emptyMap(), detail.requestParameters)
+    }
+
+    private class FakeQuickCreationTaskHistoryRepository(
+        private val item: QuickCreationHistoryItem = QuickCreationHistoryItem(
             taskId = "task-1",
             status = "RUNNING",
             skuId = "sku-1",
@@ -166,7 +220,12 @@ class QuickCreateGenerationHistoryRepositoryAdapterTest {
                     type = "png",
                 )
             ),
-        )
+        ),
+    ) : QuickCreationTaskHistoryRepository {
+        var lastPage: Int? = null
+        var lastSize: Int? = null
+        var lastDetailOutputId: String? = null
+        var cancelledTaskId: String? = null
 
         override suspend fun listQuickCreationHistory(page: Int, size: Int): Result<QuickCreationHistoryPage> {
             lastPage = page

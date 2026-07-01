@@ -212,7 +212,6 @@ private fun PlazaWorkDetailUiModel.toQuickCreatePlazaReuseIntent(): QuickCreateP
         prompt = snapshot.prompt,
         aspectRatio = snapshot.aspectRatio,
         resolution = snapshot.resolution,
-        quantity = snapshot.quantity,
         referenceMediaUrl = snapshot.referenceMediaUrl,
         referenceMediaKind = toQuickCreatePlazaReuseMediaKind(),
     )

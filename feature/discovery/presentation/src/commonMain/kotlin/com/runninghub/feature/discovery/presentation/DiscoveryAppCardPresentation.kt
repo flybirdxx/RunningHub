@@ -51,7 +51,7 @@ data class DiscoveryAppPreviewUi(
  * 发现页 App 卡片的预计费用语义。
  *
  * @property kind 当前费用状态。RM-11 暂无稳定费用协议时使用 [DiscoveryAppEstimatedCostKind.UNKNOWN]。
- * @property amountLabel 已格式化费用摘要；为空表示需要应用壳映射“价格待确认”资源文案。
+ * @property amountLabel 已格式化费用摘要；为空表示需要应用壳映射“运行前确认费用”资源文案。
  */
 data class DiscoveryAppEstimatedCostUi(
     val kind: DiscoveryAppEstimatedCostKind,

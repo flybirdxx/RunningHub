@@ -44,7 +44,6 @@ class TaskDetailResultLayoutContractTest {
                 BillingInfoRow(label = "最终金额", value = "¥0.1"),
             ),
             saveStateLabel = "未保存到本地",
-            refundStateLabel = "无需退款",
             promptParameters = listOf(TaskDetailPromptParameterState(label = "prompt", value = "city")),
             technicalSections = listOf(
                 TaskDetailTechnicalSectionState(

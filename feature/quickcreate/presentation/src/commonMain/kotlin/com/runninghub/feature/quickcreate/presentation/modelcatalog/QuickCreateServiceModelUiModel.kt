@@ -179,7 +179,7 @@ sealed interface QuickCreateServiceModelSubtitle {
 /**
  * 紧凑编辑器模型入口的稳定标签语义。
  *
- * Presentation 层只表达当前标签来自加载态、服务端模型名还是本地兼容模型名，
+ * Presentation 层只表达当前标签来自加载态、服务端模型名还是服务端模型缺失态，
  * 不直接返回加载态的最终中文 UI 文案；composeApp 负责把 [Loading] 映射到 Compose Resources。
  */
 sealed interface QuickCreateCompactServiceModelLabel {
@@ -195,14 +195,7 @@ sealed interface QuickCreateCompactServiceModelLabel {
         val value: String,
     ) : QuickCreateCompactServiceModelLabel
 
-    /**
-     * 使用本地兼容模型的展示名。
-     *
-     * @property value 来自本地图片或视频模型枚举的展示名，用于服务端模型缺失时保持入口可读。
-     */
-    data class FallbackName(
-        val value: String,
-    ) : QuickCreateCompactServiceModelLabel
+    data object Unavailable : QuickCreateCompactServiceModelLabel
 }
 
 /**
@@ -345,22 +338,20 @@ fun quickCreateModelPickerState(
  * 根据当前选中模型生成紧凑编辑器中的模型标签。
  *
  * 主输入条在服务端模型尚未回填时展示加载语义，避免把本地兼容模型误当作当前已选模型；
- * 目录加载完成但仍无服务模型时才使用本地兼容模型名兜底，保证旧接口或离线场景仍可读。
+ * 目录加载完成但仍无服务模型时展示缺失态，不再把本地兼容模型名当作当前模型事实。
  *
  * @param model 当前服务端选中模型 UI 摘要；`null` 表示还没有可展示的服务端模型。
- * @param fallback 服务端模型缺失时展示的本地兼容模型名称。
  * @param loading `true` 表示目录仍在加载，此时若 [model] 为空不应展示硬编码兼容模型名。
  * @return 紧凑模型入口的稳定标签语义。
  */
 fun quickCreateCompactServiceModelLabel(
     model: QuickCreateServiceModelUi?,
-    fallback: String,
     loading: Boolean,
 ): QuickCreateCompactServiceModelLabel =
     when {
         model != null -> QuickCreateCompactServiceModelLabel.ModelName(model.compactName)
         loading -> QuickCreateCompactServiceModelLabel.Loading
-        else -> QuickCreateCompactServiceModelLabel.FallbackName(fallback.toQuickCreateCompactServiceModelLabel())
+        else -> QuickCreateCompactServiceModelLabel.Unavailable
     }
 
 private fun String.toQuickCreateCompactServiceModelLabel(): String {

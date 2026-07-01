@@ -15,12 +15,13 @@ import kotlin.test.assertTrue
 
 class RhDesignSystemContractTest {
     @Test
-    fun `dark color tokens expose roadmap semantic palette`() {
+    fun `dark color tokens expose restrained semantic palette`() {
         assertEquals(Color(0xFF050608), RhDarkColors.backgroundPrimary)
         assertEquals(Color(0xFF11151A), RhDarkColors.surfaceDefault)
-        assertEquals(Color(0xFFB6FF00), RhDarkColors.brandPrimary)
-        assertEquals(Color(0xFF4ADE80), RhDarkColors.statusSuccess)
-        assertEquals(Color(0xFFB6FF00), RhDarkColors.priceCredit)
+        assertEquals(Color(0xFFA3B565), RhDarkColors.brandPrimary)
+        assertEquals(Color(0xFF242C1D), RhDarkColors.brandMuted)
+        assertEquals(Color(0xFF6EA77A), RhDarkColors.statusSuccess)
+        assertEquals(Color(0xFFC3B36A), RhDarkColors.priceCredit)
     }
 
     @Test

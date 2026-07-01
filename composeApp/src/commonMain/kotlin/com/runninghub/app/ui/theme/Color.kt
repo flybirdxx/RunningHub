@@ -2,8 +2,7 @@ package com.runninghub.app.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// RunningHub web brand palette captured from runninghub.cn on 2026-06-19.
-val BrandLime = Color(0xFFB6FF00)
+val BrandLime = Color(0xFFA3B565)
 val BaseBlack = Color(0xFF000000)
 val Surface900 = Color(0xFF080808)
 val Surface850 = Color(0xFF09090B)
@@ -22,7 +21,7 @@ val ControlTealActive = Color(0xFF01A47A)
 val RhAppBackground = BaseBlack
 val RhAppSurface = Surface850
 val RhAppCard = Surface800
-val RhAppSelected = Color(0xFF202515)
+val RhAppSelected = Color(0xFF1B2117)
 val RhAppLine = Color(0xFF30363A)
 val RhAppText = TextPrimaryDark
 val RhAppMuted = TextMutedDark
@@ -66,9 +65,9 @@ val Neutral900 = Color(0xFF0F172A)
 
 // Semantic colors
 val SuccessLight = Color(0xFF16A34A)
-val SuccessDark = Color(0xFF4ADE80)
+val SuccessDark = Color(0xFF6EA77A)
 val WarningLight = Color(0xFFD97706)
-val WarningDark = Color(0xFFFBBF24)
+val WarningDark = Color(0xFFD6A85C)
 val ErrorLight = Color(0xFFDC2626)
 val ErrorDark = Color(0xFFF87171)
 val InfoLight = Color(0xFF2563EB)
@@ -112,7 +111,7 @@ val LightScrim = Color.Black
 // Dark ColorScheme tokens
 val DarkPrimary = BrandLime
 val DarkOnPrimary = Color.Black
-val DarkPrimaryContainer = Color(0xFF334000)
+val DarkPrimaryContainer = Color(0xFF30381F)
 val DarkOnPrimaryContainer = BrandLime
 
 val DarkSecondary = Secondary200

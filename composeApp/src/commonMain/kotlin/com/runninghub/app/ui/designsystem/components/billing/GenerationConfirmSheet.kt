@@ -22,7 +22,7 @@ import com.runninghub.app.ui.designsystem.theme.RhTypography
  * @property title Sheet 标题文案。
  * @property priceBadgeState 预计消耗对应的价格徽标视觉状态。
  * @property priceLabel 已格式化的预计消耗文案。
- * @property rows 结算信息行，至少应包含预计消耗、余额、会员减免和失败扣费说明。
+ * @property rows 结算信息行，由调用方按接口已返回的预计消耗、余额等事实组装。
  * @property confirmActionLabel 主按钮文案。
  * @property dismissActionLabel 取消按钮文案。
  * @property confirmEnabled `true` 表示当前价格确认完成且允许继续提交。

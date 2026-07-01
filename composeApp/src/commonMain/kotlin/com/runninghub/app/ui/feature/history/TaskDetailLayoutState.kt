@@ -28,7 +28,6 @@ internal data class TaskDetailLayoutState(
     val resultPreview: ResultPreviewState,
     val billingRows: List<BillingInfoRow>,
     val saveStateLabel: String,
-    val refundStateLabel: String,
     val promptParameters: List<TaskDetailPromptParameterState>,
     val technicalSections: List<TaskDetailTechnicalSectionState>,
 )

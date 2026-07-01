@@ -220,26 +220,38 @@ internal fun OpenApiCallLogDetailDataDto.toDomain(requestedTaskId: String): Gene
     val resolvedTaskId = basicInfo?.taskId?.takeIf { it.isNotBlank() } ?: requestedTaskId
     val title = basicInfo?.apiName?.takeIf { it.isNotBlank() }
     val status = basicInfo?.taskStatus?.takeIf { it.isNotBlank() } ?: "UNKNOWN"
-    val rhCoins = basicInfo?.coinNum.asDetailText() ?: costInfo?.coinNum.asDetailText()
-    val finalAmount = costInfo?.afterDiscountAmount.asDetailText()
-        ?: costInfo?.finalAmount.asDetailText()
-        ?: costInfo?.amount.asDetailText()
-        ?: basicInfo?.amount.asDetailText()
+    val usage = responseInfo.toTaskDetailUsage()
     val rawRequestInfo = requestInfo?.apiRequestParams
     return GenerationTaskDetail(
         taskId = resolvedTaskId,
         title = title,
         sourceLabel = basicInfo?.apiType?.takeIf { it.isNotBlank() },
         status = status,
-        duration = basicInfo?.duration.asDetailText(),
-        rhCoins = rhCoins,
-        finalAmount = finalAmount,
+        duration = usage.taskCostTime,
+        rhCoins = usage.consumeCoins,
+        finalAmount = usage.consumeMoney,
         outputs = list.mapIndexedNotNull { index, output -> output.toGenerationHistoryOutput(resolvedTaskId, index) },
         basicFields = basicInfo.toBasicFields(resolvedTaskId, title),
-        costFields = costInfo.toCostFields(),
         requestParameters = rawRequestInfo.toRequestParameterSummary(),
         requestInfo = rawRequestInfo?.toSanitizedJsonString(),
         responseInfo = responseInfo?.toSanitizedPrettyJsonString(),
+    )
+}
+
+private data class TaskDetailUsage(
+    val consumeMoney: String? = null,
+    val consumeCoins: String? = null,
+    val taskCostTime: String? = null,
+)
+
+private fun JsonElement?.toTaskDetailUsage(): TaskDetailUsage {
+    val root = this as? JsonObject ?: return TaskDetailUsage()
+    val usage = root["usage"] as? JsonObject ?: return TaskDetailUsage()
+    return TaskDetailUsage(
+        consumeMoney = usage["consumeMoney"].asDetailText()
+            ?: usage["thirdPartyConsumeMoney"].asDetailText(),
+        consumeCoins = usage["consumeCoins"].asDetailText(),
+        taskCostTime = usage["taskCostTime"].asDetailText(),
     )
 }
 
@@ -256,20 +268,6 @@ private fun OpenApiCallLogBasicInfoDto?.toBasicFields(
     detailField(GenerationTaskDetailFieldKey.API_KEY, this?.apiKeyName ?: this?.apiKey?.maskSecret()),
     detailField(GenerationTaskDetailFieldKey.API_KEY_TYPE, this?.apiKeyType.asDetailText()),
     detailField(GenerationTaskDetailFieldKey.MODE, this?.mode),
-)
-
-private fun OpenApiCallLogCostInfoDto?.toCostFields(): List<GenerationTaskDetailField> = listOfNotNull(
-    detailField(
-        GenerationTaskDetailFieldKey.ORIGINAL_AMOUNT,
-        this?.originalAmount.asDetailText() ?: this?.originAmount.asDetailText() ?: this?.amount.asDetailText(),
-    ),
-    detailField(GenerationTaskDetailFieldKey.DISCOUNT_RATIO, this?.discountRatio.asDetailText() ?: this?.discountRate.asDetailText()),
-    detailField(GenerationTaskDetailFieldKey.DISCOUNT_AMOUNT, this?.discountAmount.asDetailText()),
-    detailField(
-        GenerationTaskDetailFieldKey.FINAL_AMOUNT,
-        this?.afterDiscountAmount.asDetailText() ?: this?.finalAmount.asDetailText() ?: this?.amount.asDetailText(),
-    ),
-    detailField(GenerationTaskDetailFieldKey.RH_COINS, this?.coinNum.asDetailText()),
 )
 
 private fun detailField(
@@ -329,16 +327,21 @@ private fun String?.toRequestParameterSummary(): Map<String, String> {
         null
     } ?: return emptyMap()
     return buildMap {
-        root.collectNodeInfoParameters(this)
-        root.forEach { (key, value) ->
-            putSafeRequestParameter(key, value)
+        if (root.collectNodeInfoParameters(this)) {
+            return@buildMap
+        } else {
+            root.forEach { (key, value) ->
+                putSafeRequestParameter(key, value)
+            }
         }
     }
 }
 
-private fun JsonObject.collectNodeInfoParameters(target: MutableMap<String, String>) {
+private fun JsonObject.collectNodeInfoParameters(target: MutableMap<String, String>): Boolean {
+    var foundNodeContainer = false
     listOf("nodeInfoList", "inputNodeList", "nodes").forEach { key ->
         val array = this[key] as? JsonArray ?: return@forEach
+        foundNodeContainer = true
         array.forEach { element ->
             val node = element as? JsonObject ?: return@forEach
             val fieldName = node["fieldName"].asParameterText()
@@ -352,6 +355,7 @@ private fun JsonObject.collectNodeInfoParameters(target: MutableMap<String, Stri
             target.putSafeRequestParameter(fieldName, fieldValue)
         }
     }
+    return foundNodeContainer
 }
 
 private fun MutableMap<String, String>.putSafeRequestParameter(key: String, value: JsonElement?) {

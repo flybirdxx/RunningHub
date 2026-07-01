@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
 @OptIn(ExperimentalCoroutinesApi::class)
 class ProfileStateHolderTest {
     @Test
-    fun `asset center separates rhb points wallet balance and unknown generation capacity`() = runTest {
+    fun `asset center separates rhb points and wallet balance without inferred generation capacity`() = runTest {
         val stateHolder = createStateHolder(
             profileCredentialRepository = FakeProfileCredentialRepository(),
             authRepository = FakeAuthRepository(isLoggedIn = true, currentUserId = "user-1"),
@@ -54,7 +54,40 @@ class ProfileStateHolderTest {
         assertEquals("12000", wallet.rhbPoints)
         assertEquals("248.60", wallet.walletBalance)
         assertEquals("CNY", wallet.walletCurrency)
-        assertEquals(ProfileWalletRisk.GenerationCapacityUnknown, wallet.risk)
+        assertEquals(ProfileWalletRisk.None, wallet.risk)
+    }
+
+    @Test
+    fun `asset center does not infer insufficient balance from zero account fields`() = runTest {
+        val stateHolder = createStateHolder(
+            profileCredentialRepository = FakeProfileCredentialRepository(),
+            authRepository = FakeAuthRepository(isLoggedIn = true, currentUserId = "user-1"),
+            userRepository = FakeUserRepository(
+                userInfoResult = Result.success(
+                    testUser(
+                        totalCoin = "0",
+                        walletInfo = WalletInfo(balance = 0.0, currency = "CNY", currencySymbol = "¥"),
+                    ),
+                ),
+                accountStatusResult = Result.success(
+                    AccountStatus(
+                        remainCoins = "0",
+                        currentTaskCounts = "0",
+                        remainMoney = "0",
+                        currency = "CNY",
+                        apiType = "member",
+                    ),
+                ),
+            ),
+            coroutineScope = this,
+        )
+        advanceUntilIdle()
+
+        val wallet = stateHolder.uiState.value.assetCenter.wallet
+
+        assertEquals("0", wallet.rhbPoints)
+        assertEquals("0", wallet.walletBalance)
+        assertEquals(ProfileWalletRisk.None, wallet.risk)
     }
 
     @Test
@@ -95,35 +128,7 @@ class ProfileStateHolderTest {
         val membership = stateHolder.uiState.value.assetCenter.membership
 
         assertEquals(ProfileMembershipStatus.Expired, membership.status)
-        assertEquals(ProfileMembershipAction.Renew, membership.primaryAction)
-        assertEquals(ProfileMembershipBenefitStatus.Unavailable, membership.benefitStatus)
-    }
-
-    @Test
-    fun `transaction center is explicit empty and task navigation requires related task id`() {
-        val state = ProfileTransactionCenterUiModel(
-            loadState = ProfileAssetLoadState.Empty,
-            transactions = listOf(
-                ProfileTransactionUiModel(
-                    id = "tx-1",
-                    type = ProfileTransactionType.Generation,
-                    amount = "-12 RHB",
-                    status = ProfileTransactionStatus.Succeeded,
-                    relatedTaskId = "task-1",
-                ),
-                ProfileTransactionUiModel(
-                    id = "tx-2",
-                    type = ProfileTransactionType.Recharge,
-                    amount = "+100 CNY",
-                    status = ProfileTransactionStatus.Pending,
-                    relatedTaskId = null,
-                ),
-            ),
-        )
-
-        assertTrue(ProfileTransactionCenterUiModel.Empty.transactions.isEmpty())
-        assertTrue(state.transactions.first().canOpenTaskDetail)
-        assertFalse(state.transactions.last().canOpenTaskDetail)
+        assertEquals("RunningHub Pro", membership.levelName)
     }
 
     @Test

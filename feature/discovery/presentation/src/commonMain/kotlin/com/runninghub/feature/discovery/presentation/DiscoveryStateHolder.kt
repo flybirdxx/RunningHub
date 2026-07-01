@@ -139,10 +139,12 @@ class DiscoveryStateHolder(
             _uiState.update { it.copy(isLoading = true, error = null) }
             try {
                 val categoriesDeferred = launch { loadCategories() }
+                val bannersDeferred = launch { loadBanners(requestVersion) }
                 categoriesDeferred.join()
 
                 val appsDeferred = launch { loadApps(page = 1, reset = true, requestVersion = requestVersion) }
 
+                bannersDeferred.join()
                 appsDeferred.join()
             } finally {
                 _uiState.update { it.copy(isLoading = false) }
@@ -155,6 +157,24 @@ class DiscoveryStateHolder(
             .onSuccess { tags ->
                 val level1Tags = tags.filter { it.level == 1 }
                 _uiState.update { it.copy(categories = level1Tags) }
+            }
+    }
+
+    private suspend fun loadBanners(requestVersion: Long) {
+        webAppRepository.getCarefullyChosenList()
+            .onSuccess { banners ->
+                if (requestVersion != appListRequestVersion) return@onSuccess
+                _uiState.update {
+                    it.copy(
+                        banners = banners.filter { app ->
+                            app.id.isNotBlank() && app.title.isNotBlank()
+                        },
+                    )
+                }
+            }
+            .onFailure {
+                if (requestVersion != appListRequestVersion) return@onFailure
+                _uiState.update { it.copy(banners = emptyList()) }
             }
     }
 
@@ -289,6 +309,7 @@ class DiscoveryStateHolder(
             }
             try {
                 loadCategories()
+                loadBanners(requestVersion)
                 loadApps(page = 1, reset = true, requestVersion = requestVersion)
             } finally {
                 if (requestVersion == appListRequestVersion) {

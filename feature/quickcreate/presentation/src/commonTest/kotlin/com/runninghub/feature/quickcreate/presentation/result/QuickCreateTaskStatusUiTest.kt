@@ -104,7 +104,6 @@ class QuickCreateTaskStatusUiTest {
             listOf(
                 QuickCreateResultAction.Retry,
                 QuickCreateResultAction.ViewDetail,
-                QuickCreateResultAction.RefundStatus,
             ),
             failedActions.map { it.action },
         )

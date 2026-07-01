@@ -119,7 +119,6 @@ enum class QuickCreateResultAction {
     TryAgain,
     Retry,
     ViewDetail,
-    RefundStatus,
 }
 
 /**
@@ -176,7 +175,6 @@ fun quickCreateResultActions(
             if (hasTaskId) {
                 add(QuickCreateResultActionUi(QuickCreateResultAction.ViewDetail))
             }
-            add(QuickCreateResultActionUi(QuickCreateResultAction.RefundStatus))
         }
         QuickCreateTaskUiStatus.CANCELED -> buildList {
             if (hasTaskId) {

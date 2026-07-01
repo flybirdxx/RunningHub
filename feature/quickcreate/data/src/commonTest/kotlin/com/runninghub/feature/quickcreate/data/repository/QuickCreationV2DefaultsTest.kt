@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class QuickCreationV2DefaultsTest {
     @Test
@@ -75,6 +76,28 @@ class QuickCreationV2DefaultsTest {
     }
 
     @Test
+    fun `service image v2 request only sends declared quick creation params`() {
+        val request = QuickCreationV2Defaults.imageG2CreateRequest(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "all-power-image-g2",
+                aspectRatio = "16:9",
+                resolution = "2k",
+                quality = "medium",
+                quickCreationBindingId = "image-binding",
+                quickCreationSkuId = "image-sku",
+                quickCreationParams = mapOf("style" to "photoreal"),
+            )
+        )
+
+        assertEquals(JsonPrimitive("green icon"), request.params["prompt"])
+        assertEquals(JsonPrimitive("photoreal"), request.params["style"])
+        assertNull(request.params["aspectRatio"])
+        assertNull(request.params["resolution"])
+        assertNull(request.params["quality"])
+    }
+
+    @Test
     fun `service list params are merged as json arrays`() {
         val request = QuickCreationV2Defaults.imageG2CreateRequest(
             ImageGenerationRequest(
@@ -122,11 +145,11 @@ class QuickCreationV2DefaultsTest {
         assertEquals("2034917373414539277", request.skuId)
         assertEquals(JsonPrimitive("薯片人偶踢足球"), request.params["prompt"])
         assertEquals(JsonPrimitive("3:4"), request.params["ratio"])
-        assertEquals(JsonPrimitive("3:4"), request.params["aspectRatio"])
-        assertEquals(JsonPrimitive("720p"), request.params["resolution"])
-        assertEquals(JsonPrimitive(8), request.params["duration"])
-        assertEquals(JsonPrimitive(false), request.params["generateAudio"])
         assertEquals(JsonPrimitive(false), request.params["realPersonMode"])
+        assertNull(request.params["aspectRatio"])
+        assertNull(request.params["resolution"])
+        assertNull(request.params["duration"])
+        assertNull(request.params["generateAudio"])
         assertEquals(JsonPrimitive("multimodal"), request.params["creationMode"])
         assertEquals(JsonPrimitive(1), request.params["creationSubModeId"])
         assertEquals(JsonPrimitive("MULTIMODAL_REFERENCE"), request.params["creationSubModeKey"])
@@ -154,5 +177,11 @@ class QuickCreationV2DefaultsTest {
         assertEquals(JsonPrimitive("MULTIMODAL_REFERENCE"), request.params["creationSubModeKey"])
         val imageUrls = request.params["imageUrls"] as JsonArray
         assertEquals("https://example.com/direct-ref.png", imageUrls.single().jsonPrimitive.content)
+        assertNull(request.params["ratio"])
+        assertNull(request.params["aspectRatio"])
+        assertNull(request.params["resolution"])
+        assertNull(request.params["duration"])
+        assertNull(request.params["generateAudio"])
+        assertNull(request.params["realPersonMode"])
     }
 }

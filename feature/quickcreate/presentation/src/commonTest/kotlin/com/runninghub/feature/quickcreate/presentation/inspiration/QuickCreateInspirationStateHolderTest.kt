@@ -10,8 +10,11 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationUploadMediaKind
 import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationError
 import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingPreviewUi
 import com.runninghub.feature.quickcreate.presentation.editor.ImageAspectRatio
+import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateMode
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
@@ -24,6 +27,7 @@ import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class QuickCreateInspirationStateHolderTest {
@@ -175,6 +179,9 @@ class QuickCreateInspirationStateHolderTest {
                 currentMode = QuickCreateMode.CREATION,
                 serviceImageModels = listOf(imageModel),
                 selectedImageServiceModel = imageModel,
+                estimatedCost = 4.2,
+                feePreviewRequestKey = "old-price-key",
+                billingPreview = QuickCreateBillingPreviewUi(requiredCashAmount = 4.2),
             )
         )
         val holder = createHolder(repository, state, this, onTemplateApplied = { templateAppliedCount++ })
@@ -194,6 +201,9 @@ class QuickCreateInspirationStateHolderTest {
         assertEquals(QuickCreateMediaType.IMAGE, mediaReference.type)
         assertEquals(UploadStatus.DONE, mediaReference.uploadStatus)
         assertEquals("https://example.com/template.png", mediaReference.remoteUrl)
+        assertEquals(0.0, state.value.estimatedCost)
+        assertNull(state.value.feePreviewRequestKey)
+        assertNull(state.value.billingPreview)
     }
 
     @Test
@@ -202,7 +212,11 @@ class QuickCreateInspirationStateHolderTest {
         val imageModel = serviceModel(
             bindingId = "image-binding",
             skuId = "image-sku",
-            fields = listOf(uploadField(fieldKey = "imageUrls", paramKey = "imageUrls")),
+            fields = listOf(
+                serviceField(paramKey = "aspectRatio"),
+                serviceField(paramKey = "resolution"),
+                uploadField(fieldKey = "imageUrls", paramKey = "imageUrls"),
+            ),
         )
         val repository = FakeInspirationRepository()
         val state = MutableStateFlow(
@@ -210,6 +224,13 @@ class QuickCreateInspirationStateHolderTest {
                 currentMode = QuickCreateMode.CREATION,
                 serviceImageModels = listOf(imageModel),
                 selectedImageServiceModel = imageModel,
+                imageConfig = ImageConfig(
+                    aspectRatio = ImageAspectRatio.RATIO_16_9,
+                    resolution = ImageResolution.RES_2K,
+                ),
+                estimatedCost = 3.6,
+                feePreviewRequestKey = "old-plaza-price-key",
+                billingPreview = QuickCreateBillingPreviewUi(requiredRhAmount = 3.6),
             )
         )
         val holder = createHolder(repository, state, this, onTemplateApplied = { templateAppliedCount++ })
@@ -233,9 +254,54 @@ class QuickCreateInspirationStateHolderTest {
         assertEquals("cinematic mountain house", state.value.imageConfig.prompt)
         assertEquals(ImageAspectRatio.RATIO_3_4, state.value.imageConfig.aspectRatio)
         assertEquals("1K", state.value.imageConfig.resolution.apiValue)
+        assertEquals(
+            mapOf("aspectRatio" to "3:4", "resolution" to "1K"),
+            state.value.imageServiceParams,
+        )
         assertEquals("imageUrls", state.value.imageConfig.mediaReferences.single().fieldParamKey)
         assertEquals("https://example.com/work.png", state.value.imageConfig.mediaReferences.single().remoteUrl)
         assertFalse(state.value.feePreviewLoading)
+        assertEquals(0.0, state.value.estimatedCost)
+        assertNull(state.value.feePreviewRequestKey)
+        assertNull(state.value.billingPreview)
+    }
+
+    @Test
+    fun `apply plaza reuse intent keeps undeclared params out of service params`() = runTest {
+        val imageModel = serviceModel(
+            bindingId = "image-binding",
+            skuId = "image-sku",
+            fields = listOf(uploadField(fieldKey = "imageUrls", paramKey = "imageUrls")),
+        )
+        val repository = FakeInspirationRepository()
+        val state = MutableStateFlow(
+            QuickCreateUiState(
+                currentMode = QuickCreateMode.CREATION,
+                serviceImageModels = listOf(imageModel),
+                selectedImageServiceModel = imageModel,
+                imageConfig = ImageConfig(
+                    aspectRatio = ImageAspectRatio.RATIO_16_9,
+                    resolution = ImageResolution.RES_2K,
+                ),
+            )
+        )
+        val holder = createHolder(repository, state, this)
+
+        holder.applyPlazaReuseIntent(
+            QuickCreatePlazaReuseIntent(
+                sourceWorkId = "work-1",
+                prompt = "schema filtered prompt",
+                aspectRatio = "3:4",
+                resolution = "1K",
+                referenceMediaUrl = "https://example.com/work.png",
+                referenceMediaKind = QuickCreatePlazaReuseMediaKind.IMAGE,
+            )
+        )
+
+        assertEquals(ImageAspectRatio.RATIO_16_9, state.value.imageConfig.aspectRatio)
+        assertEquals(ImageResolution.RES_2K, state.value.imageConfig.resolution)
+        assertEquals(1, state.value.imageConfig.count)
+        assertEquals(emptyMap(), state.value.imageServiceParams)
     }
 
     @Test
@@ -423,4 +489,14 @@ private fun uploadField(
         defaultValue = null,
         options = emptyList(),
         uploadMediaKind = mediaKind,
+    )
+
+private fun serviceField(paramKey: String): QuickCreationServiceField =
+    QuickCreationServiceField(
+        fieldKey = paramKey,
+        paramKey = paramKey,
+        fieldType = "select",
+        required = false,
+        defaultValue = null,
+        options = emptyList(),
     )

@@ -132,7 +132,7 @@ sealed interface ImageQualityLabel {
 /**
  * 快捷创作迁移期保留的本地图片模型枚举。
  *
- * 服务端模型目录已经由 Domain Repository 提供；该枚举只用于旧参数入口、本地默认值和本地价格预估兜底。
+ * 服务端模型目录已经由 Domain Repository 提供；该枚举只用于旧参数入口和本地默认值。
  * 最终计费必须以后端 fee preview 为准。
  */
 enum class ImageModel(
@@ -145,7 +145,6 @@ enum class ImageModel(
     val supportedRatios: Set<ImageAspectRatio>,
     val supportedQualities: Set<ImageQuality>,
     val supportsImageToImage: Boolean = true,
-    val baseCost: Double,
 ) {
     ALL_POWER_IMAGE_G2(
         label = ImageModelLabel.AllPowerImageG2,
@@ -157,7 +156,6 @@ enum class ImageModel(
         supportedRatios = ImageAspectRatio.entries.toSet(),
         supportedQualities = ImageQuality.entries.toSet(),
         supportsImageToImage = true,
-        baseCost = 0.93,
     ),
     SEEDREAM_5(
         label = ImageModelLabel.RuntimeName("Seedream 5.0"),
@@ -173,7 +171,6 @@ enum class ImageModel(
         ),
         supportedQualities = ImageQuality.entries.toSet(),
         supportsImageToImage = true,
-        baseCost = 1.50,
     ),
     SEEDREAM_4(
         label = ImageModelLabel.RuntimeName("Seedream 4.0"),
@@ -189,24 +186,8 @@ enum class ImageModel(
         ),
         supportedQualities = ImageQuality.entries.toSet(),
         supportsImageToImage = true,
-        baseCost = 0.80,
     ),
     ;
-
-    /**
-     * 估算当前内置模型参数的本地价格。
-     *
-     * 这是离线兜底展示值，只用于 fee preview 返回前的旧 UI 兼容；实际扣费必须以后端预览结果为准。
-     */
-    fun estimateCost(resolution: String, quality: String): Double {
-        val resMultiplier = when (resolution) {
-            "1K" -> 1.0; "2K" -> 1.5; "4K" -> 2.5; else -> 1.0
-        }
-        val qualityMultiplier = when (quality) {
-            "low" -> 0.7; "medium" -> 1.0; "high" -> 1.3; else -> 1.0
-        }
-        return baseCost * resMultiplier * qualityMultiplier
-    }
 }
 
 /**
@@ -291,7 +272,7 @@ enum class VideoDuration(val label: VideoDurationLabel, val seconds: Int) {
 /**
  * 视频时长选项的稳定展示语义。
  *
- * [VideoDuration.seconds] 继续作为旧接口请求值和本地计费估算输入；本类型只描述 UI 展示档位，
+ * [VideoDuration.seconds] 继续作为旧接口请求值；本类型只描述 UI 展示档位，
  * 让“5秒/10秒”这类中文固定文案在应用资源层集中维护。
  */
 sealed interface VideoDurationLabel {
@@ -319,7 +300,7 @@ enum class VideoApiTier {
 /**
  * 快捷创作迁移期保留的本地视频模型枚举。
  *
- * 服务端模型目录已经由 Domain Repository 提供；该枚举只用于旧参数入口、本地默认值和本地价格预估兜底。
+ * 服务端模型目录已经由 Domain Repository 提供；该枚举只用于旧参数入口和本地默认值。
  * 最终计费必须以后端 fee preview 为准。
  */
 enum class VideoModel(
@@ -336,7 +317,6 @@ enum class VideoModel(
     val supportsImageToVideo: Boolean = true,
     val supportsGenerateAudio: Boolean = false,
     val supportsRealistic: Boolean = false,
-    val baseCost: Double,
 ) {
     SEEDANCE_2(
         label = VideoModelLabel.RuntimeName("Seedance2.0"),
@@ -352,7 +332,6 @@ enum class VideoModel(
         supportsImageToVideo = true,
         supportsGenerateAudio = true,
         supportsRealistic = false,
-        baseCost = 6.0,
     ),
     SEEDANCE_2_FAST(
         label = VideoModelLabel.RuntimeName("Seedance2.0-Fast"),
@@ -368,7 +347,6 @@ enum class VideoModel(
         supportsImageToVideo = true,
         supportsGenerateAudio = false,
         supportsRealistic = false,
-        baseCost = 3.0,
     ),
     WANXIANG_2_6(
         label = VideoModelLabel.Wanxiang26,
@@ -384,7 +362,6 @@ enum class VideoModel(
         supportsImageToVideo = true,
         supportsGenerateAudio = false,
         supportsRealistic = false,
-        baseCost = 6.0,
     ),
     WANXIANG_2_7(
         label = VideoModelLabel.Wanxiang27,
@@ -400,7 +377,6 @@ enum class VideoModel(
         supportsImageToVideo = true,
         supportsGenerateAudio = false,
         supportsRealistic = false,
-        baseCost = 8.0,
     ),
     KLING_O1(
         label = VideoModelLabel.KlingO1,
@@ -416,7 +392,6 @@ enum class VideoModel(
         supportsImageToVideo = true,
         supportsGenerateAudio = false,
         supportsRealistic = false,
-        baseCost = 10.0,
     ),
     KLING_O3_4K(
         label = VideoModelLabel.KlingO34k,
@@ -432,24 +407,8 @@ enum class VideoModel(
         supportsImageToVideo = true,
         supportsGenerateAudio = false,
         supportsRealistic = false,
-        baseCost = 20.0,
     ),
     ;
-
-    /**
-     * 估算当前内置视频模型参数的本地价格。
-     *
-     * 这是离线兜底展示值，只用于 fee preview 返回前的旧 UI 兼容；实际扣费必须以后端预览结果为准。
-     */
-    fun estimateCost(resolution: String, duration: Int, generateAudio: Boolean): Double {
-        val durationMultiplier = duration.toDouble() / 5.0
-        val resMultiplier = when (resolution) {
-            "480p" -> 0.7; "720p" -> 1.0; "native1080p", "1080p" -> 1.3
-            "2k" -> 1.6; "4k" -> 2.2; else -> 1.0
-        }
-        val audioMultiplier = if (generateAudio) 1.15 else 1.0
-        return baseCost * durationMultiplier * resMultiplier * audioMultiplier
-    }
 
     companion object {
         /**
@@ -511,14 +470,6 @@ data class ImageConfig(
     val seed: Int? = null,
     val mediaReferences: List<MediaReference> = emptyList(),
 ) {
-    /**
-     * 本地估算价格。
-     *
-     * 该值只用于 fee preview 返回前的占位展示；实际计费以远端预览接口结果为准。
-     */
-    val estimatedCost: Double
-        get() = model.estimateCost(resolution.apiValue, quality.apiValue) * count
-
     /** 当前描述词字符数，用于 UI 字数提示。 */
     val promptCharCount: Int get() = prompt.length
 
@@ -555,14 +506,6 @@ data class VideoConfig(
     val seed: Int? = null,
     val mediaReferences: List<MediaReference> = emptyList(),
 ) {
-    /**
-     * 本地估算价格。
-     *
-     * 该值只用于 fee preview 返回前的占位展示；实际计费以远端预览接口结果为准。
-     */
-    val estimatedCost: Double
-        get() = model.estimateCost(resolution.apiValue, duration.seconds, generateAudio) * count
-
     /** 当前描述词字符数，用于 UI 字数提示。 */
     val promptCharCount: Int get() = prompt.length
 

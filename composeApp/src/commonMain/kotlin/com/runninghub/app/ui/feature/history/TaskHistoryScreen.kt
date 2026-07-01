@@ -93,32 +93,15 @@ import runninghub.composeapp.generated.resources.task_history_action_no_reusable
 import runninghub.composeapp.generated.resources.task_history_action_output_detail_loaded
 import runninghub.composeapp.generated.resources.task_history_action_retry
 import runninghub.composeapp.generated.resources.task_history_action_retry_params_prepared
-import runninghub.composeapp.generated.resources.task_history_action_refund_status
 import runninghub.composeapp.generated.resources.task_history_action_reuse
 import runninghub.composeapp.generated.resources.task_history_action_reusable_params_prepared_format
 import runninghub.composeapp.generated.resources.task_history_action_save
 import runninghub.composeapp.generated.resources.task_history_action_view
 import runninghub.composeapp.generated.resources.task_history_action_view_result
 import runninghub.composeapp.generated.resources.task_history_chevron
-import runninghub.composeapp.generated.resources.task_history_detail_api_key_type_member
-import runninghub.composeapp.generated.resources.task_history_detail_basic_info
 import runninghub.composeapp.generated.resources.task_history_detail_close_content_description
 import runninghub.composeapp.generated.resources.task_history_detail_cost_info
 import runninghub.composeapp.generated.resources.task_history_detail_empty_outputs
-import runninghub.composeapp.generated.resources.task_history_detail_field_account
-import runninghub.composeapp.generated.resources.task_history_detail_field_api_key
-import runninghub.composeapp.generated.resources.task_history_detail_field_api_key_type
-import runninghub.composeapp.generated.resources.task_history_detail_field_call_time
-import runninghub.composeapp.generated.resources.task_history_detail_field_call_type
-import runninghub.composeapp.generated.resources.task_history_detail_field_discount_amount
-import runninghub.composeapp.generated.resources.task_history_detail_field_discount_ratio
-import runninghub.composeapp.generated.resources.task_history_detail_field_final_amount
-import runninghub.composeapp.generated.resources.task_history_detail_field_mode
-import runninghub.composeapp.generated.resources.task_history_detail_field_original_amount
-import runninghub.composeapp.generated.resources.task_history_detail_field_rh_coins
-import runninghub.composeapp.generated.resources.task_history_detail_field_task_id
-import runninghub.composeapp.generated.resources.task_history_detail_field_task_name
-import runninghub.composeapp.generated.resources.task_history_detail_field_task_source
 import runninghub.composeapp.generated.resources.task_history_detail_generation_result
 import runninghub.composeapp.generated.resources.task_history_detail_loading
 import runninghub.composeapp.generated.resources.task_history_detail_metric_duration
@@ -128,15 +111,12 @@ import runninghub.composeapp.generated.resources.task_history_detail_metric_rhb
 import runninghub.composeapp.generated.resources.task_history_detail_no_billing
 import runninghub.composeapp.generated.resources.task_history_detail_output_notice
 import runninghub.composeapp.generated.resources.task_history_detail_prompt_parameters
-import runninghub.composeapp.generated.resources.task_history_detail_refund_check_available
-import runninghub.composeapp.generated.resources.task_history_detail_refund_not_required
 import runninghub.composeapp.generated.resources.task_history_detail_request_info
 import runninghub.composeapp.generated.resources.task_history_detail_response_info
 import runninghub.composeapp.generated.resources.task_history_detail_save_not_saved
 import runninghub.composeapp.generated.resources.task_history_detail_save_unavailable
 import runninghub.composeapp.generated.resources.task_history_detail_technical_details
 import runninghub.composeapp.generated.resources.task_history_detail_title
-import runninghub.composeapp.generated.resources.task_history_detail_unknown_value
 import runninghub.composeapp.generated.resources.task_history_empty_filter
 import runninghub.composeapp.generated.resources.task_history_empty_history
 import runninghub.composeapp.generated.resources.task_history_error_auth_sync
@@ -148,17 +128,10 @@ import runninghub.composeapp.generated.resources.task_history_filter_completed
 import runninghub.composeapp.generated.resources.task_history_filter_failed
 import runninghub.composeapp.generated.resources.task_history_filter_in_progress
 import runninghub.composeapp.generated.resources.task_history_notice_cloud_output
-import runninghub.composeapp.generated.resources.task_history_notice_guest
 import runninghub.composeapp.generated.resources.task_history_notice_icon
 import runninghub.composeapp.generated.resources.task_history_output_count_format
 import runninghub.composeapp.generated.resources.task_history_output_detail_title
 import runninghub.composeapp.generated.resources.task_history_group_all
-import runninghub.composeapp.generated.resources.task_history_reference_title_3d_model
-import runninghub.composeapp.generated.resources.task_history_reference_title_character_setting
-import runninghub.composeapp.generated.resources.task_history_reference_title_concept_image
-import runninghub.composeapp.generated.resources.task_history_reference_title_marketing_video
-import runninghub.composeapp.generated.resources.task_history_reference_title_portrait_master
-import runninghub.composeapp.generated.resources.task_history_reference_title_video_turbo
 import runninghub.composeapp.generated.resources.task_history_refresh_content_description
 import runninghub.composeapp.generated.resources.task_history_remaining_days_format
 import runninghub.composeapp.generated.resources.task_history_reusable_params_title
@@ -182,7 +155,6 @@ import com.runninghub.app.ui.theme.StatusError
 import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import com.runninghub.feature.task.domain.GenerationTaskDetail
 import com.runninghub.feature.task.domain.GenerationTaskDetailField
-import com.runninghub.feature.task.domain.GenerationTaskDetailFieldKey
 import com.runninghub.feature.task.presentation.TaskHistoryActionMessage
 import com.runninghub.feature.task.presentation.TaskHistoryCardAction
 import com.runninghub.feature.task.presentation.TaskHistoryCardStatus
@@ -190,7 +162,6 @@ import com.runninghub.feature.task.presentation.TaskHistoryCostKind
 import com.runninghub.feature.task.presentation.TaskHistoryDetailAction
 import com.runninghub.feature.task.presentation.TaskHistoryDetailBillingKind
 import com.runninghub.feature.task.presentation.TaskHistoryDetailMediaType
-import com.runninghub.feature.task.presentation.TaskHistoryDetailRefundState
 import com.runninghub.feature.task.presentation.TaskHistoryDetailSaveState
 import com.runninghub.feature.task.presentation.TaskHistoryDetailSectionType
 import com.runninghub.feature.task.presentation.TaskHistoryDetailStatus
@@ -244,8 +215,7 @@ internal fun TaskHistoryContent(
     onCancelTask: (String) -> Unit = {},
 ) {
     val loadedEntries = uiState.items
-    val useReferenceFallback = loadedEntries.isEmpty() && uiState.error == TaskHistoryPresentationError.AuthRequired
-    val timelineEntries = if (useReferenceFallback) referenceHistoryEntries() else loadedEntries
+    val timelineEntries = loadedEntries
     val filteredItems = timelineEntries.filteredBy(uiState.filter)
     val errorMessage = uiState.error?.toDisplayHistoryError()
     val actionMessage = uiState.actionMessage?.toDisplayActionMessage()
@@ -271,7 +241,7 @@ internal fun TaskHistoryContent(
                     onFilterSelected = onFilterSelected,
                 )
             }
-            item { NoticeBar(useReferenceFallback = useReferenceFallback) }
+            item { NoticeBar() }
             if (actionMessage != null || uiState.selectedOutput != null || uiState.reuseParams.isNotEmpty()) {
                 item {
                     HistoryActionPanel(
@@ -284,7 +254,7 @@ internal fun TaskHistoryContent(
 
             when {
                 uiState.isLoading && timelineEntries.isEmpty() -> item { LoadingPanel(Modifier.height(360.dp)) }
-                !useReferenceFallback && errorMessage != null && timelineEntries.isEmpty() -> item {
+                errorMessage != null && timelineEntries.isEmpty() -> item {
                     TaskHistoryErrorState(message = errorMessage, onRetry = onRetry)
                 }
                 timelineEntries.isEmpty() -> item {
@@ -373,8 +343,7 @@ private fun TaskHistoryFilterRow(
             .fillMaxWidth()
             .height(50.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(RhSurface)
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp)),
+            .background(RhSurface),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         listOf(
@@ -415,14 +384,13 @@ private fun StatusTab(label: String, selected: Boolean, modifier: Modifier = Mod
 }
 
 @Composable
-private fun NoticeBar(useReferenceFallback: Boolean) {
+private fun NoticeBar() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(44.dp)
             .clip(RoundedCornerShape(7.dp))
             .background(RhSurface)
-            .border(1.dp, RhLine, RoundedCornerShape(7.dp))
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -442,11 +410,7 @@ private fun NoticeBar(useReferenceFallback: Boolean) {
             )
         }
         Text(
-            text = if (useReferenceFallback) {
-                stringResource(Res.string.task_history_notice_guest)
-            } else {
-                stringResource(Res.string.task_history_notice_cloud_output)
-            },
+            text = stringResource(Res.string.task_history_notice_cloud_output),
             color = RhMuted,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
@@ -469,7 +433,6 @@ private fun HistoryActionPanel(
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(RhSurface)
-            .border(1.dp, BrandLime.copy(alpha = 0.45f), RoundedCornerShape(8.dp))
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -577,8 +540,7 @@ private fun TaskThumbnail(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(color)
-            .border(1.dp, RhLine, RoundedCornerShape(6.dp)),
+            .background(color),
         contentAlignment = Alignment.Center,
     ) {
         val imageUrl = item.thumbnailUrl?.takeIf { it.isNotBlank() }
@@ -588,7 +550,6 @@ private fun TaskThumbnail(
                 contentDescription = item.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
-                shape = RoundedCornerShape(6.dp),
             )
         } else {
             Text(
@@ -614,7 +575,6 @@ private fun TaskDetailDrawer(
             .fillMaxWidth(0.92f)
             .widthIn(max = 380.dp)
             .background(RhSurface)
-            .border(1.dp, RhLine)
             .clickable(onClick = {})
             .padding(horizontal = 14.dp, vertical = 12.dp),
     ) {
@@ -687,7 +647,6 @@ private fun TaskDetailStatusSummary(detail: TaskHistoryDetailUiModel) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .background(RhCard)
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp))
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -727,17 +686,11 @@ private fun TaskDetailResultPreview(layout: TaskDetailLayoutState) {
                 contentDescription = layout.resultPreview.title,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Fit,
-                shape = RoundedCornerShape(6.dp),
             )
         },
     )
     Text(
         text = layout.saveStateLabel,
-        color = RhMuted,
-        style = MaterialTheme.typography.labelSmall,
-    )
-    Text(
-        text = layout.refundStateLabel,
         color = RhMuted,
         style = MaterialTheme.typography.labelSmall,
     )
@@ -755,8 +708,7 @@ private fun TaskDetailPromptParameters(layout: TaskDetailLayoutState) {
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(RhCard)
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp)),
+            .background(RhCard),
     ) {
         Text(
             text = stringResource(Res.string.task_history_detail_prompt_parameters),
@@ -800,8 +752,7 @@ private fun TaskDetailTechnicalSection(section: TaskDetailTechnicalSectionState)
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(RhCard)
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp)),
+            .background(RhCard),
     ) {
         Row(
             modifier = Modifier
@@ -976,7 +927,6 @@ private fun TaskHistoryDetailUiModel.toTaskDetailLayoutState(): TaskDetailLayout
         billingRows = billing?.rows?.map { it.toBillingInfoRow() }
             ?: listOf(BillingInfoRow(stringResource(Res.string.task_history_detail_cost_info), stringResource(Res.string.task_history_detail_no_billing))),
         saveStateLabel = saveState.toTaskDetailSaveStateLabel(),
-        refundStateLabel = refundState.toTaskDetailRefundStateLabel(),
         promptParameters = promptParameters.map { TaskDetailPromptParameterState(label = it.key, value = it.value) },
         technicalSections = technicalSections.map {
             TaskDetailTechnicalSectionState(
@@ -1049,14 +999,12 @@ private fun TaskHistoryDetailAction.toResultPreviewActionState(): ResultPreviewA
             TaskHistoryDetailAction.DOWNLOAD -> ResultPreviewActionType.Download
             TaskHistoryDetailAction.REUSE_PARAMETERS -> ResultPreviewActionType.ReuseParameters
             TaskHistoryDetailAction.RETRY -> ResultPreviewActionType.Retry
-            TaskHistoryDetailAction.REFUND_STATUS -> ResultPreviewActionType.RefundStatus
         },
         label = when (this) {
             TaskHistoryDetailAction.SAVE -> stringResource(Res.string.task_history_action_save)
             TaskHistoryDetailAction.DOWNLOAD -> stringResource(Res.string.task_history_action_download)
             TaskHistoryDetailAction.REUSE_PARAMETERS -> stringResource(Res.string.task_history_action_reuse)
             TaskHistoryDetailAction.RETRY -> stringResource(Res.string.task_history_action_retry)
-            TaskHistoryDetailAction.REFUND_STATUS -> stringResource(Res.string.task_history_action_refund_status)
         },
     )
 
@@ -1066,7 +1014,7 @@ private fun com.runninghub.feature.task.presentation.TaskHistoryDetailBillingRow
         label = when (kind) {
             TaskHistoryDetailBillingKind.RH_COINS -> stringResource(Res.string.task_history_detail_metric_rhb)
             TaskHistoryDetailBillingKind.FINAL_AMOUNT -> stringResource(Res.string.task_history_detail_metric_final_amount)
-            TaskHistoryDetailBillingKind.OTHER -> stringResource(Res.string.task_history_detail_cost_info)
+            TaskHistoryDetailBillingKind.DURATION -> stringResource(Res.string.task_history_detail_metric_duration)
         },
         value = value,
         emphasized = kind == TaskHistoryDetailBillingKind.RH_COINS || kind == TaskHistoryDetailBillingKind.FINAL_AMOUNT,
@@ -1076,12 +1024,6 @@ private fun com.runninghub.feature.task.presentation.TaskHistoryDetailBillingRow
 private fun TaskHistoryDetailSaveState.toTaskDetailSaveStateLabel(): String = when (this) {
     TaskHistoryDetailSaveState.NOT_SAVED -> stringResource(Res.string.task_history_detail_save_not_saved)
     TaskHistoryDetailSaveState.UNAVAILABLE -> stringResource(Res.string.task_history_detail_save_unavailable)
-}
-
-@Composable
-private fun TaskHistoryDetailRefundState.toTaskDetailRefundStateLabel(): String = when (this) {
-    TaskHistoryDetailRefundState.NOT_REQUIRED -> stringResource(Res.string.task_history_detail_refund_not_required)
-    TaskHistoryDetailRefundState.CHECK_AVAILABLE -> stringResource(Res.string.task_history_detail_refund_check_available)
 }
 
 @Composable
@@ -1243,34 +1185,6 @@ private fun TaskHistoryPresentationError.toDisplayHistoryError(): String = when 
     TaskHistoryPresentationError.HistoryLoadFailed -> stringResource(Res.string.task_history_error_history_load_failed)
 }
 
-
-@Composable
-private fun referenceHistoryEntries(): List<TaskHistoryEntry> = listOf(
-    TaskHistoryEntry("a1b2c3d4", stringResource(Res.string.task_history_reference_title_concept_image), "running", "02:18", "quick_creation"),
-    TaskHistoryEntry("e5f6g7h8", stringResource(Res.string.task_history_reference_title_portrait_master), "completed", "00:42", "api_model"),
-    TaskHistoryEntry("i9j0k1l2", stringResource(Res.string.task_history_reference_title_3d_model), "failed", "01:15", "webapp"),
-    TaskHistoryEntry(
-        taskId = "m3n4o5p6",
-        title = stringResource(Res.string.task_history_reference_title_video_turbo),
-        status = "completed",
-        costTime = "02:36",
-        source = "quick_creation",
-    ),
-    TaskHistoryEntry(
-        taskId = "q7r8s9t0",
-        title = stringResource(Res.string.task_history_reference_title_character_setting),
-        status = "completed",
-        costTime = "00:58",
-        source = "api_model",
-    ),
-    TaskHistoryEntry(
-        taskId = "u1v2w3x4",
-        title = stringResource(Res.string.task_history_reference_title_marketing_video),
-        status = "running",
-        costTime = "03:42",
-        source = "webapp",
-    ),
-)
 
 @Composable
 private fun TaskHistoryAdaptivePreview(

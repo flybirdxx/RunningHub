@@ -2,8 +2,8 @@ package com.runninghub.feature.detail.presentation
 
 /** AppDetail 首屏创作入口的展示区块顺序。 */
 enum class AppDetailCreationSection {
-    PURPOSE,
-    REQUIRED_INPUTS,
+    DESCRIPTION,
+    INPUT_NODES,
     ESTIMATED_COST,
     PRIMARY_ACTION,
     TECHNICAL_DETAILS,
@@ -25,12 +25,20 @@ enum class AppDetailCreationPrimaryAction {
  * AppDetail 首屏预计费用语义。
  *
  * @property kind 当前费用状态；没有稳定费用协议时使用 [AppDetailEstimatedCostKind.UNKNOWN]。
- * @property amountLabel 已格式化费用摘要；为空时由 composeApp 映射“价格待确认”资源文案。
+ * @property amountLabel 已格式化费用摘要；为空时由 composeApp 映射“运行前确认费用”资源文案。
  */
 data class AppDetailEstimatedCostUi(
     val kind: AppDetailEstimatedCostKind,
     val amountLabel: String? = null,
 )
+
+sealed interface AppDetailInputNodeValuePreview {
+    data object Missing : AppDetailInputNodeValuePreview
+
+    data class Text(val value: String) : AppDetailInputNodeValuePreview
+
+    data object MediaProvided : AppDetailInputNodeValuePreview
+}
 
 /**
  * AppDetail 首屏主操作语义。
@@ -44,16 +52,18 @@ data class AppDetailCreationPrimaryActionUi(
 )
 
 /**
- * AppDetail 必要输入摘要。
+ * AppDetail 输入节点摘要。
  *
  * @property inputKey 输入字段稳定 key。
- * @property title 普通用户可理解的字段标题。
+ * @property title 服务端返回的可展示字段标题；为空表示接口未提供用户可读标题。
  * @property filled 当前字段是否已有值。
+ * @property valuePreview 当前字段值的安全摘要；仅由 inputNodes 默认值或当前编辑值派生。
  */
-data class AppDetailRequiredInputUi(
+data class AppDetailInputNodeSummaryUi(
     val inputKey: String,
     val title: String,
     val filled: Boolean,
+    val valuePreview: AppDetailInputNodeValuePreview,
 )
 
 /**
@@ -71,8 +81,8 @@ data class AppDetailTechnicalDetailUi(
  * AppDetail 首屏创作入口 UI 模型。
  *
  * @property title 模板名称。
- * @property purpose 用途摘要，来自详情描述清洗结果或模板名称兜底。
- * @property requiredInputs 必要输入摘要。
+ * @property description 详情简介，来自接口 description 清洗结果；为空表示接口未提供。
+ * @property inputNodes 输入节点摘要，只由接口 inputNodes 映射。
  * @property estimatedCost 预计费用状态。
  * @property primaryAction 首屏主操作。
  * @property firstScreenSections 首屏固定展示顺序。
@@ -81,8 +91,8 @@ data class AppDetailTechnicalDetailUi(
  */
 data class AppDetailCreationEntryUiModel(
     val title: String,
-    val purpose: String,
-    val requiredInputs: List<AppDetailRequiredInputUi>,
+    val description: String?,
+    val inputNodes: List<AppDetailInputNodeSummaryUi>,
     val estimatedCost: AppDetailEstimatedCostUi,
     val primaryAction: AppDetailCreationPrimaryActionUi,
     val firstScreenSections: List<AppDetailCreationSection>,
@@ -94,19 +104,28 @@ data class AppDetailCreationEntryUiModel(
 val AppDetailUiState.creationEntry: AppDetailCreationEntryUiModel?
     get() {
         val detail = detail ?: return null
+        val inputFieldByKey = appDetailInputRows(detail.inputNodes, inputValues)
+            .flatMap { row ->
+                when (row) {
+                    is AppDetailInputRowUiModel.ImageUploadGroup -> row.fields
+                    is AppDetailInputRowUiModel.Single -> listOf(row.field)
+                }
+            }
+            .associateBy { it.inputKey }
         return AppDetailCreationEntryUiModel(
             title = detail.name.orEmpty().ifBlank { detail.id },
-            purpose = detail.description
+            description = detail.description
                 ?.replace(Regex("<[^>]*>"), "")
                 ?.trim()
-                ?.ifBlank { null }
-                ?: detail.name.orEmpty(),
-            requiredInputs = detail.inputNodes.map { node ->
+                ?.ifBlank { null },
+            inputNodes = detail.inputNodes.map { node ->
                 val key = appDetailInputKey(node)
-                AppDetailRequiredInputUi(
+                val valuePreview = inputFieldByKey[key].toInputNodeValuePreview()
+                AppDetailInputNodeSummaryUi(
                     inputKey = key,
-                    title = node.description?.takeIf { it.isNotBlank() } ?: node.fieldName,
-                    filled = !inputValues[key].isNullOrBlank(),
+                    title = node.displayTitle(),
+                    filled = valuePreview !is AppDetailInputNodeValuePreview.Missing,
+                    valuePreview = valuePreview,
                 )
             },
             estimatedCost = AppDetailEstimatedCostUi(kind = AppDetailEstimatedCostKind.UNKNOWN),
@@ -119,8 +138,8 @@ val AppDetailUiState.creationEntry: AppDetailCreationEntryUiModel?
                 enabled = !isRunningTask && uploadingNodes.values.none { !it.isError },
             ),
             firstScreenSections = listOf(
-                AppDetailCreationSection.PURPOSE,
-                AppDetailCreationSection.REQUIRED_INPUTS,
+                AppDetailCreationSection.DESCRIPTION,
+                AppDetailCreationSection.INPUT_NODES,
                 AppDetailCreationSection.ESTIMATED_COST,
                 AppDetailCreationSection.PRIMARY_ACTION,
                 AppDetailCreationSection.TECHNICAL_DETAILS,
@@ -132,3 +151,35 @@ val AppDetailUiState.creationEntry: AppDetailCreationEntryUiModel?
             },
         )
     }
+
+internal fun com.runninghub.core.model.InputNode.displayTitle(): String =
+    description?.takeIf { it.isNotBlank() }
+        ?: descriptionEn?.takeIf { it.isNotBlank() }
+        ?: nodeName.takeIf { it.isNotBlank() }
+        ?: fieldName.takeIf { it.isNotBlank() }
+        ?: nodeId.takeIf { it.isNotBlank() }
+        ?: ""
+
+private fun AppDetailInputFieldUiModel?.toInputNodeValuePreview(): AppDetailInputNodeValuePreview {
+    val field = this ?: return AppDetailInputNodeValuePreview.Missing
+    val value = field.currentValue.trim()
+    if (value.isBlank()) return AppDetailInputNodeValuePreview.Missing
+    return when (field.control) {
+        is AppDetailInputControl.MediaUpload -> AppDetailInputNodeValuePreview.MediaProvided
+        else -> AppDetailInputNodeValuePreview.Text(value.toSingleLinePreview())
+    }
+}
+
+private fun String.toSingleLinePreview(): String {
+    val normalized = lineSequence()
+        .map { it.trim() }
+        .filter { it.isNotEmpty() }
+        .joinToString(" ")
+    return if (normalized.length <= APP_DETAIL_INPUT_VALUE_PREVIEW_MAX_CHARS) {
+        normalized
+    } else {
+        normalized.take(APP_DETAIL_INPUT_VALUE_PREVIEW_MAX_CHARS).trimEnd() + "..."
+    }
+}
+
+private const val APP_DETAIL_INPUT_VALUE_PREVIEW_MAX_CHARS = 48

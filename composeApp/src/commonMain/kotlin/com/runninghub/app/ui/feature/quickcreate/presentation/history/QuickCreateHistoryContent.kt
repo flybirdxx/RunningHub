@@ -234,7 +234,6 @@ private fun HistoryItemRow(
             .clickable(enabled = canOpenDetail) { onClick() },
         color = DarkSurface,
         shape = RoundedCornerShape(Dimens.RadiusMD),
-        border = BorderStroke(1.dp, DarkOutlineVariant),
     ) {
         Row(
             modifier = Modifier.padding(Dimens.SpaceSM),

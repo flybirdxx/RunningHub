@@ -15,8 +15,8 @@
   固定中文名称映射到 `quick_create_image_model_*` 与 `quick_create_video_model_*` Compose Resources。
 - QuickCreate 服务字段校验使用 `QuickCreationServiceValidationIssue` 稳定语义，
   服务端字段标题只作为运行时参数传入 `quick_create_runtime_service_*` Compose Resources 格式串。
-- Plaza 本地 fallback 内容目录使用 `PlazaFallbackTagLabel` 和 `PlazaFallbackCardText` 稳定语义，
-  固定示例标签、简介、作者和媒体类型映射到 `plaza_fallback_*` Compose Resources；服务端返回的内容字段仍作为运行时数据。
+- Plaza 不再维护本地 fallback 内容目录；广场标签、卡片简介、作者、媒体类型和指标只来自接口返回。
+  缺媒体 URL 时 UI 只能显示占位视觉，不得生成本地作品数据或 `plaza_fallback_*` 文案资源。
 - Core 权限模型只保存 `PermissionTextKey` 稳定语义，权限引导弹层通过 `permission_*`
   Compose Resources 映射说明和用途摘要。
 - 临时硬编码文案必须写明原因、风险和删除条件。

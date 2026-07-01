@@ -20,8 +20,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlin.test.assertIs
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 /**
  * WebAppTaskRepositoryImpl 的凭据注入测试。
@@ -337,9 +338,9 @@ class WebAppTaskRepositoryImplTest {
                           "taskStatus": "SUCCESS",
                           "taskId": "2071208241819508737",
                           "callTime": "2026-06-28 20:25:01",
-                          "duration": "60",
-                          "amount": 0.1,
-                          "coinNum": "12"
+                          "duration": "999",
+                          "amount": 9.9,
+                          "coinNum": "99"
                         },
                         "list": [
                           {
@@ -351,11 +352,11 @@ class WebAppTaskRepositoryImplTest {
                           }
                         ],
                         "costInfo": {
-                          "amount": 0.1,
-                          "coinNum": "12"
+                          "amount": 8.8,
+                          "coinNum": "88"
                         },
                         "requestInfo": {
-                          "apiRequestParams": "{\"apiKey\":\"secret-api-key\",\"webappId\":\"2046794551444119554\",\"nodeInfoList\":[{\"fieldName\":\"prompt\",\"fieldValue\":\"city\"}]}"
+                          "apiRequestParams": "{\"apiKey\":\"secret-api-key\",\"webappId\":\"2046794551444119554\",\"aspectRatio\":\"16:9\",\"quality\":\"high\",\"estimatedCount\":\"20\",\"nodeInfoList\":[{\"fieldName\":\"prompt\",\"fieldValue\":\"city\"}]}"
                         },
                         "responseInfo": {
                           "taskId": "2071208241819508737",
@@ -379,6 +380,7 @@ class WebAppTaskRepositoryImplTest {
         assertEquals("SUCCESS", detail.status)
         assertEquals("60", detail.duration)
         assertEquals("12", detail.rhCoins)
+        assertEquals("0.1", detail.finalAmount)
         assertEquals("https://example.com/result-preview.png", detail.outputs.single().thumbnailUrl)
         assertTrue(capturedBody.contains(""""taskId":"2071208241819508737""""))
         assertTrue(!capturedBody.contains("apiKey"))
@@ -386,6 +388,87 @@ class WebAppTaskRepositoryImplTest {
         assertTrue(detail.requestInfo.orEmpty().contains(""""apiKey": "******""""))
         assertEquals("city", detail.requestParameters["prompt"])
         assertEquals(null, detail.requestParameters["apiKey"])
+        assertEquals(null, detail.requestParameters["aspectRatio"])
+        assertEquals(null, detail.requestParameters["quality"])
+        assertEquals(null, detail.requestParameters["estimatedCount"])
+    }
+
+    @Test
+    fun `task detail keeps top level request parameters when node info list is absent`() = runBlocking {
+        val repository = repositoryWithMock(
+            credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+            response = {
+                """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "basicInfo": {
+                          "apiName": "Model API task",
+                          "apiType": "MODEL_API",
+                          "taskStatus": "SUCCESS",
+                          "taskId": "model-task-1"
+                        },
+                        "requestInfo": {
+                          "apiRequestParams": "{\"apiKey\":\"secret-api-key\",\"model\":\"seedream\",\"prompt\":\"city\",\"aspectRatio\":\"16:9\"}"
+                        },
+                        "responseInfo": {
+                          "usage": {
+                            "consumeCoins": "12"
+                          }
+                        }
+                      }
+                    }
+                """.trimIndent()
+            },
+        )
+
+        val detail = repository.getTaskDetail("model-task-1").getOrThrow()
+
+        assertEquals("seedream", detail.requestParameters["model"])
+        assertEquals("city", detail.requestParameters["prompt"])
+        assertEquals("16:9", detail.requestParameters["aspectRatio"])
+        assertEquals(null, detail.requestParameters["apiKey"])
+    }
+
+    @Test
+    fun `task detail does not infer usage from legacy cost fields when usage is missing`() = runBlocking {
+        val repository = repositoryWithMock(
+            credentialStore = FakeCredentialStore(apiKey = "local-api-key"),
+            response = {
+                """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "basicInfo": {
+                          "apiName": "AI app task",
+                          "apiType": "API",
+                          "taskStatus": "SUCCESS",
+                          "taskId": "2071208241819508737",
+                          "duration": "999",
+                          "amount": 9.9,
+                          "coinNum": "99"
+                        },
+                        "costInfo": {
+                          "amount": 8.8,
+                          "coinNum": "88"
+                        },
+                        "responseInfo": {
+                          "taskId": "2071208241819508737",
+                          "status": "SUCCESS"
+                        }
+                      }
+                    }
+                """.trimIndent()
+            },
+        )
+
+        val detail = repository.getTaskDetail("2071208241819508737").getOrThrow()
+
+        assertNull(detail.duration)
+        assertNull(detail.rhCoins)
+        assertNull(detail.finalAmount)
     }
 
     private fun repositoryWithMock(

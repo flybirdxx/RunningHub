@@ -94,6 +94,7 @@ class AppDetailInputPresentationTest {
                 inputNode(nodeId = "default", fieldName = "prompt", fieldValue = "server default"),
                 inputNode(nodeId = "blank", fieldName = "prompt", fieldValue = null),
                 inputNode(nodeId = "title", fieldName = "prompt", description = null),
+                inputNode(nodeId = "untitled", fieldName = "internalPrompt", description = null, nodeName = ""),
             ),
             inputValues = mapOf(editedKey to "user value"),
         )
@@ -101,7 +102,8 @@ class AppDetailInputPresentationTest {
         assertEquals("user value", rows.singleField("edited").currentValue)
         assertEquals("server default", rows.singleField("default").currentValue)
         assertEquals("", rows.singleField("blank").currentValue)
-        assertEquals("prompt", rows.singleField("title").title)
+        assertEquals("Node title", rows.singleField("title").title)
+        assertEquals("internalPrompt", rows.singleField("untitled").title)
     }
 
     private fun List<AppDetailInputRowUiModel>.singleField(nodeId: String): AppDetailInputFieldUiModel =
@@ -122,6 +124,7 @@ class AppDetailInputPresentationTest {
 
     private fun inputNode(
         nodeId: String,
+        nodeName: String = "Node $nodeId",
         fieldName: String = "field",
         fieldValue: String? = "default",
         fieldData: String? = null,
@@ -131,7 +134,7 @@ class AppDetailInputPresentationTest {
     ): InputNode =
         InputNode(
             nodeId = nodeId,
-            nodeName = "Node $nodeId",
+            nodeName = nodeName,
             fieldName = fieldName,
             fieldValue = fieldValue,
             fieldData = fieldData,

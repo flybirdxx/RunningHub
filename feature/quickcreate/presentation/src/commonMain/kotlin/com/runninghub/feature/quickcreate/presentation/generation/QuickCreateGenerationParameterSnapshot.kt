@@ -2,8 +2,6 @@ package com.runninghub.feature.quickcreate.presentation.generation
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
-import com.runninghub.feature.quickcreate.presentation.editor.ImageConfig
-import com.runninghub.feature.quickcreate.presentation.editor.VideoConfig
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 
@@ -34,27 +32,21 @@ fun QuickCreateUiState.quickCreateGenerationParameterSnapshot(): QuickCreateGene
         QuickCreateTab.IMAGE -> {
             val params = imageQuickCreationEffectiveParams(
                 model = selectedImageServiceModel,
-                config = imageConfig,
                 serviceParams = imageServiceParams,
             )
             QuickCreateGenerationParameterSnapshot(
-                aspectRatio = params[PARAM_ASPECT_RATIO]?.trim().orEmpty()
-                    .ifBlank { imageConfig.aspectRatio.apiValue },
-                resolution = params[PARAM_RESOLUTION]?.normalizedResolutionLabel().orEmpty()
-                    .ifBlank { imageConfig.resolution.displayName },
+                aspectRatio = params[PARAM_ASPECT_RATIO]?.trim().orEmpty(),
+                resolution = params[PARAM_RESOLUTION]?.normalizedResolutionLabel().orEmpty(),
             )
         }
         QuickCreateTab.VIDEO -> {
             val params = videoQuickCreationEffectiveParams(
                 model = selectedVideoServiceModel,
-                config = videoConfig,
                 serviceParams = videoServiceParams,
             )
             QuickCreateGenerationParameterSnapshot(
-                aspectRatio = params[PARAM_ASPECT_RATIO]?.trim().orEmpty()
-                    .ifBlank { videoConfig.aspectRatio.apiValue },
-                resolution = params[PARAM_RESOLUTION]?.normalizedResolutionLabel().orEmpty()
-                    .ifBlank { videoConfig.resolution.apiValue },
+                aspectRatio = params[PARAM_ASPECT_RATIO]?.trim().orEmpty(),
+                resolution = params[PARAM_RESOLUTION]?.normalizedResolutionLabel().orEmpty(),
             )
         }
     }
@@ -66,13 +58,9 @@ fun QuickCreateUiState.quickCreateGenerationParameterSnapshot(): QuickCreateGene
  */
 internal fun imageQuickCreationEffectiveParams(
     model: QuickCreationServiceModel?,
-    config: ImageConfig,
     serviceParams: Map<String, String>,
 ): Map<String, String> =
     buildMap {
-        put(PARAM_ASPECT_RATIO, config.aspectRatio.apiValue)
-        put(PARAM_RESOLUTION, config.resolution.apiValue)
-        put("quality", config.quality.apiValue)
         putAll(QuickCreationServiceSchema.defaultParams(model, serviceParams))
         putAll(
             serviceParams
@@ -88,13 +76,9 @@ internal fun imageQuickCreationEffectiveParams(
  */
 internal fun videoQuickCreationEffectiveParams(
     model: QuickCreationServiceModel?,
-    config: VideoConfig,
     serviceParams: Map<String, String>,
 ): Map<String, String> =
     buildMap {
-        put(PARAM_ASPECT_RATIO, config.aspectRatio.apiValue)
-        put(PARAM_RESOLUTION, config.resolution.apiValue)
-        put("duration", config.duration.seconds.toString())
         putAll(QuickCreationServiceSchema.defaultParams(model, serviceParams))
         putAll(
             serviceParams

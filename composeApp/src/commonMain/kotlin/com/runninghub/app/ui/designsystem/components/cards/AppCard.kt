@@ -1,7 +1,7 @@
 package com.runninghub.app.ui.designsystem.components.cards
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -19,9 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
-import com.runninghub.app.ui.designsystem.components.buttons.RhButton
-import com.runninghub.app.ui.designsystem.components.buttons.RhButtonStyle
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
@@ -113,21 +110,22 @@ fun AppCard(
         onClick = onClick,
         color = RhTheme.colors.surfaceElevated,
         shape = RoundedCornerShape(RhTheme.shapes.md),
-        border = BorderStroke(1.dp, RhTheme.colors.borderDefault),
     ) {
         Column(
-            modifier = Modifier.padding(RhSpacing.sm),
             verticalArrangement = Arrangement.spacedBy(RhSpacing.sm),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .aspectRatio(4f / 3f)
-                    .clip(RoundedCornerShape(RhTheme.shapes.sm)),
+                    .clip(RoundedCornerShape(topStart = RhTheme.shapes.md, topEnd = RhTheme.shapes.md)),
             ) {
                 previewContent(state.preview)
             }
-            Column(verticalArrangement = Arrangement.spacedBy(RhSpacing.xs)) {
+            Column(
+                modifier = Modifier.padding(horizontal = RhSpacing.md, vertical = RhSpacing.sm),
+                verticalArrangement = Arrangement.spacedBy(RhSpacing.xs),
+            ) {
                 Text(
                     text = state.title,
                     color = RhTheme.colors.textPrimary,
@@ -156,29 +154,48 @@ fun AppCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                state.metric?.let { metric ->
-                    Text(
-                        text = metric.displayText,
-                        color = RhTheme.colors.textTertiary,
-                        style = RhTypography.caption,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    state.metric?.let { metric ->
+                        Text(
+                            text = metric.displayText,
+                            color = RhTheme.colors.textTertiary,
+                            style = RhTypography.caption,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                    } ?: Box(modifier = Modifier.weight(1f))
+                    AppCardInlineAction(
+                        action = state.primaryAction,
+                        onAction = onAction,
                     )
                 }
-                RhButton(
-                    text = state.primaryAction.label,
-                    onClick = { onAction(state.primaryAction.type) },
-                    enabled = state.primaryAction.enabled,
-                    style = if (state.primaryAction.type == AppCardActionType.Generate) {
-                        RhButtonStyle.Primary
-                    } else {
-                        RhButtonStyle.Secondary
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
             }
         }
     }
+}
+
+@Composable
+private fun AppCardInlineAction(
+    action: AppCardActionState,
+    onAction: (AppCardActionType) -> Unit,
+) {
+    if (action.label.isBlank()) return
+
+    Text(
+        text = action.label,
+        color = if (action.enabled) RhTheme.colors.textSecondary else RhTheme.colors.textTertiary,
+        style = RhTypography.meta,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .clickable(enabled = action.enabled) { onAction(action.type) }
+            .padding(horizontal = RhSpacing.xs, vertical = RhSpacing.xs),
+    )
 }
 
 @Composable

@@ -68,10 +68,10 @@ class RhParameterComponentsContractTest {
             ),
         )
         val advancedSelector = ParameterSelectorState(
-            id = "endpoint",
-            title = "技术端点",
+            id = "seed",
+            title = "Seed",
             options = emptyList(),
-            valueText = "/v1/run",
+            valueText = "随机",
         )
         val sheet = AdvancedSettingsSheetState(
             title = "参数设置",
@@ -89,7 +89,7 @@ class RhParameterComponentsContractTest {
 
         assertEquals("参数设置", sheet.title)
         assertEquals(listOf("resolution"), sheet.commonSection.selectors.map { it.id })
-        assertEquals(listOf("endpoint"), sheet.advancedSection.selectors.map { it.id })
+        assertEquals(listOf("seed"), sheet.advancedSection.selectors.map { it.id })
         assertTrue(sheet.advancedSection.collapsed)
         assertFalse(sheet.empty)
     }

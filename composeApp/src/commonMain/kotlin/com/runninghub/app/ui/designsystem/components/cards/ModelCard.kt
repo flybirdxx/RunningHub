@@ -1,6 +1,5 @@
 package com.runninghub.app.ui.designsystem.components.cards
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,7 +36,7 @@ enum class ModelCardVisualState {
  * @property capability 能力类型，例如图片生成或视频生成。
  * @property scene 适用场景说明。
  * @property technicalTags 技术标签，作为辅助信息展示。
- * @property price 目录价格摘要或价格待确认占位。
+ * @property price 目录价格摘要或运行前确认费用占位。
  * @property selected 当前模型是否已选中。
  * @property visualState 卡片视觉状态。
  * @property id 点击回传的稳定身份键。
@@ -67,10 +66,6 @@ fun ModelCard(
         modifier = modifier.fillMaxWidth(),
         color = if (selected) RhTheme.colors.brandMuted else RhTheme.colors.surfaceDefault,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(RhTheme.shapes.md),
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (selected) RhTheme.colors.brandPrimary else RhTheme.colors.borderSubtle,
-        ),
     ) {
         Row(
             modifier = Modifier.padding(RhSpacing.md),
@@ -134,7 +129,6 @@ private fun ModelTechnicalTag(text: String) {
     Surface(
         color = RhTheme.colors.surfaceSunken,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(RhTheme.shapes.xs),
-        border = BorderStroke(1.dp, RhTheme.colors.borderSubtle),
     ) {
         Text(
             text = text,
@@ -152,7 +146,6 @@ private fun ModelSelectedMark(selected: Boolean) {
         modifier = Modifier.size(24.dp),
         shape = CircleShape,
         color = if (selected) RhTheme.colors.brandPrimary else RhTheme.colors.surfaceSunken,
-        border = BorderStroke(1.dp, if (selected) RhTheme.colors.brandPrimary else RhTheme.colors.borderSubtle),
     ) {
         if (selected) {
             Icon(

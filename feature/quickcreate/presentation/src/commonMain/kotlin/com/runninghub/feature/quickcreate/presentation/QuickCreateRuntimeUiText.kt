@@ -37,7 +37,7 @@ sealed interface QuickCreateRuntimeUiText {
     /** 计费预览仍在确认中时阻止生成。 */
     data object FeeConfirming : QuickCreateRuntimeUiText
 
-    /** 当前提交参数与最近一次计费预览不一致，或计费预览失败后需要重新确认价格。 */
+    /** 当前提交参数与最近一次计费预览不一致，或计费预览失败后需要重新确认费用。 */
     data object FeePending : QuickCreateRuntimeUiText
 
     /** 已有活跃生成任务时阻止重复提交。 */

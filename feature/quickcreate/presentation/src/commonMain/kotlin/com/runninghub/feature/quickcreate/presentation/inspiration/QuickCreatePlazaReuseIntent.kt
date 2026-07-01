@@ -20,7 +20,7 @@ enum class QuickCreatePlazaReuseMediaKind {
 /**
  * Plaza 使用同款进入 QuickCreate 的参数意图。
  *
- * 所有可复用参数都允许为空，QuickCreate 只写入已知的可编辑字段，并通过既有计费预览回调重新确认价格；
+ * 所有可复用参数都允许为空，QuickCreate 只写入已知的可编辑字段，并通过既有计费预览回调重新确认费用；
  * 本意图不代表可直接提交生成。
  *
  * @property sourceWorkId Plaza 作品 ID，用于追踪引用来源。
@@ -28,9 +28,8 @@ enum class QuickCreatePlazaReuseMediaKind {
  * @property templateId 可复用模板 ID；为空时沿用当前已选模型。
  * @property skuId 可复用服务 SKU；为空时沿用当前已选模型。
  * @property prompt 可编辑 Prompt 初稿。
- * @property aspectRatio 比例协议值，例如 `3:4`。
- * @property resolution 分辨率协议值，例如 `1K`、`720P`。
- * @property quantity 生成数量；为空时沿用当前配置。
+ * @property aspectRatio 比例协议值；只有匹配当前服务模型字段时才写入服务参数。
+ * @property resolution 分辨率协议值；只有匹配当前服务模型字段时才写入服务参数。
  * @property referenceMediaUrl 可带入的参考媒体 URL。
  * @property referenceMediaKind 参考媒体类型；为空时不写入参考素材。
  */
@@ -42,7 +41,6 @@ data class QuickCreatePlazaReuseIntent(
     val prompt: String? = null,
     val aspectRatio: String? = null,
     val resolution: String? = null,
-    val quantity: Int? = null,
     val referenceMediaUrl: String? = null,
     val referenceMediaKind: QuickCreatePlazaReuseMediaKind? = null,
 )

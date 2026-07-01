@@ -28,7 +28,6 @@ enum class TaskHistoryDetailAction {
     DOWNLOAD,
     REUSE_PARAMETERS,
     RETRY,
-    REFUND_STATUS,
 }
 
 /** 任务详情结果媒体类型。 */
@@ -44,17 +43,11 @@ enum class TaskHistoryDetailSaveState {
     UNAVAILABLE,
 }
 
-/** 任务详情页退款状态入口语义。 */
-enum class TaskHistoryDetailRefundState {
-    NOT_REQUIRED,
-    CHECK_AVAILABLE,
-}
-
 /** 任务详情计费行类型。 */
 enum class TaskHistoryDetailBillingKind {
     RH_COINS,
     FINAL_AMOUNT,
-    OTHER,
+    DURATION,
 }
 
 /** 任务详情技术折叠区类型。 */
@@ -151,7 +144,6 @@ data class TaskHistoryDetailTechnicalSectionUi(
  * @property promptParameters Prompt 和关键参数摘要。
  * @property technicalSections 技术详情折叠区。
  * @property saveState 本地保存状态。
- * @property refundState 退款入口状态。
  */
 data class TaskHistoryDetailUiModel(
     val sectionOrder: List<TaskHistoryDetailSectionType>,
@@ -165,7 +157,6 @@ data class TaskHistoryDetailUiModel(
     val promptParameters: List<TaskHistoryDetailParameterUi>,
     val technicalSections: List<TaskHistoryDetailTechnicalSectionUi>,
     val saveState: TaskHistoryDetailSaveState,
-    val refundState: TaskHistoryDetailRefundState,
 )
 
 internal fun GenerationTaskDetail.toTaskHistoryDetailUiModel(): TaskHistoryDetailUiModel {
@@ -188,7 +179,6 @@ internal fun GenerationTaskDetail.toTaskHistoryDetailUiModel(): TaskHistoryDetai
             status = detailStatus,
             hasResult = result != null,
             hasReusableParams = requestParameters.isNotEmpty(),
-            hasBilling = billing != null,
         ),
         billing = billing,
         promptParameters = requestParameters.toTaskHistoryDetailParameters(),
@@ -198,11 +188,6 @@ internal fun GenerationTaskDetail.toTaskHistoryDetailUiModel(): TaskHistoryDetai
         } else {
             TaskHistoryDetailSaveState.UNAVAILABLE
         },
-        refundState = if (detailStatus == TaskHistoryDetailStatus.FAILED && billing != null) {
-            TaskHistoryDetailRefundState.CHECK_AVAILABLE
-        } else {
-            TaskHistoryDetailRefundState.NOT_REQUIRED
-        },
     )
 }
 
@@ -210,7 +195,6 @@ private fun taskHistoryDetailActions(
     status: TaskHistoryDetailStatus,
     hasResult: Boolean,
     hasReusableParams: Boolean,
-    hasBilling: Boolean,
 ): List<TaskHistoryDetailAction> = buildList {
     if (status == TaskHistoryDetailStatus.SUCCESS && hasResult) {
         add(TaskHistoryDetailAction.SAVE)
@@ -221,9 +205,6 @@ private fun taskHistoryDetailActions(
     }
     if (status == TaskHistoryDetailStatus.FAILED) {
         add(0, TaskHistoryDetailAction.RETRY)
-        if (hasBilling) {
-            add(TaskHistoryDetailAction.REFUND_STATUS)
-        }
     }
 }
 
@@ -235,15 +216,8 @@ private fun GenerationTaskDetail.taskHistoryDetailBillingUi(): TaskHistoryDetail
         finalAmount?.takeIf { it.isNotBlank() }?.let {
             add(TaskHistoryDetailBillingRowUi(TaskHistoryDetailBillingKind.FINAL_AMOUNT, it))
         }
-        costFields.forEach { field ->
-            val alreadyCovered = when (field.key.name) {
-                "RH_COINS" -> rhCoins?.isNotBlank() == true
-                "FINAL_AMOUNT" -> finalAmount?.isNotBlank() == true
-                else -> false
-            }
-            if (!alreadyCovered && field.value.isNotBlank()) {
-                add(TaskHistoryDetailBillingRowUi(TaskHistoryDetailBillingKind.OTHER, field.value))
-            }
+        duration?.takeIf { it.isNotBlank() }?.let {
+            add(TaskHistoryDetailBillingRowUi(TaskHistoryDetailBillingKind.DURATION, it))
         }
     }
     return rows.takeIf { it.isNotEmpty() }?.let(::TaskHistoryDetailBillingUi)

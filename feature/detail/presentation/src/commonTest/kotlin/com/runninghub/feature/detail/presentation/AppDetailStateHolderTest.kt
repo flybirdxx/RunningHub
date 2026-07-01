@@ -116,7 +116,7 @@ class AppDetailStateHolderTest {
     }
 
     @Test
-    fun `creation entry prioritizes purpose inputs cost and generate action`() = runTest {
+    fun `creation entry prioritizes description input nodes cost and generate action`() = runTest {
         val stateHolder = createStateHolder(
             catalogRepository = FakeWebAppCatalogRepository(
                 appDetailResult = Result.success(
@@ -135,6 +135,13 @@ class AppDetailStateHolderTest {
                                 fieldValue = "1:1",
                                 description = "画面比例",
                             ),
+                            inputNode(
+                                nodeId = "image-node",
+                                fieldName = "image",
+                                fieldType = "IMAGE",
+                                fieldValue = "https://cdn.example.com/private/input.png",
+                                description = "参考图",
+                            ),
                         ),
                     ),
                 ),
@@ -147,18 +154,22 @@ class AppDetailStateHolderTest {
 
         val creationEntry = stateHolder.uiState.value.creationEntry
         assertEquals("Detail 350", creationEntry?.title)
-        assertEquals("description", creationEntry?.purpose)
+        assertEquals("description", creationEntry?.description)
         assertEquals(
             listOf(
-                AppDetailCreationSection.PURPOSE,
-                AppDetailCreationSection.REQUIRED_INPUTS,
+                AppDetailCreationSection.DESCRIPTION,
+                AppDetailCreationSection.INPUT_NODES,
                 AppDetailCreationSection.ESTIMATED_COST,
                 AppDetailCreationSection.PRIMARY_ACTION,
                 AppDetailCreationSection.TECHNICAL_DETAILS,
             ),
             creationEntry?.firstScreenSections,
         )
-        assertEquals(2, creationEntry?.requiredInputs?.size)
+        assertEquals(3, creationEntry?.inputNodes?.size)
+        assertEquals("Prompt", creationEntry?.inputNodes?.firstOrNull()?.title)
+        assertEquals(AppDetailInputNodeValuePreview.Missing, creationEntry?.inputNodes?.get(0)?.valuePreview)
+        assertEquals(AppDetailInputNodeValuePreview.Text("1:1"), creationEntry?.inputNodes?.get(1)?.valuePreview)
+        assertEquals(AppDetailInputNodeValuePreview.MediaProvided, creationEntry?.inputNodes?.get(2)?.valuePreview)
         assertEquals(false, creationEntry?.technicalDetailsExpanded)
         assertEquals(AppDetailEstimatedCostKind.UNKNOWN, creationEntry?.estimatedCost?.kind)
         assertEquals(AppDetailCreationPrimaryAction.GENERATE_NOW, creationEntry?.primaryAction?.type)

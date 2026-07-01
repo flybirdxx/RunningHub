@@ -27,8 +27,8 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * 网络请求、DataStore、平台 URI 权限和远程任务轮询都应由外部协作者通过不可变 `copy` 回写。
  *
  * 状态不变量：
- * - [estimatedCost] 优先展示当前服务模型的目录价格；目录价格缺失时使用服务端计费预览价格，
- *   预览不可用或失败时回退到当前配置的本地估算。
+ * - [estimatedCost] 只保存服务端计费预览或服务模型目录价格已确认后的派生金额；
+ *   预览不可用或失败时保持 `0.0`，由 [billingPreview] 缺失状态驱动“运行前确认费用”。
  * - [selectedImageServiceModelUi] 与 [selectedImageServiceModel] 应描述同一个图片服务模型。
  * - [selectedVideoServiceModelUi] 与 [selectedVideoServiceModel] 应描述同一个视频服务模型。
  * - [historyItems] 在选中项目时表示项目任务，否则表示最近历史。
@@ -59,9 +59,9 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiS
  * @property error 等待页面展示的一次性错误提示语义。
  * `null` 表示没有待展示错误；非空时由 UI 展示后通过对应事件清理，避免重组重复提示。
  * 新增场景必须写入稳定语义，不得直接保存最终中文文案或远端异常摘要。
- * @property estimatedCost 当前生成入口展示的价格，单位为人民币元或 RunningHub 业务余额。
- * 选中服务模型存在目录价格时该值来自目录价格摘要；否则来自服务端计费预览或本地兼容估算。
- * `0.0` 表示免费、尚未计算或本地默认估算为零；不允许为负数。
+ * @property estimatedCost 当前生成入口已确认的预计费用派生值，单位为人民币元或 RunningHub 业务余额。
+ * 该值只能来自服务端计费预览或服务模型目录价格摘要；参数变化、预览不可用或失败时保持 `0.0`。
+ * 用户可见价格展示应优先读取 [billingPreview]，缺失时显示“运行前确认费用”。
  * @property feePreviewLoading 是否正在执行计费预览请求。
  * `true` 表示生成入口应避免提交并展示等待状态；`false` 表示当前没有进行中的计费预览。
  * @property feePreviewError 计费预览失败或余额不足时的阻塞原因语义。

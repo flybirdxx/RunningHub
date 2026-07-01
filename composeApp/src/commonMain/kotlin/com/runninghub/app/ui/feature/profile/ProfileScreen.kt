@@ -65,14 +65,9 @@ import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.previewProfileUiState
 import com.runninghub.app.ui.component.LoadingIndicator
-import com.runninghub.app.ui.designsystem.components.billing.MembershipAction
 import com.runninghub.app.ui.designsystem.components.billing.MembershipCard
 import com.runninghub.app.ui.designsystem.components.billing.MembershipCardState
 import com.runninghub.app.ui.designsystem.components.billing.MembershipStatusVisualState
-import com.runninghub.app.ui.designsystem.components.billing.TransactionListItem
-import com.runninghub.app.ui.designsystem.components.billing.TransactionListItemState
-import com.runninghub.app.ui.designsystem.components.billing.TransactionStatusVisualState
-import com.runninghub.app.ui.designsystem.components.billing.TransactionTypeVisualState
 import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceAction
 import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceCard
 import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceCardState
@@ -83,13 +78,8 @@ import com.runninghub.core.model.MemberInfo
 import com.runninghub.core.model.User
 import com.runninghub.feature.auth.presentation.profile.ProfileAssetCenterUiModel
 import com.runninghub.feature.auth.presentation.profile.ProfileAssetLoadState
-import com.runninghub.feature.auth.presentation.profile.ProfileMembershipAction
 import com.runninghub.feature.auth.presentation.profile.ProfileMembershipCenterUiModel
 import com.runninghub.feature.auth.presentation.profile.ProfileMembershipStatus
-import com.runninghub.feature.auth.presentation.profile.ProfileTransactionCenterUiModel
-import com.runninghub.feature.auth.presentation.profile.ProfileTransactionStatus
-import com.runninghub.feature.auth.presentation.profile.ProfileTransactionType
-import com.runninghub.feature.auth.presentation.profile.ProfileTransactionUiModel
 import com.runninghub.feature.auth.presentation.profile.ProfileUiState
 import com.runninghub.feature.auth.presentation.profile.ProfileWalletCenterUiModel
 import com.runninghub.feature.auth.presentation.profile.ProfileWalletRisk
@@ -105,12 +95,10 @@ import runninghub.composeapp.generated.resources.profile_member_expiry_format
 import runninghub.composeapp.generated.resources.profile_member_level_content_description
 import runninghub.composeapp.generated.resources.profile_member_remaining_days_format
 import runninghub.composeapp.generated.resources.profile_membership_active
-import runninghub.composeapp.generated.resources.profile_membership_benefit_unavailable
 import runninghub.composeapp.generated.resources.profile_membership_expired
 import runninghub.composeapp.generated.resources.profile_membership_level_label
 import runninghub.composeapp.generated.resources.profile_membership_none
 import runninghub.composeapp.generated.resources.profile_membership_remaining_unknown
-import runninghub.composeapp.generated.resources.profile_membership_renew_action
 import runninghub.composeapp.generated.resources.profile_menu_about
 import runninghub.composeapp.generated.resources.profile_menu_clear_cache
 import runninghub.composeapp.generated.resources.profile_menu_edit_profile
@@ -119,23 +107,9 @@ import runninghub.composeapp.generated.resources.profile_menu_more_content_descr
 import runninghub.composeapp.generated.resources.profile_not_logged_in_subtitle
 import runninghub.composeapp.generated.resources.profile_not_logged_in_title
 import runninghub.composeapp.generated.resources.profile_settings_content_description
-import runninghub.composeapp.generated.resources.profile_transaction_empty
-import runninghub.composeapp.generated.resources.profile_transaction_status_failed
-import runninghub.composeapp.generated.resources.profile_transaction_status_pending
-import runninghub.composeapp.generated.resources.profile_transaction_status_succeeded
-import runninghub.composeapp.generated.resources.profile_transaction_status_unknown
-import runninghub.composeapp.generated.resources.profile_transaction_title
-import runninghub.composeapp.generated.resources.profile_transaction_type_generation
-import runninghub.composeapp.generated.resources.profile_transaction_type_membership
-import runninghub.composeapp.generated.resources.profile_transaction_type_recharge
-import runninghub.composeapp.generated.resources.profile_transaction_type_refund
 import runninghub.composeapp.generated.resources.profile_unbound_mobile
 import runninghub.composeapp.generated.resources.profile_wallet_balance_failed
-import runninghub.composeapp.generated.resources.profile_wallet_capacity_unknown
 import runninghub.composeapp.generated.resources.profile_wallet_cny_label
-import runninghub.composeapp.generated.resources.profile_wallet_details_action
-import runninghub.composeapp.generated.resources.profile_wallet_insufficient_balance
-import runninghub.composeapp.generated.resources.profile_wallet_low_balance
 import runninghub.composeapp.generated.resources.profile_wallet_recharge_action
 import runninghub.composeapp.generated.resources.profile_wallet_rhb_label
 import runninghub.composeapp.generated.resources.profile_wallet_unknown
@@ -184,9 +158,6 @@ fun ProfileScreenContent(
     uiState: ProfileUiState,
     onRefresh: () -> Unit = {},
     onRecharge: () -> Unit = {},
-    onOpenWalletDetails: () -> Unit = {},
-    onRenewMembership: () -> Unit = {},
-    onOpenTaskDetail: (String) -> Unit = {},
     onLogout: () -> Unit = {},
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
@@ -227,9 +198,6 @@ fun ProfileScreenContent(
                             AssetCenterSection(
                                 assetCenter = uiState.assetCenter,
                                 onRecharge = onRecharge,
-                                onOpenWalletDetails = onOpenWalletDetails,
-                                onRenewMembership = onRenewMembership,
-                                onOpenTaskDetail = onOpenTaskDetail,
                             )
                             Spacer(Modifier.height(16.dp))
                             ProfileMenuSection(onLogout = onLogout)
@@ -373,9 +341,6 @@ private fun MemberBadge(
 private fun AssetCenterSection(
     assetCenter: ProfileAssetCenterUiModel,
     onRecharge: () -> Unit,
-    onOpenWalletDetails: () -> Unit,
-    onRenewMembership: () -> Unit,
-    onOpenTaskDetail: (String) -> Unit,
 ) {
     if (!assetCenter.visible) return
     Column(
@@ -389,59 +354,11 @@ private fun AssetCenterSection(
             onAction = { action ->
                 when (action) {
                     is WalletBalanceAction.Recharge -> onRecharge()
-                    is WalletBalanceAction.Details -> onOpenWalletDetails()
                 }
             },
         )
-        MembershipCard(
-            state = assetCenter.membership.toMembershipCardState(),
-            onAction = { action ->
-                when (action) {
-                    is MembershipAction.Renew -> onRenewMembership()
-                }
-            },
-        )
-        TransactionSection(
-            transactionCenter = assetCenter.transactions,
-            onOpenTaskDetail = onOpenTaskDetail,
-        )
-    }
-}
-
-@Composable
-private fun TransactionSection(
-    transactionCenter: ProfileTransactionCenterUiModel,
-    onOpenTaskDetail: (String) -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Dimens.RadiusLG),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(
-                text = stringResource(Res.string.profile_transaction_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.SemiBold,
-            )
-            if (transactionCenter.transactions.isEmpty() || transactionCenter.loadState == ProfileAssetLoadState.Empty) {
-                Text(
-                    text = stringResource(Res.string.profile_transaction_empty),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.outline,
-                )
-            } else {
-                transactionCenter.transactions.forEach { transaction ->
-                    TransactionListItem(
-                        state = transaction.toTransactionListItemState(),
-                        onOpenTaskDetail = onOpenTaskDetail,
-                    )
-                }
-            }
+        if (assetCenter.membership.status != ProfileMembershipStatus.None) {
+            MembershipCard(state = assetCenter.membership.toMembershipCardState())
         }
     }
 }
@@ -456,7 +373,6 @@ private fun ProfileWalletCenterUiModel.toWalletBalanceCardState(): WalletBalance
             ?: stringResource(Res.string.profile_wallet_unknown),
         risk = risk.toWalletBalanceRiskState(),
         primaryAction = WalletBalanceAction.Recharge(stringResource(Res.string.profile_wallet_recharge_action)),
-        secondaryAction = WalletBalanceAction.Details(stringResource(Res.string.profile_wallet_details_action)),
     )
 
 @Composable
@@ -465,15 +381,6 @@ private fun ProfileWalletRisk.toWalletBalanceRiskState(): WalletBalanceRiskState
         ProfileWalletRisk.None -> WalletBalanceRiskState.None()
         ProfileWalletRisk.BalanceUnavailable -> {
             WalletBalanceRiskState.BalanceUnavailable(stringResource(Res.string.profile_wallet_balance_failed))
-        }
-        ProfileWalletRisk.GenerationCapacityUnknown -> {
-            WalletBalanceRiskState.GenerationCapacityUnknown(stringResource(Res.string.profile_wallet_capacity_unknown))
-        }
-        ProfileWalletRisk.LowBalance -> {
-            WalletBalanceRiskState.LowBalance(stringResource(Res.string.profile_wallet_low_balance))
-        }
-        ProfileWalletRisk.InsufficientBalance -> {
-            WalletBalanceRiskState.InsufficientBalance(stringResource(Res.string.profile_wallet_insufficient_balance))
         }
     }
 
@@ -484,12 +391,6 @@ private fun ProfileMembershipCenterUiModel.toMembershipCardState(): MembershipCa
         levelName = levelName ?: stringResource(Res.string.profile_membership_none),
         remainingLabel = membershipRemainingLabel(),
         status = status.toMembershipStatusVisualState(),
-        benefitSummary = stringResource(Res.string.profile_membership_benefit_unavailable),
-        primaryAction = when (primaryAction) {
-            ProfileMembershipAction.Renew -> {
-                MembershipAction.Renew(stringResource(Res.string.profile_membership_renew_action))
-            }
-        },
     )
 
 @Composable
@@ -510,52 +411,6 @@ private fun ProfileMembershipStatus.toMembershipStatusVisualState(): MembershipS
         ProfileMembershipStatus.Active -> MembershipStatusVisualState.Active
         ProfileMembershipStatus.Expired -> MembershipStatusVisualState.Expired
         ProfileMembershipStatus.Unknown -> MembershipStatusVisualState.Unknown
-    }
-
-@Composable
-private fun ProfileTransactionUiModel.toTransactionListItemState(): TransactionListItemState =
-    TransactionListItemState(
-        id = id,
-        type = type.toTransactionTypeVisualState(),
-        title = type.toTransactionTitle(),
-        amount = amount,
-        status = status.toTransactionStatusVisualState(),
-        statusLabel = status.toTransactionStatusLabel(),
-        relatedTaskId = relatedTaskId,
-    )
-
-private fun ProfileTransactionType.toTransactionTypeVisualState(): TransactionTypeVisualState =
-    when (this) {
-        ProfileTransactionType.Generation -> TransactionTypeVisualState.Generation
-        ProfileTransactionType.Refund -> TransactionTypeVisualState.Refund
-        ProfileTransactionType.Recharge -> TransactionTypeVisualState.Recharge
-        ProfileTransactionType.Membership -> TransactionTypeVisualState.Membership
-    }
-
-@Composable
-private fun ProfileTransactionType.toTransactionTitle(): String =
-    when (this) {
-        ProfileTransactionType.Generation -> stringResource(Res.string.profile_transaction_type_generation)
-        ProfileTransactionType.Refund -> stringResource(Res.string.profile_transaction_type_refund)
-        ProfileTransactionType.Recharge -> stringResource(Res.string.profile_transaction_type_recharge)
-        ProfileTransactionType.Membership -> stringResource(Res.string.profile_transaction_type_membership)
-    }
-
-private fun ProfileTransactionStatus.toTransactionStatusVisualState(): TransactionStatusVisualState =
-    when (this) {
-        ProfileTransactionStatus.Succeeded -> TransactionStatusVisualState.Succeeded
-        ProfileTransactionStatus.Pending -> TransactionStatusVisualState.Pending
-        ProfileTransactionStatus.Failed -> TransactionStatusVisualState.Failed
-        ProfileTransactionStatus.Unknown -> TransactionStatusVisualState.Unknown
-    }
-
-@Composable
-private fun ProfileTransactionStatus.toTransactionStatusLabel(): String =
-    when (this) {
-        ProfileTransactionStatus.Succeeded -> stringResource(Res.string.profile_transaction_status_succeeded)
-        ProfileTransactionStatus.Pending -> stringResource(Res.string.profile_transaction_status_pending)
-        ProfileTransactionStatus.Failed -> stringResource(Res.string.profile_transaction_status_failed)
-        ProfileTransactionStatus.Unknown -> stringResource(Res.string.profile_transaction_status_unknown)
     }
 
 @Composable

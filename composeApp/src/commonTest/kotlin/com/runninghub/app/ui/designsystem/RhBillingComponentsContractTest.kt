@@ -27,16 +27,14 @@ class RhBillingComponentsContractTest {
             rows = listOf(
                 BillingInfoRow(label = "预计消耗", value = "37 RHB 点数", emphasized = true),
                 BillingInfoRow(label = "当前余额", value = "暂未同步"),
-                BillingInfoRow(label = "会员减免", value = "暂无会员减免"),
-                BillingInfoRow(label = "失败扣费说明", value = "生成失败不扣费；如已扣费将自动退回"),
             ),
             confirmActionLabel = "确认生成",
             dismissActionLabel = "取消",
             confirmEnabled = true,
         )
 
-        assertEquals(4, state.rows.size)
+        assertEquals(2, state.rows.size)
         assertTrue(state.rows.first().emphasized)
-        assertEquals("失败扣费说明", state.rows.last().label)
+        assertEquals("当前余额", state.rows.last().label)
     }
 }

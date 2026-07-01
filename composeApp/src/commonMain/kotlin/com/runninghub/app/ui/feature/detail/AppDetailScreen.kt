@@ -5,7 +5,6 @@ import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -111,10 +110,10 @@ import com.runninghub.core.model.TaskOutput
 import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.feature.detail.presentation.AppDetailErrorText
 import com.runninghub.feature.detail.presentation.AppDetailCreationEntryUiModel
-import com.runninghub.feature.detail.presentation.AppDetailCreationPrimaryAction
 import com.runninghub.feature.detail.presentation.AppDetailInputControl
 import com.runninghub.feature.detail.presentation.AppDetailInputFieldUiModel
 import com.runninghub.feature.detail.presentation.AppDetailInputRowUiModel
+import com.runninghub.feature.detail.presentation.AppDetailInputNodeValuePreview
 import com.runninghub.feature.detail.presentation.AppDetailMediaType
 import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.detail.presentation.AppDetailUiState
@@ -128,15 +127,13 @@ import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_detail_back_content_description
 import runninghub.composeapp.generated.resources.app_detail_creation_cost_title
 import runninghub.composeapp.generated.resources.app_detail_creation_cost_unknown
-import runninghub.composeapp.generated.resources.app_detail_creation_generate_action
-import runninghub.composeapp.generated.resources.app_detail_creation_input_filled
+import runninghub.composeapp.generated.resources.app_detail_creation_input_media_provided
 import runninghub.composeapp.generated.resources.app_detail_creation_input_missing
-import runninghub.composeapp.generated.resources.app_detail_creation_purpose_title
-import runninghub.composeapp.generated.resources.app_detail_creation_required_inputs_title
+import runninghub.composeapp.generated.resources.app_detail_creation_description_title
+import runninghub.composeapp.generated.resources.app_detail_creation_inputs_title
 import runninghub.composeapp.generated.resources.app_detail_creation_technical_empty
 import runninghub.composeapp.generated.resources.app_detail_creation_technical_item_format
 import runninghub.composeapp.generated.resources.app_detail_creation_technical_title
-import runninghub.composeapp.generated.resources.app_detail_creation_view_result_action
 import runninghub.composeapp.generated.resources.app_detail_default_app_name
 import runninghub.composeapp.generated.resources.app_detail_description_title
 import runninghub.composeapp.generated.resources.app_detail_error_load_failed
@@ -294,16 +291,7 @@ private fun DetailContent(
                         AppDetailCreationEntry(
                             entry = entry,
                             detail = detail,
-                            isRunning = uiState.isRunningTask,
-                            taskStep = uiState.taskStep,
                             onBack = onBack,
-                            onPrimaryAction = {
-                                when (entry.primaryAction.type) {
-                                    AppDetailCreationPrimaryAction.GENERATE_NOW,
-                                    AppDetailCreationPrimaryAction.RETRY -> onRunTask()
-                                    AppDetailCreationPrimaryAction.VIEW_RESULT -> Unit
-                                }
-                            },
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                         )
                     }
@@ -410,10 +398,7 @@ private fun DetailContent(
 private fun AppDetailCreationEntry(
     entry: AppDetailCreationEntryUiModel,
     detail: AppDetail,
-    isRunning: Boolean,
-    taskStep: AppDetailTaskStep,
     onBack: () -> Unit,
-    onPrimaryAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -458,19 +443,21 @@ private fun AppDetailCreationEntry(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = stringResource(Res.string.app_detail_creation_purpose_title),
+                    text = stringResource(Res.string.app_detail_creation_description_title),
                     color = Primary300,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
-                Text(
-                    text = entry.purpose,
-                    color = Neutral400,
-                    fontSize = 13.sp,
-                    lineHeight = 18.sp,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis,
-                )
+                entry.description?.let { description ->
+                    Text(
+                        text = description,
+                        color = Neutral400,
+                        fontSize = 13.sp,
+                        lineHeight = 18.sp,
+                        maxLines = 3,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
             }
         }
 
@@ -479,33 +466,22 @@ private fun AppDetailCreationEntry(
             value = entry.estimatedCost.amountLabel ?: stringResource(Res.string.app_detail_creation_cost_unknown),
         )
 
-        if (entry.requiredInputs.isNotEmpty()) {
+        if (entry.inputNodes.isNotEmpty()) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = stringResource(Res.string.app_detail_creation_required_inputs_title),
+                    text = stringResource(Res.string.app_detail_creation_inputs_title),
                     color = Color.White,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
-                entry.requiredInputs.take(4).forEach { input ->
+                entry.inputNodes.forEach { input ->
                     CreationInputRow(
                         title = input.title,
-                        filled = input.filled,
+                        valuePreview = input.valuePreview,
                     )
                 }
             }
         }
-
-        CreationPrimaryButton(
-            label = if (isRunning) {
-                taskStep.toRunningStatusLabel()
-            } else {
-                entry.primaryAction.type.toCreationActionLabel()
-            },
-            enabled = entry.primaryAction.enabled && !isRunning,
-            loading = isRunning,
-            onClick = onPrimaryAction,
-        )
 
         CollapsibleSection(
             title = stringResource(Res.string.app_detail_creation_technical_title),
@@ -598,7 +574,18 @@ private fun CreationInfoRow(title: String, value: String) {
 }
 
 @Composable
-private fun CreationInputRow(title: String, filled: Boolean) {
+private fun CreationInputRow(title: String, valuePreview: AppDetailInputNodeValuePreview) {
+    val previewText = when (valuePreview) {
+        AppDetailInputNodeValuePreview.MediaProvided ->
+            stringResource(Res.string.app_detail_creation_input_media_provided)
+        AppDetailInputNodeValuePreview.Missing ->
+            stringResource(Res.string.app_detail_creation_input_missing)
+        is AppDetailInputNodeValuePreview.Text -> valuePreview.value
+    }
+    val previewColor = when (valuePreview) {
+        AppDetailInputNodeValuePreview.Missing -> Primary300
+        else -> SuccessDark
+    }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -617,73 +604,15 @@ private fun CreationInputRow(title: String, filled: Boolean) {
             modifier = Modifier.weight(1f),
         )
         Text(
-            text = stringResource(
-                if (filled) {
-                    Res.string.app_detail_creation_input_filled
-                } else {
-                    Res.string.app_detail_creation_input_missing
-                },
-            ),
-            color = if (filled) SuccessDark else Primary300,
+            text = previewText,
+            color = previewColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(0.72f),
         )
     }
-}
-
-@Composable
-private fun CreationPrimaryButton(
-    label: String,
-    enabled: Boolean,
-    loading: Boolean,
-    onClick: () -> Unit,
-) {
-    val buttonColor = when {
-        loading -> Primary500.copy(alpha = 0.6f)
-        enabled -> Primary500
-        else -> Neutral500
-    }
-    Box(
-        contentAlignment = Alignment.Center,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(48.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(buttonColor)
-            .then(if (enabled && !loading) Modifier.clickable(onClick = onClick) else Modifier),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (loading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(18.dp),
-                    strokeWidth = 2.dp,
-                    color = Color.White,
-                )
-                Spacer(Modifier.width(8.dp))
-            } else {
-                Icon(
-                    Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-            }
-            Text(
-                text = label,
-                color = Color.White,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-            )
-        }
-    }
-}
-
-@Composable
-private fun AppDetailCreationPrimaryAction.toCreationActionLabel(): String = when (this) {
-    AppDetailCreationPrimaryAction.GENERATE_NOW -> stringResource(Res.string.app_detail_creation_generate_action)
-    AppDetailCreationPrimaryAction.VIEW_RESULT -> stringResource(Res.string.app_detail_creation_view_result_action)
-    AppDetailCreationPrimaryAction.RETRY -> stringResource(Res.string.app_detail_rerun_action)
 }
 
 @Composable
@@ -800,7 +729,7 @@ private fun AppDetailHero(
             }
 
             StatsCard(
-                useCount = detail.statisticsInfo?.useCount ?: "0",
+                useCount = detail.statisticsInfo?.useCount,
                 successRate = detail.runningSuccessRate,
                 avgSeconds = detail.avgRunningSeconds,
                 modifier = Modifier.fillMaxWidth()
@@ -947,11 +876,23 @@ private fun AppInfoSection(detail: AppDetail) {
 
 @Composable
 private fun StatsCard(
-    useCount: String,
+    useCount: String?,
     successRate: String?,
     avgSeconds: String?,
     modifier: Modifier = Modifier
 ) {
+    val stats = buildList {
+        useCount?.takeIf { it.isNotBlank() }?.let {
+            add(it to Res.string.app_detail_stat_use_count)
+        }
+        successRate?.takeIf { it.isNotBlank() }?.let {
+            add("${it}%" to Res.string.app_detail_stat_success_rate)
+        }
+        avgSeconds?.takeIf { it.isNotBlank() }?.let {
+            add("${it}s" to Res.string.app_detail_stat_average_duration)
+        }
+    }
+    if (stats.isEmpty()) return
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -960,17 +901,12 @@ private fun StatsCard(
             .padding(vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
-        StatItem(value = useCount, label = stringResource(Res.string.app_detail_stat_use_count))
-        StatDivider()
-        StatItem(
-            value = successRate?.let { "${it}%" } ?: "--",
-            label = stringResource(Res.string.app_detail_stat_success_rate),
-        )
-        StatDivider()
-        StatItem(
-            value = avgSeconds?.let { "${it}s" } ?: "--",
-            label = stringResource(Res.string.app_detail_stat_average_duration),
-        )
+        stats.forEachIndexed { index, stat ->
+            StatItem(value = stat.first, label = stringResource(stat.second))
+            if (index < stats.lastIndex) {
+                StatDivider()
+            }
+        }
     }
 }
 
@@ -1741,7 +1677,6 @@ private fun TaskErrorCard(error: String, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(ErrorDark.copy(alpha = 0.12f))
-            .border(1.dp, ErrorDark.copy(alpha = 0.3f), RoundedCornerShape(12.dp))
             .padding(14.dp)
     ) {
         Text(
@@ -1771,7 +1706,6 @@ private fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
             .background(DarkSurface)
-            .padding(12.dp)
     ) {
         if (isImage && url.isNotBlank()) {
             SmartAsyncImage(
@@ -1779,8 +1713,7 @@ private fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
                 contentDescription = output.fileName,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(8.dp)),
+                    .aspectRatio(1f),
                 contentScale = ContentScale.FillWidth
             )
             Spacer(Modifier.height(8.dp))
@@ -1792,7 +1725,7 @@ private fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
-                    .background(DarkSurfaceVariant, RoundedCornerShape(8.dp))
+                    .background(DarkSurfaceVariant)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
@@ -1817,7 +1750,8 @@ private fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
             color = Neutral400,
             fontSize = 12.sp,
             maxLines = 1,
-            overflow = TextOverflow.Ellipsis
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         )
     }
 }

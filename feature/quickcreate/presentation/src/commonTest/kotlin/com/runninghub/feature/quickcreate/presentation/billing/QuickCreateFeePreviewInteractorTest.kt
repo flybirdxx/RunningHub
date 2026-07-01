@@ -72,7 +72,7 @@ class QuickCreateFeePreviewInteractorTest {
     }
 
     @Test
-    fun `service model price summary is used as local image fallback before fee preview is available`() = runTest {
+    fun `service model price summary is not shown until request can be priced`() = runTest {
         val repository = FakeFeePreviewRepository()
         val state = MutableStateFlow(
             QuickCreateUiState(
@@ -89,13 +89,14 @@ class QuickCreateFeePreviewInteractorTest {
         runCurrent()
 
         assertEquals(0, repository.feePreviewRequests.size)
-        assertEquals(0.06, state.value.estimatedCost)
+        assertEquals(0.0, state.value.estimatedCost)
+        assertNull(state.value.billingPreview)
         assertFalse(state.value.feePreviewLoading)
         assertNull(state.value.feePreviewError)
     }
 
     @Test
-    fun `catalog priced image service model skips remote fee preview and marks request priced`() = runTest {
+    fun `catalog priced image service model waits for remote fee preview confirmation`() = runTest {
         val repository = FakeFeePreviewRepository().apply {
             imageFeePreviewResult = Result.success(feePreview(requiredCashAmount = 0.76))
         }
@@ -114,8 +115,8 @@ class QuickCreateFeePreviewInteractorTest {
         advanceTimeBy(500)
         runCurrent()
 
-        assertEquals(0, repository.feePreviewRequests.size)
-        assertEquals(0.06, state.value.estimatedCost)
+        assertEquals(1, repository.feePreviewRequests.size)
+        assertEquals(0.76, state.value.estimatedCost)
         assertFalse(state.value.feePreviewLoading)
         assertNull(state.value.feePreviewError)
         assertNotNull(state.value.feePreviewRequestKey)
@@ -178,7 +179,8 @@ class QuickCreateFeePreviewInteractorTest {
         runCurrent()
 
         assertEquals(0, repository.feePreviewRequests.size)
-        assertEquals(state.value.imageConfig.estimatedCost, state.value.estimatedCost)
+        assertEquals(0.0, state.value.estimatedCost)
+        assertNull(state.value.billingPreview)
         assertFalse(state.value.feePreviewLoading)
         assertNull(state.value.feePreviewError)
     }

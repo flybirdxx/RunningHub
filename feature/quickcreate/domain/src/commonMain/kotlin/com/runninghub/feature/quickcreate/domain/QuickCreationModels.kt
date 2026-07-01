@@ -426,7 +426,7 @@ data class QuickCreateResultItem(
  * @property settlementMode 服务端结算模式标记；`null` 表示服务端未返回，Presentation 不应直接展示原值。
  * @property requiredRhAmount 预计消耗 RH 点数，单位为点；默认 0 表示不消耗或服务端未返回。
  * @property requiredCashAmount 预计消耗现金余额，单位由 [cashCurrency] 决定；默认 0 表示不消耗现金。
- * @property userCashBalance 用户当前现金余额，单位由 [cashCurrency] 决定；默认 0 表示无余额或服务端未返回。
+ * @property userCashBalance 用户当前现金余额，单位由 [cashCurrency] 决定；`null` 表示服务端未返回。
  * @property insufficientType 余额不足类型标记；`null` 表示没有余额不足原因或服务端未声明。
  * @property cashCurrency 现金币种标记；`null` 表示服务端未声明币种，调用方不得假设默认币种。
  */
@@ -436,7 +436,7 @@ data class QuickCreationFeePreview(
     val settlementMode: String? = null,
     val requiredRhAmount: Double = 0.0,
     val requiredCashAmount: Double = 0.0,
-    val userCashBalance: Double = 0.0,
+    val userCashBalance: Double? = null,
     val insufficientType: String? = null,
     val cashCurrency: String? = null,
 )

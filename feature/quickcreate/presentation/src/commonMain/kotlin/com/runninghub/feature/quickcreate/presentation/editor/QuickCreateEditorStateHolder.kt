@@ -33,23 +33,13 @@ class QuickCreateEditorStateHolder(
     /**
      * 切换图片 / 视频创作 Tab。
      *
-     * Tab 切换会立即把本地估价切到目标配置的估算值，并清理上一 Tab 的远端计费预览状态；
-     * 这样页面不会短暂展示另一种创作类型的价格或预览错误。
+     * Tab 切换会清理上一 Tab 的远端计费预览状态，避免页面短暂展示另一种创作类型的费用或预览错误。
      */
     fun switchTab(tab: QuickCreateTab) {
-        val cost = when (tab) {
-            QuickCreateTab.IMAGE -> uiState.value.imageConfig.estimatedCost
-            QuickCreateTab.VIDEO -> uiState.value.videoConfig.estimatedCost
-        }
         uiState.update {
             it.copy(
                 currentTab = tab,
-                estimatedCost = cost,
-                feePreviewLoading = false,
-                feePreviewError = null,
-                feePreviewRequestKey = null,
-                billingPreview = null,
-            )
+            ).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
         onDraftChanged()
@@ -61,7 +51,7 @@ class QuickCreateEditorStateHolder(
      * Prompt 同时影响生成请求、计费预览和草稿恢复内容，因此修改后必须同时触发价格预览与草稿自动保存。
      */
     fun updateImagePrompt(prompt: String) {
-        uiState.update { it.copy(imageConfig = it.imageConfig.copy(prompt = prompt)) }
+        uiState.update { it.copy(imageConfig = it.imageConfig.copy(prompt = prompt)).withoutStaleFeePreview() }
         onFeePreviewRequired()
         onDraftChanged()
     }
@@ -72,7 +62,7 @@ class QuickCreateEditorStateHolder(
      * 与图片 Prompt 保持同一套副作用：刷新价格预览并调度草稿自动保存，避免用户切换 Tab 后丢失输入。
      */
     fun updateVideoPrompt(prompt: String) {
-        uiState.update { it.copy(videoConfig = it.videoConfig.copy(prompt = prompt)) }
+        uiState.update { it.copy(videoConfig = it.videoConfig.copy(prompt = prompt)).withoutStaleFeePreview() }
         onFeePreviewRequired()
         onDraftChanged()
     }
@@ -92,9 +82,7 @@ class QuickCreateEditorStateHolder(
                 currentTab = restore.tab,
                 imageConfig = it.imageConfig.copy(prompt = restore.imagePrompt),
                 videoConfig = it.videoConfig.copy(prompt = restore.videoPrompt),
-                feePreviewRequestKey = null,
-                billingPreview = null,
-            )
+            ).withoutStaleFeePreview()
         }
     }
 
@@ -153,7 +141,7 @@ class QuickCreateEditorStateHolder(
                 resolution = model.defaultResolution,
                 quality = model.defaultQuality,
             )
-            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+            it.copy(imageConfig = newConfig).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -174,7 +162,7 @@ class QuickCreateEditorStateHolder(
                 generateAudio = model.supportsGenerateAudio && it.videoConfig.generateAudio,
                 realisticMode = model.supportsRealistic && it.videoConfig.realisticMode,
             )
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+            it.copy(videoConfig = newConfig).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -182,7 +170,7 @@ class QuickCreateEditorStateHolder(
     /** 更新图片比例；若目标比例不受当前图片模型支持，则保持旧值以避免生成请求非法。 */
     fun updateImageAspectRatio(ratio: ImageAspectRatio) {
         if (ratio !in uiState.value.imageConfig.model.supportedRatios) return
-        uiState.update { it.copy(imageConfig = it.imageConfig.copy(aspectRatio = ratio)) }
+        uiState.update { it.copy(imageConfig = it.imageConfig.copy(aspectRatio = ratio)).withoutStaleFeePreview() }
         onFeePreviewRequired()
     }
 
@@ -191,7 +179,7 @@ class QuickCreateEditorStateHolder(
         if (resolution !in uiState.value.imageConfig.model.supportedResolutions) return
         uiState.update {
             val newConfig = it.imageConfig.copy(resolution = resolution)
-            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+            it.copy(imageConfig = newConfig).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -201,7 +189,7 @@ class QuickCreateEditorStateHolder(
         if (quality !in uiState.value.imageConfig.model.supportedQualities) return
         uiState.update {
             val newConfig = it.imageConfig.copy(quality = quality)
-            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+            it.copy(imageConfig = newConfig).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -211,7 +199,7 @@ class QuickCreateEditorStateHolder(
         if (count !in supportedImageCounts) return
         uiState.update {
             val newConfig = it.imageConfig.copy(count = count)
-            it.copy(imageConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+            it.copy(imageConfig = newConfig).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -222,14 +210,14 @@ class QuickCreateEditorStateHolder(
      * 负数在业务上表示用户想清空种子，因此会被规范化为 `null`，请求构建时不再提交 seed。
      */
     fun updateImageSeed(seed: Int?) {
-        uiState.update { it.copy(imageConfig = it.imageConfig.copy(seed = sanitizedSeed(seed))) }
+        uiState.update { it.copy(imageConfig = it.imageConfig.copy(seed = sanitizedSeed(seed))).withoutStaleFeePreview() }
         onFeePreviewRequired()
     }
 
     /** 更新视频比例；若当前视频模型不支持目标比例，则忽略该次用户输入。 */
     fun updateVideoAspectRatio(ratio: VideoAspectRatio) {
         if (ratio !in uiState.value.videoConfig.model.supportedRatios) return
-        uiState.update { it.copy(videoConfig = it.videoConfig.copy(aspectRatio = ratio)) }
+        uiState.update { it.copy(videoConfig = it.videoConfig.copy(aspectRatio = ratio)).withoutStaleFeePreview() }
         onFeePreviewRequired()
     }
 
@@ -238,7 +226,7 @@ class QuickCreateEditorStateHolder(
         if (resolution !in uiState.value.videoConfig.model.supportedResolutions) return
         uiState.update {
             val newConfig = it.videoConfig.copy(resolution = resolution)
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+            it.copy(videoConfig = newConfig).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -248,7 +236,7 @@ class QuickCreateEditorStateHolder(
         if (duration !in uiState.value.videoConfig.model.supportedDurations) return
         uiState.update {
             val newConfig = it.videoConfig.copy(duration = duration)
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+            it.copy(videoConfig = newConfig).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -258,7 +246,7 @@ class QuickCreateEditorStateHolder(
         if (count !in supportedVideoCounts) return
         uiState.update {
             val newConfig = it.videoConfig.copy(count = count)
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+            it.copy(videoConfig = newConfig).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -269,7 +257,7 @@ class QuickCreateEditorStateHolder(
      * 与图片一致，负数会清空 seed；`null` 表示生成请求交给服务端随机。
      */
     fun updateVideoSeed(seed: Int?) {
-        uiState.update { it.copy(videoConfig = it.videoConfig.copy(seed = sanitizedSeed(seed))) }
+        uiState.update { it.copy(videoConfig = it.videoConfig.copy(seed = sanitizedSeed(seed))).withoutStaleFeePreview() }
         onFeePreviewRequired()
     }
 
@@ -282,6 +270,7 @@ class QuickCreateEditorStateHolder(
         if (!uiState.value.videoConfig.model.supportsRealistic) return
         uiState.update {
             it.copy(videoConfig = it.videoConfig.copy(realisticMode = !it.videoConfig.realisticMode))
+                .withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -295,7 +284,7 @@ class QuickCreateEditorStateHolder(
         if (!uiState.value.videoConfig.model.supportsGenerateAudio) return
         uiState.update {
             val newConfig = it.videoConfig.copy(generateAudio = !it.videoConfig.generateAudio)
-            it.copy(videoConfig = newConfig, estimatedCost = newConfig.estimatedCost)
+            it.copy(videoConfig = newConfig).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
     }
@@ -310,3 +299,12 @@ class QuickCreateEditorStateHolder(
         uiState.update { it.copy(error = null) }
     }
 }
+
+private fun QuickCreateUiState.withoutStaleFeePreview(): QuickCreateUiState =
+    copy(
+        estimatedCost = 0.0,
+        feePreviewLoading = false,
+        feePreviewError = null,
+        feePreviewRequestKey = null,
+        billingPreview = null,
+    )

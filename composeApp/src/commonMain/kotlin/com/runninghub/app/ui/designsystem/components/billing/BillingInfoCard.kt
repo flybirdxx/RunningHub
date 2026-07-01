@@ -1,6 +1,5 @@
 package com.runninghub.app.ui.designsystem.components.billing
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +10,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
@@ -43,7 +41,6 @@ fun BillingInfoCard(
         modifier = modifier.fillMaxWidth(),
         color = RhTheme.colors.surfaceSunken,
         shape = androidx.compose.foundation.shape.RoundedCornerShape(RhTheme.shapes.sm),
-        border = BorderStroke(1.dp, RhTheme.colors.borderSubtle),
     ) {
         Column(
             modifier = Modifier

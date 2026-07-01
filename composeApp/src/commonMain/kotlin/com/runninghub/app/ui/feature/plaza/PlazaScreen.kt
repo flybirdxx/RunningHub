@@ -82,10 +82,6 @@ import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardMetricSt
 import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardPreviewState
 import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardPreviewType as DsPlazaWorkCardPreviewType
 import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardState
-import com.runninghub.app.ui.designsystem.components.sheets.ReuseTemplateParameterState
-import com.runninghub.app.ui.designsystem.components.sheets.ReuseTemplateParameterStatus
-import com.runninghub.app.ui.designsystem.components.sheets.ReuseTemplateSheet
-import com.runninghub.app.ui.designsystem.components.sheets.ReuseTemplateSheetState
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.theme.BrandLime
 import com.runninghub.app.ui.theme.RhAppBackground as RhBackground
@@ -100,15 +96,8 @@ import com.runninghub.feature.community.domain.PlazaCreationCard
 import com.runninghub.feature.community.domain.PlazaShortCard
 import com.runninghub.feature.community.domain.PlazaShortCategory
 import com.runninghub.feature.community.domain.PlazaTag
-import com.runninghub.feature.community.presentation.PlazaFallbackCardIntro
-import com.runninghub.feature.community.presentation.PlazaFallbackCardMediaType
-import com.runninghub.feature.community.presentation.PlazaFallbackCardOwner
-import com.runninghub.feature.community.presentation.PlazaFallbackCardText
-import com.runninghub.feature.community.presentation.PlazaFallbackTagLabel
 import com.runninghub.feature.community.presentation.PlazaMode
 import com.runninghub.feature.community.presentation.PlazaPresentationError
-import com.runninghub.feature.community.presentation.PlazaReuseParameterStatus
-import com.runninghub.feature.community.presentation.PlazaReuseParameterUiModel
 import com.runninghub.feature.community.presentation.PlazaWorkCardUiModel
 import com.runninghub.feature.community.presentation.PlazaWorkDetailUiModel
 import com.runninghub.feature.community.presentation.PlazaWorkPreviewType
@@ -116,29 +105,14 @@ import com.runninghub.feature.community.presentation.PlazaUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.plaza_category_all
-import runninghub.composeapp.generated.resources.plaza_default_creation_owner
 import runninghub.composeapp.generated.resources.plaza_default_short_owner
 import runninghub.composeapp.generated.resources.plaza_empty_creations
 import runninghub.composeapp.generated.resources.plaza_empty_shorts
 import runninghub.composeapp.generated.resources.plaza_error_creations_load_failed
 import runninghub.composeapp.generated.resources.plaza_error_shorts_load_failed
-import runninghub.composeapp.generated.resources.plaza_fallback_card_image_v2_intro
-import runninghub.composeapp.generated.resources.plaza_fallback_card_owner_creator
-import runninghub.composeapp.generated.resources.plaza_fallback_card_owner_runninghub_api
-import runninghub.composeapp.generated.resources.plaza_fallback_card_seedream_intro
-import runninghub.composeapp.generated.resources.plaza_fallback_card_video_workflow_intro
-import runninghub.composeapp.generated.resources.plaza_fallback_card_workflow_intro
-import runninghub.composeapp.generated.resources.plaza_fallback_catalog_tag_images
-import runninghub.composeapp.generated.resources.plaza_fallback_catalog_tag_videos
-import runninghub.composeapp.generated.resources.plaza_fallback_catalog_tag_workflows
-import runninghub.composeapp.generated.resources.plaza_fallback_tag_api
-import runninghub.composeapp.generated.resources.plaza_fallback_tag_avatar
-import runninghub.composeapp.generated.resources.plaza_fallback_tag_photo
-import runninghub.composeapp.generated.resources.plaza_fallback_tag_video_generation
 import runninghub.composeapp.generated.resources.plaza_featured_badge
 import runninghub.composeapp.generated.resources.plaza_filter_label
 import runninghub.composeapp.generated.resources.plaza_image_media_type_fallback
-import runninghub.composeapp.generated.resources.plaza_like_count_format
 import runninghub.composeapp.generated.resources.plaza_mode_creations
 import runninghub.composeapp.generated.resources.plaza_mode_shorts
 import runninghub.composeapp.generated.resources.plaza_refresh_content_description
@@ -148,13 +122,10 @@ import runninghub.composeapp.generated.resources.plaza_sort_hot
 import runninghub.composeapp.generated.resources.plaza_sort_latest
 import runninghub.composeapp.generated.resources.plaza_sort_recommend
 import runninghub.composeapp.generated.resources.plaza_title
-import runninghub.composeapp.generated.resources.plaza_untitled_creation
 import runninghub.composeapp.generated.resources.plaza_untitled_short
-import runninghub.composeapp.generated.resources.plaza_reuse_missing_parameter
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_aspect_ratio
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_model_template
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_prompt
-import runninghub.composeapp.generated.resources.plaza_reuse_parameter_quantity
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_reference
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_resolution
 import runninghub.composeapp.generated.resources.plaza_reuse_sheet_dismiss
@@ -162,7 +133,6 @@ import runninghub.composeapp.generated.resources.plaza_reuse_sheet_source_protec
 import runninghub.composeapp.generated.resources.plaza_reuse_sheet_title
 import runninghub.composeapp.generated.resources.plaza_use_same_action
 import runninghub.composeapp.generated.resources.plaza_use_same_generate_action
-import runninghub.composeapp.generated.resources.plaza_use_count_format
 import runninghub.composeapp.generated.resources.plaza_video_media_type_fallback
 import runninghub.composeapp.generated.resources.plaza_workflow_media_type_fallback
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -323,7 +293,6 @@ fun PlazaScreenContent(
                 } else {
                     PlazaTagRow(
                         tags = uiState.tags,
-                        fallbackTagLabels = uiState.fallbackTagLabels,
                         selectedTagId = uiState.selectedTagId,
                         onTagSelected = onTagSelected,
                     )
@@ -623,19 +592,11 @@ private fun PlazaShortCategoryRow(
 @Composable
 private fun PlazaTagRow(
     tags: List<PlazaTag>,
-    fallbackTagLabels: Map<String, PlazaFallbackTagLabel>,
     selectedTagId: String?,
     onTagSelected: (String?) -> Unit,
 ) {
     val allLabel = stringResource(Res.string.plaza_category_all)
-    val visibleTags = plazaVisibleCreationTags(tags).ifEmpty {
-        listOf(
-            PlazaTag("video", stringResource(Res.string.plaza_fallback_tag_video_generation), 1, true),
-            PlazaTag("avatar", stringResource(Res.string.plaza_fallback_tag_avatar), 1, true),
-            PlazaTag("api", stringResource(Res.string.plaza_fallback_tag_api), 1, true),
-            PlazaTag("photo", stringResource(Res.string.plaza_fallback_tag_photo), 1, true),
-        )
-    }
+    val visibleTags = plazaVisibleCreationTags(tags)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -646,7 +607,7 @@ private fun PlazaTagRow(
         TagChip(allLabel, selectedTagId == null) { onTagSelected(null) }
         visibleTags.forEach { tag ->
             TagChip(
-                label = fallbackTagLabels[tag.id]?.asText() ?: tag.name,
+                label = tag.name,
                 selected = selectedTagId == tag.id,
                 onClick = { onTagSelected(tag.id) },
             )
@@ -678,146 +639,6 @@ private fun TagChip(label: String, selected: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun PlazaCreationTile(
-    card: PlazaCreationCard,
-    fallbackText: PlazaFallbackCardText?,
-    onPreviewClick: (() -> Unit)? = null,
-) {
-    val intro = fallbackText?.intro?.asText() ?: card.intro
-    val ownerName = fallbackText?.owner?.asText() ?: card.ownerName
-    val mediaType = fallbackText?.mediaType?.asText() ?: card.mediaType
-    val mediaUrl = card.mediaUrl?.takeIf { it.isNotBlank() }
-    val isVideo = plazaCreationIsVideo(card)
-    val previewClickModifier = if (onPreviewClick != null && mediaUrl != null) {
-        Modifier.clickable(onClick = onPreviewClick)
-    } else {
-        Modifier
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(plazaCreationTileAspectRatio(card))
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp))
-            .background(RhCard)
-            .then(previewClickModifier),
-    ) {
-        if (mediaUrl == null) {
-            PlazaFallbackVisual(card, mediaType = mediaType)
-        } else if (isVideo) {
-            VideoThumbnail(
-                url = mediaUrl,
-                modifier = Modifier.fillMaxSize(),
-                autoPlay = true,
-            )
-        } else {
-            SmartAsyncImage(
-                imageUrl = mediaUrl,
-                contentDescription = intro,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                shape = RoundedCornerShape(8.dp),
-            )
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            Color.Transparent,
-                            Color(0xCC000000),
-                        ),
-                    ),
-                ),
-        )
-        Text(
-            text = stringResource(Res.string.plaza_featured_badge),
-            color = RhText,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(8.dp)
-                .clip(CircleShape)
-                .background(Color(0x66000000))
-                .padding(horizontal = 7.dp, vertical = 5.dp),
-        )
-        if (isVideo && mediaUrl != null) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(46.dp)
-                    .clip(CircleShape)
-                    .background(Color.Black.copy(alpha = 0.38f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PlayArrow,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.9f),
-                    modifier = Modifier.size(26.dp),
-                )
-            }
-        }
-        if (card.liked || card.collected) {
-            Text(
-                text = stringResource(Res.string.plaza_featured_badge),
-                color = Color.Black,
-                style = MaterialTheme.typography.labelSmall,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier
-                    .align(Alignment.TopStart)
-                    .padding(8.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(BrandLime)
-                    .padding(horizontal = 8.dp, vertical = 4.dp),
-            )
-        }
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .fillMaxWidth()
-                .padding(10.dp),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
-        ) {
-            Text(
-                text = intro ?: stringResource(Res.string.plaza_untitled_creation),
-                color = RhText,
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = listOfNotNull(ownerName, mediaType)
-                    .joinToString(" / ")
-                    .ifBlank { stringResource(Res.string.plaza_default_creation_owner) },
-                color = RhMuted,
-                style = MaterialTheme.typography.labelSmall,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(Res.string.plaza_like_count_format, card.likeCount ?: "0"),
-                    color = RhText,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                )
-                Text(
-                    text = stringResource(Res.string.plaza_use_count_format, card.useCount ?: "0"),
-                    color = RhText,
-                    style = MaterialTheme.typography.labelSmall,
-                    maxLines = 1,
-                )
-            }
-        }
-    }
-}
-
-@Composable
 private fun PlazaShortTile(
     card: PlazaShortCard,
     onPreviewClick: (() -> Unit)? = null,
@@ -841,7 +662,6 @@ private fun PlazaShortTile(
                 .fillMaxWidth()
                 .aspectRatio(plazaShortThumbnailAspectRatio())
                 .clip(RoundedCornerShape(8.dp))
-                .border(1.dp, RhLine, RoundedCornerShape(8.dp))
                 .background(RhCard),
         ) {
             when {
@@ -851,7 +671,6 @@ private fun PlazaShortTile(
                         contentDescription = card.name,
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        shape = RoundedCornerShape(8.dp),
                     )
                 }
                 videoUrl != null -> {
@@ -862,7 +681,7 @@ private fun PlazaShortTile(
                     )
                 }
                 else -> {
-                    PlazaFallbackVisual(
+                    PlazaMissingMediaVisual(
                         PlazaCreationCard(
                             id = card.id,
                             intro = card.name,
@@ -950,8 +769,7 @@ private fun EmptyTile(message: String) {
             .fillMaxWidth()
             .height(154.dp)
             .clip(RoundedCornerShape(8.dp))
-            .background(RhSurface)
-            .border(1.dp, RhLine, RoundedCornerShape(8.dp)),
+            .background(RhSurface),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -966,7 +784,7 @@ private fun EmptyTile(message: String) {
 }
 
 @Composable
-private fun PlazaFallbackVisual(card: PlazaCreationCard, mediaType: String? = card.mediaType) {
+private fun PlazaMissingMediaVisual(card: PlazaCreationCard, mediaType: String? = card.mediaType) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -1223,38 +1041,6 @@ private const val PlazaCreationTileMinAspectRatio = 0.58f
 private const val PlazaCreationTileMaxAspectRatio = 1.35f
 private const val PlazaShortThumbnailAspectRatio = 16f / 9f
 private val PlazaVideoMediaExtensions = setOf("mp4", "mov", "m4v", "webm", "mkv", "avi")
-
-@Composable
-private fun PlazaFallbackTagLabel.asText(): String =
-    when (this) {
-        PlazaFallbackTagLabel.Images -> stringResource(Res.string.plaza_fallback_catalog_tag_images)
-        PlazaFallbackTagLabel.Videos -> stringResource(Res.string.plaza_fallback_catalog_tag_videos)
-        PlazaFallbackTagLabel.Workflows -> stringResource(Res.string.plaza_fallback_catalog_tag_workflows)
-    }
-
-@Composable
-private fun PlazaFallbackCardIntro.asText(): String =
-    when (this) {
-        PlazaFallbackCardIntro.ImageV2PromptGallery -> stringResource(Res.string.plaza_fallback_card_image_v2_intro)
-        PlazaFallbackCardIntro.SeedreamLiteTextToImage -> stringResource(Res.string.plaza_fallback_card_seedream_intro)
-        PlazaFallbackCardIntro.VideoWorkflowFromDocs -> stringResource(Res.string.plaza_fallback_card_video_workflow_intro)
-        PlazaFallbackCardIntro.ReusableApiWorkflow -> stringResource(Res.string.plaza_fallback_card_workflow_intro)
-    }
-
-@Composable
-private fun PlazaFallbackCardOwner.asText(): String =
-    when (this) {
-        PlazaFallbackCardOwner.RunningHubApi -> stringResource(Res.string.plaza_fallback_card_owner_runninghub_api)
-        PlazaFallbackCardOwner.RunningHubCreator -> stringResource(Res.string.plaza_fallback_card_owner_creator)
-    }
-
-@Composable
-private fun PlazaFallbackCardMediaType.asText(): String =
-    when (this) {
-        PlazaFallbackCardMediaType.Image -> stringResource(Res.string.plaza_image_media_type_fallback)
-        PlazaFallbackCardMediaType.Video -> stringResource(Res.string.plaza_video_media_type_fallback)
-        PlazaFallbackCardMediaType.Workflow -> stringResource(Res.string.plaza_workflow_media_type_fallback)
-    }
 
 @Composable
 private fun plazaPresentationErrorMessage(error: PlazaPresentationError): String =

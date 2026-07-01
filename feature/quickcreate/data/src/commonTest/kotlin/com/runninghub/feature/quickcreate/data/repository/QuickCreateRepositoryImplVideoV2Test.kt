@@ -20,6 +20,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 
 class QuickCreateRepositoryImplVideoV2Test {
@@ -861,6 +862,58 @@ class QuickCreateRepositoryImplVideoV2Test {
             is io.ktor.http.content.TextContent -> text
             else -> toString()
         }
+
+    @Test
+    fun `all power image v2 text request omits unconfirmed fields`() = runBlocking {
+        var requestBody = ""
+        val paths = mutableListOf<String>()
+        val engine = MockEngine { request ->
+            val path = request.url.encodedPath
+            paths += path
+            if (path == QuickCreateApi.IMAGE_V2_TEXT) {
+                requestBody = request.body.toRequestBodyText()
+            }
+            val response = when (path) {
+                QuickCreateApi.IMAGE_V2_TEXT -> """
+                    {"taskId":"legacy-task-1","status":"QUEUING"}
+                """
+                QuickCreateApi.TASK_QUERY -> """
+                    {"taskId":"legacy-task-1","status":"SUCCESS","progress":100,"results":[{"url":"https://example.com/result.png","mimeType":"image/png"}]}
+                """
+                else -> """{"taskId":"unexpected","status":"FAILED","errorMessage":"unexpected path"}"""
+            }.trimIndent()
+            respond(
+                content = response,
+                headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+            )
+        }
+        val client = HttpClient(engine) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val repository = QuickCreateRepositoryImpl(
+            quickCreateApi = QuickCreateApi(client, json),
+            credentialStore = FakeSettingsRepository(),
+            authRepository = FakeAuthRepository(),
+        )
+
+        repository.generateImage(
+            ImageGenerationRequest(
+                prompt = "green icon",
+                model = "all-power-image-v2-official",
+                aspectRatio = "1:1",
+                resolution = "2k",
+                quality = "medium",
+                seed = 123,
+            )
+        ).toList()
+
+        assertEquals(listOf(QuickCreateApi.IMAGE_V2_TEXT, QuickCreateApi.TASK_QUERY), paths)
+        assertEquals("""{"prompt":"green icon","aspectRatio":"1:1","resolution":"2k"}""", requestBody)
+        assertFalse(requestBody.contains("batchCount"))
+        assertFalse(requestBody.contains("seed"))
+    }
 
     @Test
     fun `legacy openapi polling stops when query task is cancelled`() = runBlocking {

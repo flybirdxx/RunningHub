@@ -520,7 +520,7 @@ class QuickCreateCoordinator(
     /**
      * 更新图片分辨率。
      *
-     * 分辨率变化会影响本地估价和远端计费预览，因此合法变更会统一触发价格刷新。
+     * 分辨率变化会影响远端计费预览，因此合法变更会统一触发费用刷新。
      */
     fun updateImageResolution(res: ImageResolution) {
         editorStateHolder.updateImageResolution(res)
@@ -565,7 +565,7 @@ class QuickCreateCoordinator(
     /**
      * 更新视频分辨率。
      *
-     * 分辨率影响本地估价和计费预览，合法变更会触发后续价格刷新。
+     * 分辨率影响计费预览，合法变更会触发后续费用刷新。
      */
     fun updateVideoResolution(res: VideoResolution) {
         editorStateHolder.updateVideoResolution(res)
@@ -711,7 +711,7 @@ class QuickCreateCoordinator(
     }
 
     /**
-     * 用户在生成确认面板中确认价格后继续提交任务。
+     * 用户在生成确认面板中确认费用后继续提交任务。
      *
      * 该入口只转发给生成 Interactor，避免 Coordinator 重新承载计费确认细节。
      */

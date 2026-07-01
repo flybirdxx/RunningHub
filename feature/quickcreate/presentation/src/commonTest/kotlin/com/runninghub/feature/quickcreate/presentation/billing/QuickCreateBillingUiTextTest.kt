@@ -13,23 +13,36 @@ class QuickCreateBillingUiTextTest {
     fun `send button label exposes stable display state instead of localized copy`() {
         assertEquals(
             QuickCreateSendButtonLabel.Confirming,
-            quickCreateSendButtonLabel(cost = 0.76, feePreviewLoading = true, feePreviewError = null),
+            quickCreateSendButtonLabel(feePreviewLoading = true, feePreviewError = null),
         )
         assertEquals(
             QuickCreateSendButtonLabel.Pending,
             quickCreateSendButtonLabel(
-                cost = 0.76,
                 feePreviewLoading = false,
                 feePreviewError = QuickCreatePresentationError.FeePreviewFailed.asQuickCreateUiMessage(),
             ),
         )
         assertEquals(
-            QuickCreateSendButtonLabel.Amount("0.76"),
-            quickCreateSendButtonLabel(cost = 0.76, feePreviewLoading = false, feePreviewError = null),
+            QuickCreateSendButtonLabel.Amount(
+                QuickCreateBillingAmount("0.76", QuickCreateBillingUnit.CnyCash),
+            ),
+            quickCreateSendButtonLabel(
+                feePreviewLoading = false,
+                feePreviewError = null,
+                billingPreview = QuickCreateBillingPreviewUi(requiredCashAmount = 0.76),
+            ),
         )
         assertEquals(
             QuickCreateSendButtonLabel.Generate,
-            quickCreateSendButtonLabel(cost = 0.0, feePreviewLoading = false, feePreviewError = null),
+            quickCreateSendButtonLabel(
+                feePreviewLoading = false,
+                feePreviewError = null,
+                billingPreview = QuickCreateBillingPreviewUi(free = true),
+            ),
+        )
+        assertEquals(
+            QuickCreateSendButtonLabel.Pending,
+            quickCreateSendButtonLabel(feePreviewLoading = false, feePreviewError = null),
         )
     }
 
@@ -37,12 +50,11 @@ class QuickCreateBillingUiTextTest {
     fun `price badge state covers loading pending free amount and insufficient`() {
         assertEquals(
             QuickCreatePriceBadgeState.Loading,
-            quickCreatePriceBadgeState(cost = 0.76, feePreviewLoading = true, feePreviewError = null),
+            quickCreatePriceBadgeState(feePreviewLoading = true, feePreviewError = null),
         )
         assertEquals(
             QuickCreatePriceBadgeState.Pending,
             quickCreatePriceBadgeState(
-                cost = 0.76,
                 feePreviewLoading = false,
                 feePreviewError = QuickCreatePresentationError.FeePreviewFailed.asQuickCreateUiMessage(),
             ),
@@ -50,20 +62,31 @@ class QuickCreateBillingUiTextTest {
         assertEquals(
             QuickCreatePriceBadgeState.Insufficient,
             quickCreatePriceBadgeState(
-                cost = 0.76,
                 feePreviewLoading = false,
                 feePreviewError = QuickCreatePresentationError.FeePreviewNotPassed.asQuickCreateUiMessage(),
             ),
         )
         assertEquals(
-            QuickCreatePriceBadgeState.Free,
-            quickCreatePriceBadgeState(cost = 0.0, feePreviewLoading = false, feePreviewError = null),
+            QuickCreatePriceBadgeState.Pending,
+            quickCreatePriceBadgeState(feePreviewLoading = false, feePreviewError = null),
         )
         assertEquals(
             QuickCreatePriceBadgeState.Amount(
                 QuickCreateBillingAmount("2.00", QuickCreateBillingUnit.CnyCash),
             ),
-            quickCreatePriceBadgeState(cost = 2.0, feePreviewLoading = false, feePreviewError = null),
+            quickCreatePriceBadgeState(
+                feePreviewLoading = false,
+                feePreviewError = null,
+                billingPreview = QuickCreateBillingPreviewUi(requiredCashAmount = 2.0),
+            ),
+        )
+        assertEquals(
+            QuickCreatePriceBadgeState.Free,
+            quickCreatePriceBadgeState(
+                feePreviewLoading = false,
+                feePreviewError = null,
+                billingPreview = QuickCreateBillingPreviewUi(free = true),
+            ),
         )
     }
 
@@ -81,7 +104,6 @@ class QuickCreateBillingUiTextTest {
                 QuickCreateBillingAmount("37", QuickCreateBillingUnit.RhbPoints),
             ),
             quickCreatePriceBadgeState(
-                cost = 2.0,
                 feePreviewLoading = false,
                 feePreviewError = null,
                 billingPreview = preview,
@@ -92,7 +114,6 @@ class QuickCreateBillingUiTextTest {
     @Test
     fun `generation confirmation is required for paid preview but not for free preview`() {
         val paidState = QuickCreateUiState(
-            estimatedCost = 2.0,
             billingPreview = QuickCreateBillingPreviewUi(
                 requiredCashAmount = 2.0,
                 userCashBalance = 20.0,

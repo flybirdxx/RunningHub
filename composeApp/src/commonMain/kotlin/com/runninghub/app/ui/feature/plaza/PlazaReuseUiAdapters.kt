@@ -37,11 +37,9 @@ import com.runninghub.feature.community.presentation.PlazaWorkPreviewType
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.plaza_default_creation_owner
-import runninghub.composeapp.generated.resources.plaza_reuse_missing_parameter
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_aspect_ratio
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_model_template
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_prompt
-import runninghub.composeapp.generated.resources.plaza_reuse_parameter_quantity
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_reference
 import runninghub.composeapp.generated.resources.plaza_reuse_parameter_resolution
 import runninghub.composeapp.generated.resources.plaza_reuse_sheet_dismiss
@@ -157,37 +155,27 @@ internal fun PlazaReuseTemplateOverlay(
 
 @Composable
 private fun PlazaWorkDetailUiModel.toReuseTemplateSheetState(): ReuseTemplateSheetState {
-    val missingLabel = stringResource(Res.string.plaza_reuse_missing_parameter)
     return ReuseTemplateSheetState(
         title = stringResource(Res.string.plaza_reuse_sheet_title),
         sourceTitle = title.takeIf { it.isNotBlank() } ?: stringResource(Res.string.plaza_untitled_creation),
         sourceAuthor = authorName?.takeIf { it.isNotBlank() }
             ?: stringResource(Res.string.plaza_default_creation_owner),
         sourceProtectionText = stringResource(Res.string.plaza_reuse_sheet_source_protection),
-        parameters = listOf(
-            reuseSummary.modelTemplate.toReuseTemplateParameterState(
+        parameters = listOfNotNull(
+            reuseSummary.modelTemplate.toReuseTemplateParameterStateOrNull(
                 label = stringResource(Res.string.plaza_reuse_parameter_model_template),
-                missingLabel = missingLabel,
             ),
-            reuseSummary.prompt.toReuseTemplateParameterState(
+            reuseSummary.prompt.toReuseTemplateParameterStateOrNull(
                 label = stringResource(Res.string.plaza_reuse_parameter_prompt),
-                missingLabel = missingLabel,
             ),
-            reuseSummary.aspectRatio.toReuseTemplateParameterState(
+            reuseSummary.aspectRatio.toReuseTemplateParameterStateOrNull(
                 label = stringResource(Res.string.plaza_reuse_parameter_aspect_ratio),
-                missingLabel = missingLabel,
             ),
-            reuseSummary.resolution.toReuseTemplateParameterState(
+            reuseSummary.resolution.toReuseTemplateParameterStateOrNull(
                 label = stringResource(Res.string.plaza_reuse_parameter_resolution),
-                missingLabel = missingLabel,
             ),
-            reuseSummary.quantity.toReuseTemplateParameterState(
-                label = stringResource(Res.string.plaza_reuse_parameter_quantity),
-                missingLabel = missingLabel,
-            ),
-            reuseSummary.referenceMedia.toReuseTemplateParameterState(
+            reuseSummary.referenceMedia.toReuseTemplateParameterStateOrNull(
                 label = stringResource(Res.string.plaza_reuse_parameter_reference),
-                missingLabel = missingLabel,
             ),
         ),
         confirmActionLabel = stringResource(Res.string.plaza_use_same_generate_action),
@@ -196,15 +184,14 @@ private fun PlazaWorkDetailUiModel.toReuseTemplateSheetState(): ReuseTemplateShe
     )
 }
 
-private fun PlazaReuseParameterUiModel.toReuseTemplateParameterState(
+private fun PlazaReuseParameterUiModel.toReuseTemplateParameterStateOrNull(
     label: String,
-    missingLabel: String,
-): ReuseTemplateParameterState =
-    ReuseTemplateParameterState(
+): ReuseTemplateParameterState? {
+    val displayValue = value?.takeIf { it.isNotBlank() } ?: return null
+    if (status != PlazaReuseParameterStatus.Available) return null
+    return ReuseTemplateParameterState(
         label = label,
-        value = value ?: missingLabel,
-        status = when (status) {
-            PlazaReuseParameterStatus.Available -> ReuseTemplateParameterStatus.Available
-            PlazaReuseParameterStatus.Missing -> ReuseTemplateParameterStatus.Missing
-        },
+        value = displayValue,
+        status = ReuseTemplateParameterStatus.Available,
     )
+}

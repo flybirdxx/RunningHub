@@ -1,8 +1,12 @@
 package com.runninghub.app.ui.feature.quickcreate.presentation.editor.composer
 
+import androidx.compose.ui.unit.dp
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingAmount
+import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingUnit
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class QuickCreateCompactComposerContractTest {
     @Test
@@ -26,7 +30,9 @@ class QuickCreateCompactComposerContractTest {
         listOf(
             QuickCreateSendButtonLabel.Confirming,
             QuickCreateSendButtonLabel.Pending,
-            QuickCreateSendButtonLabel.Amount("2.00"),
+            QuickCreateSendButtonLabel.Amount(
+                QuickCreateBillingAmount("2.00", QuickCreateBillingUnit.CnyCash),
+            ),
         ).forEach { label ->
             assertEquals(
                 CompactGenerateTextMode.GenerateWithDetail,
@@ -41,5 +47,11 @@ class QuickCreateCompactComposerContractTest {
             CompactGenerateTextMode.GenerateOnly,
             compactGenerateTextMode(QuickCreateSendButtonLabel.Generate),
         )
+    }
+
+    @Test
+    fun `media strip keeps compact mobile height`() {
+        assertTrue(CompactMediaStripHeight <= 96.dp)
+        assertTrue(CompactMediaSlotSize <= 88.dp)
     }
 }

@@ -31,9 +31,7 @@ class PlazaStateHolderTest {
         val state = stateHolder.uiState.value
         assertEquals(false, state.isLoading)
         assertEquals(listOf("tag-1"), state.tags.map { it.id })
-        assertEquals(emptyMap(), state.fallbackTagLabels)
         assertEquals(listOf("creation-1"), state.creations.map { it.id })
-        assertEquals(emptyMap(), state.fallbackCreationTexts)
         assertEquals("RECOMMEND", repository.lastSort)
     }
 
@@ -193,19 +191,9 @@ class PlazaStateHolderTest {
 
         val state = stateHolder.uiState.value
         assertEquals(PlazaPresentationError.CreationsLoadFailed, state.error)
-        assertTrue(state.creations.isNotEmpty())
-        assertEquals("fallback-image-v2", state.creations.first().id)
-        assertEquals(PlazaFallbackTagLabel.Images, state.fallbackTagLabels["image"])
-        assertEquals(PlazaFallbackTagLabel.Videos, state.fallbackTagLabels["video"])
-        assertEquals(PlazaFallbackTagLabel.Workflows, state.fallbackTagLabels["workflow"])
-        assertEquals(
-            PlazaFallbackCardText(
-                intro = PlazaFallbackCardIntro.ImageV2PromptGallery,
-                owner = PlazaFallbackCardOwner.RunningHubApi,
-                mediaType = PlazaFallbackCardMediaType.Image,
-            ),
-            state.fallbackCreationTexts["fallback-image-v2"],
-        )
+        assertEquals(emptyList(), state.tags)
+        assertEquals(emptyList(), state.creations)
+        assertFalse(state.isLoading)
     }
 
     @Test

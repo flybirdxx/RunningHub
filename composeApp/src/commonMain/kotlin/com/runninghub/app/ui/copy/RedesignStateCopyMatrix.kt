@@ -52,7 +52,6 @@ internal enum class RedesignStateCopyId {
     PARAMETER_MISSING,
     PARAMETER_CONFLICT,
     INSUFFICIENT_BALANCE,
-    MEMBERSHIP_EXPIRED,
     PRE_GENERATION_PRICE_CONFIRM,
     GENERATION_QUEUED,
     GENERATION_RUNNING,
@@ -66,10 +65,6 @@ internal enum class RedesignStateCopyId {
     CLOUD_RESULT_EXPIRES_24H,
     HISTORY_EMPTY,
     NETWORK_ERROR,
-    WALLET_TRANSACTIONS_EMPTY,
-    BILLING_SUCCEEDED,
-    BILLING_FAILED,
-    FAILED_REFUND_CHECK,
 }
 
 /**
@@ -197,13 +192,6 @@ internal object RedesignStateCopyMatrix {
             blocksProgress = true,
         ),
         spec(
-            RedesignStateCopyId.MEMBERSHIP_EXPIRED,
-            title = Res.string.rm14_state_membership_expired_title,
-            message = Res.string.rm14_state_membership_expired_message,
-            surface = RedesignStateCopySurface.InlineNotice,
-            primaryAction = Res.string.rm14_state_renew_action,
-        ),
-        spec(
             RedesignStateCopyId.PRE_GENERATION_PRICE_CONFIRM,
             title = Res.string.rm14_state_price_confirm_title,
             message = Res.string.rm14_state_price_confirm_message,
@@ -289,32 +277,6 @@ internal object RedesignStateCopyMatrix {
             message = Res.string.rm14_state_network_error_message,
             surface = RedesignStateCopySurface.Snackbar,
             primaryAction = Res.string.rm14_state_retry_action,
-        ),
-        spec(
-            RedesignStateCopyId.WALLET_TRANSACTIONS_EMPTY,
-            title = Res.string.rm14_state_wallet_empty_title,
-            message = Res.string.rm14_state_wallet_empty_message,
-            surface = RedesignStateCopySurface.ScreenEmpty,
-        ),
-        spec(
-            RedesignStateCopyId.BILLING_SUCCEEDED,
-            title = Res.string.rm14_state_billing_succeeded_title,
-            message = Res.string.rm14_state_billing_succeeded_message,
-            surface = RedesignStateCopySurface.Snackbar,
-        ),
-        spec(
-            RedesignStateCopyId.BILLING_FAILED,
-            title = Res.string.rm14_state_billing_failed_title,
-            message = Res.string.rm14_state_billing_failed_message,
-            surface = RedesignStateCopySurface.InlineNotice,
-            primaryAction = Res.string.rm14_state_retry_action,
-        ),
-        spec(
-            RedesignStateCopyId.FAILED_REFUND_CHECK,
-            title = Res.string.rm14_state_refund_check_title,
-            message = Res.string.rm14_state_refund_check_message,
-            surface = RedesignStateCopySurface.InlineNotice,
-            primaryAction = Res.string.rm14_state_view_details_action,
         ),
     )
 

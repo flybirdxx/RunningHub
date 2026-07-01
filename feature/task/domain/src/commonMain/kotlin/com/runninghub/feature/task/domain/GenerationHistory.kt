@@ -100,12 +100,11 @@ data class GenerationHistoryOutput(
  * @property title 任务名称；为空表示服务端未返回可展示标题。
  * @property sourceLabel 任务来源原始标签，例如 API、WEBAPP 或模型类别；最终文案由 UI 映射。
  * @property status 服务端任务状态原始字符串；Presentation 负责映射为稳定展示状态。
- * @property duration 服务端返回的任务耗时，当前保留原始秒数或格式化文本，不在领域层换算。
- * @property rhCoins RH 币消耗数量文本；为空表示服务端未返回或该任务不按 RH 币计费。
- * @property finalAmount 优惠后金额或服务端声明的最终金额文本；为空表示服务端未返回。
+ * @property duration 任务 usage.taskCostTime 耗时文本；为空表示服务端 usage 未返回。
+ * @property rhCoins 任务 usage.consumeCoins 消耗文本；为空表示服务端 usage 未返回。
+ * @property finalAmount 任务 usage.consumeMoney 消耗文本；为空表示服务端 usage 未返回。
  * @property outputs 详情接口返回的任务输出文件列表。
  * @property basicFields 基础信息字段集合，字段名使用稳定枚举，UI 决定最终中文标签。
- * @property costFields 计费信息字段集合，字段名使用稳定枚举，UI 决定最终中文标签。
  * @property requestParameters 已脱敏的关键请求参数摘要，供结果详情页展示 Prompt 和可复用参数。
  * 该字段不得包含 API Key、Authorization、Cookie、Token 或验证码等敏感信息。
  * @property requestInfo 已脱敏后的请求 JSON 文本；为空表示服务端未返回。
@@ -121,7 +120,6 @@ data class GenerationTaskDetail(
     val finalAmount: String? = null,
     val outputs: List<GenerationHistoryOutput> = emptyList(),
     val basicFields: List<GenerationTaskDetailField> = emptyList(),
-    val costFields: List<GenerationTaskDetailField> = emptyList(),
     val requestParameters: Map<String, String> = emptyMap(),
     val requestInfo: String? = null,
     val responseInfo: String? = null,
@@ -169,20 +167,6 @@ enum class GenerationTaskDetailFieldKey {
     /** 运行模式。 */
     MODE,
 
-    /** 原始费用金额。 */
-    ORIGINAL_AMOUNT,
-
-    /** 折扣系数。 */
-    DISCOUNT_RATIO,
-
-    /** 优惠金额。 */
-    DISCOUNT_AMOUNT,
-
-    /** 优惠后金额。 */
-    FINAL_AMOUNT,
-
-    /** RH 币消耗。 */
-    RH_COINS,
 }
 
 /**

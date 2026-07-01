@@ -122,7 +122,7 @@ data class QuickCreationFeePreviewDto(
     @SerialName("settlementMode") val settlementMode: String? = null,
     @SerialName("requiredRhAmount") val requiredRhAmount: Double = 0.0,
     @SerialName("requiredCashAmount") val requiredCashAmount: Double = 0.0,
-    @SerialName("userCashBalance") val userCashBalance: Double = 0.0,
+    @SerialName("userCashBalance") val userCashBalance: Double? = null,
     @SerialName("insufficientType") val insufficientType: String? = null,
     @SerialName("cashCurrency") val cashCurrency: String? = null,
 )

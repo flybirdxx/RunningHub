@@ -53,4 +53,29 @@ class QuickCreateGenerationParameterSnapshotTest {
         assertEquals("16:9", snapshot.aspectRatio)
         assertEquals("2K", snapshot.resolution)
     }
+
+    @Test
+    fun `snapshot does not invent ratio or resolution when service fields are absent`() {
+        val uiState = QuickCreateUiState(
+            currentTab = QuickCreateTab.IMAGE,
+            imageConfig = ImageConfig(
+                aspectRatio = ImageAspectRatio.RATIO_1_1,
+                resolution = ImageResolution.RES_1K,
+            ),
+            selectedImageServiceModel = QuickCreationServiceModel(
+                categoryId = "IMAGE",
+                groupName = null,
+                bindingId = "image-binding",
+                skuId = "image-sku",
+                name = "No params model",
+                description = null,
+                fields = emptyList(),
+            ),
+        )
+
+        val snapshot = uiState.quickCreateGenerationParameterSnapshot()
+
+        assertEquals("", snapshot.aspectRatio)
+        assertEquals("", snapshot.resolution)
+    }
 }

@@ -6,12 +6,12 @@ import kotlin.test.assertEquals
 
 class RunningHubThemeTokenTest {
     @Test
-    fun `brand lime matches captured web palette`() {
-        assertEquals(Color(0xFFB6FF00), BrandLime)
+    fun `brand accent stays muted for mobile dark UI`() {
+        assertEquals(Color(0xFFA3B565), BrandLime)
     }
 
     @Test
-    fun `dark surfaces match captured web palette`() {
+    fun `dark surfaces keep stable app chrome palette`() {
         assertEquals(Color(0xFF000000), BaseBlack)
         assertEquals(Color(0xFF080808), Surface900)
         assertEquals(Color(0xFF09090B), Surface850)
@@ -24,7 +24,7 @@ class RunningHubThemeTokenTest {
         assertEquals(BaseBlack, RhAppBackground)
         assertEquals(Surface850, RhAppSurface)
         assertEquals(Surface800, RhAppCard)
-        assertEquals(Color(0xFF202515), RhAppSelected)
+        assertEquals(Color(0xFF1B2117), RhAppSelected)
         assertEquals(Color(0xFF30363A), RhAppLine)
         assertEquals(TextPrimaryDark, RhAppText)
         assertEquals(TextMutedDark, RhAppMuted)

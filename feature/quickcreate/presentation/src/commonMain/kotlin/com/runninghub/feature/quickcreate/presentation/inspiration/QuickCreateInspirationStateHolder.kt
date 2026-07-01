@@ -205,21 +205,18 @@ class QuickCreateInspirationStateHolder(
         intent: QuickCreatePlazaReuseIntent,
     ): QuickCreateUiState {
         val selectedModel = serviceImageModels.matchPlazaReuseIntent(intent) ?: selectedImageServiceModel
-        val plazaParams = intent.plazaServiceParams()
-        val serviceParams = selectedModel?.let { model ->
-            QuickCreationServiceSchema.defaultParams(model, plazaParams) + plazaParams
-        } ?: plazaParams
+        val plazaParams = intent.plazaServiceParams(selectedModel)
+        val serviceParams = plazaParams
         val imageModel = imageConfig.model
         val imageItems = serviceImageModels.toQuickCreateServiceModelUiItems(selectedModel)
         val nextConfig = imageConfig.copy(
             prompt = intent.prompt?.takeIf { it.isNotBlank() } ?: imageConfig.prompt,
-            aspectRatio = intent.aspectRatio?.toImageAspectRatio()
+            aspectRatio = plazaParams["aspectRatio"]?.toImageAspectRatio()
                 ?.takeIf { it in imageModel.supportedRatios }
                 ?: imageConfig.aspectRatio,
-            resolution = intent.resolution?.toImageResolution()
+            resolution = plazaParams["resolution"]?.toImageResolution()
                 ?.takeIf { it in imageModel.supportedResolutions }
                 ?: imageConfig.resolution,
-            count = intent.quantity?.takeIf { it > 0 } ?: imageConfig.count,
             mediaReferences = intent.toMediaReferences(
                 activeUploadAliases = selectedModel?.let { model ->
                     QuickCreationServiceSchema.activeUploadParamAliases(
@@ -238,29 +235,26 @@ class QuickCreateInspirationStateHolder(
             selectedImageServiceModelUi = imageItems.firstOrNull { it.selected },
             imageConfig = nextConfig,
             imageServiceParams = serviceParams,
-            estimatedCost = nextConfig.estimatedCost,
-        )
+            estimatedCost = 0.0,
+        ).withoutStaleFeePreview()
     }
 
     private fun QuickCreateUiState.applyVideoPlazaReuseIntent(
         intent: QuickCreatePlazaReuseIntent,
     ): QuickCreateUiState {
         val selectedModel = serviceVideoModels.matchPlazaReuseIntent(intent) ?: selectedVideoServiceModel
-        val plazaParams = intent.plazaServiceParams()
-        val serviceParams = selectedModel?.let { model ->
-            QuickCreationServiceSchema.defaultParams(model, plazaParams) + plazaParams
-        } ?: plazaParams
+        val plazaParams = intent.plazaServiceParams(selectedModel)
+        val serviceParams = plazaParams
         val videoModel = videoConfig.model
         val videoItems = serviceVideoModels.toQuickCreateServiceModelUiItems(selectedModel)
         val nextConfig = videoConfig.copy(
             prompt = intent.prompt?.takeIf { it.isNotBlank() } ?: videoConfig.prompt,
-            aspectRatio = intent.aspectRatio?.toVideoAspectRatio()
+            aspectRatio = plazaParams["aspectRatio"]?.toVideoAspectRatio()
                 ?.takeIf { it in videoModel.supportedRatios }
                 ?: videoConfig.aspectRatio,
-            resolution = intent.resolution?.toVideoResolution()
+            resolution = plazaParams["resolution"]?.toVideoResolution()
                 ?.takeIf { it in videoModel.supportedResolutions }
                 ?: videoConfig.resolution,
-            count = intent.quantity?.takeIf { it > 0 } ?: videoConfig.count,
             mediaReferences = intent.toMediaReferences(
                 activeUploadAliases = selectedModel?.let { model ->
                     QuickCreationServiceSchema.activeUploadParamAliases(
@@ -279,8 +273,8 @@ class QuickCreateInspirationStateHolder(
             selectedVideoServiceModelUi = videoItems.firstOrNull { it.selected },
             videoConfig = nextConfig,
             videoServiceParams = serviceParams,
-            estimatedCost = nextConfig.estimatedCost,
-        )
+            estimatedCost = 0.0,
+        ).withoutStaleFeePreview()
     }
 
     private fun QuickCreateUiState.applyImageTemplateDetail(
@@ -319,8 +313,8 @@ class QuickCreateInspirationStateHolder(
             selectedImageServiceModelUi = imageItems.firstOrNull { it.selected },
             imageConfig = nextConfig,
             imageServiceParams = serviceParams,
-            estimatedCost = nextConfig.estimatedCost,
-        )
+            estimatedCost = 0.0,
+        ).withoutStaleFeePreview()
     }
 
     private fun QuickCreateUiState.applyVideoTemplateDetail(
@@ -365,9 +359,18 @@ class QuickCreateInspirationStateHolder(
             selectedVideoServiceModelUi = videoItems.firstOrNull { it.selected },
             videoConfig = nextConfig,
             videoServiceParams = serviceParams,
-            estimatedCost = nextConfig.estimatedCost,
-        )
+            estimatedCost = 0.0,
+        ).withoutStaleFeePreview()
     }
+
+    private fun QuickCreateUiState.withoutStaleFeePreview(): QuickCreateUiState =
+        copy(
+            feePreviewLoading = false,
+            feePreviewError = null,
+            feePreviewRequestKey = null,
+            billingPreview = null,
+            estimatedCost = 0.0,
+        )
 
     private fun List<QuickCreationServiceModel>.matchTemplateModel(
         detail: QuickCreateInspirationTemplateDetail,
@@ -385,12 +388,17 @@ class QuickCreateInspirationStateHolder(
                 (intent.skuId != null && model.skuId == intent.skuId)
         }
 
-    private fun QuickCreatePlazaReuseIntent.plazaServiceParams(): Map<String, String> =
-        buildMap {
+    private fun QuickCreatePlazaReuseIntent.plazaServiceParams(
+        model: QuickCreationServiceModel?,
+    ): Map<String, String> {
+        val rawParams = buildMap {
             aspectRatio?.takeIf { it.isNotBlank() }?.let { put("aspectRatio", it) }
             resolution?.takeIf { it.isNotBlank() }?.let { put("resolution", it) }
-            quantity?.takeIf { it > 0 }?.let { put("quantity", it.toString()) }
         }
+        val canonicalParams = QuickCreationServiceSchema.canonicalParams(model, rawParams)
+        val activeKeys = QuickCreationServiceSchema.activeParamKeys(model, canonicalParams)
+        return canonicalParams.filterKeys { key -> key in activeKeys }
+    }
 
     private fun String.toImageAspectRatio(): ImageAspectRatio? =
         ImageAspectRatio.entries.firstOrNull { it.apiValue.equals(this, ignoreCase = true) }

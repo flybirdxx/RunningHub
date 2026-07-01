@@ -62,7 +62,7 @@ sealed interface AppDetailInputControl {
  * @property nodeId 输入节点 ID，用于上传状态、媒体选择和任务提交回写。
  * @property fieldName 输入字段名，用于任务提交回写和稳定输入 key。
  * @property inputKey [AppDetailUiState.inputValues] 使用的稳定 key。
- * @property title 字段展示标题，优先使用服务端描述，缺失时使用字段名兜底。
+ * @property title 字段展示标题，优先使用服务端描述或节点名；为空表示接口未提供用户可读标题。
  * @property currentValue 当前输入值，来自页面状态或节点默认值；允许为空字符串。
  * @property control 当前字段应使用的控件语义。
  */
@@ -161,7 +161,7 @@ private fun InputNode.toInputFieldUiModel(
         nodeId = nodeId,
         fieldName = fieldName,
         inputKey = inputKey,
-        title = description ?: fieldName,
+        title = displayTitle(),
         currentValue = inputValues[inputKey] ?: fieldValue ?: "",
         control = inputControl(),
     )

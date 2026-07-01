@@ -29,9 +29,11 @@ internal object QuickCreationV2Defaults {
      */
     fun imageG2CreateRequest(request: ImageGenerationRequest): QuickCreationCreateRequestDto {
         val params = buildMap {
-            put("aspectRatio", JsonPrimitive(request.aspectRatio))
-            put("resolution", JsonPrimitive(request.resolution))
-            put("quality", JsonPrimitive(request.quality))
+            if (!request.hasQuickCreationIdentity()) {
+                put("aspectRatio", JsonPrimitive(request.aspectRatio))
+                put("resolution", JsonPrimitive(request.resolution))
+                put("quality", JsonPrimitive(request.quality))
+            }
 
             request.quickCreationParams.forEach { (key, value) ->
                 if (key.isNotBlank() && value.isNotBlank()) {
@@ -70,13 +72,6 @@ internal object QuickCreationV2Defaults {
      */
     fun videoCreateRequest(request: VideoGenerationRequest): QuickCreationCreateRequestDto {
         val params = buildMap {
-            put("ratio", JsonPrimitive(request.aspectRatio))
-            put("aspectRatio", JsonPrimitive(request.aspectRatio))
-            put("resolution", JsonPrimitive(request.resolution))
-            put("duration", JsonPrimitive(request.duration))
-            put("generateAudio", JsonPrimitive(request.generateAudio))
-            put("realPersonMode", JsonPrimitive(request.realistic))
-
             putStringParams(request.quickCreationParams)
             putListParams(request.quickCreationListParams)
 
@@ -143,6 +138,9 @@ internal object QuickCreationV2Defaults {
 
     private fun Map<String, JsonElement>.hasReferenceMedia(): Boolean =
         listOf("imageUrls", "videoUrls", "audioUrls").any { key -> containsKey(key) }
+
+    private fun ImageGenerationRequest.hasQuickCreationIdentity(): Boolean =
+        !quickCreationBindingId.isNullOrBlank() && !quickCreationSkuId.isNullOrBlank()
 }
 
 internal fun QuickCreationCreateRequestDto.imageUrls(): List<String> {

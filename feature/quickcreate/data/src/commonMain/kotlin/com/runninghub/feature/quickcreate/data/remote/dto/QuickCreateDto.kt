@@ -198,7 +198,7 @@ data class AllPowerImageXTextToImageResponseDto(
     @SerialName("status") val status: String,
 )
 
-// 全能图片 X - 图生图（官方规范待确认，此处预留）
+// 全能图片 X - 图生图
 @Serializable
 data class AllPowerImageXImageToImageRequestDto(
     @SerialName("prompt") val prompt: String,
@@ -212,16 +212,11 @@ data class AllPowerImageXImageToImageResponseDto(
     @SerialName("status") val status: String,
 )
 
-// 全能图片 V2/PRO 系列 - 文生图
-// ⚠️ 官方文档尚未确认 V2/PRO 文生图参数，此处为推测
-// 待官方确认后可删除 batchCount/seed，或确认无此参数时移除
 @Serializable
 data class AllPowerImageV2ProTextToImageRequestDto(
     @SerialName("prompt") val prompt: String,
     @SerialName("aspectRatio") val aspectRatio: String = "16:9",
     @SerialName("resolution") val resolution: String = "1K",
-    @SerialName("batchCount") val batchCount: Int = 1,
-    @SerialName("seed") val seed: Int? = null,
 )
 
 @Serializable
@@ -560,7 +555,6 @@ data class Wan27ImageToVideoResponseDto(
 ) : TaskResponse
 
 // 万相 2.6 图生视频
-// 官方规范待确认，此处基于代码结构修正字段命名
 @Serializable
 data class Wan26ImageToVideoRequestDto(
     @SerialName("firstImageUrl") val firstImageUrl: String,

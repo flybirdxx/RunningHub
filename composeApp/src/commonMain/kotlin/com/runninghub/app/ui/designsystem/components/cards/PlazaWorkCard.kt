@@ -1,7 +1,7 @@
 package com.runninghub.app.ui.designsystem.components.cards
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -20,8 +20,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.runninghub.app.ui.designsystem.components.buttons.RhButton
-import com.runninghub.app.ui.designsystem.components.buttons.RhButtonStyle
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
@@ -101,7 +99,6 @@ fun PlazaWorkCard(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
         color = RhTheme.colors.surfaceElevated,
-        border = BorderStroke(1.dp, RhTheme.colors.borderDefault),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(RhSpacing.sm)) {
             Box(
@@ -124,40 +121,61 @@ fun PlazaWorkCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Row(
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    state.authorName?.takeIf { it.isNotBlank() }?.let { author ->
-                        Text(
-                            text = author,
-                            color = RhTheme.colors.textTertiary,
-                            style = RhTypography.caption,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        state.authorName?.takeIf { it.isNotBlank() }?.let { author ->
+                            Text(
+                                text = author,
+                                color = RhTheme.colors.textTertiary,
+                                style = RhTypography.caption,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        state.metric?.let { metric ->
+                            Text(
+                                text = metric.displayText,
+                                color = RhTheme.colors.textTertiary,
+                                style = RhTypography.caption,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
-                    state.metric?.let { metric ->
-                        Text(
-                            text = metric.displayText,
-                            color = RhTheme.colors.textTertiary,
-                            style = RhTypography.caption,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-                if (state.actionLabel.isNotBlank()) {
-                    RhButton(
-                        text = state.actionLabel,
-                        onClick = { onAction(state.primaryAction) },
-                        enabled = state.enabled,
-                        style = RhButtonStyle.Primary,
-                        modifier = Modifier.fillMaxWidth(),
+                    PlazaWorkInlineAction(
+                        state = state,
+                        onAction = onAction,
                     )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun PlazaWorkInlineAction(
+    state: PlazaWorkCardState,
+    onAction: (PlazaWorkCardAction) -> Unit,
+) {
+    if (state.actionLabel.isBlank()) return
+
+    Text(
+        text = state.actionLabel,
+        color = if (state.enabled) RhTheme.colors.textSecondary else RhTheme.colors.textTertiary,
+        style = RhTypography.meta,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        modifier = Modifier
+            .clickable(enabled = state.enabled) { onAction(state.primaryAction) }
+            .padding(horizontal = RhSpacing.xs, vertical = RhSpacing.xs),
+    )
 }
 
 @Composable

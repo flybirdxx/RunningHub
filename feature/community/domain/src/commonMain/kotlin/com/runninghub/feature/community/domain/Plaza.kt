@@ -57,15 +57,14 @@ enum class PlazaReuseMediaKind {
 /**
  * Plaza 作品可复用参数快照。
  *
- * 广场列表接口可能只返回部分字段，因此所有参数都允许为空。Presentation 必须把空值展示为缺失项，
- * 不能把缺失模板、SKU、Prompt 或参考图当作完整复用参数，也不能绕过 QuickCreate 的价格确认。
+ * 广场列表接口可能只返回部分字段，因此所有参数都允许为空。Presentation 只能展示或带入已返回的可用字段，
+ * 不能把缺失模板、SKU、Prompt 或参考图包装成完整复用参数，也不能绕过 QuickCreate 的费用确认。
  *
  * @property templateId 可复用模板 ID；为空表示服务端未返回模板绑定。
  * @property skuId 可复用服务 SKU；为空表示服务端未返回 SKU。
- * @property prompt 可编辑 Prompt 初稿；为空表示需要用户在 Create 中补齐。
+ * @property prompt 可编辑 Prompt 初稿；为空表示服务端未返回。
  * @property aspectRatio 可复用比例协议值，例如 `3:4`；为空表示未知。
  * @property resolution 可复用分辨率协议值；为空表示未知。
- * @property quantity 可复用生成数量；为空表示沿用 Create 当前默认值。
  * @property referenceMediaUrl 可带入 Create 的参考媒体 URL；为空表示没有可复用参考素材。
  * @property referenceMediaType 参考媒体类型；未知时为 [PlazaReuseMediaKind.UNKNOWN]。
  */
@@ -75,7 +74,6 @@ data class PlazaCreationReuseSnapshot(
     val prompt: String? = null,
     val aspectRatio: String? = null,
     val resolution: String? = null,
-    val quantity: Int? = null,
     val referenceMediaUrl: String? = null,
     val referenceMediaType: PlazaReuseMediaKind = PlazaReuseMediaKind.UNKNOWN,
 )

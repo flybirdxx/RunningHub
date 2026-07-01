@@ -39,9 +39,9 @@
 
 同步完成：
 
-- `RedesignStateCopyId` 覆盖首次进入、首页加载、搜索空态、模型加载失败、模型价格失败、上传状态、Prompt/参数阻塞、余额/会员、生成确认和生成状态、复制、复用、保存、过期、历史空态、网络错误、钱包明细、扣费和退款状态。
+- `RedesignStateCopyId` 覆盖首次进入、首页加载、搜索空态、模型加载失败、模型价格失败、上传状态、Prompt/参数阻塞、账户余额、生成前费用确认、生成后消耗结果、复制、复用、保存、过期、历史空态和网络错误。
 - `RedesignStateCopySurface` 固定 `ScreenEmpty`、`InlineNotice`、`Snackbar`、`Dialog`、`BottomSheet`、`Toast` 和 `CardAction` 七类承载面。
-- `RedesignStateCopyMatrixContractTest` 锁住完整状态集合、资源键存在和关键承载面边界：价格确认与复用参数为 Bottom Sheet，复制反馈为 Snackbar，历史/钱包空态为 ScreenEmpty，失败退款提示为 Inline Notice。
+- `RedesignStateCopyMatrixContractTest` 锁住完整状态集合、资源键存在和关键承载面边界：生成前费用确认与复用参数为 Bottom Sheet，复制反馈为 Snackbar，历史空态为 ScreenEmpty，生成后消耗结果只展示任务 usage 派生状态。
 - `ui-copy-hardcoded-baseline.txt` 继续保持无正数基线；本批没有把最终中文文案写入 Kotlin 状态字段、Domain 或 Data。
 
 ### 2026-06-22 History Presentation 错误/提示语义
@@ -135,17 +135,16 @@ composeApp Compose Resources。该批次只处理纯 UI 静态文案和格式串
 - `QuickCreateMediaToolbarRow` 与 `QuickCreateServiceUploadFieldPicker` 的素材入口、数量格式、上传计数和默认提示改为 `quick_create_upload_*` 资源。
 - 目标文件静态扫描确认没有中文字符串字面量残留。
 
-### 2026-06-22 Plaza fallback 内容目录语义化
+### 2026-07-01 Plaza fallback 内容目录移除
 
-已把 `PlazaFallbackCatalog` 的本地降级标签、卡片简介、作者和媒体类型从最终展示文本改为稳定语义：
-`PlazaUiState.fallbackTagLabels` 标记内置标签文案，`PlazaUiState.fallbackCreationTexts` 标记内置卡片文案。
-服务端返回的标签名、卡片简介、作者和媒体类型继续作为运行时内容展示，不纳入静态 UI 文案资源化。
+已移除 `PlazaFallbackCatalog`、`PlazaUiState.fallbackTagLabels` 和 `PlazaUiState.fallbackCreationTexts`。
+广场标签、卡片简介、作者、媒体类型、点赞数和使用数只来自接口返回；接口失败时只暴露稳定错误语义，不生成本地示例内容。
 
 同步完成：
 
-- `PlazaStateHolder` 的本地 fallback 目录不再保存最终展示文案，只保存内容 ID、排序指标和资源化语义。
-- `PlazaScreen` 对 fallback 语义使用 Compose Resources 映射最终文案，对远端内容继续读取运行时字段。
-- `PlazaStateHolderTest` 覆盖成功加载时 fallback 语义为空，以及失败降级时写入稳定语义。
+- `PlazaStateHolder` 不再在首屏失败时写入本地 tags、creations、like/use 计数或资源化 fallback 文案。
+- `PlazaScreen` 的标签行只展示接口返回的标签，旧 `PlazaCreationTile` 和 `plaza_fallback_*` 资源映射已删除。
+- `PlazaStateHolderTest` 覆盖创作加载失败时列表为空、loading 结束且错误语义稳定。
 - `ui-copy-hardcoded-baseline.txt` 保持无正数基线；Plaza Presentation 目标文件静态扫描确认无中文字符串字面量残留。
 
 ### 2026-06-22 Core/Data 文案载体语义化

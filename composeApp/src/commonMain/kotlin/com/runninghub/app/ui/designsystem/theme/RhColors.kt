@@ -24,13 +24,13 @@ import androidx.compose.ui.graphics.Color
  * @property borderDefault 默认边框颜色，用于普通分隔和控件边界。
  * @property borderSubtle 弱边框颜色，用于暗色表面上的轻量分隔。
  * @property borderActive 激活边框颜色，用于焦点、选中和主操作强调。
- * @property brandPrimary 主品牌色，当前承载 neon green 方向。
+ * @property brandPrimary 主品牌色，暗色模式下保持低饱和强调。
  * @property brandSecondary 辅助品牌色，用于少量强调，不作为主页面基调。
  * @property brandMuted 品牌色的低饱和背景，用于选中态或轻强调底色。
  * @property statusSuccess 成功状态颜色，来源于本地状态映射，不直接展示服务端 message。
  * @property statusFailed 失败状态颜色，用于错误或任务失败，不包含错误文案。
  * @property statusProcessing 进行中状态颜色，用于轮询、生成、上传等处理中状态。
- * @property statusWarning 警告状态颜色，用于价格待确认、余额提醒等可恢复状态。
+ * @property statusWarning 警告状态颜色，用于运行前费用确认、余额提醒等可恢复状态。
  * @property priceCredit 积分或 credit 价格颜色，只表达价格视觉层级。
  * @property priceMoney 现金或法币价格颜色，只表达价格视觉层级。
  * @property overlayScrim 遮罩层颜色，用于弹窗和底部弹层背后的弱化背景。
@@ -82,7 +82,7 @@ val RhDarkColors = RhColors(
     surfaceDefault = Color(0xFF11151A),
     surfaceElevated = Color(0xFF171B22),
     surfaceSunken = Color(0xFF0B0E13),
-    surfaceSelected = Color(0xFF202A14),
+    surfaceSelected = Color(0xFF1B2117),
     surfaceDisabled = Color(0xFF1A1D22),
     textPrimary = Color(0xFFF5F7FA),
     textSecondary = Color(0xFFC5CBD3),
@@ -90,16 +90,16 @@ val RhDarkColors = RhColors(
     textInverse = Color(0xFF050608),
     borderDefault = Color(0xFF2A3038),
     borderSubtle = Color(0xFF1B2028),
-    borderActive = Color(0xFFB6FF00),
-    brandPrimary = Color(0xFFB6FF00),
+    borderActive = Color(0xFF7F9460),
+    brandPrimary = Color(0xFFA3B565),
     brandSecondary = Color(0xFF8D63FF),
-    brandMuted = Color(0xFF3D4D18),
-    statusSuccess = Color(0xFF4ADE80),
-    statusFailed = Color(0xFFFF4D55),
-    statusProcessing = Color(0xFF54D6FF),
-    statusWarning = Color(0xFFFBBF24),
-    priceCredit = Color(0xFFB6FF00),
-    priceMoney = Color(0xFFFFD166),
+    brandMuted = Color(0xFF242C1D),
+    statusSuccess = Color(0xFF6EA77A),
+    statusFailed = Color(0xFFE26066),
+    statusProcessing = Color(0xFF69A7C2),
+    statusWarning = Color(0xFFD6A85C),
+    priceCredit = Color(0xFFC3B36A),
+    priceMoney = Color(0xFFD6B56D),
     overlayScrim = Color(0xB3000000),
     overlaySheet = Color(0xF2171B22),
 )

@@ -149,6 +149,25 @@ class DiscoveryStateHolderTest {
     }
 
     @Test
+    fun `initial load exposes carefully chosen apps as banners`() = runTest(dispatcher) {
+        val repository = FakeWebAppCatalogRepository()
+        repository.enqueueCarefullyChosenResult(
+            Result.success(
+                listOf(
+                    app("featured").copy(title = "Featured App"),
+                    app("missing-title").copy(title = ""),
+                ),
+            ),
+        )
+        val screenModel = DiscoveryStateHolder(repository, this)
+
+        screenModel.loadInitialData()
+        advanceUntilIdle()
+
+        assertEquals(listOf("featured"), screenModel.uiState.value.banners.map { it.id })
+    }
+
+    @Test
     fun `catalog server message is mapped to stable presentation error`() = runTest(dispatcher) {
         val repository = FakeWebAppCatalogRepository()
         val screenModel = DiscoveryStateHolder(repository, this)
@@ -233,6 +252,7 @@ class DiscoveryStateHolderTest {
     private class FakeWebAppCatalogRepository : WebAppCatalogRepository {
         val appListCalls = mutableListOf<AppListCall>()
         private val appListResponses = ArrayDeque<CompletableDeferred<Result<PageData<WebApp>>>>()
+        private val carefullyChosenResponses = ArrayDeque<CompletableDeferred<Result<List<WebApp>>>>()
         private val searchResponses = ArrayDeque<CompletableDeferred<Result<PageData<WebApp>>>>()
 
         fun enqueueAppListResponse(): CompletableDeferred<Result<PageData<WebApp>>> =
@@ -245,6 +265,13 @@ class DiscoveryStateHolderTest {
             enqueueAppListResponse().complete(result)
         }
 
+        fun enqueueCarefullyChosenResult(result: Result<List<WebApp>>) {
+            CompletableDeferred<Result<List<WebApp>>>().also {
+                it.complete(result)
+                carefullyChosenResponses.addLast(it)
+            }
+        }
+
         override suspend fun getAppList(
             query: CatalogQuery,
         ): Result<PageData<WebApp>> {
@@ -253,7 +280,8 @@ class DiscoveryStateHolderTest {
                 ?: Result.success(page(app("initial"), hasNext = true, current = query.pageNum))
         }
 
-        override suspend fun getCarefullyChosenList(): Result<List<WebApp>> = Result.success(emptyList())
+        override suspend fun getCarefullyChosenList(): Result<List<WebApp>> =
+            carefullyChosenResponses.removeFirstOrNull()?.await() ?: Result.success(emptyList())
 
         override suspend fun getCustomMadeWebappList(tags: List<String>): Result<List<WebApp>> =
             Result.success(emptyList())

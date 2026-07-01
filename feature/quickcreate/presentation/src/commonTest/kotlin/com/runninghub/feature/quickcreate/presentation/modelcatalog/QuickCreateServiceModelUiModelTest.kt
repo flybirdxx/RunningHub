@@ -55,23 +55,23 @@ class QuickCreateServiceModelUiModelTest {
 
         assertEquals(
             QuickCreateCompactServiceModelLabel.ModelName("示例模型"),
-            quickCreateCompactServiceModelLabel(model, fallback = "本地", loading = true),
+            quickCreateCompactServiceModelLabel(model, loading = true),
         )
         assertEquals(
             QuickCreateCompactServiceModelLabel.ModelName("示例模型"),
-            quickCreateCompactServiceModelLabel(model, fallback = "本地", loading = false),
+            quickCreateCompactServiceModelLabel(model, loading = false),
         )
         assertEquals(
             QuickCreateCompactServiceModelLabel.ModelName("全能图片 G-2.0"),
-            quickCreateCompactServiceModelLabel(g2Model, fallback = "全能图片 G-2.0", loading = false),
+            quickCreateCompactServiceModelLabel(g2Model, loading = false),
         )
         assertEquals(
-            QuickCreateCompactServiceModelLabel.FallbackName("本地"),
-            quickCreateCompactServiceModelLabel(null, fallback = "本地", loading = false),
+            QuickCreateCompactServiceModelLabel.Unavailable,
+            quickCreateCompactServiceModelLabel(null, loading = false),
         )
         assertEquals(
             QuickCreateCompactServiceModelLabel.Loading,
-            quickCreateCompactServiceModelLabel(null, fallback = "本地", loading = true),
+            quickCreateCompactServiceModelLabel(null, loading = true),
         )
     }
 
@@ -87,7 +87,6 @@ class QuickCreateServiceModelUiModelTest {
             QuickCreateCompactServiceModelLabel.Loading,
             quickCreateCompactServiceModelLabel(
                 model = null,
-                fallback = "全能图片 G-2.0",
                 loading = true,
             ),
         )
@@ -95,7 +94,6 @@ class QuickCreateServiceModelUiModelTest {
             QuickCreateCompactServiceModelLabel.ModelName("全能图片 G-2.0"),
             quickCreateCompactServiceModelLabel(
                 model = model,
-                fallback = "全能图片 G-2.0",
                 loading = false,
             ),
         )

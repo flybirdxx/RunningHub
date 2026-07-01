@@ -76,13 +76,5 @@ class RedesignStateCopyMatrixContractTest {
             RedesignStateCopySurface.ScreenEmpty,
             RedesignStateCopyMatrix[RedesignStateCopyId.HISTORY_EMPTY].surface,
         )
-        assertEquals(
-            RedesignStateCopySurface.ScreenEmpty,
-            RedesignStateCopyMatrix[RedesignStateCopyId.WALLET_TRANSACTIONS_EMPTY].surface,
-        )
-        assertEquals(
-            RedesignStateCopySurface.InlineNotice,
-            RedesignStateCopyMatrix[RedesignStateCopyId.FAILED_REFUND_CHECK].surface,
-        )
     }
 }

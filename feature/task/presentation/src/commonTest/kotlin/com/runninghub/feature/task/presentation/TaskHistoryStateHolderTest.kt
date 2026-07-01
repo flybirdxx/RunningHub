@@ -186,13 +186,39 @@ class TaskHistoryStateHolderTest {
         )
         assertEquals(TaskHistoryDetailMediaType.IMAGE, detailUi.result?.outputs?.single()?.mediaType)
         assertEquals("1", detailUi.result?.expiry?.remainingDays)
+        assertEquals(
+            listOf(
+                TaskHistoryDetailBillingKind.RH_COINS,
+                TaskHistoryDetailBillingKind.FINAL_AMOUNT,
+                TaskHistoryDetailBillingKind.DURATION,
+            ),
+            detailUi.billing?.rows?.map { it.kind },
+        )
         assertEquals("12", detailUi.billing?.rows?.first { it.kind == TaskHistoryDetailBillingKind.RH_COINS }?.value)
+        assertEquals("0.1", detailUi.billing?.rows?.first { it.kind == TaskHistoryDetailBillingKind.FINAL_AMOUNT }?.value)
+        assertEquals("60", detailUi.billing?.rows?.first { it.kind == TaskHistoryDetailBillingKind.DURATION }?.value)
         assertEquals("city", detailUi.promptParameters.single { it.key == "prompt" }.value)
         assertFalse(detailUi.technicalSections.any { it.initiallyExpanded })
     }
 
     @Test
-    fun `failed task detail exposes retry and refund status without result-first json expansion`() = runTest {
+    fun `task detail ui model hides billing when usage fields are absent`() = runTest {
+        val repository = FakeGenerationHistoryRepository(
+            taskDetailDuration = null,
+            taskDetailRhCoins = null,
+            taskDetailFinalAmount = null,
+        )
+        val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
+
+        stateHolder.openTaskDetail("console-task-without-usage")
+        runCurrent()
+
+        val detailUi = stateHolder.uiState.value.selectedTaskDetailUi ?: error("missing detail ui")
+        assertEquals(null, detailUi.billing)
+    }
+
+    @Test
+    fun `failed task detail exposes retry and reusable params without inferred refund status`() = runTest {
         val repository = FakeGenerationHistoryRepository(taskDetailStatus = "FAILED")
         val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
 
@@ -201,8 +227,13 @@ class TaskHistoryStateHolderTest {
 
         val detailUi = stateHolder.uiState.value.selectedTaskDetailUi ?: error("missing detail ui")
         assertEquals(TaskHistoryDetailStatus.FAILED, detailUi.status)
-        assertEquals(TaskHistoryDetailAction.RETRY, detailUi.actions.first())
-        assertEquals(TaskHistoryDetailRefundState.CHECK_AVAILABLE, detailUi.refundState)
+        assertEquals(
+            listOf(
+                TaskHistoryDetailAction.RETRY,
+                TaskHistoryDetailAction.REUSE_PARAMETERS,
+            ),
+            detailUi.actions,
+        )
         assertEquals(TaskHistoryDetailSectionType.TECHNICAL_DETAILS, detailUi.sectionOrder.last())
         assertFalse(detailUi.technicalSections.any { it.initiallyExpanded })
     }
@@ -371,6 +402,9 @@ class TaskHistoryStateHolderTest {
     private class FakeGenerationHistoryRepository(
         private val items: List<GenerationHistoryItem>? = null,
         private val taskDetailStatus: String = "SUCCESS",
+        private val taskDetailDuration: String? = "60",
+        private val taskDetailRhCoins: String? = "12",
+        private val taskDetailFinalAmount: String? = "0.1",
     ) : GenerationHistoryRepository {
         var lastDetailOutputId: String? = null
         var lastTaskDetailId: String? = null
@@ -448,9 +482,9 @@ class TaskHistoryStateHolderTest {
                     taskId = taskId,
                     title = "Console detail",
                     status = taskDetailStatus,
-                    duration = "60",
-                    rhCoins = "12",
-                    finalAmount = "0.1",
+                    duration = taskDetailDuration,
+                    rhCoins = taskDetailRhCoins,
+                    finalAmount = taskDetailFinalAmount,
                     outputs = listOf(
                         GenerationHistoryOutput(
                             outputId = "detail-output-1",
