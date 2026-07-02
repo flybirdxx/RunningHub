@@ -81,10 +81,6 @@ import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.TaskProgressIndicator
 import com.runninghub.app.ui.component.TaskStep
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
-import com.runninghub.app.ui.adaptive.RhAdaptivePreview
-import com.runninghub.app.ui.adaptive.RhPreviewSpec
-import com.runninghub.app.ui.adaptive.previewAppDetail
-import com.runninghub.app.ui.adaptive.previewTaskOutputs
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreen
 import com.runninghub.app.ui.theme.DarkBackground
 import com.runninghub.app.ui.theme.DarkSurface
@@ -112,11 +108,9 @@ import com.runninghub.feature.detail.presentation.AppDetailMediaType
 import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.detail.presentation.AppDetailUiState
 import com.runninghub.feature.detail.presentation.AppDetailUploadingState
-import com.runninghub.feature.detail.presentation.appDetailInputKey
 import com.runninghub.feature.detail.presentation.creationEntry
 import com.runninghub.feature.detail.presentation.inputRows
 import org.jetbrains.compose.resources.stringResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_detail_back_content_description
 import runninghub.composeapp.generated.resources.app_detail_creation_cost_title
@@ -249,7 +243,7 @@ data class AppDetailScreen(val appId: String) : Screen {
    ═══════════════════════════════════════════════════ */
 
 @Composable
-private fun DetailContent(
+internal fun DetailContent(
     uiState: AppDetailUiState,
     onBack: () -> Unit,
     onAuthorClick: (String) -> Unit,
@@ -1610,79 +1604,3 @@ private fun RunTaskBottomBar(
     }
 }
 
-private fun detailPreviewState(): AppDetailUiState {
-    val detail = previewAppDetail()
-    return AppDetailUiState(
-        isLoading = false,
-        detail = detail,
-        inputValues = detail.inputNodes.associate { node ->
-            appDetailInputKey(node) to (node.fieldValue ?: "")
-        },
-        taskStep = AppDetailTaskStep.SUCCESS,
-        taskOutputs = previewTaskOutputs(),
-    )
-}
-
-@Composable
-private fun DetailAdaptivePreview(spec: RhPreviewSpec) {
-    RhAdaptivePreview(spec = spec) {
-        DetailContent(
-            uiState = detailPreviewState(),
-            onBack = {},
-            onAuthorClick = {},
-            onInputChanged = { _, _, _ -> },
-            onRunTask = {},
-            onResetTask = {},
-            onPickMedia = { _, _, _ -> },
-            onRemoveFile = { _, _ -> },
-        )
-    }
-}
-
-@Preview
-@Composable
-private fun DetailPhone320Preview() {
-    DetailAdaptivePreview(RhPreviewSpec.Phone320)
-}
-
-@Preview
-@Composable
-private fun DetailPhone360Preview() {
-    DetailAdaptivePreview(RhPreviewSpec.Phone360)
-}
-
-@Preview
-@Composable
-private fun DetailPhone430Preview() {
-    DetailAdaptivePreview(RhPreviewSpec.Phone430)
-}
-
-@Preview
-@Composable
-private fun DetailMediumPreview() {
-    DetailAdaptivePreview(RhPreviewSpec.Medium600)
-}
-
-@Preview
-@Composable
-private fun DetailExpandedPreview() {
-    DetailAdaptivePreview(RhPreviewSpec.Expanded840)
-}
-
-@Preview
-@Composable
-private fun DetailLandscapePreview() {
-    DetailAdaptivePreview(RhPreviewSpec.Landscape800)
-}
-
-@Preview
-@Composable
-private fun DetailFontScale13Preview() {
-    DetailAdaptivePreview(RhPreviewSpec.FontScale13)
-}
-
-@Preview
-@Composable
-private fun DetailFontScale15Preview() {
-    DetailAdaptivePreview(RhPreviewSpec.FontScale15)
-}
