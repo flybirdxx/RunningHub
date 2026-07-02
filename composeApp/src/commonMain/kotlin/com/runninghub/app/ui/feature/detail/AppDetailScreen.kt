@@ -85,7 +85,6 @@ import com.runninghub.app.ui.feature.creator.CreatorProfileScreen
 import com.runninghub.app.ui.theme.DarkBackground
 import com.runninghub.app.ui.theme.DarkSurface
 import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.ErrorDark
 import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.app.ui.theme.Neutral500
 import com.runninghub.app.ui.theme.Primary300
@@ -96,7 +95,6 @@ import com.runninghub.core.model.Author
 import com.runninghub.core.model.InputNode
 import com.runninghub.core.model.StatisticsInfo
 import com.runninghub.core.storage.Permission
-import com.runninghub.core.model.TaskOutput
 import com.runninghub.core.storage.PermissionStateStore
 import com.runninghub.feature.detail.presentation.AppDetailErrorText
 import com.runninghub.feature.detail.presentation.AppDetailCreationEntryUiModel
@@ -146,7 +144,6 @@ import runninghub.composeapp.generated.resources.app_detail_status_running
 import runninghub.composeapp.generated.resources.app_detail_status_running_fallback
 import runninghub.composeapp.generated.resources.app_detail_status_submitting
 import runninghub.composeapp.generated.resources.app_detail_text_placeholder
-import runninghub.composeapp.generated.resources.app_detail_video_file
 import runninghub.composeapp.generated.resources.collapsible_section_collapse_content_description
 import runninghub.composeapp.generated.resources.collapsible_section_expand_content_description
 
@@ -1425,92 +1422,6 @@ private fun InputNodeField(
 /* ═══════════════════════════════════════════════════
    Task error card
    ═══════════════════════════════════════════════════ */
-
-@Composable
-private fun TaskErrorCard(error: String, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(ErrorDark.copy(alpha = 0.12f))
-            .padding(14.dp)
-    ) {
-        Text(
-            text = error,
-            color = ErrorDark,
-            fontSize = 13.sp,
-            lineHeight = 18.sp
-        )
-    }
-}
-
-/* ═══════════════════════════════════════════════════
-   Task output card
-   ═══════════════════════════════════════════════════ */
-
-@Composable
-private fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
-    val url = output.fileUrl.orEmpty()
-    val isImage = output.fileType?.startsWith("image") == true ||
-        url.endsWith(".png") || url.endsWith(".jpg") ||
-        url.endsWith(".jpeg") || url.endsWith(".webp")
-    val isVideo = output.fileType?.startsWith("video") == true ||
-        url.endsWith(".mp4") || url.endsWith(".mov") || url.endsWith(".webm")
-
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurface)
-    ) {
-        if (isImage && url.isNotBlank()) {
-            SmartAsyncImage(
-                imageUrl = url,
-                contentDescription = output.fileName,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f),
-                contentScale = ContentScale.FillWidth
-            )
-            Spacer(Modifier.height(8.dp))
-        }
-
-        if (isVideo && url.isNotBlank()) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(DarkSurfaceVariant)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(
-                        Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = Primary300,
-                        modifier = Modifier.size(48.dp)
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        text = stringResource(Res.string.app_detail_video_file),
-                        color = Neutral400,
-                        fontSize = 12.sp
-                    )
-                }
-            }
-            Spacer(Modifier.height(8.dp))
-        }
-
-        Text(
-            text = output.fileName ?: url.substringAfterLast("/"),
-            color = Neutral400,
-            fontSize = 12.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-        )
-    }
-}
 
 /* ═══════════════════════════════════════════════════
    Bottom run button (fixed)
