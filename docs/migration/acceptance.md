@@ -208,6 +208,19 @@ lint 和 debug 构建。提交后补证流程会对最终 `HEAD` 重新采集外
 `linkDebugFrameworkIosSimulatorArm64` 仍为 Windows 平台下的 `SKIPPED`，不能替代 macOS
 真实 pass 证据。
 
+2026-07-02 继续推进架构边界收敛并复核证据链：`DiscoveryScreen.kt` 按职责拆分出
+`DiscoveryAppCards.kt`（卡片渲染与枚举文案映射）和 `DiscoveryPreviews.kt`（@Preview 入口），
+主文件降到 800 行以下并从 `composeapp-file-size-allowlist.txt` 移除；
+`feature-presentation-thresholds.txt` 按实际体量棘轮收紧（history 1754→1712、profile 1027→882、
+plaza 1604→1375、login 维持 1022），`build-script-baseline.txt` 收紧到 1755 并同步治理插件钉子。
+本轮发现并修复 d04a4e8 引入的 commonMain JVM-only `synchronized`
+（`WebAppTaskHistoryOverlayStore`，导致 `:composeApp:compileKotlinIosSimulatorArm64` 失败、
+Android CI 无法暴露），改为 `MutableStateFlow.update` CAS 原子更新，并新增
+`checkCommonMainJvmSynchronizedGuard` 门禁（已完成 RED/GREEN 自验）。
+`verifyL1Local` 复跑通过（Windows 上 iOS link 仍为 SKIPPED，不作为 macOS 证据）；
+`checkL1SealEvidence` 按预期失败：Android CI 证据当前对应 11652fa，iOS CI 证据尚未覆盖
+11652fa 之后的提交（最近成功 run 为 85f134d），恢复封板时需对最终提交重新采集双端外部证据。
+
 ## 执行规则
 
 - 每次只处理一个 `AC-*` 任务。

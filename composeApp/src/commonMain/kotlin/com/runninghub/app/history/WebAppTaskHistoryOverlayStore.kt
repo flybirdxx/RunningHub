@@ -3,6 +3,8 @@ package com.runninghub.app.history
 import com.runninghub.feature.detail.presentation.AppDetailSubmittedTask
 import com.runninghub.feature.task.domain.GenerationHistoryItem
 import com.runninghub.feature.task.domain.GenerationHistorySource
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * WebApp 本机任务历史补充缓存。
@@ -12,8 +14,8 @@ import com.runninghub.feature.task.domain.GenerationHistorySource
  * 统一历史仓库会让服务端记录接管，避免长期展示本地兜底数据。
  */
 class WebAppTaskHistoryOverlayStore {
-    private val lock = Any()
-    private var trackedItems: List<GenerationHistoryItem> = emptyList()
+    // JVM synchronized 在 Kotlin/Native 不可用；用 MutableStateFlow 的 CAS 更新保证跨平台原子性。
+    private val trackedItems = MutableStateFlow<List<GenerationHistoryItem>>(emptyList())
 
     /**
      * 记录详情页刚提交成功的 WebApp 任务。
@@ -38,14 +40,13 @@ class WebAppTaskHistoryOverlayStore {
      * 新任务放在列表前面，使刚提交的任务在历史页首屏可见；相同 taskId 后续刷新只替换内容。
      */
     fun upsert(item: GenerationHistoryItem) {
-        synchronized(lock) {
-            trackedItems = listOf(item) + trackedItems.filterNot { it.taskId == item.taskId }
+        trackedItems.update { current ->
+            listOf(item) + current.filterNot { it.taskId == item.taskId }
         }
     }
 
     /**
      * 读取当前补充历史快照。
      */
-    fun items(): List<GenerationHistoryItem> =
-        synchronized(lock) { trackedItems }
+    fun items(): List<GenerationHistoryItem> = trackedItems.value
 }

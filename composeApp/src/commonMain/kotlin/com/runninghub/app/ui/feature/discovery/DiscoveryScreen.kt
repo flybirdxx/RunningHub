@@ -74,16 +74,6 @@ import com.runninghub.app.ui.component.ErrorState
 import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.VideoThumbnail
-import com.runninghub.app.ui.adaptive.RhAdaptivePreview
-import com.runninghub.app.ui.adaptive.RhPreviewSpec
-import com.runninghub.app.ui.adaptive.previewDiscoveryUiState
-import com.runninghub.app.ui.designsystem.components.cards.AppCard
-import com.runninghub.app.ui.designsystem.components.cards.AppCardActionState
-import com.runninghub.app.ui.designsystem.components.cards.AppCardActionType
-import com.runninghub.app.ui.designsystem.components.cards.AppCardMetricState
-import com.runninghub.app.ui.designsystem.components.cards.AppCardPreviewState
-import com.runninghub.app.ui.designsystem.components.cards.AppCardState
-import com.runninghub.app.ui.designsystem.components.cards.AppCardPreviewType as DsAppCardPreviewType
 import com.runninghub.app.ui.feature.detail.AppDetailScreen
 import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.app.ui.theme.WindowSizeClass
@@ -91,31 +81,16 @@ import com.runninghub.app.ui.theme.adaptiveAppBarHeight
 import com.runninghub.app.ui.theme.adaptiveGridColumns
 import com.runninghub.app.ui.theme.adaptiveGridSpacing
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
-import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.core.model.Tag
 import com.runninghub.core.model.WebApp
 import com.runninghub.feature.discovery.domain.CatalogSort
 import com.runninghub.feature.discovery.presentation.CatalogPresentationError
-import com.runninghub.feature.discovery.presentation.DiscoveryAppCapability
-import com.runninghub.feature.discovery.presentation.DiscoveryAppCardMetricKind
-import com.runninghub.feature.discovery.presentation.DiscoveryAppCardPrimaryAction
-import com.runninghub.feature.discovery.presentation.DiscoveryAppCardUiModel
-import com.runninghub.feature.discovery.presentation.DiscoveryAppEstimatedCostKind
-import com.runninghub.feature.discovery.presentation.DiscoveryAppPreviewType
 import com.runninghub.feature.discovery.presentation.DiscoveryUiState
 import org.jetbrains.compose.resources.stringResource
-import org.jetbrains.compose.ui.tooling.preview.Preview
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.discovery_all_apps_title
-import runninghub.composeapp.generated.resources.discovery_action_generate
-import runninghub.composeapp.generated.resources.discovery_action_view_detail
-import runninghub.composeapp.generated.resources.discovery_capability_audio
-import runninghub.composeapp.generated.resources.discovery_capability_general
-import runninghub.composeapp.generated.resources.discovery_capability_image
-import runninghub.composeapp.generated.resources.discovery_capability_video
 import runninghub.composeapp.generated.resources.discovery_category_all
 import runninghub.composeapp.generated.resources.discovery_close_search_content_description
-import runninghub.composeapp.generated.resources.discovery_cost_unknown
 import runninghub.composeapp.generated.resources.discovery_empty_apps
 import runninghub.composeapp.generated.resources.discovery_end_of_results
 import runninghub.composeapp.generated.resources.discovery_error_empty_response
@@ -162,7 +137,7 @@ class DiscoveryVoyagerScreen : Screen {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DiscoveryContent(
+internal fun DiscoveryContent(
     uiState: DiscoveryUiState,
     modifier: Modifier = Modifier,
     onExpandSearch: () -> Unit = {},
@@ -624,82 +599,6 @@ private fun DiscoveryBannerCard(
 }
 
 @Composable
-private fun DiscoveryAdaptivePreview(
-    spec: RhPreviewSpec,
-    searchExpanded: Boolean = false,
-) {
-    RhAdaptivePreview(spec = spec) {
-        DiscoveryContent(
-            uiState = previewDiscoveryUiState(searchExpanded = searchExpanded),
-            onExpandSearch = {},
-            onCollapseSearch = {},
-            onSearchQueryChange = {},
-            onSearchSubmit = {},
-            onLoadMoreSearchResults = {},
-            onAppClick = {},
-            onCategorySelected = {},
-            onSortSelected = {},
-            onRefresh = {},
-            onLoadMore = {},
-        )
-    }
-}
-
-@Preview
-@Composable
-private fun DiscoveryPhone320Preview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.Phone320)
-}
-
-@Preview
-@Composable
-private fun DiscoveryPhone360Preview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.Phone360)
-}
-
-@Preview
-@Composable
-private fun DiscoveryPhone430Preview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.Phone430)
-}
-
-@Preview
-@Composable
-private fun DiscoveryMedium600Preview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.Medium600)
-}
-
-@Preview
-@Composable
-private fun DiscoveryExpanded840Preview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.Expanded840)
-}
-
-@Preview
-@Composable
-private fun DiscoveryLandscapePreview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.Landscape800)
-}
-
-@Preview
-@Composable
-private fun DiscoveryFontScale13Preview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.FontScale13)
-}
-
-@Preview
-@Composable
-private fun DiscoveryFontScale15Preview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.FontScale15)
-}
-
-@Preview
-@Composable
-private fun DiscoveryInlineSearchPreview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.Phone360, searchExpanded = true)
-}
-
-@Composable
 private fun catalogPresentationErrorMessage(error: CatalogPresentationError): String =
     when (error) {
         CatalogPresentationError.LoadFailed -> stringResource(Res.string.discovery_error_load_failed)
@@ -844,135 +743,6 @@ private fun catalogSortLabel(sort: CatalogSort): String {
         CatalogSort.NEWEST -> Res.string.discovery_sort_newest
     }
     return stringResource(resource)
-}
-
-// endregion
-
-// region App Grid Card
-
-@Composable
-private fun DiscoveryAppCard(
-    card: DiscoveryAppCardUiModel,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    AppCard(
-        state = card.toAppCardState(),
-        onClick = onClick,
-        onAction = { onClick() },
-        modifier = modifier,
-        previewContent = { preview ->
-            DiscoveryAppCardPreview(preview)
-        },
-    )
-}
-
-@Composable
-private fun DiscoveryAppCardPreview(preview: AppCardPreviewState) {
-    val url = preview.url
-    if (url.isNullOrBlank()) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {}
-        return
-    }
-
-    when (preview.type) {
-        DsAppCardPreviewType.Video -> VideoThumbnail(
-            url = url,
-            modifier = Modifier.fillMaxSize(),
-        )
-        else -> SmartAsyncImage(
-            imageUrl = url,
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-        )
-    }
-}
-
-@Composable
-private fun DiscoveryAppCardUiModel.toAppCardState(): AppCardState = AppCardState(
-    id = id,
-    title = templateName,
-    capabilityLabel = capability.toCapabilityLabel(),
-    preview = AppCardPreviewState(
-        url = preview.url,
-        type = preview.type.toDesignSystemPreviewType(),
-    ),
-    estimatedCostLabel = estimatedCost.kind.toEstimatedCostLabel(),
-    metric = supportingMetric?.let { metric ->
-        AppCardMetricState(
-            label = metric.kind.toMetricLabel(),
-            value = formatCount(metric.value),
-        )
-    },
-    primaryAction = AppCardActionState(
-        type = primaryAction.toDesignSystemActionType(),
-        label = primaryAction.toActionLabel(),
-    ),
-)
-
-@Composable
-private fun DiscoveryAppCapability.toCapabilityLabel(): String = stringResource(
-    when (this) {
-        DiscoveryAppCapability.IMAGE -> Res.string.discovery_capability_image
-        DiscoveryAppCapability.VIDEO -> Res.string.discovery_capability_video
-        DiscoveryAppCapability.AUDIO -> Res.string.discovery_capability_audio
-        DiscoveryAppCapability.GENERAL -> Res.string.discovery_capability_general
-    },
-)
-
-@Composable
-private fun DiscoveryAppEstimatedCostKind.toEstimatedCostLabel(): String = stringResource(
-    when (this) {
-        DiscoveryAppEstimatedCostKind.UNKNOWN -> Res.string.discovery_cost_unknown
-    },
-)
-
-@Composable
-private fun DiscoveryAppCardMetricKind.toMetricLabel(): String = stringResource(
-    when (this) {
-        DiscoveryAppCardMetricKind.USE_COUNT -> Res.string.discovery_metric_use_count
-        DiscoveryAppCardMetricKind.VIEW_COUNT -> Res.string.discovery_metric_view_count
-    },
-)
-
-@Composable
-private fun DiscoveryAppCardPrimaryAction.toActionLabel(): String = stringResource(
-    when (this) {
-        DiscoveryAppCardPrimaryAction.GENERATE -> Res.string.discovery_action_generate
-        DiscoveryAppCardPrimaryAction.VIEW_DETAIL -> Res.string.discovery_action_view_detail
-    },
-)
-
-private fun DiscoveryAppPreviewType.toDesignSystemPreviewType(): DsAppCardPreviewType = when (this) {
-    DiscoveryAppPreviewType.IMAGE -> DsAppCardPreviewType.Image
-    DiscoveryAppPreviewType.VIDEO -> DsAppCardPreviewType.Video
-    DiscoveryAppPreviewType.AUDIO -> DsAppCardPreviewType.Audio
-    DiscoveryAppPreviewType.EMPTY -> DsAppCardPreviewType.Empty
-}
-
-private fun DiscoveryAppCardPrimaryAction.toDesignSystemActionType(): AppCardActionType = when (this) {
-    DiscoveryAppCardPrimaryAction.GENERATE -> AppCardActionType.Generate
-    DiscoveryAppCardPrimaryAction.VIEW_DETAIL -> AppCardActionType.ViewDetail
-}
-
-// endregion
-
-// region Utils
-
-private fun formatCount(raw: String): String {
-    val num = raw.toLongOrNull() ?: return raw
-    return when {
-        // Kotlin/Native 不支持 JVM 的 String.format；使用项目内跨平台格式化保持 iOS 编译稳定。
-        num >= 10_000 -> "${formatOneDecimal(num / 10_000.0)}w"
-        num >= 1_000 -> "${formatOneDecimal(num / 1_000.0)}k"
-        else -> raw
-    }
 }
 
 // endregion

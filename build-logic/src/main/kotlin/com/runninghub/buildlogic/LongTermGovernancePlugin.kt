@@ -155,7 +155,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     )
                     requireDocumentSnippets(
                         relativePath = "docs/governance/build-script-baseline.txt",
-                        snippets = listOf("filePath|maxLines|reason", "build.gradle.kts|1777"),
+                        snippets = listOf("filePath|maxLines|reason", "build.gradle.kts|1755"),
                         violations = violations,
                     )
                     requireDocumentSnippets(
@@ -233,6 +233,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     checkProductionTodoGuard(violations)
                     checkMojibakeTextGuard(violations)
                     checkFeaturePresentationThresholds(violations)
+                    checkCommonMainJvmSynchronizedGuard(violations)
                     checkTrustedAuthHostGuard(violations)
                     checkAuthReplayGuard(violations)
                     checkAuthJsonParsingGuard(violations)
@@ -345,6 +346,39 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 if (lineCount > maxLines && relativePath !in allowed) {
                     violations += "$relativePath has $lineCount lines; split it or add a documented temporary exception."
                 }
+            }
+    }
+
+    /**
+     * 阻止 commonMain 生产源码使用 JVM-only 的 synchronized 块。
+     *
+     * kotlin.synchronized 只在 JVM/Android 目标存在；它进入 commonMain 后 Android 编译
+     * 和 Windows 本地门禁都不会失败，只有 iOS/Native 编译才会暴露（2026-07-02 曾在
+     * WebAppTaskHistoryOverlayStore 实际发生）。跨平台互斥必须使用 kotlinx.coroutines
+     * 的 Mutex/withLock，或 MutableStateFlow.update 的 CAS 原子更新。
+     */
+    private fun Project.checkCommonMainJvmSynchronizedGuard(violations: MutableList<String>) {
+        val jvmSynchronizedPattern = Regex("""(?<![\w.])synchronized\s*\(""")
+        val moduleRoots = listOf("composeApp", "core", "feature").map(rootDir::resolve)
+        moduleRoots
+            .filter { it.isDirectory }
+            .forEach { moduleRoot ->
+                moduleRoot.walkTopDown()
+                    .onEnter { it.name != "build" && it.name != ".gradle" }
+                    .filter { it.isDirectory && it.name == "commonMain" && it.parentFile?.name == "src" }
+                    .map { it.resolve("kotlin") }
+                    .filter { it.isDirectory }
+                    .forEach { sourceDir ->
+                        sourceDir.walkTopDown()
+                            .filter { it.isFile && it.extension == "kt" }
+                            .forEach { file ->
+                                if (jvmSynchronizedPattern.containsMatchIn(file.readText())) {
+                                    val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
+                                    violations += "$relativePath uses JVM-only synchronized in commonMain; " +
+                                        "use kotlinx.coroutines Mutex/withLock or MutableStateFlow.update instead."
+                                }
+                            }
+                    }
             }
     }
 
