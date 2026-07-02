@@ -207,15 +207,15 @@ data class AppDetailScreen(val appId: String) : Screen {
             }
         }
 
-        if (pendingPermission != null) {
+        val activePermission = pendingPermission
+        if (activePermission != null) {
             PermissionBottomSheet(
-                permission = pendingPermission!!,
+                permission = activePermission,
                 onDismiss = { pendingPermission = null },
                 onAuthorize = {
-                    val perm = pendingPermission!!
                     pendingPermission = null
                     controller.checkAndRequest(
-                        permission = perm,
+                        permission = activePermission,
                         onGranted = {},
                         onDenied = {},
                         onPermanentlyDenied = { controller.openAppSettings() },
@@ -229,10 +229,11 @@ data class AppDetailScreen(val appId: String) : Screen {
                 .fillMaxSize()
                 .background(DarkBackground)
         ) {
+            val detailError = uiState.error
             when {
                 uiState.isLoading -> LoadingIndicator()
-                uiState.error != null -> ErrorState(
-                    message = appDetailErrorMessage(uiState.error!!),
+                detailError != null -> ErrorState(
+                    message = appDetailErrorMessage(detailError),
                     onRetry = { currentScreenModel.loadDetail(appId) }
                 )
                 uiState.detail != null -> DetailContent(
@@ -743,9 +744,10 @@ private fun AppDetailHero(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (!detail.description.isNullOrBlank()) {
+            val description = detail.description
+            if (!description.isNullOrBlank()) {
                 DescriptionSection(
-                    description = detail.description!!,
+                    description = description,
                     modifier = Modifier.fillMaxWidth()
                 )
             }
