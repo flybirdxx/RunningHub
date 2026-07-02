@@ -312,10 +312,5 @@ private fun GenerationTaskDetail.withCachedListContext(item: GenerationHistoryIt
         outputs = if (outputs.isEmpty()) item.outputs else outputs,
     )
 
-private fun Double.toHistoryAmountText(): String {
-    val raw = toString()
-    return if (raw.contains('.')) raw.trimEnd('0').trimEnd('.') else raw
-}
-
 private const val WEBAPP_OUTPUT_ID_PREFIX = "webapp:"
 private const val RH_COIN_CURRENCY = "RHB"

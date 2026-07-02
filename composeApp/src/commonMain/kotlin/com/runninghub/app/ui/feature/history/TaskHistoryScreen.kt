@@ -146,9 +146,6 @@ import runninghub.composeapp.generated.resources.task_history_status_success
 import runninghub.composeapp.generated.resources.task_history_status_canceled
 import runninghub.composeapp.generated.resources.task_history_status_unknown
 import runninghub.composeapp.generated.resources.task_history_task_id_format
-import runninghub.composeapp.generated.resources.task_history_timeline_completed_format
-import runninghub.composeapp.generated.resources.task_history_timeline_failed_format
-import runninghub.composeapp.generated.resources.task_history_timeline_running_format
 import runninghub.composeapp.generated.resources.task_history_title
 import runninghub.composeapp.generated.resources.task_history_total_count_format
 import com.runninghub.app.ui.theme.StatusError
@@ -1118,38 +1115,6 @@ private fun statusPillLabelText(status: String): String = when {
     else -> stringResource(Res.string.task_history_status_in_progress)
 }
 
-
-@Composable
-private fun TaskHistoryEntry.timelineMetaText(): String? {
-    val serverCostTime = costTime?.takeIf { it.isNotBlank() } ?: return null
-    return when {
-        status.isCompletedStatus() -> stringResource(Res.string.task_history_timeline_completed_format, serverCostTime)
-        status.equals("failed", ignoreCase = true) -> stringResource(Res.string.task_history_timeline_failed_format, serverCostTime)
-        else -> stringResource(Res.string.task_history_timeline_running_format, serverCostTime)
-    }
-}
-
-
-private fun TaskHistoryEntry.costLabelText(): String? {
-    val hasAmount = costAmount > 0.0
-    val currency = costCurrency?.trim()?.takeIf { it.isNotEmpty() }
-    if (!hasAmount) return null
-    val amountText = costAmount.toServerAmountText()
-    return when {
-        currency == null -> amountText
-        currency.startsWith("$") || currency.startsWith("￥") -> "$currency$amountText"
-        else -> "$amountText $currency"
-    }
-}
-
-private fun Double.toServerAmountText(): String {
-    val raw = toString()
-    return if (raw.contains('.')) {
-        raw.trimEnd('0').trimEnd('.')
-    } else {
-        raw
-    }
-}
 
 @Composable
 private fun sourceLabelText(source: String): String = when {

@@ -521,10 +521,6 @@ private fun List<QuickCreationServiceFieldUi>.flattenServiceFields(): List<Quick
         listOf(field) + field.childFields.flattenServiceFields()
     }
 
-private fun List<QuickCreationServiceFieldUi>.visibleFieldCount(): Int =
-    flattenServiceFields()
-        .count { field -> !field.isPromptParameterField() && !field.isTechnicalEndpointField() }
-
 private fun QuickCreationServiceFieldUi.isPromptParameterField(): Boolean {
     val normalizedKey = paramKey.trim().lowercase()
     return normalizedKey == "prompt" ||
