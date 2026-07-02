@@ -19,16 +19,13 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ViewInAr
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -76,7 +73,6 @@ import runninghub.composeapp.generated.resources.quick_create_params_advanced_ti
 import runninghub.composeapp.generated.resources.quick_create_params_advanced_expand
 import runninghub.composeapp.generated.resources.quick_create_params_advanced_collapse
 import runninghub.composeapp.generated.resources.quick_create_params_model_label
-import runninghub.composeapp.generated.resources.quick_create_params_parameter_count_format
 import runninghub.composeapp.generated.resources.quick_create_params_sheet_title
 import runninghub.composeapp.generated.resources.quick_create_params_upload_formats_format
 import runninghub.composeapp.generated.resources.quick_create_params_upload_hint_separator
@@ -212,35 +208,6 @@ internal fun QuickCreateParamsSheet(
 }
 
 @Composable
-private fun ParamsSheetHeader(onDismiss: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 22.dp, bottom = 18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = stringResource(Res.string.quick_create_params_sheet_title),
-            color = QuickCreateDesignTokens.Text,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Black,
-        )
-        Spacer(Modifier.weight(1f))
-        IconButton(
-            onClick = onDismiss,
-            modifier = Modifier.size(34.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Default.Close,
-                contentDescription = stringResource(Res.string.quick_create_params_close_content_description),
-                tint = Color(0xFFC9CAD2),
-                modifier = Modifier.size(28.dp),
-            )
-        }
-    }
-}
-
-@Composable
 private fun ModelSummaryCard(uiState: QuickCreateUiState, isImage: Boolean) {
     val selectedServiceModel = if (isImage) {
         uiState.selectedImageServiceModelUi
@@ -289,26 +256,6 @@ private fun ModelSummaryCard(uiState: QuickCreateUiState, isImage: Boolean) {
                 modifier = Modifier.size(14.dp),
             )
         }
-    }
-}
-
-@Composable
-private fun CommonSectionTitle() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(width = 4.dp, height = 18.dp)
-                .background(QuickCreateDesignTokens.Purple, RoundedCornerShape(2.dp)),
-        )
-        Text(
-            text = stringResource(Res.string.quick_create_params_common_title),
-            color = QuickCreateDesignTokens.Text,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.Black,
-        )
     }
 }
 
@@ -534,58 +481,6 @@ private fun ParamField(
                 overflow = TextOverflow.Ellipsis,
             )
             content()
-        }
-    }
-}
-
-@Composable
-private fun ParamsActionBar(
-    parameterCount: Int,
-    onDone: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(top = 48.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = Color(0xFF15171B),
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(8.dp)
-                    .background(QuickCreateDesignTokens.Purple, CircleShape),
-            )
-            Text(
-                text = stringResource(Res.string.quick_create_params_parameter_count_format, parameterCount),
-                color = QuickCreateDesignTokens.Text,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Black,
-                modifier = Modifier.weight(1f),
-            )
-            Surface(
-                onClick = onDone,
-                shape = RoundedCornerShape(18.dp),
-                color = Color.Transparent,
-                modifier = Modifier.height(40.dp).weight(0.55f),
-            ) {
-                Box(
-                    modifier = Modifier.background(
-                        Brush.horizontalGradient(listOf(Color(0xFF7556F6), Color(0xFF9B61FF))),
-                        RoundedCornerShape(18.dp),
-                    ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = stringResource(Res.string.quick_create_params_done),
-                        color = QuickCreateDesignTokens.Text,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Black,
-                    )
-                }
-            }
         }
     }
 }
