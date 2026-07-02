@@ -891,6 +891,8 @@ class QuickCreateRepositoryImpl(
             val refImageUrl = request.referenceImageUri ?: ""  // validated non-null reference, replaces all !! usage
             val hasFirstFrame = !request.firstFrameImageUri.isNullOrBlank()
             val hasLastFrame = !request.lastFrameImageUri.isNullOrBlank()
+            // 首帧分支已由 hasFirstFrame 校验非空；提取非空局部量，替代 firstFrameImageUri!! 的非空断言。
+            val firstFrameImageUrl = request.firstFrameImageUri ?: ""
 
             val model = VideoModel.entries.find { it.modelKey == request.model }
                 ?: VideoModel.HAPPYHORSE
@@ -1146,7 +1148,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.allPowerV31FastStartEndToVideo(
                             AllPowerVideoV31FastStartEndToVideoRequestDto(
                                 prompt = request.prompt,
-                                firstFrameUrl = request.firstFrameImageUri!!,
+                                firstFrameUrl = firstFrameImageUrl,
                                 lastFrameUrl = request.lastFrameImageUri,
                                 aspectRatio = request.aspectRatio,
                                 duration = request.duration,
@@ -1183,7 +1185,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.allPowerV31FastStartEndToVideo(
                             AllPowerVideoV31FastStartEndToVideoRequestDto(
                                 prompt = request.prompt,
-                                firstFrameUrl = request.firstFrameImageUri!!,
+                                firstFrameUrl = firstFrameImageUrl,
                                 lastFrameUrl = request.lastFrameImageUri,
                                 aspectRatio = request.aspectRatio,
                                 duration = request.duration,
@@ -1220,7 +1222,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.allPowerV31ProImageToVideo(
                             AllPowerVideoV31ProImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                imageUrl = request.firstFrameImageUri!!,
+                                imageUrl = firstFrameImageUrl,
                                 firstFrameUrl = request.firstFrameImageUri,
                                 lastFrameUrl = request.lastFrameImageUri,
                                 resolution = request.resolution,
@@ -1259,7 +1261,7 @@ class QuickCreateRepositoryImpl(
                         quickCreateApi.allPowerV31ProImageToVideo(
                             AllPowerVideoV31ProImageToVideoRequestDto(
                                 prompt = request.prompt,
-                                imageUrl = request.firstFrameImageUri!!,
+                                imageUrl = firstFrameImageUrl,
                                 firstFrameUrl = request.firstFrameImageUri,
                                 lastFrameUrl = request.lastFrameImageUri,
                                 resolution = request.resolution,
