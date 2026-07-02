@@ -452,15 +452,15 @@ private fun QuickCreateScreen(
         }
     }
 
-    if (pendingPermission != null) {
+    val activePermission = pendingPermission
+    if (activePermission != null) {
         PermissionBottomSheet(
-            permission = pendingPermission!!,
+            permission = activePermission,
             onDismiss = { pendingPermission = null },
             onAuthorize = {
-                val perm = pendingPermission!!
                 pendingPermission = null
                 controller.checkAndRequest(
-                    permission = perm,
+                    permission = activePermission,
                     onGranted = {},
                     onDenied = {},
                     onPermanentlyDenied = { controller.openAppSettings() },
