@@ -599,15 +599,6 @@ private fun CreationInputRow(title: String, valuePreview: AppDetailInputNodeValu
 }
 
 @Composable
-private fun AppDetailTaskStep.toRunningStatusLabel(): String = when (this) {
-    AppDetailTaskStep.SUBMITTING -> stringResource(Res.string.app_detail_status_submitting)
-    AppDetailTaskStep.QUEUEING -> stringResource(Res.string.app_detail_status_queueing)
-    AppDetailTaskStep.RUNNING -> stringResource(Res.string.app_detail_status_running)
-    AppDetailTaskStep.COMPLETING -> stringResource(Res.string.app_detail_status_completing)
-    else -> stringResource(Res.string.app_detail_status_running_fallback)
-}
-
-@Composable
 private fun AppDetailHero(
     detail: AppDetail,
     onBack: () -> Unit,
@@ -737,26 +728,6 @@ private fun AppDetailHero(
     }
 }
 
-@Composable
-private fun TopBar(onBack: () -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(DarkBackground)
-            .statusBarsPadding()
-            .padding(horizontal = 4.dp, vertical = 8.dp)
-    ) {
-        IconButton(onClick = onBack) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = stringResource(Res.string.app_detail_back_content_description),
-                tint = Color.White
-            )
-        }
-    }
-}
-
 /* ═══════════════════════════════════════════════════
    Cover carousel
    ═══════════════════════════════════════════════════ */
@@ -800,54 +771,6 @@ private fun CoverCarousel(
                             .clip(CircleShape)
                             .background(if (selected) Color.White else Color.White.copy(alpha = 0.3f))
                     )
-                }
-            }
-        }
-    }
-}
-
-/* ═══════════════════════════════════════════════════
-   App info section (title + tags)
-   ═══════════════════════════════════════════════════ */
-
-@Composable
-private fun AppInfoSection(detail: AppDetail) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-    ) {
-        Text(
-            text = detail.name ?: stringResource(Res.string.app_detail_default_app_name),
-            color = Color.White,
-            fontSize = 22.sp,
-            fontWeight = FontWeight.Bold
-        )
-
-        if (detail.tags.isNotEmpty()) {
-            Spacer(Modifier.height(10.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                detail.tags.chunked(3).forEach { rowTags ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        rowTags.forEach { tag ->
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f, fill = false)
-                                    .widthIn(max = 120.dp)
-                                    .background(DarkSurfaceVariant, RoundedCornerShape(6.dp))
-                                    .padding(horizontal = 10.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = tag.name,
-                                    color = Primary300,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
                 }
             }
         }
