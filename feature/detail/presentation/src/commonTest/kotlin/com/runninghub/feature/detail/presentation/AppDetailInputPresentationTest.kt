@@ -106,6 +106,24 @@ class AppDetailInputPresentationTest {
         assertEquals("internalPrompt", rows.singleField("untitled").title)
     }
 
+    @Test
+    fun `field model exposes default value and modified flag`() {
+        val node = inputNode(nodeId = "3", fieldName = "cfg", fieldValue = "4.5", fieldType = "FLOAT", nodeName = "采样")
+        val untouched = appDetailInputRows(listOf(node), emptyMap()).singleField()
+        assertEquals("4.5", untouched.defaultValue)
+        assertEquals(false, untouched.isModified)
+        assertEquals("采样", untouched.nodeName)
+
+        val edited = appDetailInputRows(listOf(node), mapOf(untouched.inputKey to "7.0")).singleField()
+        assertEquals(true, edited.isModified)
+
+        val editedBack = appDetailInputRows(listOf(node), mapOf(untouched.inputKey to "4.5")).singleField()
+        assertEquals(false, editedBack.isModified)
+    }
+
+    private fun List<AppDetailInputRowUiModel>.singleField() =
+        (single() as AppDetailInputRowUiModel.Single).field
+
     private fun List<AppDetailInputRowUiModel>.singleField(nodeId: String): AppDetailInputFieldUiModel =
         flatMap { row ->
             when (row) {

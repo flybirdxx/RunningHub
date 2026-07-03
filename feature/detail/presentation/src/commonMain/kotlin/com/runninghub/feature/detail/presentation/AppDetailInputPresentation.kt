@@ -65,6 +65,9 @@ sealed interface AppDetailInputControl {
  * @property title 字段展示标题，优先使用服务端描述或节点名；为空表示接口未提供用户可读标题。
  * @property currentValue 当前输入值，来自页面状态或节点默认值；允许为空字符串。
  * @property control 当前字段应使用的控件语义。
+ * @property defaultValue 服务端默认值，来自节点 `fieldValue`；服务端未提供时为空字符串。
+ * @property isModified 当前输入值是否偏离 [defaultValue]；用户编辑后又改回默认值时为 `false`。
+ * @property nodeName 服务端节点名，可用作字段分组标题；允许为空字符串。
  */
 data class AppDetailInputFieldUiModel(
     val nodeId: String,
@@ -73,6 +76,9 @@ data class AppDetailInputFieldUiModel(
     val title: String,
     val currentValue: String,
     val control: AppDetailInputControl,
+    val defaultValue: String,
+    val isModified: Boolean,
+    val nodeName: String,
 )
 
 /**
@@ -157,13 +163,18 @@ private fun InputNode.toInputFieldUiModel(
     inputValues: Map<String, String>,
 ): AppDetailInputFieldUiModel {
     val inputKey = appDetailInputKey(this)
+    val defaultValue = fieldValue ?: ""
+    val edited = inputValues[inputKey]
     return AppDetailInputFieldUiModel(
         nodeId = nodeId,
         fieldName = fieldName,
         inputKey = inputKey,
         title = displayTitle(),
-        currentValue = inputValues[inputKey] ?: fieldValue ?: "",
+        currentValue = edited ?: defaultValue,
         control = inputControl(),
+        defaultValue = defaultValue,
+        isModified = edited != null && edited != defaultValue,
+        nodeName = nodeName,
     )
 }
 
