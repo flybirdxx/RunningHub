@@ -93,3 +93,22 @@
 8. a11y:RhChip/RhSegmentedControl 缺 `Role`/selected 语义;RhTopBar 无动作时的空 `IconButton` 假按钮。
 9. `MainScreen.kt` 残留一处 `MaterialTheme.colorScheme.primaryContainer`。
 10. 批 0 延后组件:`RhPromptField`/`RhListItem`/`RhDialog`(首个使用方批次新建)。
+
+## 9. 批 1 封板记录(2026-07-03)
+
+- **范围**:批 1a(任务历史)commits `943c7e4..a4fe79c`(5 个);批 1b(应用详情)commits `9231544..aa321a2`(11 个,含 4 个验收期修复)。每任务双阶段审查,批内验收期缺陷(FlowRow 之外的新问题)均在封板前闭环。
+- **批 1a 交付**:TaskHistoryScreen 1234 行拆为 6 文件(主文件 152 行);RhTopBar/RhChip 筛选行/RhTaskStatusBadge/RhStates 三态接入;旧 `RhApp*` 色板别名与 5 处硬编码色清零。成功徽章经用户裁决保留 `statusSuccess` 绿色(语义状态色与品牌色分离)。
+- **批 1b 交付**:AppDetailScreen 1449 行拆为 7 文件(主文件 ~330 行);参数区方案 A 落地——presentation 纯函数 `appDetailParamsLayout`(平铺阈值 6、媒体/多行文本核心、连续同节点名分组、**单字段命名组合并进「更多参数」**)+ 折叠 UI(已调计数徽章/组内重置/必填星标);长下拉弹层 `AppDetailOptionPickerSheet`(>6 弹层、>12 搜索、兄弟节点遮罩/imePadding/返回键关闭);64 处旧色清零;RhPrimaryButton 运行栏/RhChip 标签墙/RhSegmentedControl 接入;`RhWrapRow` 升为公共组件(带水平对齐参数);创作入口卡去除与配置参数区重复的只读参数预览。
+- **验证证据**:`:composeApp:testDebugUnitTest`、`:feature:detail:presentation:testAndroidHostTest`(22 tests)、`checkArchitectureBoundaries`、`assembleDebug` 全绿;真机(历史页列表/抽屉)与模拟器(详情页轻/重参数/展开态/去重后)截图经用户验收通过。**未验证**:iOS 编译(Windows 无 macOS 证据);长下拉弹层实机行为(现有应用无 >6 选项下拉,有单测与代码审查证据);生成对话流截图(顺延)。
+
+### 批 1 遗留债务
+
+1. **参数分组标题为服务端技术节点名**(ImpactSwitch/easy float 等):启发式已尽力,彻底解决需服务端补语义分组元数据。
+2. `AppDetailTaskResult` 的 TaskOutputCard 未替换为 ResultPreview(仅 token 化)。
+3. 历史页搜索入口仍为 no-op 占位。
+4. 必填仅媒体上传启发式星标,无提交校验联动。
+5. presentation 的 `creationEntry().inputNodes`/`AppDetailInputNodeValuePreview` 已无 UI 消费方,待清理。
+6. 历史详情抽屉 loading 为手写 spinner,未用 RhLoadingState。
+7. `feature/detail/presentation/build.gradle.kts` 的 `withHostTestBuilder {}` 留在工作区随用户 AGP 迁移提交;建议迁移为全部库模块启用 host test(verifyL1 目前收集不到库模块单测)。
+8. 历史页 CANCELED/UNKNOWN 状态的文案-颜色轻微不一致(迁移前既有语义,原样保留)。
+9. Hero 图片叠加色保留 4 处(压暗渐变/返回钮 scrim/其上白色前景/轮播指示点),语义为内容叠加,非 token 违规。
