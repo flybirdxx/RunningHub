@@ -81,6 +81,8 @@ import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.TaskProgressIndicator
 import com.runninghub.app.ui.component.TaskStep
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreen
 import com.runninghub.app.ui.theme.DarkBackground
 import com.runninghub.app.ui.theme.DarkSurface
@@ -106,6 +108,7 @@ import com.runninghub.feature.detail.presentation.AppDetailMediaType
 import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.detail.presentation.AppDetailUiState
 import com.runninghub.feature.detail.presentation.AppDetailUploadingState
+import com.runninghub.feature.detail.presentation.appDetailParamsLayout
 import com.runninghub.feature.detail.presentation.creationEntry
 import com.runninghub.feature.detail.presentation.inputRows
 import org.jetbrains.compose.resources.stringResource
@@ -340,12 +343,41 @@ internal fun DetailContent(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                             initiallyExpanded = detail.inputNodes.size <= 5
                         ) {
-                            InputNodesContent(
-                                rows = uiState.inputRows(),
-                                uiState = uiState,
-                                onInputChanged = onInputChanged,
-                                onPickMedia = onPickMedia,
-                                onRemoveFile = onRemoveFile
+                            val paramsLayout = appDetailParamsLayout(uiState.inputRows())
+                            AppDetailParamsSection(
+                                layout = paramsLayout,
+                                renderRow = { row ->
+                                    when (row) {
+                                        is AppDetailInputRowUiModel.ImageUploadGroup -> MultiImageUploadRow(
+                                            fields = row.fields,
+                                            uiState = uiState,
+                                            onPickMedia = onPickMedia,
+                                            onRemoveFile = onRemoveFile
+                                        )
+                                        is AppDetailInputRowUiModel.Single -> RenderInputNodeField(
+                                            field = row.field,
+                                            uiState = uiState,
+                                            onInputChanged = onInputChanged,
+                                            onPickMedia = onPickMedia,
+                                            onRemoveFile = onRemoveFile
+                                        )
+                                    }
+                                },
+                                onResetGroup = { group ->
+                                    group.rows.forEach { row ->
+                                        when (row) {
+                                            is AppDetailInputRowUiModel.Single -> onInputChanged(
+                                                row.field.nodeId,
+                                                row.field.fieldName,
+                                                row.field.defaultValue,
+                                            )
+                                            is AppDetailInputRowUiModel.ImageUploadGroup ->
+                                                row.fields.forEach { field ->
+                                                    onInputChanged(field.nodeId, field.fieldName, field.defaultValue)
+                                                }
+                                        }
+                                    }
+                                },
                             )
                         }
                     }
@@ -1096,42 +1128,6 @@ private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
    ═══════════════════════════════════════════════════ */
 
 @Composable
-private fun InputNodesContent(
-    rows: List<AppDetailInputRowUiModel>,
-    uiState: AppDetailUiState,
-    onInputChanged: (String, String, String) -> Unit,
-    onPickMedia: (String, String, AppDetailMediaType) -> Unit,
-    onRemoveFile: (String, String) -> Unit
-) {
-    Column {
-        rows.forEachIndexed { index, row ->
-            when (row) {
-                is AppDetailInputRowUiModel.ImageUploadGroup -> {
-                    MultiImageUploadRow(
-                        fields = row.fields,
-                        uiState = uiState,
-                        onPickMedia = onPickMedia,
-                        onRemoveFile = onRemoveFile
-                    )
-                }
-                is AppDetailInputRowUiModel.Single -> {
-                    RenderInputNodeField(
-                        field = row.field,
-                        uiState = uiState,
-                        onInputChanged = onInputChanged,
-                        onPickMedia = onPickMedia,
-                        onRemoveFile = onRemoveFile
-                    )
-                }
-            }
-            if (index < rows.lastIndex) {
-                InputDivider()
-            }
-        }
-    }
-}
-
-@Composable
 private fun RenderInputNodeField(
     field: AppDetailInputFieldUiModel,
     uiState: AppDetailUiState,
@@ -1164,13 +1160,18 @@ private fun MultiImageUploadRow(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Text(
-            text = stringResource(Res.string.app_detail_multi_image_upload_title),
-            color = Neutral400,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(bottom = 8.dp)
-        )
+        ) {
+            Text(
+                text = stringResource(Res.string.app_detail_multi_image_upload_title),
+                color = Neutral400,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+            RequiredFieldStar()
+        }
         LazyRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             contentPadding = PaddingValues(end = 4.dp)
@@ -1196,14 +1197,15 @@ private fun MultiImageUploadRow(
     }
 }
 
+/**
+ * 必填字段星标：媒体上传字段缺省即无法运行任务，标题后追加醒目提示。
+ */
 @Composable
-private fun InputDivider() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .height(1.dp)
-            .background(DarkSurfaceVariant)
+private fun RequiredFieldStar() {
+    Text(
+        text = " *",
+        color = RhTheme.colors.statusFailed,
+        style = RhTypography.caption,
     )
 }
 
@@ -1257,13 +1259,20 @@ private fun InputNodeField(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        Text(
-            text = field.title,
-            color = Neutral400,
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Medium,
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(bottom = 6.dp)
-        )
+        ) {
+            Text(
+                text = field.title,
+                color = Neutral400,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
+            )
+            if (field.control is AppDetailInputControl.MediaUpload) {
+                RequiredFieldStar()
+            }
+        }
 
         when (val control = field.control) {
             is AppDetailInputControl.Dropdown -> {

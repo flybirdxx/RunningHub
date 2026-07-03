@@ -434,6 +434,9 @@
     <string name="app_detail_output_section_title">生成结果</string>
     <string name="app_detail_parameters_section_title">配置参数</string>
     <string name="app_detail_parameter_count_format">%1$d 个参数</string>
+    <string name="app_detail_params_group_fallback">更多参数</string>
+    <string name="app_detail_params_modified_count">已调 %1$d 项</string>
+    <string name="app_detail_params_reset_group">重置</string>
     <string name="app_detail_back_content_description">返回</string>
     <string name="app_detail_default_app_name">未命名应用</string>
     <string name="app_detail_stat_use_count">使用次数</string>
