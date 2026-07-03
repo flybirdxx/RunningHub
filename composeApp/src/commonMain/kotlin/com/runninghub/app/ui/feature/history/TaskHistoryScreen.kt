@@ -76,64 +76,64 @@ internal fun TaskHistoryContent(
     val actionMessage = uiState.actionMessage?.toDisplayActionMessage()
 
     Box(modifier = modifier.fillMaxSize()) {
-    Scaffold(
-        modifier = Modifier.fillMaxSize(),
-        containerColor = RhBackground,
-        contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .background(RhBackground),
-            contentPadding = PaddingValues(start = 14.dp, top = 14.dp, end = 14.dp, bottom = 92.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            item { HistoryTopBar(onRetry = onRetry) }
-            item {
-                TaskHistoryFilterRow(
-                    selectedFilter = uiState.filter,
-                    onFilterSelected = onFilterSelected,
-                )
-            }
-            item { NoticeBar() }
-            if (actionMessage != null || uiState.selectedOutput != null || uiState.reuseParams.isNotEmpty()) {
+        Scaffold(
+            modifier = Modifier.fillMaxSize(),
+            containerColor = RhBackground,
+            contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
+        ) { padding ->
+            LazyColumn(
+                modifier = Modifier
+                    .padding(padding)
+                    .fillMaxSize()
+                    .background(RhBackground),
+                contentPadding = PaddingValues(start = 14.dp, top = 14.dp, end = 14.dp, bottom = 92.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                item { HistoryTopBar(onRetry = onRetry) }
                 item {
-                    HistoryActionPanel(
-                        message = actionMessage,
-                        selectedOutput = uiState.selectedOutput,
-                        hasPreparedParams = uiState.reuseParams.isNotEmpty(),
+                    TaskHistoryFilterRow(
+                        selectedFilter = uiState.filter,
+                        onFilterSelected = onFilterSelected,
                     )
                 }
-            }
-
-            when {
-                uiState.isLoading && timelineEntries.isEmpty() -> item { LoadingPanel(Modifier.height(360.dp)) }
-                errorMessage != null && timelineEntries.isEmpty() -> item {
-                    TaskHistoryErrorState(message = errorMessage, onRetry = onRetry)
-                }
-                timelineEntries.isEmpty() -> item {
-                    TaskHistoryEmptyState(message = stringResource(Res.string.task_history_empty_history))
-                }
-                filteredItems.isEmpty() -> item {
-                    TaskHistoryEmptyState(message = stringResource(Res.string.task_history_empty_filter))
-                }
-                else -> {
-                    item { DateGroupHeader(total = filteredItems.size) }
-                    items(items = filteredItems, key = { item -> item.taskId }) { item ->
-                        TaskTimelineRow(
-                            item = item,
-                            onOpenTaskDetail = onOpenTaskDetail,
-                            onViewOutput = onViewOutput,
-                            onReuseParams = onReuseParams,
-                            onRetryTask = onRetryTask,
-                            onCancelTask = onCancelTask,
+                item { NoticeBar() }
+                if (actionMessage != null || uiState.selectedOutput != null || uiState.reuseParams.isNotEmpty()) {
+                    item {
+                        HistoryActionPanel(
+                            message = actionMessage,
+                            selectedOutput = uiState.selectedOutput,
+                            hasPreparedParams = uiState.reuseParams.isNotEmpty(),
                         )
+                    }
+                }
+
+                when {
+                    uiState.isLoading && timelineEntries.isEmpty() -> item { LoadingPanel(Modifier.height(360.dp)) }
+                    errorMessage != null && timelineEntries.isEmpty() -> item {
+                        TaskHistoryErrorState(message = errorMessage, onRetry = onRetry)
+                    }
+                    timelineEntries.isEmpty() -> item {
+                        TaskHistoryEmptyState(message = stringResource(Res.string.task_history_empty_history))
+                    }
+                    filteredItems.isEmpty() -> item {
+                        TaskHistoryEmptyState(message = stringResource(Res.string.task_history_empty_filter))
+                    }
+                    else -> {
+                        item { DateGroupHeader(total = filteredItems.size) }
+                        items(items = filteredItems, key = { item -> item.taskId }) { item ->
+                            TaskTimelineRow(
+                                item = item,
+                                onOpenTaskDetail = onOpenTaskDetail,
+                                onViewOutput = onViewOutput,
+                                onReuseParams = onReuseParams,
+                                onRetryTask = onRetryTask,
+                                onCancelTask = onCancelTask,
+                            )
+                        }
                     }
                 }
             }
         }
-    }
         if (uiState.selectedTaskDetailUi != null || uiState.isTaskDetailLoading) {
             Box(
                 modifier = Modifier

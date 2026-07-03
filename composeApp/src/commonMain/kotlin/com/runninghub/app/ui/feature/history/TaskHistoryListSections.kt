@@ -2,7 +2,6 @@ package com.runninghub.app.ui.feature.history
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -30,12 +28,15 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCard
 import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardActionType
+import com.runninghub.app.ui.designsystem.components.chips.RhChip
+import com.runninghub.app.ui.designsystem.components.navigation.RhTopBar
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.theme.BrandLime
 import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import com.runninghub.feature.task.presentation.TaskHistoryEntry
@@ -59,39 +60,27 @@ import runninghub.composeapp.generated.resources.task_history_total_count_format
 
 @Composable
 internal fun HistoryTopBar(onRetry: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(58.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Spacer(Modifier.width(44.dp))
-        Text(
-            text = stringResource(Res.string.task_history_title),
-            color = RhText,
-            style = MaterialTheme.typography.titleLarge,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.weight(1f),
-            maxLines = 1,
-        )
-        IconButton(onClick = {}, modifier = Modifier.size(44.dp)) {
-            Icon(
-                Icons.Default.Search,
-                contentDescription = stringResource(Res.string.task_history_search_content_description),
-                tint = RhText,
-                modifier = Modifier.size(28.dp),
-            )
-        }
-        IconButton(onClick = onRetry, modifier = Modifier.size(44.dp)) {
-            Icon(
-                Icons.Default.Refresh,
-                contentDescription = stringResource(Res.string.task_history_refresh_content_description),
-                tint = RhText,
-                modifier = Modifier.size(28.dp),
-            )
-        }
-    }
+    RhTopBar(
+        title = stringResource(Res.string.task_history_title),
+        actions = {
+            IconButton(onClick = {}, modifier = Modifier.size(44.dp)) {
+                Icon(
+                    Icons.Default.Search,
+                    contentDescription = stringResource(Res.string.task_history_search_content_description),
+                    tint = RhTheme.colors.textSecondary,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+            IconButton(onClick = onRetry, modifier = Modifier.size(44.dp)) {
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = stringResource(Res.string.task_history_refresh_content_description),
+                    tint = RhTheme.colors.textSecondary,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        },
+    )
 }
 
 @Composable
@@ -99,48 +88,19 @@ internal fun TaskHistoryFilterRow(
     selectedFilter: TaskHistoryFilter,
     onFilterSelected: (TaskHistoryFilter) -> Unit,
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(50.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(RhSurface),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
+    Row(horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm)) {
         listOf(
             TaskHistoryFilter.ALL to stringResource(Res.string.task_history_filter_all),
             TaskHistoryFilter.IN_PROGRESS to stringResource(Res.string.task_history_filter_in_progress),
             TaskHistoryFilter.COMPLETED to stringResource(Res.string.task_history_filter_completed),
             TaskHistoryFilter.FAILED to stringResource(Res.string.task_history_filter_failed),
         ).forEach { (filter, label) ->
-            StatusTab(
+            RhChip(
                 label = label,
                 selected = selectedFilter == filter,
-                modifier = Modifier.weight(1f),
                 onClick = { onFilterSelected(filter) },
             )
         }
-    }
-}
-
-@Composable
-private fun StatusTab(label: String, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-    ) {
-        Text(label, color = if (selected) BrandLime else RhMuted, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(8.dp))
-        Box(
-            modifier = Modifier
-                .height(3.dp)
-                .fillMaxWidth(0.78f)
-                .clip(RoundedCornerShape(2.dp))
-                .background(if (selected) BrandLime else Color.Transparent),
-        )
     }
 }
 
