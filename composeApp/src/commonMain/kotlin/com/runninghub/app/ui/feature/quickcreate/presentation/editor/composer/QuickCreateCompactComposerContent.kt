@@ -152,16 +152,6 @@ internal fun QuickCreateCompactComposer(
             .padding(bottom = 4.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        RhSegmentedControl(
-            options = listOf(
-                quickCreateNavigationText(QuickCreateTab.IMAGE.navigationLabel),
-                quickCreateNavigationText(QuickCreateTab.VIDEO.navigationLabel),
-            ),
-            selectedIndex = if (isImage) 0 else 1,
-            onSelect = { index ->
-                onTabSwitch(if (index == 0) QuickCreateTab.IMAGE else QuickCreateTab.VIDEO)
-            },
-        )
         if (showMediaUploadStrip) {
             CompactMediaUploadStrip(
                 mediaReferences = mediaReferences,
@@ -179,6 +169,16 @@ internal fun QuickCreateCompactComposer(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                RhSegmentedControl(
+                    options = listOf(
+                        quickCreateNavigationText(QuickCreateTab.IMAGE.navigationLabel),
+                        quickCreateNavigationText(QuickCreateTab.VIDEO.navigationLabel),
+                    ),
+                    selectedIndex = if (isImage) 0 else 1,
+                    onSelect = { index ->
+                        onTabSwitch(if (index == 0) QuickCreateTab.IMAGE else QuickCreateTab.VIDEO)
+                    },
+                )
                 CompactPromptField(
                     prompt = prompt,
                     onPromptChange = onPromptChange,

@@ -24,17 +24,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Primary300
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailUiItem
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailRowLabel
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailRowValue
@@ -80,7 +77,7 @@ internal fun QuickCreateCreateProjectAction(
             contentDescription = stringResource(
                 Res.string.quick_create_project_create_content_description,
             ),
-            tint = Primary300,
+            tint = RhTheme.colors.brandPrimary,
             modifier = Modifier.size(18.dp),
         )
     }
@@ -151,7 +148,7 @@ internal fun QuickCreateProjectDetailDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(160.dp)
-                                .background(DarkSurfaceVariant, RoundedCornerShape(Dimens.RadiusMD)),
+                                .background(RhTheme.colors.surfaceElevated, RoundedCornerShape(Dimens.RadiusMD)),
                             contentScale = ContentScale.Crop,
                         )
                     }
@@ -251,10 +248,10 @@ private fun ProjectDetailRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(label, color = Neutral400, fontSize = 13.sp)
+        Text(label, color = RhTheme.colors.textSecondary, fontSize = 13.sp)
         Text(
             value,
-            color = Color.White.copy(alpha = 0.88f),
+            color = RhTheme.colors.textPrimary,
             fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
