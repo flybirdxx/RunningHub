@@ -15,16 +15,11 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 @Composable
 private fun DiscoveryAdaptivePreview(
     spec: RhPreviewSpec,
-    searchExpanded: Boolean = false,
 ) {
     RhAdaptivePreview(spec = spec) {
         DiscoveryContent(
-            uiState = previewDiscoveryUiState(searchExpanded = searchExpanded),
-            onExpandSearch = {},
-            onCollapseSearch = {},
-            onSearchQueryChange = {},
-            onSearchSubmit = {},
-            onLoadMoreSearchResults = {},
+            uiState = previewDiscoveryUiState(),
+            onSearchClick = {},
             onAppClick = {},
             onCategorySelected = {},
             onSortSelected = {},
@@ -80,10 +75,4 @@ private fun DiscoveryFontScale13Preview() {
 @Composable
 private fun DiscoveryFontScale15Preview() {
     DiscoveryAdaptivePreview(RhPreviewSpec.FontScale15)
-}
-
-@Preview
-@Composable
-private fun DiscoveryInlineSearchPreview() {
-    DiscoveryAdaptivePreview(RhPreviewSpec.Phone360, searchExpanded = true)
 }

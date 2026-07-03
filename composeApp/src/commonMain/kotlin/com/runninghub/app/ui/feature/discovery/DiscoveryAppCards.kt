@@ -3,7 +3,6 @@ package com.runninghub.app.ui.feature.discovery
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -16,6 +15,7 @@ import com.runninghub.app.ui.designsystem.components.cards.AppCardActionType
 import com.runninghub.app.ui.designsystem.components.cards.AppCardMetricState
 import com.runninghub.app.ui.designsystem.components.cards.AppCardPreviewState
 import com.runninghub.app.ui.designsystem.components.cards.AppCardState
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.components.cards.AppCardPreviewType as DsAppCardPreviewType
 import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.feature.discovery.presentation.DiscoveryAppCapability
@@ -67,7 +67,7 @@ private fun DiscoveryAppCardPreview(preview: AppCardPreviewState) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .background(RhTheme.colors.surfaceSunken),
             contentAlignment = Alignment.Center,
         ) {}
         return
