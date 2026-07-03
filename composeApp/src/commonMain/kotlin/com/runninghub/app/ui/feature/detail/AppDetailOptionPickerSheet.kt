@@ -2,11 +2,13 @@ package com.runninghub.app.ui.feature.detail
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -64,81 +66,83 @@ internal fun AppDetailOptionPickerSheet(
     val colors = RhTheme.colors
     var query by remember { mutableStateOf("") }
     val visibleOptions = filterPickerOptions(options, query)
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(colors.overlayScrim)
-            .clickable(onClick = onDismiss),
-        contentAlignment = Alignment.BottomCenter,
-    ) {
-        Box(modifier = Modifier.clickable(enabled = false, onClick = {})) {
-            RhBottomSheetSurface {
-                Text(text = title, color = colors.textPrimary, style = RhTypography.cardTitle)
-                if (options.size > APP_DETAIL_OPTION_SEARCH_THRESHOLD) {
-                    BasicTextField(
-                        value = query,
-                        onValueChange = { query = it },
-                        singleLine = true,
-                        textStyle = RhTypography.body.copy(color = colors.textPrimary),
-                        cursorBrush = SolidColor(colors.brandPrimary),
-                        decorationBox = { inner ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = RhSpacing.sm)
-                                    .background(colors.surfaceSunken, RoundedCornerShape(RhTheme.shapes.sm))
-                                    .padding(horizontal = RhSpacing.md, vertical = RhSpacing.sm),
-                            ) {
-                                if (query.isEmpty()) {
-                                    Text(
-                                        text = stringResource(Res.string.app_detail_option_picker_search_hint),
-                                        color = colors.textTertiary,
-                                        style = RhTypography.body,
-                                    )
-                                }
-                                inner()
-                            }
-                        },
-                    )
-                }
-                LazyColumn(modifier = Modifier.heightIn(max = 420.dp).padding(top = RhSpacing.sm)) {
-                    items(visibleOptions) { option ->
-                        val isSelected = option == selected
-                        Row(
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(colors.overlayScrim)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss,
+                ),
+        )
+        RhBottomSheetSurface(modifier = Modifier.imePadding()) {
+            Text(text = title, color = colors.textPrimary, style = RhTypography.cardTitle)
+            if (options.size > APP_DETAIL_OPTION_SEARCH_THRESHOLD) {
+                BasicTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    singleLine = true,
+                    textStyle = RhTypography.body.copy(color = colors.textPrimary),
+                    cursorBrush = SolidColor(colors.brandPrimary),
+                    decorationBox = { inner ->
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clickable { onSelect(option) }
-                                .background(
-                                    if (isSelected) colors.surfaceSelected else colors.overlaySheet,
-                                    RoundedCornerShape(RhTheme.shapes.sm),
-                                )
-                                .padding(horizontal = RhSpacing.md, vertical = RhSpacing.md),
-                            verticalAlignment = Alignment.CenterVertically,
+                                .padding(top = RhSpacing.sm)
+                                .background(colors.surfaceSunken, RoundedCornerShape(RhTheme.shapes.sm))
+                                .padding(horizontal = RhSpacing.md, vertical = RhSpacing.sm),
                         ) {
-                            Text(
-                                text = option,
-                                color = if (isSelected) colors.brandPrimary else colors.textPrimary,
-                                style = RhTypography.body,
-                                modifier = Modifier.weight(1f),
-                            )
-                            if (isSelected) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = colors.brandPrimary,
+                            if (query.isEmpty()) {
+                                Text(
+                                    text = stringResource(Res.string.app_detail_option_picker_search_hint),
+                                    color = colors.textTertiary,
+                                    style = RhTypography.body,
                                 )
                             }
+                            inner()
                         }
-                    }
-                    if (visibleOptions.isEmpty()) {
-                        item {
-                            Text(
-                                text = stringResource(Res.string.app_detail_option_picker_empty),
-                                color = colors.textTertiary,
-                                style = RhTypography.caption,
-                                modifier = Modifier.padding(RhSpacing.lg),
+                    },
+                )
+            }
+            LazyColumn(modifier = Modifier.heightIn(max = 420.dp).padding(top = RhSpacing.sm)) {
+                items(visibleOptions) { option ->
+                    val isSelected = option == selected
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onSelect(option) }
+                            .background(
+                                if (isSelected) colors.surfaceSelected else colors.overlaySheet,
+                                RoundedCornerShape(RhTheme.shapes.sm),
+                            )
+                            .padding(horizontal = RhSpacing.md, vertical = RhSpacing.md),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = option,
+                            color = if (isSelected) colors.brandPrimary else colors.textPrimary,
+                            style = RhTypography.body,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (isSelected) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = colors.brandPrimary,
                             )
                         }
+                    }
+                }
+                if (visibleOptions.isEmpty()) {
+                    item {
+                        Text(
+                            text = stringResource(Res.string.app_detail_option_picker_empty),
+                            color = colors.textTertiary,
+                            style = RhTypography.caption,
+                            modifier = Modifier.padding(RhSpacing.lg),
+                        )
                     }
                 }
             }
