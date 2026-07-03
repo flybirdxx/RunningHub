@@ -13,6 +13,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
@@ -71,6 +72,7 @@ fun RhChip(
             color = if (highlighted) colors.brandPrimary else colors.textSecondary,
             style = RhTypography.caption,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         trailingIcon?.invoke()
     }

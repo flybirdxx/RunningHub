@@ -3,6 +3,7 @@ package com.runninghub.app.ui.designsystem
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.designsystem.components.chips.RhChipDefaults
 import com.runninghub.app.ui.designsystem.components.chips.RhChipStyle
+import com.runninghub.app.ui.designsystem.components.segmented.RhSegmentedControlDefaults
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -12,5 +13,10 @@ class RhCoreComponentsContractTest {
         assertEquals("neutral", RhChipStyle.Neutral.tokenName)
         assertEquals("brand", RhChipStyle.Brand.tokenName)
         assertEquals(32.dp, RhChipDefaults.height)
+    }
+
+    @Test
+    fun `segmented control keeps compact height`() {
+        assertEquals(32.dp, RhSegmentedControlDefaults.height)
     }
 }
