@@ -3,6 +3,7 @@ package com.runninghub.app.ui.designsystem
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.designsystem.components.chips.RhChipDefaults
 import com.runninghub.app.ui.designsystem.components.chips.RhChipStyle
+import com.runninghub.app.ui.designsystem.components.feedback.RhSnackbarSeverity
 import com.runninghub.app.ui.designsystem.components.navigation.RhTopBarDefaults
 import com.runninghub.app.ui.designsystem.components.segmented.RhSegmentedControlDefaults
 import kotlin.test.Test
@@ -24,5 +25,11 @@ class RhCoreComponentsContractTest {
     @Test
     fun `top bar keeps standard height`() {
         assertEquals(56.dp, RhTopBarDefaults.height)
+    }
+
+    @Test
+    fun `snackbar severities are semantic`() {
+        assertEquals("info", RhSnackbarSeverity.Info.tokenName)
+        assertEquals("error", RhSnackbarSeverity.Error.tokenName)
     }
 }
