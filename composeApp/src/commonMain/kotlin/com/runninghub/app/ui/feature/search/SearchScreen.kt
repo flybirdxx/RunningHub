@@ -1,6 +1,7 @@
 package com.runninghub.app.ui.feature.search
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -153,14 +154,16 @@ private fun SearchContent(
         val errorMessage = uiState.error?.let { catalogPresentationErrorMessage(it) }
 
         when {
-            // 搜索中且尚无结果时只展示加载态，避免旧结果与新请求状态混在一起。
-            uiState.isSearching && uiState.results.isEmpty() -> {
+            // 搜索中或防抖等待中且尚无结果时只展示加载态，
+            // 避免旧结果与新请求状态混在一起，也避免防抖窗口内误闪「无结果」空态。
+            (uiState.isSearching || (uiState.query.isNotBlank() && !uiState.hasSearched)) &&
+                uiState.results.isEmpty() -> {
                 CenteredStateBox {
                     RhLoadingState(title = stringResource(Res.string.search_loading))
                 }
             }
 
-            // 仅在没有可展示结果时显示错误整页；已有结果时保留列表并由状态区提示。
+            // 仅在没有可展示结果时显示错误整页；已有结果时保留列表，错误由网格尾部的错误行提示。
             errorMessage != null && uiState.results.isEmpty() -> {
                 CenteredStateBox {
                     RhErrorState(
@@ -179,8 +182,8 @@ private fun SearchContent(
                 )
             }
 
-            // 有关键词但没有结果时展示空态。
-            uiState.results.isEmpty() -> {
+            // 有关键词、已完成过一次搜索且没有结果时才展示空态，防抖等待中不落入此分支。
+            uiState.results.isEmpty() && uiState.hasSearched -> {
                 CenteredStateBox {
                     RhEmptyState(
                         title = stringResource(Res.string.search_empty_results_format, uiState.query),
@@ -223,8 +226,16 @@ private fun SearchResultsGrid(
 ) {
     val windowInfo = LocalRhWindowInfo.current
     val gridState = rememberLazyGridState()
+    val cards = uiState.resultCards
+    val loadMoreError = uiState.error
 
-    // 与发现页统一使用可见项判断触发分页，替换按 page 变化触发的 LaunchedEffect(page) 反模式：
+    // 关键词变化即代表一轮新搜索，结果列表会被整页替换，滚动位置需要回到顶部。
+    LaunchedEffect(uiState.query) {
+        gridState.scrollToItem(0)
+    }
+
+    // 使用可见项判断触发分页（发现页将在本批同步切换到同款可见项判断），
+    // 替换按 page 变化触发的 LaunchedEffect(page) 反模式：
     // 后者会在结果替换、旋转等场景下重复请求，且无法感知用户是否真的滚到了列表尾部。
     val shouldLoadMore by remember(gridState) {
         derivedStateOf {
@@ -235,7 +246,9 @@ private fun SearchResultsGrid(
         }
     }
 
-    LaunchedEffect(shouldLoadMore) {
+    // 同时以卡片数量作为 key：去重后一页净增不超过 3 条时 shouldLoadMore 不会翻转，
+    // 只监听 Boolean 会导致分页停摆；追加数量变化后需要重新评估是否继续加载。
+    LaunchedEffect(shouldLoadMore, cards.size) {
         if (shouldLoadMore && uiState.results.isNotEmpty()) onLoadMore()
     }
 
@@ -253,10 +266,10 @@ private fun SearchResultsGrid(
         modifier = modifier.fillMaxSize(),
     ) {
         items(
-            count = uiState.resultCards.size,
-            key = { index -> uiState.resultCards[index].id },
+            count = cards.size,
+            key = { index -> cards[index].id },
         ) { index ->
-            val card = uiState.resultCards[index]
+            val card = cards[index]
             DiscoveryAppCard(
                 card = card,
                 onClick = { onAppClick(card.id) },
@@ -273,6 +286,30 @@ private fun SearchResultsGrid(
                         modifier = Modifier.size(24.dp),
                         color = RhTheme.colors.brandPrimary,
                         strokeWidth = 2.dp,
+                    )
+                }
+            }
+        }
+
+        // 加载更多失败时不清空已有结果，在网格尾部提示错误并提供重试入口。
+        if (loadMoreError != null && uiState.results.isNotEmpty()) {
+            item(key = "search_load_more_error", span = { GridItemSpan(maxLineSpan) }) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(RhSpacing.lg),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = catalogPresentationErrorMessage(loadMoreError),
+                        style = RhTypography.caption,
+                        color = RhTheme.colors.statusFailed,
+                    )
+                    Spacer(Modifier.padding(start = RhSpacing.sm))
+                    Text(
+                        text = stringResource(Res.string.search_error_retry),
+                        style = RhTypography.caption,
+                        color = RhTheme.colors.brandPrimary,
+                        modifier = Modifier.clickable(onClick = onLoadMore),
                     )
                 }
             }
