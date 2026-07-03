@@ -1,0 +1,16 @@
+package com.runninghub.app.ui.designsystem
+
+import androidx.compose.ui.unit.dp
+import com.runninghub.app.ui.designsystem.components.chips.RhChipDefaults
+import com.runninghub.app.ui.designsystem.components.chips.RhChipStyle
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class RhCoreComponentsContractTest {
+    @Test
+    fun `chip styles are semantic`() {
+        assertEquals("neutral", RhChipStyle.Neutral.tokenName)
+        assertEquals("brand", RhChipStyle.Brand.tokenName)
+        assertEquals(32.dp, RhChipDefaults.height)
+    }
+}
