@@ -17,7 +17,7 @@ enum class RhSnackbarSeverity(val tokenName: String) {
 }
 
 /**
- * 轻量提示条，由调用方控制显隐与消失时机。
+ * 轻量提示条，由调用方控制显隐与消失时机。顶部横幅语义，非 Material Snackbar 的队列式瞬态提示。
  *
  * @param message 本地化后的提示文案，不得直接透出服务端原始 message。
  * @param severity 语义级别，决定配色。

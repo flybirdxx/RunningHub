@@ -6,7 +6,6 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
@@ -20,10 +19,8 @@ import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
@@ -44,7 +41,11 @@ import com.runninghub.app.ui.feature.quickcreate.presentation.history.QuickCreat
 import com.runninghub.app.ui.feature.quickcreate.presentation.modelselector.QuickCreateModelSheet
 import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateCreateProjectAction
 import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateProjectDetailDialog
-import com.runninghub.app.ui.theme.*
+import com.runninghub.app.ui.designsystem.components.feedback.RhSnackbar
+import com.runninghub.app.ui.designsystem.components.feedback.RhSnackbarSeverity
+import com.runninghub.app.ui.designsystem.components.navigation.RhTopBar
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.fields.quickCreationServiceFieldUiItems
 import com.runninghub.core.storage.Permission
@@ -234,7 +235,7 @@ private fun QuickCreateScreen(
                 availableContentHeightPx = coordinates.size.height.toFloat()
                 rootBottomWindowPx = coordinates.positionInWindow().y + coordinates.size.height
             }
-            .background(DarkBackground)
+            .background(RhTheme.colors.backgroundPrimary)
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -254,6 +255,7 @@ private fun QuickCreateScreen(
                     CreationScrollableArea(
                         uiState = uiState,
                         onResultAction = ::handleResultAction,
+                        onSampleClick = screenModel::restoreConversationPrompt,
                     )
                 }
 
@@ -333,18 +335,11 @@ private fun QuickCreateScreen(
                     .align(Alignment.TopCenter)
                     .padding(top = 8.dp),
             ) {
-                Surface(
-                    color = ErrorDark.copy(alpha = 0.95f),
-                    shape = RoundedCornerShape(Dimens.RadiusMD),
-                    modifier = Modifier.padding(horizontal = Dimens.SpaceLG),
-                ) {
-                    Text(
-                        errorText.orEmpty(),
-                        color = Color.White,
-                        modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = Dimens.SpaceSM),
-                        fontSize = 13.sp,
-                    )
-                }
+                RhSnackbar(
+                    message = errorText.orEmpty(),
+                    severity = RhSnackbarSeverity.Error,
+                    modifier = Modifier.padding(horizontal = RhSpacing.lg),
+                )
             }
         }
 
@@ -475,18 +470,9 @@ private fun QuickCreateTopBar(
     onBack: (() -> Unit)?,
     onCreateProject: (String) -> Unit,
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .background(DarkBackground),
-    ) {
-        // 左侧菜单、中间模式切换和右侧创建入口必须彼此覆盖定位，避免 `+` 显隐改变中间 tab 的测量中心。
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = 8.dp),
-        ) {
+    RhTopBar(
+        title = quickCreateNavigationText(QuickCreateNavigationLabel.CreationMode),
+        navigationIcon = {
             if (onBack != null) {
                 IconButton(onClick = onBack) {
                     Icon(
@@ -494,7 +480,7 @@ private fun QuickCreateTopBar(
                         contentDescription = stringResource(
                             Res.string.quick_create_top_bar_back_content_description,
                         ),
-                        tint = Color.White,
+                        tint = RhTheme.colors.textSecondary,
                     )
                 }
             } else {
@@ -504,34 +490,12 @@ private fun QuickCreateTopBar(
                         contentDescription = stringResource(
                             Res.string.quick_create_top_bar_menu_content_description,
                         ),
-                        tint = Color.White.copy(alpha = 0.9f),
+                        tint = RhTheme.colors.textSecondary,
                     )
                 }
             }
-        }
-        QuickCreateModeTitle(
-            modifier = Modifier.align(Alignment.Center),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 12.dp),
-        ) {
-            QuickCreateCreateProjectAction(onCreateProject = onCreateProject)
-        }
-    }
-}
-
-@Composable
-private fun QuickCreateModeTitle(
-    modifier: Modifier = Modifier,
-) {
-    Text(
-        text = quickCreateNavigationText(QuickCreateNavigationLabel.CreationMode),
-        color = Primary300,
-        fontWeight = FontWeight.Bold,
-        fontSize = 18.sp,
-        modifier = modifier.wrapContentWidth(),
+        },
+        actions = { QuickCreateCreateProjectAction(onCreateProject = onCreateProject) },
     )
 }
 
@@ -539,6 +503,7 @@ private fun QuickCreateModeTitle(
 private fun CreationScrollableArea(
     uiState: QuickCreateUiState,
     onResultAction: (QuickCreateResultAction, QuickCreateConversationItemUi) -> Unit,
+    onSampleClick: (String) -> Unit,
 ) {
     val hasConversation = uiState.conversationItems.isNotEmpty() ||
         uiState.submittedPrompt.isNotBlank() ||
@@ -551,7 +516,7 @@ private fun CreationScrollableArea(
             onResultAction = onResultAction,
         )
     } else {
-        Spacer(modifier = Modifier.fillMaxSize())
+        QuickCreateEmptyGuide(onSampleClick = onSampleClick)
     }
 }
 
@@ -564,7 +529,7 @@ private fun QuickCreatePreviewContent(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground),
+            .background(RhTheme.colors.backgroundPrimary),
     ) {
         Box(
             modifier = Modifier.fillMaxSize(),
@@ -584,6 +549,7 @@ private fun QuickCreatePreviewContent(
                     CreationScrollableArea(
                         uiState = uiState,
                         onResultAction = { _, _ -> },
+                        onSampleClick = {},
                     )
                 }
 
@@ -677,7 +643,7 @@ private fun QuickCreateBottomPanelAdaptivePreview(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(DarkBackground),
+                .background(RhTheme.colors.backgroundPrimary),
             contentAlignment = Alignment.BottomCenter,
         ) {
             QuickCreateEditorPanel(
