@@ -29,6 +29,7 @@ import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.runninghub.app.platform.PermissionController
+import com.runninghub.app.platform.SystemBackHandler
 import com.runninghub.app.platform.rememberPermissionController
 import com.runninghub.app.ui.component.PermissionBottomSheet
 import org.koin.compose.koinInject
@@ -168,6 +169,11 @@ internal fun DetailContent(
     val taskError = uiState.taskError?.let { appDetailErrorMessage(it) }
     // 长下拉字段的底部弹层选择目标；非空时弹出 AppDetailOptionPickerSheet。
     var pickerField by remember { mutableStateOf<AppDetailInputFieldUiModel?>(null) }
+
+    // 弹层打开时拦截系统返回，仅关闭选择弹层而不是 pop 整个详情页。
+    SystemBackHandler(enabled = pickerField != null) {
+        pickerField = null
+    }
 
     Box(
         modifier = Modifier
