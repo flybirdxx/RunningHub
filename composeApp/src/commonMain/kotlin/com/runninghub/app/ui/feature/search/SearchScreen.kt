@@ -1,11 +1,10 @@
 package com.runninghub.app.ui.feature.search
 
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -14,29 +13,18 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SuggestionChip
-import androidx.compose.material3.SuggestionChipDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -45,42 +33,47 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
 import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
-import com.runninghub.app.ui.component.AppCard
-import com.runninghub.app.ui.component.AppSearchBar
-import com.runninghub.app.ui.component.ErrorState
-import com.runninghub.app.ui.component.LoadingIndicator
+import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
 import com.runninghub.app.ui.adaptive.previewSearchUiState
+import com.runninghub.app.ui.designsystem.components.chips.RhChip
+import com.runninghub.app.ui.designsystem.components.inputs.RhSearchBar
+import com.runninghub.app.ui.designsystem.components.navigation.RhTopBar
+import com.runninghub.app.ui.designsystem.components.states.RhEmptyState
+import com.runninghub.app.ui.designsystem.components.states.RhErrorState
+import com.runninghub.app.ui.designsystem.components.states.RhLoadingState
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import com.runninghub.app.ui.feature.detail.AppDetailScreen
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.RunningHubThemeExt
-import com.runninghub.app.ui.theme.WindowSizeClass
-import com.runninghub.app.ui.theme.adaptiveGridColumns
-import com.runninghub.app.ui.theme.rememberWindowSizeClass
+import com.runninghub.app.ui.feature.discovery.DiscoveryAppCard
 import com.runninghub.core.model.Tag
 import com.runninghub.feature.discovery.presentation.CatalogPresentationError
 import com.runninghub.feature.discovery.presentation.SearchUiState
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import runninghub.composeapp.generated.resources.Res
-import runninghub.composeapp.generated.resources.search_back_content_description
-import runninghub.composeapp.generated.resources.search_bar_placeholder
-import runninghub.composeapp.generated.resources.search_empty_results_format
-import runninghub.composeapp.generated.resources.search_end_of_results
+import runninghub.composeapp.generated.resources.app_search_bar_clear_content_description
+import runninghub.composeapp.generated.resources.app_search_bar_search_content_description
 import runninghub.composeapp.generated.resources.discovery_error_empty_response
 import runninghub.composeapp.generated.resources.discovery_error_load_failed
 import runninghub.composeapp.generated.resources.discovery_error_search_failed
 import runninghub.composeapp.generated.resources.discovery_error_service_unavailable
+import runninghub.composeapp.generated.resources.search_back_content_description
+import runninghub.composeapp.generated.resources.search_bar_placeholder
+import runninghub.composeapp.generated.resources.search_empty_results_format
+import runninghub.composeapp.generated.resources.search_end_of_results
+import runninghub.composeapp.generated.resources.search_error_retry
 import runninghub.composeapp.generated.resources.search_hot_content_description
 import runninghub.composeapp.generated.resources.search_hot_tags_title
+import runninghub.composeapp.generated.resources.search_loading
 import runninghub.composeapp.generated.resources.search_screen_title
 
 /**
@@ -103,7 +96,6 @@ class SearchVoyagerScreen : Screen {
             uiState = uiState,
             onQueryChange = screenModel::onQueryChange,
             onSearch = screenModel::search,
-            onClearSearch = screenModel::clearSearch,
             onTagClick = screenModel::searchByTag,
             onAppClick = { appId -> navigator.push(AppDetailScreen(appId)) },
             onBack = { navigator.pop() },
@@ -112,24 +104,131 @@ class SearchVoyagerScreen : Screen {
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 搜索页内容。顶栏、搜索框与状态区全部使用封板设计系统组件，
+ * 颜色只从 [RhTheme.colors] 读取，避免旧 Material 暗色 scheme 残留。
+ */
 @Composable
 private fun SearchContent(
     uiState: SearchUiState,
     modifier: Modifier = Modifier,
     onQueryChange: (String) -> Unit = {},
     onSearch: (String) -> Unit = {},
-    onClearSearch: () -> Unit = {},
     onTagClick: (Tag) -> Unit = {},
     onAppClick: (String) -> Unit = {},
     onBack: () -> Unit = {},
     onLoadMore: () -> Unit = {},
 ) {
-    val listState = rememberLazyListState()
+    val colors = RhTheme.colors
 
-    val shouldLoadMore by remember {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(colors.backgroundGradientBrush),
+    ) {
+        RhTopBar(
+            title = stringResource(Res.string.search_screen_title),
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(Res.string.search_back_content_description),
+                        tint = colors.textPrimary,
+                    )
+                }
+            },
+        )
+
+        RhSearchBar(
+            query = uiState.query,
+            onQueryChange = onQueryChange,
+            onSearch = onSearch,
+            placeholder = stringResource(Res.string.search_bar_placeholder),
+            searchIconContentDescription = stringResource(Res.string.app_search_bar_search_content_description),
+            clearContentDescription = stringResource(Res.string.app_search_bar_clear_content_description),
+            modifier = Modifier.padding(horizontal = RhSpacing.lg, vertical = RhSpacing.sm),
+        )
+
+        // Presentation 只输出稳定错误语义，应用壳在靠近 UI 的位置映射本地化文案。
+        val errorMessage = uiState.error?.let { catalogPresentationErrorMessage(it) }
+
+        when {
+            // 搜索中且尚无结果时只展示加载态，避免旧结果与新请求状态混在一起。
+            uiState.isSearching && uiState.results.isEmpty() -> {
+                CenteredStateBox {
+                    RhLoadingState(title = stringResource(Res.string.search_loading))
+                }
+            }
+
+            // 仅在没有可展示结果时显示错误整页；已有结果时保留列表并由状态区提示。
+            errorMessage != null && uiState.results.isEmpty() -> {
+                CenteredStateBox {
+                    RhErrorState(
+                        title = errorMessage,
+                        actionLabel = stringResource(Res.string.search_error_retry),
+                        onAction = { onSearch(uiState.query) },
+                    )
+                }
+            }
+
+            // 没有输入关键词时回到热词入口，保留已加载热词供用户继续探索。
+            uiState.query.isBlank() -> {
+                HotTagsSection(
+                    tags = uiState.hotTags,
+                    onTagClick = onTagClick,
+                )
+            }
+
+            // 有关键词但没有结果时展示空态。
+            uiState.results.isEmpty() -> {
+                CenteredStateBox {
+                    RhEmptyState(
+                        title = stringResource(Res.string.search_empty_results_format, uiState.query),
+                    )
+                }
+            }
+
+            else -> {
+                SearchResultsGrid(
+                    uiState = uiState,
+                    onAppClick = onAppClick,
+                    onLoadMore = onLoadMore,
+                )
+            }
+        }
+    }
+}
+
+/** 整页状态（加载、错误、空态）的居中容器。 */
+@Composable
+private fun CenteredStateBox(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+/**
+ * 搜索结果自适应网格。卡片语义复用发现页的 [DiscoveryAppCard]，
+ * 列宽跟随窗口信息中的 feed 列宽，保证与发现页一致的双列密度。
+ */
+@Composable
+private fun SearchResultsGrid(
+    uiState: SearchUiState,
+    modifier: Modifier = Modifier,
+    onAppClick: (String) -> Unit = {},
+    onLoadMore: () -> Unit = {},
+) {
+    val windowInfo = LocalRhWindowInfo.current
+    val gridState = rememberLazyGridState()
+
+    // 与发现页统一使用可见项判断触发分页，替换按 page 变化触发的 LaunchedEffect(page) 反模式：
+    // 后者会在结果替换、旋转等场景下重复请求，且无法感知用户是否真的滚到了列表尾部。
+    val shouldLoadMore by remember(gridState) {
         derivedStateOf {
-            val info = listState.layoutInfo
+            val info = gridState.layoutInfo
             val total = info.totalItemsCount
             val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
             total > 0 && lastVisible >= total - 3
@@ -140,200 +239,54 @@ private fun SearchContent(
         if (shouldLoadMore && uiState.results.isNotEmpty()) onLoadMore()
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(stringResource(Res.string.search_screen_title)) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(Res.string.search_back_content_description),
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surface,
-                ),
+    LazyVerticalGrid(
+        state = gridState,
+        columns = GridCells.Adaptive(minSize = windowInfo.feedGridMinCardWidth),
+        contentPadding = PaddingValues(
+            start = RhSpacing.lg,
+            end = RhSpacing.lg,
+            top = RhSpacing.sm,
+            bottom = RhSpacing.xl,
+        ),
+        horizontalArrangement = Arrangement.spacedBy(RhSpacing.md),
+        verticalArrangement = Arrangement.spacedBy(RhSpacing.md),
+        modifier = modifier.fillMaxSize(),
+    ) {
+        items(
+            count = uiState.resultCards.size,
+            key = { index -> uiState.resultCards[index].id },
+        ) { index ->
+            val card = uiState.resultCards[index]
+            DiscoveryAppCard(
+                card = card,
+                onClick = { onAppClick(card.id) },
             )
-        },
-        containerColor = MaterialTheme.colorScheme.background,
-        modifier = modifier,
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize(),
-        ) {
-            // Search bar
-            AppSearchBar(
-                query = uiState.query,
-                onQueryChange = onQueryChange,
-                onSearch = onSearch,
-                placeholder = stringResource(Res.string.search_bar_placeholder),
-                modifier = Modifier.padding(
-                    horizontal = Dimens.SpaceLG,
-                    vertical = Dimens.SpaceSM,
-                ),
-            )
+        }
 
-            // Presentation 只输出稳定错误语义，应用壳在靠近 UI 的位置映射本地化文案。
-            val errorMessage = uiState.error?.let { catalogPresentationErrorMessage(it) }
-
-            when {
-                // 搜索中且尚无结果时只展示加载态，避免旧结果与新请求状态混在一起。
-                uiState.isSearching && uiState.results.isEmpty() -> {
-                    LoadingIndicator()
-                }
-
-                // 仅在没有可展示结果时显示错误整页；已有结果时保留列表并由状态区提示。
-                errorMessage != null && uiState.results.isEmpty() -> {
-                    ErrorState(
-                        message = errorMessage,
-                        onRetry = { onSearch(uiState.query) },
+        if (uiState.isSearching && uiState.results.isNotEmpty()) {
+            item(key = "search_loading_more", span = { GridItemSpan(maxLineSpan) }) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(RhSpacing.lg),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = RhTheme.colors.brandPrimary,
+                        strokeWidth = 2.dp,
                     )
                 }
+            }
+        }
 
-                // 没有输入关键词时回到热词入口，保留已加载热词供用户继续探索。
-                uiState.query.isBlank() -> {
-                    HotTagsSection(
-                        tags = uiState.hotTags,
-                        onTagClick = onTagClick,
-                    )
-                }
-
-                // Empty results
-                uiState.results.isEmpty() -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Text(
-                            text = stringResource(
-                                Res.string.search_empty_results_format,
-                                uiState.query,
-                            ),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                    }
-                }
-
-                // Results list
-                else -> {
-                    val sizeClass = rememberWindowSizeClass()
-                    if (sizeClass >= WindowSizeClass.Medium) {
-                        // Medium+: grid layout
-                        val columns = adaptiveGridColumns(sizeClass)
-                        LazyVerticalGrid(
-                            columns = GridCells.Fixed(columns),
-                            contentPadding = PaddingValues(
-                                horizontal = Dimens.SpaceLG,
-                                vertical = Dimens.SpaceSM,
-                            ),
-                            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
-                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            items(uiState.results, key = { it.id }) { app ->
-                                AppCard(
-                                    title = app.title,
-                                    imageUrl = app.coverUrl ?: app.thumbnailUrl,
-                                    authorName = app.author?.name,
-                                    authorAvatar = app.author?.avatar,
-                                    likeCount = app.likeCount,
-                                    useCount = app.useCount,
-                                    onClick = { onAppClick(app.id) },
-                                )
-                            }
-
-                            if (uiState.isSearching && uiState.results.isNotEmpty()) {
-                                item(key = "search_loading_more", span = { GridItemSpan(maxLineSpan) }) {
-                                    Box(
-                                        modifier = Modifier.fillMaxWidth().padding(Dimens.SpaceLG),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(Dimens.IconSizeMD),
-                                            color = MaterialTheme.colorScheme.primary,
-                                            strokeWidth = 2.dp,
-                                        )
-                                    }
-                                }
-                            }
-
-                            if (!uiState.hasMore && uiState.results.isNotEmpty()) {
-                                item(key = "search_end", span = { GridItemSpan(maxLineSpan) }) {
-                                    Text(
-                                        text = stringResource(Res.string.search_end_of_results),
-                                        modifier = Modifier.fillMaxWidth().padding(Dimens.SpaceLG),
-                                        textAlign = TextAlign.Center,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        // Compact: list layout (unchanged)
-                        LazyColumn(
-                            state = listState,
-                            contentPadding = PaddingValues(
-                                horizontal = Dimens.SpaceLG,
-                                vertical = Dimens.SpaceSM,
-                            ),
-                            verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            items(
-                                items = uiState.results,
-                                key = { it.id },
-                            ) { app ->
-                                AppCard(
-                                    title = app.title,
-                                    imageUrl = app.coverUrl ?: app.thumbnailUrl,
-                                    authorName = app.author?.name,
-                                    authorAvatar = app.author?.avatar,
-                                    likeCount = app.likeCount,
-                                    useCount = app.useCount,
-                                    onClick = { onAppClick(app.id) },
-                                )
-                            }
-
-                            if (uiState.isSearching && uiState.results.isNotEmpty()) {
-                                item(key = "search_loading_more") {
-                                    Box(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(Dimens.SpaceLG),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        CircularProgressIndicator(
-                                            modifier = Modifier.size(Dimens.IconSizeMD),
-                                            color = MaterialTheme.colorScheme.primary,
-                                            strokeWidth = 2.dp,
-                                        )
-                                    }
-                                }
-                            }
-
-                            if (!uiState.hasMore && uiState.results.isNotEmpty()) {
-                                item(key = "search_end") {
-                                    Text(
-                                        text = stringResource(Res.string.search_end_of_results),
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(Dimens.SpaceLG),
-                                        textAlign = TextAlign.Center,
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+        if (!uiState.hasMore && uiState.results.isNotEmpty()) {
+            item(key = "search_end", span = { GridItemSpan(maxLineSpan) }) {
+                Text(
+                    text = stringResource(Res.string.search_end_of_results),
+                    modifier = Modifier.fillMaxWidth().padding(RhSpacing.lg),
+                    textAlign = TextAlign.Center,
+                    style = RhTypography.caption,
+                    color = RhTheme.colors.textTertiary,
+                )
             }
         }
     }
@@ -350,7 +303,7 @@ private fun catalogPresentationErrorMessage(error: CatalogPresentationError): St
         CatalogPresentationError.EmptyResponse -> stringResource(Res.string.discovery_error_empty_response)
     }
 
-@OptIn(ExperimentalLayoutApi::class)
+/** 热门标签区。标签横向滚动排列，避免使用实验性流式布局 API。 */
 @Composable
 private fun HotTagsSection(
     tags: List<Tag>,
@@ -359,52 +312,37 @@ private fun HotTagsSection(
 ) {
     if (tags.isEmpty()) return
 
-    val extColors = RunningHubThemeExt.colors
-
     Column(
         modifier = modifier.padding(
-            horizontal = Dimens.SpaceLG,
-            vertical = Dimens.SpaceMD,
+            horizontal = RhSpacing.lg,
+            vertical = RhSpacing.md,
         ),
     ) {
-        // Section header
-        androidx.compose.foundation.layout.Row(
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(
                 imageVector = Icons.Default.LocalFireDepartment,
                 contentDescription = stringResource(Res.string.search_hot_content_description),
-                tint = extColors.hotBadge,
-                modifier = Modifier.size(Dimens.IconSizeMD),
+                tint = RhTheme.colors.statusWarning,
+                modifier = Modifier.size(20.dp),
             )
-            Spacer(Modifier.padding(start = Dimens.SpaceXS))
+            Spacer(Modifier.padding(start = RhSpacing.xs))
             Text(
                 text = stringResource(Res.string.search_hot_tags_title),
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = RhTypography.sectionTitle,
+                color = RhTheme.colors.textPrimary,
             )
         }
 
-        Spacer(Modifier.height(Dimens.SpaceMD))
+        Spacer(Modifier.height(RhSpacing.md))
 
         Row(
             modifier = Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
         ) {
             tags.forEach { tag ->
-                SuggestionChip(
+                RhChip(
+                    label = tag.name,
                     onClick = { onTagClick(tag) },
-                    label = {
-                        Text(
-                            text = tag.name,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    },
-                    shape = RoundedCornerShape(Dimens.RadiusFull),
-                    colors = SuggestionChipDefaults.suggestionChipColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        labelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    ),
                 )
             }
         }
@@ -414,16 +352,7 @@ private fun HotTagsSection(
 @Composable
 private fun SearchAdaptivePreview(spec: RhPreviewSpec) {
     RhAdaptivePreview(spec = spec) {
-        SearchContent(
-            uiState = previewSearchUiState(),
-            onQueryChange = {},
-            onSearch = {},
-            onClearSearch = {},
-            onTagClick = {},
-            onAppClick = {},
-            onBack = {},
-            onLoadMore = {},
-        )
+        SearchContent(uiState = previewSearchUiState())
     }
 }
 

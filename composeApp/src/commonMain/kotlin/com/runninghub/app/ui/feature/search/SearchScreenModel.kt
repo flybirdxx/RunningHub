@@ -51,13 +51,6 @@ class SearchScreenModel(
     fun search(query: String) = stateHolder.search(query)
 
     /**
-     * 清空搜索输入和结果。
-     *
-     * 清空时保留已经加载的热门标签，因为热门标签是页面公共入口，不应因用户退出搜索而重新请求。
-     */
-    fun clearSearch() = stateHolder.clearSearch()
-
-    /**
      * 通过热门标签发起搜索。
      *
      * 标签名由目录标签树返回，直接作为关键词进入搜索流程，便于复用分页和错误处理逻辑。

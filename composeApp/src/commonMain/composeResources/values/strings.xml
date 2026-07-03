@@ -300,6 +300,8 @@
     <string name="search_end_of_results">没有更多了</string>
     <string name="search_hot_content_description">热门</string>
     <string name="search_hot_tags_title">热门标签</string>
+    <string name="search_loading">正在搜索…</string>
+    <string name="search_error_retry">重试</string>
     <string name="quick_create_params_sheet_title">更多参数</string>
     <string name="quick_create_params_close_content_description">关闭</string>
     <string name="quick_create_params_local_models_title">本地兼容模型</string>
