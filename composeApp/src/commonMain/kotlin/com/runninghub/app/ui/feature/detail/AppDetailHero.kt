@@ -139,7 +139,10 @@ internal fun AppDetailHero(
             )
 
             if (detail.tags.isNotEmpty()) {
-                RhWrapRow(spacing = RhSpacing.sm) {
+                RhWrapRow(
+                    spacing = RhSpacing.sm,
+                    horizontalAlignment = Alignment.Start
+                ) {
                     detail.tags.take(6).forEach { tag ->
                         RhChip(label = tag.name, onClick = {})
                     }

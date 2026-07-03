@@ -1,25 +1,29 @@
 package com.runninghub.app.ui.designsystem.components.layout
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.Placeable
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.LayoutDirection
 
 /**
- * 通用换行布局：子项超出可用宽度时自动换到下一行，行内水平居中，仅依赖稳定 Layout API。
+ * 通用换行布局：子项超出可用宽度时自动换到下一行，行内水平对齐可配置，仅依赖稳定 Layout API。
  *
  * 用于替代实验性 FlowRow，规避编译期与运行期 compose-foundation
  * 版本偏差导致的 NoSuchMethodError。
  *
  * @param spacing 子项之间与行之间的统一间距。
  * @param modifier 外部布局修饰符。
+ * @param horizontalAlignment 行内子项的水平对齐方式，默认居中；RTL 镜像由 placeRelative 统一处理。
  * @param content 需要换行排布的子项内容。
  */
 @Composable
 fun RhWrapRow(
     spacing: Dp,
     modifier: Modifier = Modifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.CenterHorizontally,
     content: @Composable () -> Unit,
 ) {
     Layout(content = content, modifier = modifier) { measurables, constraints ->
@@ -53,7 +57,9 @@ fun RhWrapRow(
         layout(width, height) {
             var y = 0
             rows.forEachIndexed { index, items ->
-                var x = ((width - rowWidths[index]) / 2).coerceAtLeast(0)
+                val free = (width - rowWidths[index]).coerceAtLeast(0)
+                // placeRelative 已负责 RTL 镜像，这里固定用 Ltr 计算逻辑偏移，避免二次镜像。
+                var x = horizontalAlignment.align(0, free, LayoutDirection.Ltr)
                 items.forEach { placeable ->
                     placeable.placeRelative(x, y + (rowHeights[index] - placeable.height) / 2)
                     x += placeable.width + spacingPx
