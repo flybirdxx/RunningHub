@@ -140,6 +140,13 @@ internal fun DiscoveryContent(
 
         val pullRefreshState = rememberPullToRefreshState()
         val gridState = rememberLazyGridState()
+        val cards = uiState.appCards
+
+        // 切换分类或排序后回到列表顶部，避免滚动位置残留在列表中部，
+        // 甚至因残留位置靠近底部而未滚动就误触发下一页加载。
+        LaunchedEffect(uiState.selectedCategoryIndex, uiState.selectedSort) {
+            gridState.scrollToItem(0)
+        }
 
         // 基于可见项判断加载更多，替换旧的 LaunchedEffect(currentPage) 反模式，
         // 避免页码更新即刻链式触发下一页请求。
@@ -148,11 +155,13 @@ internal fun DiscoveryContent(
                 val info = gridState.layoutInfo
                 val total = info.totalItemsCount
                 val lastVisible = info.visibleItemsInfo.lastOrNull()?.index ?: 0
+                // 阈值 -4 比搜索页的 -3 多一行：发现页网格包含 banner 与分类
+                // 两个满行 header，预取窗口相应放大一行才能提前等量触发。
                 total > 0 && lastVisible >= total - 4
             }
         }
         // 双 key：列表增长后即使 shouldLoadMore 保持 true 也能再次触发下一页。
-        LaunchedEffect(shouldLoadMore, uiState.appCards.size) {
+        LaunchedEffect(shouldLoadMore, cards.size) {
             if (shouldLoadMore && uiState.apps.isNotEmpty()) onLoadMore()
         }
 
@@ -221,12 +230,12 @@ internal fun DiscoveryContent(
                     }
                 } else {
                     items(
-                        count = uiState.appCards.size,
-                        key = { idx -> uiState.appCards[idx].id },
+                        count = cards.size,
+                        key = { idx -> cards[idx].id },
                     ) { idx ->
                         DiscoveryAppCard(
-                            card = uiState.appCards[idx],
-                            onClick = { onAppClick(uiState.appCards[idx].id) },
+                            card = cards[idx],
+                            onClick = { onAppClick(cards[idx].id) },
                         )
                     }
 
