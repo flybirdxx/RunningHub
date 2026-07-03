@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -39,12 +38,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.runninghub.app.ui.component.SmartAsyncImage
-import com.runninghub.app.ui.theme.DarkBackground
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Primary300
-import com.runninghub.app.ui.theme.Primary500
+import com.runninghub.app.ui.designsystem.components.chips.RhChip
+import com.runninghub.app.ui.designsystem.components.layout.RhWrapRow
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.core.model.AppDetail
 import com.runninghub.core.model.Author
 import org.jetbrains.compose.resources.stringResource
@@ -59,8 +56,9 @@ import runninghub.composeapp.generated.resources.app_detail_stat_use_count
 /**
  * App 详情页“关于本应用”英雄区。
  *
- * 从 AppDetailScreen.kt 拆分而来（纯搬移，无行为变化），承载封面轮播、
- * 标签、统计卡、作者行与简介入口等展示型 Composable。
+ * 从 AppDetailScreen.kt 拆分而来，承载封面轮播、标签、统计卡、作者行与简介入口等
+ * 展示型 Composable；颜色统一读取 RhTheme 语义 token，标签墙由 RhWrapRow + RhChip 承载。
+ * 压在封面图片上的黑色渐变与白色前景属于内容叠加语义，保留原值。
  */
 
 @Composable
@@ -70,6 +68,7 @@ internal fun AppDetailHero(
     onAuthorClick: () -> Unit,
     showBackButton: Boolean = true,
 ) {
+    val colors = RhTheme.colors
     val covers = detail.covers.mapNotNull { it.url }
 
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -84,7 +83,7 @@ internal fun AppDetailHero(
                     modifier = Modifier
                         .fillMaxWidth()
                         .aspectRatio(16f / 10f)
-                        .background(DarkSurfaceVariant)
+                        .background(colors.surfaceElevated)
                 )
             }
 
@@ -97,7 +96,7 @@ internal fun AppDetailHero(
                             colors = listOf(
                                 Color.Black.copy(alpha = 0.52f),
                                 Color.Transparent,
-                                DarkBackground.copy(alpha = 0.92f)
+                                colors.backgroundPrimary.copy(alpha = 0.92f)
                             )
                         )
                     )
@@ -131,7 +130,7 @@ internal fun AppDetailHero(
         ) {
             Text(
                 text = detail.name ?: stringResource(Res.string.app_detail_default_app_name),
-                color = Color.White,
+                color = colors.textPrimary,
                 fontSize = 24.sp,
                 lineHeight = 30.sp,
                 fontWeight = FontWeight.Bold,
@@ -140,29 +139,9 @@ internal fun AppDetailHero(
             )
 
             if (detail.tags.isNotEmpty()) {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    detail.tags.take(6).chunked(3).forEach { rowTags ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            rowTags.forEach { tag ->
-                                Box(
-                                    modifier = Modifier
-                                        .weight(1f, fill = false)
-                                        .widthIn(max = 128.dp)
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .background(Primary500.copy(alpha = 0.18f))
-                                        .padding(horizontal = 10.dp, vertical = 5.dp)
-                                ) {
-                                    Text(
-                                        text = tag.name,
-                                        color = Primary300,
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Medium,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis
-                                    )
-                                }
-                            }
-                        }
+                RhWrapRow(spacing = RhSpacing.sm) {
+                    detail.tags.take(6).forEach { tag ->
+                        RhChip(label = tag.name, onClick = {})
                     }
                 }
             }
@@ -269,7 +248,7 @@ private fun StatsCard(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(DarkSurface)
+            .background(RhTheme.colors.surfaceDefault)
             .padding(vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceEvenly
     ) {
@@ -287,14 +266,14 @@ private fun StatItem(value: String, label: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(
             text = value,
-            color = Color.White,
+            color = RhTheme.colors.textPrimary,
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold
         )
         Spacer(Modifier.height(2.dp))
         Text(
             text = label,
-            color = Neutral400,
+            color = RhTheme.colors.textSecondary,
             fontSize = 11.sp
         )
     }
@@ -306,7 +285,7 @@ private fun StatDivider() {
         modifier = Modifier
             .width(1.dp)
             .height(28.dp)
-            .background(DarkSurfaceVariant)
+            .background(RhTheme.colors.surfaceElevated)
     )
 }
 
@@ -322,12 +301,13 @@ private fun AuthorRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val colors = RhTheme.colors
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurface)
+            .background(colors.surfaceDefault)
             .then(if (owner?.id != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
@@ -342,7 +322,7 @@ private fun AuthorRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = name,
-                color = Color.White,
+                color = colors.textPrimary,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
@@ -350,7 +330,7 @@ private fun AuthorRow(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = stringResource(Res.string.app_detail_fans_count_format, owner.fansCount),
-                    color = Neutral400,
+                    color = colors.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -358,7 +338,7 @@ private fun AuthorRow(
         Icon(
             imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
             contentDescription = null,
-            tint = Neutral400,
+            tint = colors.textSecondary,
             modifier = Modifier.size(18.dp)
         )
     }

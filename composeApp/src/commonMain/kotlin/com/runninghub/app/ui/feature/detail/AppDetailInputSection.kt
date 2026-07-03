@@ -1,10 +1,13 @@
 package com.runninghub.app.ui.feature.detail
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
@@ -20,9 +23,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.ImageUploadButton
 import com.runninghub.app.ui.component.MediaType
+import com.runninghub.app.ui.designsystem.components.segmented.RhSegmentedControl
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
-import com.runninghub.app.ui.theme.Neutral400
 import com.runninghub.feature.detail.presentation.AppDetailInputControl
 import com.runninghub.feature.detail.presentation.AppDetailInputFieldUiModel
 import com.runninghub.feature.detail.presentation.AppDetailMediaType
@@ -38,8 +41,9 @@ import runninghub.composeapp.generated.resources.app_detail_text_placeholder
 /**
  * App 详情页参数输入区。
  *
- * 从 AppDetailScreen.kt 拆分而来（纯搬移，无行为变化），承载输入行渲染入口、
- * 多图上传行、按控件类型分发的 InputNodeField 与必填星标。
+ * 从 AppDetailScreen.kt 拆分而来，承载输入行渲染入口、多图上传行、
+ * 按控件类型分发的 InputNodeField 与必填星标；行内不再自带水平缩进，
+ * 统一由参数区容器控制，避免高级分组卡内出现双重缩进。
  */
 
 @Composable
@@ -48,7 +52,8 @@ internal fun RenderInputNodeField(
     uiState: AppDetailUiState,
     onInputChanged: (String, String, String) -> Unit,
     onPickMedia: (String, String, AppDetailMediaType) -> Unit,
-    onRemoveFile: (String, String) -> Unit
+    onRemoveFile: (String, String) -> Unit,
+    onOpenPicker: (AppDetailInputFieldUiModel) -> Unit
 ) {
     InputNodeField(
         field = field,
@@ -59,7 +64,8 @@ internal fun RenderInputNodeField(
             val mediaType = (field.control as? AppDetailInputControl.MediaUpload)?.mediaType ?: AppDetailMediaType.IMAGE
             onPickMedia(field.nodeId, field.fieldName, mediaType)
         },
-        onRemoveFile = { onRemoveFile(field.nodeId, field.fieldName) }
+        onRemoveFile = { onRemoveFile(field.nodeId, field.fieldName) },
+        onOpenPicker = { onOpenPicker(field) }
     )
 }
 
@@ -73,7 +79,7 @@ internal fun MultiImageUploadRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(vertical = 8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -81,9 +87,10 @@ internal fun MultiImageUploadRow(
         ) {
             Text(
                 text = stringResource(Res.string.app_detail_multi_image_upload_title),
-                color = Neutral400,
+                color = RhTheme.colors.textSecondary,
                 fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f, fill = false)
             )
             RequiredFieldStar()
         }
@@ -132,7 +139,8 @@ private fun InputNodeField(
     uploadState: AppDetailUploadingState?,
     onValueChanged: (String) -> Unit,
     onPickFile: () -> Unit,
-    onRemoveFile: () -> Unit
+    onRemoveFile: () -> Unit,
+    onOpenPicker: () -> Unit
 ) {
     val isUploading = uploadState != null && !uploadState.isError
     val uploadProgress = uploadState?.progress ?: 0f
@@ -141,17 +149,27 @@ private fun InputNodeField(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(vertical = 8.dp)
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.padding(bottom = 6.dp)
         ) {
+            if (field.isModified) {
+                Box(
+                    modifier = Modifier
+                        .padding(end = 6.dp)
+                        .width(2.dp)
+                        .height(12.dp)
+                        .background(RhTheme.colors.brandPrimary)
+                )
+            }
             Text(
                 text = field.title,
-                color = Neutral400,
+                color = RhTheme.colors.textSecondary,
                 fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
+                fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f, fill = false)
             )
             if (field.control is AppDetailInputControl.MediaUpload) {
                 RequiredFieldStar()
@@ -163,7 +181,12 @@ private fun InputNodeField(
                 ListDropdown(
                     options = control.options,
                     currentValue = field.currentValue,
-                    onValueChanged = onValueChanged
+                    onValueChanged = onValueChanged,
+                    onOpenPicker = if (control.options.size > APP_DETAIL_INLINE_DROPDOWN_MAX_OPTIONS) {
+                        onOpenPicker
+                    } else {
+                        null
+                    }
                 )
             }
             is AppDetailInputControl.MediaUpload -> {
@@ -186,10 +209,10 @@ private fun InputNodeField(
                 )
             }
             is AppDetailInputControl.Segmented -> {
-                SegmentedSelector(
+                RhSegmentedControl(
                     options = control.options,
-                    currentValue = field.currentValue,
-                    onValueChanged = onValueChanged
+                    selectedIndex = control.options.indexOf(field.currentValue),
+                    onSelect = { index -> onValueChanged(control.options[index]) }
                 )
             }
             AppDetailInputControl.IntegerText -> {

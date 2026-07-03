@@ -22,7 +22,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -30,11 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.CollapsibleSection
 import com.runninghub.app.ui.component.SmartAsyncImage
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Primary300
-import com.runninghub.app.ui.theme.SuccessDark
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.core.model.AppDetail
 import com.runninghub.feature.detail.presentation.AppDetailCreationEntryUiModel
 import com.runninghub.feature.detail.presentation.AppDetailInputNodeValuePreview
@@ -55,8 +50,8 @@ import runninghub.composeapp.generated.resources.app_detail_default_app_name
 /**
  * App 详情页创作入口卡片。
  *
- * 从 AppDetailScreen.kt 拆分而来（纯搬移，无行为变化），承载创作入口卡片
- * 及其内部的紧凑封面、消耗信息行和输入预览行。
+ * 从 AppDetailScreen.kt 拆分而来，承载创作入口卡片及其内部的紧凑封面、
+ * 消耗信息行和输入预览行；颜色统一读取 RhTheme 语义 token。
  */
 
 @Composable
@@ -66,12 +61,13 @@ internal fun AppDetailCreationEntry(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val colors = RhTheme.colors
     Column(
         modifier = modifier
             .fillMaxWidth()
             .statusBarsPadding()
             .clip(RoundedCornerShape(18.dp))
-            .background(DarkSurface)
+            .background(colors.surfaceDefault)
             .padding(14.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -85,12 +81,12 @@ internal fun AppDetailCreationEntry(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(DarkSurfaceVariant),
+                    .background(colors.surfaceElevated),
             ) {
                 Icon(
                     Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = stringResource(Res.string.app_detail_back_content_description),
-                    tint = Color.White,
+                    tint = colors.textPrimary,
                 )
             }
             CompactDetailCover(detail = detail)
@@ -100,7 +96,7 @@ internal fun AppDetailCreationEntry(
             ) {
                 Text(
                     text = entry.title.ifBlank { stringResource(Res.string.app_detail_default_app_name) },
-                    color = Color.White,
+                    color = colors.textPrimary,
                     fontSize = 20.sp,
                     lineHeight = 24.sp,
                     fontWeight = FontWeight.Bold,
@@ -109,14 +105,14 @@ internal fun AppDetailCreationEntry(
                 )
                 Text(
                     text = stringResource(Res.string.app_detail_creation_description_title),
-                    color = Primary300,
+                    color = colors.brandPrimary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
                 entry.description?.let { description ->
                     Text(
                         text = description,
-                        color = Neutral400,
+                        color = colors.textSecondary,
                         fontSize = 13.sp,
                         lineHeight = 18.sp,
                         maxLines = 3,
@@ -135,7 +131,7 @@ internal fun AppDetailCreationEntry(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     text = stringResource(Res.string.app_detail_creation_inputs_title),
-                    color = Color.White,
+                    color = colors.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -155,7 +151,7 @@ internal fun AppDetailCreationEntry(
             if (entry.technicalDetails.isEmpty()) {
                 Text(
                     text = stringResource(Res.string.app_detail_creation_technical_empty),
-                    color = Neutral400,
+                    color = colors.textSecondary,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 )
@@ -171,7 +167,7 @@ internal fun AppDetailCreationEntry(
                                 detailItem.key,
                                 detailItem.value,
                             ),
-                            color = Neutral400,
+                            color = colors.textSecondary,
                             fontSize = 12.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -190,7 +186,7 @@ private fun CompactDetailCover(detail: AppDetail) {
         modifier = Modifier
             .size(86.dp)
             .clip(RoundedCornerShape(14.dp))
-            .background(DarkSurfaceVariant),
+            .background(RhTheme.colors.surfaceElevated),
         contentAlignment = Alignment.Center,
     ) {
         if (!coverUrl.isNullOrBlank()) {
@@ -204,7 +200,7 @@ private fun CompactDetailCover(detail: AppDetail) {
             Icon(
                 Icons.Default.PlayArrow,
                 contentDescription = null,
-                tint = Primary300,
+                tint = RhTheme.colors.brandPrimary,
                 modifier = Modifier.size(28.dp),
             )
         }
@@ -213,23 +209,24 @@ private fun CompactDetailCover(detail: AppDetail) {
 
 @Composable
 private fun CreationInfoRow(title: String, value: String) {
+    val colors = RhTheme.colors
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurfaceVariant)
+            .background(colors.surfaceElevated)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
-            color = Neutral400,
+            color = colors.textSecondary,
             fontSize = 13.sp,
         )
         Text(
             text = value,
-            color = Color.White,
+            color = colors.textPrimary,
             fontSize = 13.sp,
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
@@ -240,6 +237,7 @@ private fun CreationInfoRow(title: String, value: String) {
 
 @Composable
 private fun CreationInputRow(title: String, valuePreview: AppDetailInputNodeValuePreview) {
+    val colors = RhTheme.colors
     val previewText = when (valuePreview) {
         AppDetailInputNodeValuePreview.MediaProvided ->
             stringResource(Res.string.app_detail_creation_input_media_provided)
@@ -248,21 +246,21 @@ private fun CreationInputRow(title: String, valuePreview: AppDetailInputNodeValu
         is AppDetailInputNodeValuePreview.Text -> valuePreview.value
     }
     val previewColor = when (valuePreview) {
-        AppDetailInputNodeValuePreview.Missing -> Primary300
-        else -> SuccessDark
+        AppDetailInputNodeValuePreview.Missing -> colors.brandPrimary
+        else -> colors.statusSuccess
     }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(DarkSurfaceVariant.copy(alpha = 0.74f))
+            .background(colors.surfaceElevated.copy(alpha = 0.74f))
             .padding(horizontal = 12.dp, vertical = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = title,
-            color = Color.White,
+            color = colors.textPrimary,
             fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

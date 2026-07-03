@@ -23,11 +23,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.ErrorDark
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.core.model.TaskOutput
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
@@ -37,20 +33,21 @@ import runninghub.composeapp.generated.resources.app_detail_video_file
  * App 详情页任务结果展示卡片。
  *
  * 从 AppDetailScreen.kt 拆分而来，只承载任务失败提示卡和任务输出卡两个纯 Compose 叶子；
- * 任务状态与错误文案仍由 DetailContent 计算后传入。
+ * 任务状态与错误文案仍由 DetailContent 计算后传入，颜色统一读取 RhTheme 语义 token。
  */
 @Composable
 internal fun TaskErrorCard(error: String, modifier: Modifier = Modifier) {
+    val colors = RhTheme.colors
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(ErrorDark.copy(alpha = 0.12f))
+            .background(colors.statusFailed.copy(alpha = 0.12f))
             .padding(14.dp)
     ) {
         Text(
             text = error,
-            color = ErrorDark,
+            color = colors.statusFailed,
             fontSize = 13.sp,
             lineHeight = 18.sp
         )
@@ -59,6 +56,7 @@ internal fun TaskErrorCard(error: String, modifier: Modifier = Modifier) {
 
 @Composable
 internal fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
+    val colors = RhTheme.colors
     val url = output.fileUrl.orEmpty()
     val isImage = output.fileType?.startsWith("image") == true ||
         url.endsWith(".png") || url.endsWith(".jpg") ||
@@ -70,7 +68,7 @@ internal fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurface)
+            .background(colors.surfaceDefault)
     ) {
         if (isImage && url.isNotBlank()) {
             SmartAsyncImage(
@@ -90,19 +88,19 @@ internal fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
-                    .background(DarkSurfaceVariant)
+                    .background(colors.surfaceElevated)
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(
                         Icons.Default.PlayArrow,
                         contentDescription = null,
-                        tint = Primary300,
+                        tint = colors.brandPrimary,
                         modifier = Modifier.size(48.dp)
                     )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         text = stringResource(Res.string.app_detail_video_file),
-                        color = Neutral400,
+                        color = colors.textSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -112,7 +110,7 @@ internal fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
 
         Text(
             text = output.fileName ?: url.substringAfterLast("/"),
-            color = Neutral400,
+            color = colors.textSecondary,
             fontSize = 12.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

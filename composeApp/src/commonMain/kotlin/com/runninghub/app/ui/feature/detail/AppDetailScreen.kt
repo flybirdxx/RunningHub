@@ -3,6 +3,7 @@ package com.runninghub.app.ui.feature.detail
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
@@ -10,8 +11,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -23,11 +22,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.koin.koinScreenModel
@@ -37,17 +32,17 @@ import com.runninghub.app.platform.PermissionController
 import com.runninghub.app.platform.rememberPermissionController
 import com.runninghub.app.ui.component.PermissionBottomSheet
 import org.koin.compose.koinInject
-import com.runninghub.app.ui.component.CollapsibleSection
 import com.runninghub.app.ui.component.ErrorState
 import com.runninghub.app.ui.component.LoadingIndicator
 import com.runninghub.app.ui.component.TaskProgressIndicator
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreen
-import com.runninghub.app.ui.theme.DarkBackground
-import com.runninghub.core.model.InputNode
-import com.runninghub.core.model.StatisticsInfo
 import com.runninghub.core.storage.Permission
 import com.runninghub.core.storage.PermissionStateStore
+import com.runninghub.feature.detail.presentation.AppDetailInputControl
+import com.runninghub.feature.detail.presentation.AppDetailInputFieldUiModel
 import com.runninghub.feature.detail.presentation.AppDetailInputRowUiModel
 import com.runninghub.feature.detail.presentation.AppDetailMediaType
 import com.runninghub.feature.detail.presentation.AppDetailTaskStep
@@ -60,6 +55,10 @@ import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_detail_output_section_title
 import runninghub.composeapp.generated.resources.app_detail_parameter_count_format
 import runninghub.composeapp.generated.resources.app_detail_parameters_section_title
+
+/**
+ * App 详情页的 Voyager 入口与主内容装配，负责把 Presentation 状态映射为详情页的渲染结构。
+ */
 
 /* ═══════════════════════════════════════════════════
    Screen entry point
@@ -123,7 +122,7 @@ data class AppDetailScreen(val appId: String) : Screen {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(DarkBackground)
+                .background(RhTheme.colors.backgroundPrimary)
         ) {
             val detailError = uiState.error
             when {
@@ -167,11 +166,13 @@ internal fun DetailContent(
     val detail = uiState.detail ?: return
     val windowInfo = LocalRhWindowInfo.current
     val taskError = uiState.taskError?.let { appDetailErrorMessage(it) }
+    // 长下拉字段的底部弹层选择目标；非空时弹出 AppDetailOptionPickerSheet。
+    var pickerField by remember { mutableStateOf<AppDetailInputFieldUiModel?>(null) }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkBackground),
+            .background(RhTheme.colors.backgroundPrimary),
         contentAlignment = Alignment.TopCenter,
     ) {
         Box(
@@ -240,57 +241,62 @@ internal fun DetailContent(
                 // 参数区紧跟创作入口，保证用户在详情首屏即可看到需要补齐的输入。
                 if (detail.inputNodes.isNotEmpty()) {
                     item(key = "input_header") {
-                        SectionHeader(
-                            stringResource(Res.string.app_detail_parameters_section_title),
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier.padding(top = 16.dp),
-                        )
-                    }
-                    item(key = "input_section") {
-                        CollapsibleSection(
-                            title = stringResource(
-                                Res.string.app_detail_parameter_count_format,
-                                detail.inputNodes.size,
-                            ),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                            initiallyExpanded = detail.inputNodes.size <= 5
                         ) {
-                            val paramsLayout = appDetailParamsLayout(uiState.inputRows())
-                            AppDetailParamsSection(
-                                layout = paramsLayout,
-                                renderRow = { row ->
-                                    when (row) {
-                                        is AppDetailInputRowUiModel.ImageUploadGroup -> MultiImageUploadRow(
-                                            fields = row.fields,
-                                            uiState = uiState,
-                                            onPickMedia = onPickMedia,
-                                            onRemoveFile = onRemoveFile
-                                        )
-                                        is AppDetailInputRowUiModel.Single -> RenderInputNodeField(
-                                            field = row.field,
-                                            uiState = uiState,
-                                            onInputChanged = onInputChanged,
-                                            onPickMedia = onPickMedia,
-                                            onRemoveFile = onRemoveFile
-                                        )
-                                    }
-                                },
-                                onResetGroup = { group ->
-                                    group.rows.forEach { row ->
-                                        when (row) {
-                                            is AppDetailInputRowUiModel.Single -> onInputChanged(
-                                                row.field.nodeId,
-                                                row.field.fieldName,
-                                                row.field.defaultValue,
-                                            )
-                                            is AppDetailInputRowUiModel.ImageUploadGroup ->
-                                                row.fields.forEach { field ->
-                                                    onInputChanged(field.nodeId, field.fieldName, field.defaultValue)
-                                                }
-                                        }
-                                    }
-                                },
+                            SectionHeader(stringResource(Res.string.app_detail_parameters_section_title))
+                            Text(
+                                text = stringResource(
+                                    Res.string.app_detail_parameter_count_format,
+                                    detail.inputNodes.size,
+                                ),
+                                color = RhTheme.colors.textTertiary,
+                                style = RhTypography.caption,
                             )
                         }
+                    }
+                    item(key = "input_section") {
+                        val paramsLayout = remember(uiState.detail, uiState.inputValues) {
+                            appDetailParamsLayout(uiState.inputRows())
+                        }
+                        AppDetailParamsSection(
+                            layout = paramsLayout,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            renderRow = { row ->
+                                when (row) {
+                                    is AppDetailInputRowUiModel.ImageUploadGroup -> MultiImageUploadRow(
+                                        fields = row.fields,
+                                        uiState = uiState,
+                                        onPickMedia = onPickMedia,
+                                        onRemoveFile = onRemoveFile
+                                    )
+                                    is AppDetailInputRowUiModel.Single -> RenderInputNodeField(
+                                        field = row.field,
+                                        uiState = uiState,
+                                        onInputChanged = onInputChanged,
+                                        onPickMedia = onPickMedia,
+                                        onRemoveFile = onRemoveFile,
+                                        onOpenPicker = { field -> pickerField = field }
+                                    )
+                                }
+                            },
+                            onResetGroup = { group ->
+                                group.rows.forEach { row ->
+                                    when (row) {
+                                        is AppDetailInputRowUiModel.Single -> onInputChanged(
+                                            row.field.nodeId,
+                                            row.field.fieldName,
+                                            row.field.defaultValue,
+                                        )
+                                        is AppDetailInputRowUiModel.ImageUploadGroup ->
+                                            row.fields.forEach { field ->
+                                                onInputChanged(field.nodeId, field.fieldName, field.defaultValue)
+                                            }
+                                    }
+                                }
+                            },
+                        )
                     }
                 }
 
@@ -313,6 +319,20 @@ internal fun DetailContent(
                 modifier = Modifier.align(Alignment.BottomCenter)
             )
         }
+
+        // 长下拉字段的底部弹层选择器；选择后走既有 onInputChanged 并关闭。
+        pickerField?.let { field ->
+            AppDetailOptionPickerSheet(
+                title = field.title,
+                options = (field.control as? AppDetailInputControl.Dropdown)?.options.orEmpty(),
+                selected = field.currentValue,
+                onSelect = { option ->
+                    onInputChanged(field.nodeId, field.fieldName, option)
+                    pickerField = null
+                },
+                onDismiss = { pickerField = null },
+            )
+        }
     }
 }
 
@@ -324,9 +344,8 @@ internal fun DetailContent(
 private fun SectionHeader(title: String, modifier: Modifier = Modifier) {
     Text(
         text = title,
-        color = Color.White,
-        fontSize = 16.sp,
-        fontWeight = FontWeight.SemiBold,
+        color = RhTheme.colors.textPrimary,
+        style = RhTypography.cardTitle,
         modifier = modifier.padding(horizontal = 16.dp, vertical = 12.dp)
     )
 }

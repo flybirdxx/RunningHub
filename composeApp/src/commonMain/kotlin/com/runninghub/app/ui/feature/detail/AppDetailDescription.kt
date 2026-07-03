@@ -33,8 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.Neutral400
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_detail_description_title
@@ -44,8 +43,8 @@ import runninghub.composeapp.generated.resources.collapsible_section_expand_cont
 /**
  * App 详情页简介区。
  *
- * 从 AppDetailScreen.kt 拆分而来（纯搬移，无行为变化），承载简介 Composable
- * 与折叠展示策略（数据类、枚举、纯函数和阈值常量）。
+ * 从 AppDetailScreen.kt 拆分而来，承载简介 Composable 与折叠展示策略
+ * （数据类、枚举、纯函数和阈值常量）；颜色统一读取 RhTheme 语义 token。
  */
 
 @Composable
@@ -53,6 +52,7 @@ internal fun DescriptionSection(
     description: String,
     modifier: Modifier = Modifier
 ) {
+    val colors = RhTheme.colors
     val presentation = remember(description) { appDetailDescriptionPresentation(description) }
     var expanded by remember(presentation.cleanedDescription) { mutableStateOf(false) }
     val collapsed = presentation.isCollapsible && !expanded
@@ -66,7 +66,7 @@ internal fun DescriptionSection(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
-            .background(DarkSurface)
+            .background(colors.surfaceDefault)
             .animateContentSize()
     ) {
         Column(
@@ -81,14 +81,14 @@ internal fun DescriptionSection(
         ) {
             Text(
                 text = stringResource(Res.string.app_detail_description_title),
-                color = Color.White,
+                color = colors.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
             Spacer(Modifier.height(8.dp))
             Text(
                 text = presentation.cleanedDescription,
-                color = Neutral400,
+                color = colors.textSecondary,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 maxLines = if (collapsed) presentation.collapsedMaxLines else Int.MAX_VALUE,
@@ -109,8 +109,8 @@ internal fun DescriptionSection(
                         Brush.verticalGradient(
                             colors = listOf(
                                 Color.Transparent,
-                                DarkSurface.copy(alpha = 0.62f),
-                                DarkSurface
+                                colors.surfaceDefault.copy(alpha = 0.62f),
+                                colors.surfaceDefault
                             )
                         )
                     )
@@ -136,7 +136,7 @@ internal fun DescriptionSection(
                     } else {
                         stringResource(Res.string.collapsible_section_expand_content_description)
                     },
-                    tint = Neutral400,
+                    tint = colors.textSecondary,
                     modifier = Modifier
                         .size(presentation.toggleIconSize)
                         .rotate(rotationAngle)

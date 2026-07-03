@@ -1,10 +1,7 @@
 package com.runninghub.app.ui.feature.detail
 
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,19 +24,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Primary300
-import com.runninghub.app.ui.theme.Primary500
-import com.runninghub.app.ui.theme.SuccessDark
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_detail_list_placeholder
@@ -49,9 +37,12 @@ import runninghub.composeapp.generated.resources.app_detail_switch_on
 /**
  * App 详情页输入控件的叶子组件集合。
  *
- * 从 AppDetailScreen.kt 拆分而来，只承载暗色主题的表单控件（文本框、下拉、开关、分段选择器）
- * 和文本行数计算，均为无业务状态的纯 Compose 叶子。InputNodeField 仍在主屏幕文件中按控件类型分发。
+ * 承载暗色主题的表单控件（文本框、下拉、开关）和文本行数计算，均为无业务状态的纯 Compose 叶子，
+ * 颜色统一读取 RhTheme 语义 token；按控件类型分发的 InputNodeField 位于 AppDetailInputSection.kt。
  */
+
+/** 下拉字段保持内联展开的最大候选项数；超过该值时改由底部弹层选择器承载。 */
+internal const val APP_DETAIL_INLINE_DROPDOWN_MAX_OPTIONS = 6
 
 /**
  * App 详情页文本输入框的可见行数限制。
@@ -95,11 +86,12 @@ internal fun DarkTextField(
     maxLines: Int = minLines,
     keyboardType: KeyboardType = KeyboardType.Text
 ) {
+    val colors = RhTheme.colors
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         placeholder = {
-            Text(text = placeholder, color = Neutral400.copy(alpha = 0.5f), fontSize = 14.sp)
+            Text(text = placeholder, color = colors.textSecondary.copy(alpha = 0.5f), fontSize = 14.sp)
         },
         singleLine = singleLine,
         minLines = minLines,
@@ -107,13 +99,13 @@ internal fun DarkTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         shape = RoundedCornerShape(10.dp),
         colors = OutlinedTextFieldDefaults.colors(
-            focusedTextColor = Color.White,
-            unfocusedTextColor = Color.White,
-            cursorColor = Primary300,
-            focusedBorderColor = Primary300,
-            unfocusedBorderColor = DarkSurfaceVariant,
-            focusedContainerColor = DarkSurfaceVariant,
-            unfocusedContainerColor = DarkSurfaceVariant
+            focusedTextColor = colors.textPrimary,
+            unfocusedTextColor = colors.textPrimary,
+            cursorColor = colors.brandPrimary,
+            focusedBorderColor = colors.brandPrimary,
+            unfocusedBorderColor = colors.surfaceElevated,
+            focusedContainerColor = colors.surfaceElevated,
+            unfocusedContainerColor = colors.surfaceElevated
         ),
         modifier = Modifier.fillMaxWidth()
     )
@@ -123,12 +115,20 @@ private const val APP_DETAIL_SINGLE_LINE_TEXT_LINES = 1
 private const val APP_DETAIL_MULTILINE_TEXT_MIN_LINES = 4
 private const val APP_DETAIL_MULTILINE_TEXT_MAX_LINES = 6
 
+/**
+ * 下拉字段的只读文本框入口。
+ *
+ * @param onOpenPicker 非空时点击不再内联展开，而是交由调用方弹出底部选择器；
+ * 用于候选项超过 [APP_DETAIL_INLINE_DROPDOWN_MAX_OPTIONS] 的长列表场景。
+ */
 @Composable
 internal fun ListDropdown(
     options: List<String>,
     currentValue: String,
-    onValueChanged: (String) -> Unit
+    onValueChanged: (String) -> Unit,
+    onOpenPicker: (() -> Unit)? = null
 ) {
+    val colors = RhTheme.colors
     var expanded by remember { mutableStateOf(false) }
 
     Box {
@@ -139,27 +139,27 @@ internal fun ListDropdown(
             placeholder = {
                 Text(
                     stringResource(Res.string.app_detail_list_placeholder),
-                    color = Neutral400.copy(alpha = 0.5f),
+                    color = colors.textSecondary.copy(alpha = 0.5f),
                     fontSize = 14.sp,
                 )
             },
             trailingIcon = {
                 Text(
                     text = if (expanded) "▲" else "▼",
-                    color = Neutral400,
+                    color = colors.textSecondary,
                     fontSize = 12.sp,
                 )
             },
             shape = RoundedCornerShape(10.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = Color.White,
-                unfocusedTextColor = Color.White,
-                focusedBorderColor = Primary300,
-                unfocusedBorderColor = DarkSurfaceVariant,
-                focusedContainerColor = DarkSurfaceVariant,
-                unfocusedContainerColor = DarkSurfaceVariant,
-                focusedTrailingIconColor = Neutral400,
-                unfocusedTrailingIconColor = Neutral400
+                focusedTextColor = colors.textPrimary,
+                unfocusedTextColor = colors.textPrimary,
+                focusedBorderColor = colors.brandPrimary,
+                unfocusedBorderColor = colors.surfaceElevated,
+                focusedContainerColor = colors.surfaceElevated,
+                unfocusedContainerColor = colors.surfaceElevated,
+                focusedTrailingIconColor = colors.textSecondary,
+                unfocusedTrailingIconColor = colors.textSecondary
             ),
             modifier = Modifier.fillMaxWidth()
         )
@@ -167,19 +167,25 @@ internal fun ListDropdown(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(56.dp)
-                .clickable { expanded = true }
+                .clickable {
+                    if (onOpenPicker != null) {
+                        onOpenPicker()
+                    } else {
+                        expanded = true
+                    }
+                }
         )
         DropdownMenu(
             expanded = expanded,
             onDismissRequest = { expanded = false },
-            containerColor = DarkSurface
+            containerColor = colors.surfaceDefault
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
                     text = {
                         Text(
                             text = option,
-                            color = if (option == currentValue) Primary300 else Color.White,
+                            color = if (option == currentValue) colors.brandPrimary else colors.textPrimary,
                             fontSize = 14.sp
                         )
                     },
@@ -198,13 +204,14 @@ internal fun BooleanSwitch(
     currentValue: String,
     onValueChanged: (String) -> Unit
 ) {
+    val colors = RhTheme.colors
     val checked = currentValue.equals("true", ignoreCase = true)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
-            .background(DarkSurfaceVariant)
+            .background(colors.surfaceElevated)
             .padding(horizontal = 14.dp, vertical = 10.dp)
     ) {
         Text(
@@ -215,7 +222,7 @@ internal fun BooleanSwitch(
                     Res.string.app_detail_switch_off
                 },
             ),
-            color = if (checked) SuccessDark else Neutral400,
+            color = if (checked) colors.statusSuccess else colors.textSecondary,
             fontSize = 14.sp,
             modifier = Modifier.weight(1f)
         )
@@ -223,55 +230,12 @@ internal fun BooleanSwitch(
             checked = checked,
             onCheckedChange = { onValueChanged(it.toString()) },
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Primary500,
-                uncheckedThumbColor = Neutral400,
-                uncheckedTrackColor = DarkSurface,
-                uncheckedBorderColor = DarkSurfaceVariant
+                checkedThumbColor = colors.textInverse,
+                checkedTrackColor = colors.brandPrimary,
+                uncheckedThumbColor = colors.textSecondary,
+                uncheckedTrackColor = colors.surfaceDefault,
+                uncheckedBorderColor = colors.surfaceElevated
             )
         )
-    }
-}
-
-@Composable
-internal fun SegmentedSelector(
-    options: List<String>,
-    currentValue: String,
-    onValueChanged: (String) -> Unit
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(DarkSurfaceVariant)
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(0.dp)
-    ) {
-        options.forEach { option ->
-            val selected = option == currentValue
-            val bgColor by animateColorAsState(
-                targetValue = if (selected) Primary500 else Color.Transparent,
-                animationSpec = tween(200)
-            )
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .weight(1f)
-                    .height(38.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(bgColor)
-                    .clickable { onValueChanged(option) }
-            ) {
-                Text(
-                    text = option,
-                    color = if (selected) Color.White else Neutral400,
-                    fontSize = 13.sp,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
     }
 }
