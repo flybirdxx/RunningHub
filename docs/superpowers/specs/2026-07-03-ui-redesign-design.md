@@ -72,3 +72,24 @@
 - QuickCreate 页面状态所有权在 `feature:quickcreate:presentation`,样板间批只改 UI 渲染层,不动 StateHolder/Coordinator。
 - 大文件拆分与视觉改造同批完成,避免同一文件动两次。
 - 工作区现存 `feature/kmp-refactoring` 分支上的构建脚本改动为用户既有工作,本方案实施不回滚、不覆盖。
+
+## 8. 批 0 封板记录(2026-07-03)
+
+- **范围**:commits `05afd50..49f8a88`(12 个),每任务均通过规范审查 + 质量审查双 gate,批次整体通过交叉终审。
+- **验证证据**:`:composeApp:testDebugUnitTest --rerun`、`checkArchitectureBoundaries`、`:composeApp:assembleDebug` 全绿;真机(5d692d82)安装启动无崩溃,`logcat -b crash` 为空;空态截图 `batch0-empty-v2.png` 经用户验收通过(空态引导、面板内模式切换、橄榄 CTA、底栏、锁暗状态栏均符合定案 mockup)。**未验证**:iOS 编译/真机(Windows 环境无 macOS 证据);生成对话流真机截图(需登录跑真实任务,顺延至批 1 验收一并看)。
+- **封板结论**:`RhColors`(暗色现值)/`RhTypography`/`RhSpacing`/`RhShapes` + `RhChip`/`RhSegmentedControl`/`RhTopBar`/`RhSnackbar`/`AppBottomBar` 为全局规范;后续批次照此迁移,token 值调整须经变更评审。
+- **Token 取值标准写法(裁定)**:`colors`/`shapes` 必须经 `RhTheme.colors`/`RhTheme.shapes` 读取(CompositionLocal 承载);`spacing`/`typography` 为静态刻度,直接引用 `RhSpacing`/`RhTypography` 与经 `RhTheme.spacing`/`RhTheme.typography` 等价,两者均合规,组件内部惯例为直接引用。
+- **强制规约**:composeApp 禁止使用实验性 Compose 布局 API(`FlowRow`/`FlowColumn` 等 `@ExperimentalLayoutApi`)——compose-multiplatform 1.7.3 与 androidx compose-bom 2024.12.01 混用导致实验签名编译期/运行期漂移,批 0 已发生启动 `NoSuchMethodError`(修复:`b4bec61`)。需要换行布局参照 `QuickCreateEmptyGuide.kt` 的稳定 `Layout` 实现。
+
+### 批 0 遗留债务(收尾批/对应批次处理)
+
+1. 删除 `RhLightColors` + 死代码 `ProvideRhTheme`(designsystem/RhTheme.kt,当前 0 调用方,收尾批删 RhLightColors 时会连锁编译失败,须一并删)。
+2. 拆除旧 `ui/theme` 双轨(`ExtendedColors`、`Dimens`、`Primary300/Neutral*/Dark*/ErrorDark/SuccessDark` 等);quickcreate 内 7 个文件仍引用旧符号(ClassicComposer、HistoryContent、ResultContent、UploadFieldContent、ProjectContent、MediaChipCard、AdaptivePromptTextField),随批 1-4 迁移消化。
+3. `LocalExtendedColors` 默认值当前为浅色,锁暗后未包 theme 的预览/测试会拿到新暗+旧浅混合视觉;随双轨拆除消失。
+4. `RhSnackbar` 语义为顶部横幅,批 1 复用前评估改名(如 RhBanner)。
+5. 评估把 `QuickCreateSampleWrapRow` 提升为 designsystem 公共换行布局组件。
+6. `CompactControlPill` 选中态"橄榄底 + 紫边"与 RhChip 选中语义(橄榄底 + borderActive 边)不一致,统一之。
+7. `RhSegmentedControl` 选中字重切换存在宽度抖动(CJK 标签不可感知,拉丁标签需固定测量宽或统一字重)。
+8. a11y:RhChip/RhSegmentedControl 缺 `Role`/selected 语义;RhTopBar 无动作时的空 `IconButton` 假按钮。
+9. `MainScreen.kt` 残留一处 `MaterialTheme.colorScheme.primaryContainer`。
+10. 批 0 延后组件:`RhPromptField`/`RhListItem`/`RhDialog`(首个使用方批次新建)。
