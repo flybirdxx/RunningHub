@@ -44,6 +44,7 @@ object RhSearchBarDefaults {
  * @param onSearch 用户通过键盘搜索动作提交时触发，参数为当前关键词；可能收到空关键词，由调用方兜底。
  * @param searchIconContentDescription 搜索图标无障碍描述，调用方负责本地化。
  * @param clearContentDescription 清空按钮无障碍描述，调用方负责本地化；为 null 时清空按钮无无障碍标签。
+ * 清空按钮固定 28dp，小于 48dp 的触摸目标是输入框内清空按钮的业界惯例，用于避免撑破 44dp 高度契约。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,9 +64,7 @@ fun RhSearchBar(
         unfocusedContainerColor = colors.surfaceSunken,
         focusedBorderColor = colors.borderActive,
         unfocusedBorderColor = colors.borderDefault,
-        cursorColor = colors.brandPrimary,
-        focusedTextColor = colors.textPrimary,
-        unfocusedTextColor = colors.textPrimary,
+        // 光标色由 BasicTextField 的 cursorBrush 承担，文字色由 textStyle 承担，此处不再配置。
     )
     BasicTextField(
         value = query,
@@ -98,7 +97,10 @@ fun RhSearchBar(
                 },
                 trailingIcon = if (query.isNotEmpty()) {
                     {
-                        IconButton(onClick = { onQueryChange("") }) {
+                        IconButton(
+                            onClick = { onQueryChange("") },
+                            modifier = Modifier.size(28.dp),
+                        ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
                                 contentDescription = clearContentDescription,
