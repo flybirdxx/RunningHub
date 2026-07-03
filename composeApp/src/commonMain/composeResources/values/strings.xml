@@ -511,6 +511,7 @@
     <string name="task_history_notice_icon">i</string>
     <string name="task_history_notice_cloud_output">云端输出链接可能存在有效期，请及时保存到本地。</string>
     <string name="task_history_chevron">›</string>
+    <string name="task_history_loading">加载中</string>
     <string name="task_history_empty_history">暂无生成历史</string>
     <string name="task_history_empty_filter">当前筛选下没有任务</string>
     <string name="task_history_output_detail_title">输出详情</string>

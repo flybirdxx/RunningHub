@@ -25,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -37,7 +36,6 @@ import com.runninghub.app.ui.designsystem.components.chips.RhChip
 import com.runninghub.app.ui.designsystem.components.navigation.RhTopBar
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
-import com.runninghub.app.ui.theme.BrandLime
 import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import com.runninghub.feature.task.presentation.TaskHistoryEntry
 import com.runninghub.feature.task.presentation.TaskHistoryFilter
@@ -111,7 +109,7 @@ internal fun NoticeBar() {
             .fillMaxWidth()
             .height(44.dp)
             .clip(RoundedCornerShape(7.dp))
-            .background(RhSurface)
+            .background(RhTheme.colors.backgroundSecondary)
             .padding(horizontal = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -120,25 +118,25 @@ internal fun NoticeBar() {
             modifier = Modifier
                 .size(18.dp)
                 .clip(CircleShape)
-                .border(1.dp, RhMuted, CircleShape),
+                .border(1.dp, RhTheme.colors.textSecondary, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 stringResource(Res.string.task_history_notice_icon),
-                color = RhMuted,
+                color = RhTheme.colors.textSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
             )
         }
         Text(
             text = stringResource(Res.string.task_history_notice_cloud_output),
-            color = RhMuted,
+            color = RhTheme.colors.textSecondary,
             style = MaterialTheme.typography.labelMedium,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Text(stringResource(Res.string.task_history_chevron), color = RhMuted, style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.task_history_chevron), color = RhTheme.colors.textSecondary, style = MaterialTheme.typography.titleMedium)
     }
 }
 
@@ -153,14 +151,14 @@ internal fun HistoryActionPanel(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
-            .background(RhSurface)
+            .background(RhTheme.colors.backgroundSecondary)
             .padding(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         message?.let {
             Text(
                 text = it,
-                color = BrandLime,
+                color = RhTheme.colors.brandPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -171,21 +169,21 @@ internal fun HistoryActionPanel(
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = stringResource(Res.string.task_history_output_detail_title),
-                    color = RhText,
+                    color = RhTheme.colors.textPrimary,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                 )
                 Text(
                     text = listOfNotNull(output.type.uppercase(), output.sizeLabel(), output.expireLabelText()).joinToString(" / "),
-                    color = RhMuted,
+                    color = RhTheme.colors.textSecondary,
                     style = MaterialTheme.typography.labelMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = output.url,
-                    color = RhMuted,
+                    color = RhTheme.colors.textSecondary,
                     style = MaterialTheme.typography.labelSmall,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -195,7 +193,7 @@ internal fun HistoryActionPanel(
         if (hasPreparedParams && message == null) {
             Text(
                 text = stringResource(Res.string.task_history_reusable_params_title),
-                color = RhText,
+                color = RhTheme.colors.textPrimary,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
@@ -212,9 +210,9 @@ internal fun DateGroupHeader(total: Int) {
             .height(34.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(stringResource(Res.string.task_history_group_all), color = RhText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.task_history_group_all), color = RhTheme.colors.textPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
-        Text(stringResource(Res.string.task_history_total_count_format, total), color = RhMuted, style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(Res.string.task_history_total_count_format, total), color = RhTheme.colors.textSecondary, style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -253,15 +251,16 @@ private fun TaskThumbnail(
     item: TaskHistoryEntry,
     modifier: Modifier = Modifier.size(84.dp),
 ) {
-    val color = when {
-        item.status.isCompletedStatus() -> Color(0xFF2F3F2C)
-        item.status.equals("failed", ignoreCase = true) -> Color(0xFF3F2020)
-        else -> Color(0xFF1D2A35)
+    val colors = RhTheme.colors
+    val (containerColor, contentColor) = when {
+        item.status.isCompletedStatus() -> colors.brandMuted to colors.textPrimary
+        item.status.equals("failed", ignoreCase = true) -> colors.surfaceSunken to colors.statusFailed
+        else -> colors.surfaceSunken to colors.statusProcessing
     }
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(6.dp))
-            .background(color),
+            .background(containerColor),
         contentAlignment = Alignment.Center,
     ) {
         val imageUrl = item.thumbnailUrl?.takeIf { it.isNotBlank() }
@@ -275,7 +274,7 @@ private fun TaskThumbnail(
         } else {
             Text(
                 item.title.take(1),
-                color = RhText,
+                color = contentColor,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold,
             )

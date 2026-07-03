@@ -1,52 +1,36 @@
 package com.runninghub.app.ui.feature.history
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.runninghub.app.ui.theme.BrandLime
-import com.runninghub.app.ui.theme.RhAppBackground
-import com.runninghub.app.ui.theme.RhAppCard
-import com.runninghub.app.ui.theme.RhAppLine
-import com.runninghub.app.ui.theme.RhAppMuted
-import com.runninghub.app.ui.theme.RhAppSelected
-import com.runninghub.app.ui.theme.RhAppSurface
-import com.runninghub.app.ui.theme.RhAppText
-import com.runninghub.app.ui.theme.StatusError
+import com.runninghub.app.ui.designsystem.components.states.RhEmptyState
+import com.runninghub.app.ui.designsystem.components.states.RhErrorState
+import com.runninghub.app.ui.designsystem.components.states.RhLoadingState
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.task_history_action_retry
-
-internal val RhBackground = RhAppBackground
-internal val RhSurface = RhAppSurface
-internal val RhCard = RhAppCard
-internal val RhSelected = RhAppSelected
-internal val RhLine = RhAppLine
-internal val RhText = RhAppText
-internal val RhMuted = RhAppMuted
+import runninghub.composeapp.generated.resources.task_history_loading
 
 @Composable
 internal fun SourceBadge(source: String) {
-    val color = if (source.contains("api", ignoreCase = true) || source.contains("model", ignoreCase = true)) Color(0xFF53D66A) else Color(0xFF60A5FA)
+    val colors = RhTheme.colors
+    val color = if (source.contains("api", ignoreCase = true) || source.contains("model", ignoreCase = true)) {
+        colors.statusSuccess
+    } else {
+        colors.statusProcessing
+    }
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(4.dp))
@@ -58,59 +42,25 @@ internal fun SourceBadge(source: String) {
 }
 
 @Composable
-internal fun TaskStatusPill(status: String) {
-    val color = when {
-        status.isCompletedStatus() -> Color(0xFF4ADE5C)
-        status.equals("failed", ignoreCase = true) -> StatusError
-        else -> Color(0xFF2F7DFF)
-    }
-    Box(
-        modifier = Modifier
-            .height(26.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(color)
-            .padding(horizontal = 10.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(statusPillLabelText(status), color = Color.White, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
-    }
-}
-
-@Composable
-private fun SmallAction(label: String, highlighted: Boolean, onClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .height(30.dp)
-            .widthIn(min = 46.dp)
-            .clip(RoundedCornerShape(5.dp))
-            .background(if (highlighted) RhSelected else RhCard)
-            .border(1.dp, if (highlighted) BrandLime else RhLine, RoundedCornerShape(5.dp))
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(label, color = if (highlighted) BrandLime else RhText, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
-    }
-}
-
-@Composable
 internal fun LoadingPanel(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(color = BrandLime)
+        RhLoadingState(title = stringResource(Res.string.task_history_loading))
     }
 }
 
 @Composable
 internal fun TaskHistoryErrorState(message: String, onRetry: () -> Unit) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(220.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
+        contentAlignment = Alignment.Center,
     ) {
-        Text(message, color = StatusError, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-        Spacer(Modifier.height(12.dp))
-        SmallAction(stringResource(Res.string.task_history_action_retry), highlighted = true, onClick = onRetry)
+        RhErrorState(
+            title = message,
+            actionLabel = stringResource(Res.string.task_history_action_retry),
+            onAction = onRetry,
+        )
     }
 }
 
@@ -122,6 +72,6 @@ internal fun TaskHistoryEmptyState(message: String) {
             .height(220.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(message, color = RhMuted, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+        RhEmptyState(title = message)
     }
 }

@@ -17,12 +17,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.feature.task.presentation.TaskHistoryFilter
 import com.runninghub.feature.task.presentation.TaskHistoryUiState
 import org.jetbrains.compose.resources.stringResource
@@ -78,14 +78,14 @@ internal fun TaskHistoryContent(
     Box(modifier = modifier.fillMaxSize()) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
-            containerColor = RhBackground,
+            containerColor = RhTheme.colors.backgroundPrimary,
             contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0),
         ) { padding ->
             LazyColumn(
                 modifier = Modifier
                     .padding(padding)
                     .fillMaxSize()
-                    .background(RhBackground),
+                    .background(RhTheme.colors.backgroundPrimary),
                 contentPadding = PaddingValues(start = 14.dp, top = 14.dp, end = 14.dp, bottom = 92.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
@@ -138,7 +138,7 @@ internal fun TaskHistoryContent(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.48f))
+                    .background(RhTheme.colors.overlayScrim)
                     .clickable(onClick = onCloseTaskDetail),
             )
             TaskDetailDrawer(

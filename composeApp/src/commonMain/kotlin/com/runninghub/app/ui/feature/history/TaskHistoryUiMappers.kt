@@ -110,7 +110,7 @@ internal fun TaskHistoryDetailUiModel.toTaskDetailLayoutState(): TaskDetailLayou
     )
 }
 
-internal fun TaskHistoryDetailSectionType.toTaskDetailLayoutSectionType(): TaskDetailLayoutSectionType = when (this) {
+private fun TaskHistoryDetailSectionType.toTaskDetailLayoutSectionType(): TaskDetailLayoutSectionType = when (this) {
     TaskHistoryDetailSectionType.STATUS_SUMMARY -> TaskDetailLayoutSectionType.StatusSummary
     TaskHistoryDetailSectionType.RESULT_PREVIEW -> TaskDetailLayoutSectionType.ResultPreview
     TaskHistoryDetailSectionType.ACTIONS -> TaskDetailLayoutSectionType.Actions
@@ -120,7 +120,7 @@ internal fun TaskHistoryDetailSectionType.toTaskDetailLayoutSectionType(): TaskD
 }
 
 @Composable
-internal fun TaskHistoryDetailStatus.toTaskDetailStatusLabel(): String = when (this) {
+private fun TaskHistoryDetailStatus.toTaskDetailStatusLabel(): String = when (this) {
     TaskHistoryDetailStatus.SUCCESS -> stringResource(Res.string.task_history_status_success)
     TaskHistoryDetailStatus.FAILED -> stringResource(Res.string.task_history_status_failed)
     TaskHistoryDetailStatus.IN_PROGRESS -> stringResource(Res.string.task_history_status_in_progress)
@@ -144,7 +144,7 @@ internal fun TaskHistoryDetailStatus.toLegacyStatusText(): String = when (this) 
     TaskHistoryDetailStatus.UNKNOWN -> "UNKNOWN"
 }
 
-internal fun com.runninghub.feature.task.presentation.TaskHistoryDetailOutputUi.toResultPreviewMediaState(): ResultPreviewMediaState? {
+private fun com.runninghub.feature.task.presentation.TaskHistoryDetailOutputUi.toResultPreviewMediaState(): ResultPreviewMediaState? {
     val mediaType = when (mediaType) {
         TaskHistoryDetailMediaType.IMAGE -> ResultPreviewMediaType.Image
         TaskHistoryDetailMediaType.VIDEO -> ResultPreviewMediaType.Video
@@ -159,12 +159,12 @@ internal fun com.runninghub.feature.task.presentation.TaskHistoryDetailOutputUi.
 }
 
 @Composable
-internal fun TaskHistoryExpiryUi.toDetailExpiryLabel(): String? =
+private fun TaskHistoryExpiryUi.toDetailExpiryLabel(): String? =
     remainingDays?.takeIf { it.isNotBlank() }?.let { stringResource(Res.string.task_history_remaining_days_format, it) }
         ?: expireTime?.takeIf { it.isNotBlank() }
 
 @Composable
-internal fun TaskHistoryDetailAction.toResultPreviewActionState(): ResultPreviewActionState =
+private fun TaskHistoryDetailAction.toResultPreviewActionState(): ResultPreviewActionState =
     ResultPreviewActionState(
         type = when (this) {
             TaskHistoryDetailAction.SAVE -> ResultPreviewActionType.Save
@@ -181,7 +181,7 @@ internal fun TaskHistoryDetailAction.toResultPreviewActionState(): ResultPreview
     )
 
 @Composable
-internal fun com.runninghub.feature.task.presentation.TaskHistoryDetailBillingRowUi.toBillingInfoRow(): BillingInfoRow =
+private fun com.runninghub.feature.task.presentation.TaskHistoryDetailBillingRowUi.toBillingInfoRow(): BillingInfoRow =
     BillingInfoRow(
         label = when (kind) {
             TaskHistoryDetailBillingKind.RH_COINS -> stringResource(Res.string.task_history_detail_metric_rhb)
@@ -193,13 +193,13 @@ internal fun com.runninghub.feature.task.presentation.TaskHistoryDetailBillingRo
     )
 
 @Composable
-internal fun TaskHistoryDetailSaveState.toTaskDetailSaveStateLabel(): String = when (this) {
+private fun TaskHistoryDetailSaveState.toTaskDetailSaveStateLabel(): String = when (this) {
     TaskHistoryDetailSaveState.NOT_SAVED -> stringResource(Res.string.task_history_detail_save_not_saved)
     TaskHistoryDetailSaveState.UNAVAILABLE -> stringResource(Res.string.task_history_detail_save_unavailable)
 }
 
 @Composable
-internal fun TaskHistoryDetailTechnicalKind.toTaskDetailTechnicalTitle(): String = when (this) {
+private fun TaskHistoryDetailTechnicalKind.toTaskDetailTechnicalTitle(): String = when (this) {
     TaskHistoryDetailTechnicalKind.REQUEST_INFO -> stringResource(Res.string.task_history_detail_request_info)
     TaskHistoryDetailTechnicalKind.RESPONSE_INFO -> stringResource(Res.string.task_history_detail_response_info)
 }
@@ -226,7 +226,7 @@ internal fun TaskHistoryEntry.toHistoryTaskCardState(): HistoryTaskCardState = H
 )
 
 @Composable
-internal fun TaskHistoryCardStatus.toHistoryTaskCardStatusState(): HistoryTaskCardStatusState =
+private fun TaskHistoryCardStatus.toHistoryTaskCardStatusState(): HistoryTaskCardStatusState =
     HistoryTaskCardStatusState(
         type = toHistoryTaskCardStatusType(),
         label = when (this) {
@@ -238,7 +238,7 @@ internal fun TaskHistoryCardStatus.toHistoryTaskCardStatusState(): HistoryTaskCa
         },
     )
 
-internal fun TaskHistoryCardStatus.toHistoryTaskCardStatusType(): HistoryTaskCardStatusType = when (this) {
+private fun TaskHistoryCardStatus.toHistoryTaskCardStatusType(): HistoryTaskCardStatusType = when (this) {
     TaskHistoryCardStatus.SUCCESS -> HistoryTaskCardStatusType.Success
     TaskHistoryCardStatus.FAILED -> HistoryTaskCardStatusType.Failed
     TaskHistoryCardStatus.IN_PROGRESS -> HistoryTaskCardStatusType.InProgress
@@ -247,7 +247,7 @@ internal fun TaskHistoryCardStatus.toHistoryTaskCardStatusType(): HistoryTaskCar
 }
 
 @Composable
-internal fun TaskHistoryCardAction.toHistoryTaskCardActionState(): HistoryTaskCardActionState =
+private fun TaskHistoryCardAction.toHistoryTaskCardActionState(): HistoryTaskCardActionState =
     HistoryTaskCardActionState(
         type = toHistoryTaskCardActionType(),
         label = when (this) {
@@ -259,7 +259,7 @@ internal fun TaskHistoryCardAction.toHistoryTaskCardActionState(): HistoryTaskCa
         },
     )
 
-internal fun TaskHistoryCardAction.toHistoryTaskCardActionType(): HistoryTaskCardActionType = when (this) {
+private fun TaskHistoryCardAction.toHistoryTaskCardActionType(): HistoryTaskCardActionType = when (this) {
     TaskHistoryCardAction.VIEW_RESULT -> HistoryTaskCardActionType.ViewResult
     TaskHistoryCardAction.RETRY -> HistoryTaskCardActionType.Retry
     TaskHistoryCardAction.CANCEL -> HistoryTaskCardActionType.Cancel
@@ -267,7 +267,7 @@ internal fun TaskHistoryCardAction.toHistoryTaskCardActionType(): HistoryTaskCar
     TaskHistoryCardAction.VIEW_DETAIL -> HistoryTaskCardActionType.ViewDetail
 }
 
-internal fun TaskHistoryCostKind.toHistoryTaskCardCostKind(): HistoryTaskCardCostKind = when (this) {
+private fun TaskHistoryCostKind.toHistoryTaskCardCostKind(): HistoryTaskCardCostKind = when (this) {
     TaskHistoryCostKind.RHB -> HistoryTaskCardCostKind.Rhb
     TaskHistoryCostKind.FIAT -> HistoryTaskCardCostKind.Fiat
     TaskHistoryCostKind.UNKNOWN -> HistoryTaskCardCostKind.Unknown
