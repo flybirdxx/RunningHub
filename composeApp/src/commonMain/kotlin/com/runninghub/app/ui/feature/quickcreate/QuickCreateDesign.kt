@@ -22,31 +22,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_assistant_avatar_label
 
-/**
- * 快捷创作新版暗色界面的局部视觉 token。
- *
- * 这些颜色来自 Pencil 草稿中的 `rh-*` token，只服务于快捷创作重构，不改变全局主题。
- * 这样可以在不影响其他页面的前提下还原设计图的玻璃面板、霓虹强调和生成卡状态色。
- */
-internal object QuickCreateDesignTokens {
-    val Background = Color(0xFF020203)
-    val Panel = Color(0xEE11151A)
-    val PanelStrong = Color(0xF2171A20)
-    val Stroke = Color(0xFF2D313A)
-    val StrokeSoft = Color(0xFF232731)
-    val Text = Color(0xFFF5F5F7)
-    val Muted = Color(0xFF8B8C95)
-    val Dim = Color(0xFF5F6068)
-    val Purple = Color(0xFF8D63FF)
-    val PurpleSoft = Color(0xFFB997FF)
-    val Green = Color(0xFF16F4A7)
-    val Cyan = Color(0xFF16D8FF)
-    val Pink = Color(0xFFFF5CF4)
-}
 /**
  * 底部弹层顶部的拖拽条。
  *
@@ -117,7 +97,7 @@ internal fun QuickCreateRhAvatar(modifier: Modifier = Modifier) {
         }
         androidx.compose.material3.Text(
             text = stringResource(Res.string.quick_create_assistant_avatar_label),
-            color = QuickCreateDesignTokens.Text,
+            color = RhTheme.colors.textPrimary,
             fontSize = 10.sp,
             fontWeight = androidx.compose.ui.text.font.FontWeight.Black,
         )
@@ -181,7 +161,7 @@ internal fun QuickCreateCatThumbnail(modifier: Modifier = Modifier) {
 @Composable
 internal fun QuickCreateModelGlyph(
     modifier: Modifier = Modifier,
-    accent: Color = QuickCreateDesignTokens.Purple,
+    accent: Color = RhTheme.colors.brandSecondary,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Box(
@@ -189,7 +169,7 @@ internal fun QuickCreateModelGlyph(
             .clip(RoundedCornerShape(11.dp))
             .background(
                 Brush.linearGradient(
-                    listOf(accent.copy(alpha = 0.56f), Color(0xFF201B3B)),
+                    listOf(accent.copy(alpha = 0.56f), RhTheme.colors.surfaceElevated),
                 ),
             ),
         contentAlignment = Alignment.Center,

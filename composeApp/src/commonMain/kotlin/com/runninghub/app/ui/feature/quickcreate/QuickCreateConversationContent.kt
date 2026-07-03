@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.designsystem.components.badges.RhTaskStatus
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.components.result.ResultPreview
 import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionState
 import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionType
@@ -164,11 +165,11 @@ private fun UserPromptBubble(prompt: String) {
         Surface(
             modifier = Modifier.widthIn(max = 250.dp),
             shape = RoundedCornerShape(12.dp),
-            color = Color(0xEE0F1320),
+            color = RhTheme.colors.brandMuted,
         ) {
             Text(
                 text = prompt,
-                color = QuickCreateDesignTokens.Text,
+                color = RhTheme.colors.textPrimary,
                 fontSize = 14.sp,
                 lineHeight = 19.sp,
                 fontWeight = FontWeight.Medium,
@@ -387,14 +388,16 @@ private fun GeneratingFluidMask(modifier: Modifier = Modifier) {
         label = "quick-create-fluid-pulse",
     )
 
+    val processingColor = RhTheme.colors.statusProcessing
+    val accentColor = RhTheme.colors.brandSecondary
     Box(
         modifier = modifier
-            .background(Color(0xFF91AFC2))
+            .background(processingColor)
             .background(
                 Brush.radialGradient(
                     colors = listOf(
                         Color.White.copy(alpha = pulse.value),
-                        Color(0xFF86A7BC).copy(alpha = 0.42f),
+                        processingColor.copy(alpha = 0.42f),
                         Color.Transparent,
                     ),
                     center = Offset(
@@ -407,9 +410,9 @@ private fun GeneratingFluidMask(modifier: Modifier = Modifier) {
             .background(
                 Brush.linearGradient(
                     colors = listOf(
-                        Color(0x336D89B8),
-                        Color(0x2279D9C8),
-                        Color(0x334A476D),
+                        processingColor.copy(alpha = 0.20f),
+                        processingColor.copy(alpha = 0.13f),
+                        accentColor.copy(alpha = 0.20f),
                     ),
                     start = Offset(0f, 0f),
                     end = Offset(360f + 220f * drift.value, 396f),

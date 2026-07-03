@@ -44,9 +44,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.runninghub.app.ui.designsystem.components.segmented.RhSegmentedControl
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateCatThumbnail
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateDesignTokens
 import com.runninghub.app.ui.feature.quickcreate.quickCreateBillingAmountText
+import com.runninghub.app.ui.feature.quickcreate.quickCreateNavigationText
 import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingPreviewUi
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
@@ -61,6 +63,7 @@ import com.runninghub.feature.quickcreate.presentation.state.MAX_PROMPT_CHARS
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import com.runninghub.feature.quickcreate.presentation.state.navigationLabel
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_compact_add_media_content_description
@@ -110,7 +113,6 @@ internal val CompactMediaSlotSize = 88.dp
  * @param onGenerate 提交生成任务。
  */
 @Composable
-@Suppress("UNUSED_PARAMETER")
 internal fun QuickCreateCompactComposer(
     uiState: QuickCreateUiState,
     isImage: Boolean,
@@ -150,6 +152,16 @@ internal fun QuickCreateCompactComposer(
             .padding(bottom = 4.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
+        RhSegmentedControl(
+            options = listOf(
+                quickCreateNavigationText(QuickCreateTab.IMAGE.navigationLabel),
+                quickCreateNavigationText(QuickCreateTab.VIDEO.navigationLabel),
+            ),
+            selectedIndex = if (isImage) 0 else 1,
+            onSelect = { index ->
+                onTabSwitch(if (index == 0) QuickCreateTab.IMAGE else QuickCreateTab.VIDEO)
+            },
+        )
         if (showMediaUploadStrip) {
             CompactMediaUploadStrip(
                 mediaReferences = mediaReferences,
@@ -159,9 +171,9 @@ internal fun QuickCreateCompactComposer(
         }
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = QuickCreateDesignTokens.Panel,
+            color = RhTheme.colors.overlaySheet,
             shape = RoundedCornerShape(18.dp),
-            border = if (overLimit) BorderStroke(1.dp, Color(0xFFF87171)) else null,
+            border = if (overLimit) BorderStroke(1.dp, RhTheme.colors.statusFailed) else null,
         ) {
             Column(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
@@ -244,7 +256,7 @@ private fun CompactControlRow(
                     imageVector = Icons.Default.AutoAwesome,
                     contentDescription = null,
                     modifier = Modifier.size(15.dp),
-                    tint = QuickCreateDesignTokens.Text,
+                    tint = RhTheme.colors.textPrimary,
                 )
             },
             onClick = onOpenModelSheet,
@@ -292,7 +304,7 @@ private fun CompactPromptField(
             if (prompt.isEmpty()) {
                 Text(
                     text = placeholder,
-                    color = QuickCreateDesignTokens.Muted,
+                    color = RhTheme.colors.textSecondary,
                     fontSize = 15.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -307,12 +319,12 @@ private fun CompactPromptField(
                 },
                 modifier = Modifier.fillMaxWidth(),
                 textStyle = TextStyle(
-                    color = QuickCreateDesignTokens.Text,
+                    color = RhTheme.colors.textPrimary,
                     fontSize = 15.sp,
                     lineHeight = 20.sp,
                     fontWeight = FontWeight.Medium,
                 ),
-                cursorBrush = SolidColor(QuickCreateDesignTokens.Purple),
+                cursorBrush = SolidColor(RhTheme.colors.brandSecondary),
             )
         }
         Row(
@@ -323,7 +335,7 @@ private fun CompactPromptField(
             if (showRequiredHint) {
                 Text(
                     text = stringResource(Res.string.quick_create_compact_prompt_required_hint),
-                    color = QuickCreateDesignTokens.Muted,
+                    color = RhTheme.colors.textSecondary,
                     fontSize = 11.sp,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -350,14 +362,15 @@ private fun CompactPromptField(
     }
 }
 
+@Composable
 private fun compactPromptCharCountColor(
     nearLimit: Boolean,
     overLimit: Boolean,
 ): Color =
     when {
-        overLimit -> Color(0xFFF87171)
-        nearLimit -> Color(0xFFFBBF24)
-        else -> QuickCreateDesignTokens.Muted
+        overLimit -> RhTheme.colors.statusFailed
+        nearLimit -> RhTheme.colors.statusWarning
+        else -> RhTheme.colors.textSecondary
     }
 
 @Composable
@@ -429,7 +442,7 @@ private fun CompactMediaPreviewSlot(
                     .clip(RoundedCornerShape(14.dp))
                     .background(
                         Brush.verticalGradient(
-                            listOf(Color.Transparent, Color(0x33000000)),
+                            listOf(Color.Transparent, RhTheme.colors.overlayScrim.copy(alpha = 0.20f)),
                         ),
                     ),
             )
@@ -443,7 +456,7 @@ private fun CompactMediaPreviewSlot(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(20.dp),
-                        color = QuickCreateDesignTokens.Text,
+                        color = RhTheme.colors.textPrimary,
                         strokeWidth = 2.dp,
                     )
                 }
@@ -451,7 +464,7 @@ private fun CompactMediaPreviewSlot(
             Surface(
                 onClick = { onRemove(reference.id) },
                 shape = CircleShape,
-                color = Color(0xDD11151A),
+                color = RhTheme.colors.surfaceDefault,
                 border = BorderStroke(1.dp, Color.White.copy(alpha = 0.32f)),
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -464,7 +477,7 @@ private fun CompactMediaPreviewSlot(
                         Res.string.quick_create_compact_remove_media_content_description,
                     ),
                     modifier = Modifier.padding(2.dp),
-                    tint = QuickCreateDesignTokens.Text,
+                    tint = RhTheme.colors.textPrimary,
                 )
             }
         }
@@ -491,7 +504,7 @@ private fun CompactMediaAddSlot(
         onClick = onAdd,
         shape = RoundedCornerShape(16.dp),
         color = Color.Transparent,
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Purple.copy(alpha = 0.54f)),
+        border = BorderStroke(1.dp, RhTheme.colors.brandSecondary.copy(alpha = 0.54f)),
         modifier = modifier,
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -505,8 +518,8 @@ private fun CompactMediaAddCircle(onAdd: () -> Unit) {
     Surface(
         onClick = onAdd,
         shape = CircleShape,
-        color = QuickCreateDesignTokens.Purple.copy(alpha = 0.24f),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Purple.copy(alpha = 0.72f)),
+        color = RhTheme.colors.brandSecondary.copy(alpha = 0.24f),
+        border = BorderStroke(1.dp, RhTheme.colors.brandSecondary.copy(alpha = 0.72f)),
         modifier = Modifier.size(38.dp),
     ) {
         Box(contentAlignment = Alignment.Center) {
@@ -516,7 +529,7 @@ private fun CompactMediaAddCircle(onAdd: () -> Unit) {
                     Res.string.quick_create_compact_add_media_content_description,
                 ),
                 modifier = Modifier.size(22.dp),
-                tint = QuickCreateDesignTokens.Text,
+                tint = RhTheme.colors.textPrimary,
             )
         }
     }
@@ -532,11 +545,11 @@ private fun CompactControlPill(
 ) {
     Surface(
         onClick = onClick,
-        color = if (selected) Color(0xFF2A2240) else Color(0xFF24252A),
+        color = if (selected) RhTheme.colors.brandMuted else RhTheme.colors.surfaceElevated,
         shape = RoundedCornerShape(18.dp),
         border = BorderStroke(
             1.dp,
-            if (selected) QuickCreateDesignTokens.Purple else QuickCreateDesignTokens.Stroke,
+            if (selected) RhTheme.colors.brandSecondary else RhTheme.colors.borderDefault,
         ),
         modifier = modifier.height(36.dp),
     ) {
@@ -548,7 +561,7 @@ private fun CompactControlPill(
             icon?.invoke()
             Text(
                 text = text,
-                color = QuickCreateDesignTokens.Text,
+                color = RhTheme.colors.textPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
@@ -559,7 +572,7 @@ private fun CompactControlPill(
                 imageVector = Icons.Default.KeyboardArrowDown,
                 contentDescription = null,
                 modifier = Modifier.size(14.dp),
-                tint = QuickCreateDesignTokens.Muted,
+                tint = RhTheme.colors.textSecondary,
             )
         }
     }
@@ -603,12 +616,7 @@ private fun CompactGenerateButton(
     ) {
         Row(
             modifier = Modifier
-                .background(
-                    Brush.horizontalGradient(
-                        listOf(Color(0xFF7556F6), Color(0xFF9B61FF)),
-                    ),
-                    buttonShape,
-                )
+                .background(RhTheme.colors.brandPrimary, buttonShape)
                 .padding(horizontal = if (hasPrompt) 12.dp else 9.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
@@ -616,7 +624,7 @@ private fun CompactGenerateButton(
             if (isLoading) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(15.dp),
-                    color = QuickCreateDesignTokens.Text,
+                    color = RhTheme.colors.textInverse,
                     strokeWidth = 2.dp,
                 )
             } else if (!hasPrompt) {
@@ -626,20 +634,20 @@ private fun CompactGenerateButton(
                         Res.string.quick_create_compact_add_media_content_description,
                     ),
                     modifier = Modifier.size(18.dp),
-                    tint = QuickCreateDesignTokens.Text,
+                    tint = RhTheme.colors.textInverse,
                 )
             } else {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.Send,
                     contentDescription = stringResource(Res.string.quick_create_compact_generate_content_description),
                     modifier = Modifier.size(15.dp),
-                    tint = QuickCreateDesignTokens.Text,
+                    tint = RhTheme.colors.textInverse,
                 )
             }
             if (hasPrompt) {
                 Text(
                     text = quickCreateCompactGenerateButtonText(sendButtonLabel),
-                    color = QuickCreateDesignTokens.Text,
+                    color = RhTheme.colors.textInverse,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,

@@ -35,8 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -49,7 +47,7 @@ import com.runninghub.app.ui.designsystem.components.parameters.ParameterSelecto
 import com.runninghub.app.ui.designsystem.components.sheets.AdvancedSettingsSectionState
 import com.runninghub.app.ui.designsystem.components.sheets.AdvancedSettingsSheet
 import com.runninghub.app.ui.designsystem.components.sheets.AdvancedSettingsSheetState
-import com.runninghub.app.ui.feature.quickcreate.QuickCreateDesignTokens
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateModelGlyph
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateSheetHandle
 import com.runninghub.app.ui.feature.quickcreate.presentation.asServiceModelText
@@ -219,7 +217,7 @@ private fun ModelSummaryCard(uiState: QuickCreateUiState, isImage: Boolean) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF15181D),
+        color = RhTheme.colors.surfaceDefault,
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -230,14 +228,14 @@ private fun ModelSummaryCard(uiState: QuickCreateUiState, isImage: Boolean) {
                 Icon(
                     imageVector = Icons.Default.ViewInAr,
                     contentDescription = null,
-                    tint = QuickCreateDesignTokens.Text,
+                    tint = RhTheme.colors.textPrimary,
                     modifier = Modifier.size(26.dp),
                 )
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(
                     text = modelName,
-                    color = QuickCreateDesignTokens.Text,
+                    color = RhTheme.colors.textPrimary,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
@@ -245,14 +243,14 @@ private fun ModelSummaryCard(uiState: QuickCreateUiState, isImage: Boolean) {
                 )
                 Text(
                     text = stringResource(Res.string.quick_create_params_model_label),
-                    color = QuickCreateDesignTokens.Muted,
+                    color = RhTheme.colors.textSecondary,
                     fontSize = 12.sp,
                 )
             }
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
                 contentDescription = null,
-                tint = QuickCreateDesignTokens.Text,
+                tint = RhTheme.colors.textPrimary,
                 modifier = Modifier.size(14.dp),
             )
         }
@@ -294,11 +292,11 @@ private fun EmptyParamsCard() {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF13161B),
+        color = RhTheme.colors.surfaceDefault,
     ) {
         Text(
             text = stringResource(Res.string.quick_create_params_empty_parameters),
-            color = QuickCreateDesignTokens.Muted,
+            color = RhTheme.colors.textSecondary,
             fontSize = 13.sp,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
@@ -362,7 +360,7 @@ private fun ServiceOptionsControl(
     if (field.options.isEmpty()) {
         Text(
             text = field.textValue,
-            color = Color(0xFFD2D3D8),
+            color = RhTheme.colors.textSecondary,
             fontSize = 13.sp,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -393,8 +391,8 @@ private fun ServiceTextControl(
     Surface(
         modifier = Modifier.fillMaxWidth().height(38.dp),
         shape = RoundedCornerShape(9.dp),
-        color = Color(0xFF1C1E23),
-        border = BorderStroke(1.dp, QuickCreateDesignTokens.Stroke),
+        color = RhTheme.colors.surfaceElevated,
+        border = BorderStroke(1.dp, RhTheme.colors.borderDefault),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 12.dp),
@@ -407,18 +405,18 @@ private fun ServiceTextControl(
                 },
                 singleLine = true,
                 textStyle = androidx.compose.ui.text.TextStyle(
-                    color = QuickCreateDesignTokens.Text,
+                    color = RhTheme.colors.textPrimary,
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium,
                 ),
-                cursorBrush = SolidColor(QuickCreateDesignTokens.Purple),
+                cursorBrush = SolidColor(RhTheme.colors.brandSecondary),
                 modifier = Modifier.weight(1f),
                 decorationBox = { innerTextField ->
                     Box(contentAlignment = Alignment.CenterStart) {
                         if (field.textValue.isBlank()) {
                             Text(
                                 text = field.placeholder,
-                                color = QuickCreateDesignTokens.Muted,
+                                color = RhTheme.colors.textSecondary,
                                 fontSize = 13.sp,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -431,7 +429,7 @@ private fun ServiceTextControl(
             field.textLimitCounter?.let { counter ->
                 Text(
                     text = counter,
-                    color = QuickCreateDesignTokens.Muted,
+                    color = RhTheme.colors.textSecondary,
                     fontSize = 11.sp,
                     modifier = Modifier.padding(start = 8.dp),
                 )
@@ -466,7 +464,7 @@ private fun ParamField(
     Surface(
         modifier = modifier.heightIn(min = QuickCreateParamFieldMinHeight),
         shape = RoundedCornerShape(12.dp),
-        color = Color(0xFF13161B),
+        color = RhTheme.colors.surfaceDefault,
     ) {
         Column(
             modifier = Modifier.padding(QuickCreateParamFieldPadding),
@@ -474,7 +472,7 @@ private fun ParamField(
         ) {
             Text(
                 text = title,
-                color = QuickCreateDesignTokens.Text,
+                color = RhTheme.colors.textPrimary,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 1,
