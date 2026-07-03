@@ -33,6 +33,9 @@ import kotlinx.coroutines.launch
  * @property error 等待页面展示的搜索稳定错误语义。
  * `null` 表示当前没有错误；非空时由页面展示并可通过重新搜索覆盖。
  * 该字段不得保存服务端 `msg` 或 [Throwable.message]，最终中文文案由应用壳资源映射。
+ * @property hasSearched 当前关键词是否已有一次完成的搜索请求。
+ * `false` 表示尚未搜索或仍处于输入防抖窗口，页面不应据空结果展示「无结果」空态；
+ * 搜索成功或失败后置为 `true`，清空输入或调用 `clearSearch` 时重置为 `false`。
  */
 data class SearchUiState(
     val query: String = "",
@@ -42,6 +45,7 @@ data class SearchUiState(
     val currentPage: Int = 1,
     val hasMore: Boolean = true,
     val error: CatalogPresentationError? = null,
+    val hasSearched: Boolean = false,
 ) {
     /** 搜索结果的创作入口卡片语义，与发现页共用同一 UiModel，供应用壳直接渲染 AppCard。 */
     val resultCards: List<DiscoveryAppCardUiModel>
@@ -116,6 +120,7 @@ class SearchStateHolder(
                     error = null,
                     currentPage = 1,
                     hasMore = true,
+                    hasSearched = false,
                 )
             }
             return
@@ -210,6 +215,7 @@ class SearchStateHolder(
                     currentPage = page,
                     hasMore = pageData.hasNext,
                     isSearching = false,
+                    hasSearched = true,
                 )
             }
         }.onFailure { e ->
@@ -218,6 +224,7 @@ class SearchStateHolder(
                 it.copy(
                     isSearching = false,
                     error = e.toCatalogPresentationError(CatalogPresentationError.SearchFailed),
+                    hasSearched = true,
                 )
             }
         }

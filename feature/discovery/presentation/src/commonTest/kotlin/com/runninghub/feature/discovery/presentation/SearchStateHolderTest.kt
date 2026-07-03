@@ -129,6 +129,53 @@ class SearchStateHolderTest {
     }
 
     @Test
+    fun `hasSearched stays false during debounce window`() = runTest(dispatcher) {
+        val repository = FakeSearchCatalogRepository()
+        val stateHolder = SearchStateHolder(repository, this)
+
+        stateHolder.onQueryChange("cat")
+        runCurrent()
+
+        assertEquals(false, stateHolder.uiState.value.hasSearched)
+    }
+
+    @Test
+    fun `hasSearched becomes true after search completes`() = runTest(dispatcher) {
+        val repository = FakeSearchCatalogRepository()
+        val stateHolder = SearchStateHolder(repository, this)
+
+        stateHolder.search("robot")
+        advanceUntilIdle()
+
+        assertEquals(true, stateHolder.uiState.value.hasSearched)
+    }
+
+    @Test
+    fun `hasSearched resets to false after clearing query`() = runTest(dispatcher) {
+        val repository = FakeSearchCatalogRepository()
+        val stateHolder = SearchStateHolder(repository, this)
+
+        stateHolder.search("robot")
+        advanceUntilIdle()
+        stateHolder.onQueryChange("")
+        runCurrent()
+
+        assertEquals(false, stateHolder.uiState.value.hasSearched)
+    }
+
+    @Test
+    fun `hasSearched resets to false after clearSearch`() = runTest(dispatcher) {
+        val repository = FakeSearchCatalogRepository()
+        val stateHolder = SearchStateHolder(repository, this)
+
+        stateHolder.search("robot")
+        advanceUntilIdle()
+        stateHolder.clearSearch()
+
+        assertEquals(false, stateHolder.uiState.value.hasSearched)
+    }
+
+    @Test
     fun searchUiStateDerivesResultCardsFromResults() {
         val app = app("app-1").copy(title = "写实人像")
         val state = SearchUiState(results = listOf(app))
