@@ -469,6 +469,8 @@
     <string name="app_detail_creation_technical_title">技术信息</string>
     <string name="app_detail_creation_technical_empty">暂无额外技术信息</string>
     <string name="app_detail_creation_technical_item_format">%1$s：%2$s</string>
+    <string name="app_detail_option_picker_search_hint">搜索选项…</string>
+    <string name="app_detail_option_picker_empty">没有匹配的选项</string>
     <string name="discovery_capability_image">图片生成</string>
     <string name="discovery_capability_video">视频生成</string>
     <string name="discovery_capability_audio">音频生成</string>
