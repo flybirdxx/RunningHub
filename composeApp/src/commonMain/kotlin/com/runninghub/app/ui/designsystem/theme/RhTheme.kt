@@ -49,4 +49,8 @@ object RhTheme {
     /** 当前静态文字层级表，所有字距保持 0.sp。 */
     val typography: RhTypography
         get() = RhTypography
+
+    /** 当前静态间距刻度表，页面布局统一从这里取值。 */
+    val spacing: RhSpacing
+        get() = RhSpacing
 }

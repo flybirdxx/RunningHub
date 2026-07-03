@@ -8,9 +8,11 @@ import com.runninghub.app.ui.designsystem.components.buttons.RhButtonStyle
 import com.runninghub.app.ui.designsystem.theme.RhDarkColors
 import com.runninghub.app.ui.designsystem.theme.RhDefaultShapes
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 class RhDesignSystemContractTest {
@@ -41,6 +43,11 @@ class RhDesignSystemContractTest {
         assertEquals(16.dp, RhDefaultShapes.lg)
         assertEquals(20.dp, RhDefaultShapes.xl)
         assertEquals(24.dp, RhDefaultShapes.sheet)
+    }
+
+    @Test
+    fun `theme exposes spacing scale`() {
+        assertSame(RhSpacing, RhTheme.spacing)
     }
 
     @Test
