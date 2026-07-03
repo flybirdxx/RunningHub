@@ -26,7 +26,7 @@
 - 运行或查看 `git status --short`，区分用户已有改动和本次改动。
 - 阅读最近的局部规则：从目标文件向上查找 `AGENTS.md`。
 - 需要架构背景时读 `ARCHITECTURE.md`、`DEVELOPMENT.md` 和 `.codex/rules/project_rule.md`。
-- 需要模块定位时先查 `.codex/references/_scan.json` 与 `.codex/references/{module}.md`。
+- 需要模块定位时先查 `.codex/references/dependencies.md` 与 `.codex/references/{module}.md`。
 - 需要符号级上下文时优先使用 CodeGraph，例如 `codegraph explore "QuickCreateCoordinator"`。
 - 目标涉及长期治理、迁移状态或外部证据时，读取 `docs/governance/long-term-priorities.md`、`docs/governance/ai-task-template.md`、`docs/governance/chinese-commenting.md` 和 `docs/migration/`。
 
@@ -106,7 +106,7 @@
 - 需要调用关系或源码上下文时使用 `codegraph explore "<query>"`。
 - 单个符号或文件深读使用 `codegraph node "<symbol-or-path>"`。
 - CodeGraph 输出是当前磁盘源码快照；若涉及最近编辑，必要时再读文件确认。
-- `.codex/references/_scan.json` 为轻量模式，主要保存模块和依赖；细节以 CodeGraph 和模块文档补充。
+- `.codex/references/dependencies.md` 为模块依赖与清单索引；细节以 CodeGraph 和模块文档补充（历史 `_scan.json` 轻量索引可选，缺失时以上述来源为准）。
 
 ## 12. 文件编辑规则
 
@@ -179,7 +179,7 @@
 - `git diff --name-only` 中没有意外业务文件。
 - 根入口和 `.codex` 文件不含脚手架占位内容。
 - 新增文档没有“待补充”作为事实占位。
-- references 模块文档数等于 `_scan.json` 模块数。
+- references 模块文档覆盖 `settings.gradle.kts` 声明的全部模块。
 - hooks 命令适配当前平台；Windows 使用 PowerShell hook，类 Unix 可使用 `.sh`。
 - 未触碰用户已有业务改动，除非当前任务明确要求。
 - 未把构建产物、临时输出或敏感文件加入交付范围。

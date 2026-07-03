@@ -6,7 +6,7 @@
 
 - [ ] 根 `AGENTS.md`、`.codex/rules/project_rule.md` 与局部 `AGENTS.md` 没有互相矛盾的依赖方向。
 - [ ] `.codex/settings.json`、hooks、skills、agents 中没有双大括号形式的模板占位符。
-- [ ] CodeGraph 状态与 `_scan.json` 模式一致。
+- [ ] CodeGraph 状态与 `settings.gradle.kts` 模块清单、`.codex/references/*.md` 覆盖一致。
 - [ ] 新增文档脱离聊天上下文后仍可理解执行。
 
 ## 维度 2：存量代码合规性
@@ -29,11 +29,13 @@
 ```powershell
 rg -n "\{\{[A-Za-z0-9_:-]+\}\}" AGENTS.md .codex
 python - <<'PY'
-import json, pathlib
-scan=json.loads(pathlib.Path('.codex/references/_scan.json').read_text(encoding='utf-8'))
-docs=[p.stem for p in pathlib.Path('.codex/references').glob('*.md') if p.stem not in {'dependencies','conventions'}]
-missing=sorted(m['name'] for m in scan['modules'] if m['name'] not in docs)
-print('modules', len(scan['modules']), 'docs', len(docs), 'missing', missing)
+import re, pathlib
+# 模块清单以 settings.gradle.kts 为权威来源（历史 _scan.json 可选，默认不生成）。
+settings = pathlib.Path('settings.gradle.kts').read_text(encoding='utf-8')
+modules = sorted(m.lstrip(':').replace(':', '_') for m in re.findall(r'include\("(:[^"]+)"\)', settings))
+docs = {p.stem for p in pathlib.Path('.codex/references').glob('*.md') if p.stem not in {'dependencies','conventions'}}
+missing = [m for m in modules if m not in docs]
+print('modules', len(modules), 'docs', len(docs), 'missing', missing)
 PY
 codegraph status
 ```

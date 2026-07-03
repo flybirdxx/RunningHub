@@ -1,7 +1,7 @@
 # RunningHub 模块依赖关系
 
 生成时间：2026-06-27  
-来源：`settings.gradle.kts`、`.codex/references/_scan.json`、Gradle build files。
+来源：`settings.gradle.kts`、Gradle build files。
 
 ## 总览
 
@@ -105,4 +105,4 @@ graph TD
 - 当前模块图符合 `Core -> Feature Domain -> Feature Data/Presentation -> composeApp` 的 KMP 分层。
 - Data 实现集中由 `composeApp` 平台 source set 装配，`commonMain` 保持领域和表现入口依赖。
 - 未从当前 Gradle 模块图发现 `:shared`；根门禁禁止其回归。
-- 循环依赖最终以 Gradle 和 `checkArchitectureBoundaries` 为准；当前 `_scan.json` 未显示显式循环。
+- 循环依赖最终以 Gradle 和 `checkArchitectureBoundaries` 为准；当前依赖图未显示显式循环。

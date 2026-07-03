@@ -7,7 +7,7 @@
 
 - 修改代码前必须阅读根 `AGENTS.md`、本文件和目标目录最近的局部 `AGENTS.md`。
 - 探索代码结构时优先使用 CodeGraph：`codegraph status`、`codegraph query`、`codegraph explore`、`codegraph node`。
-- `.codex/references/_scan.json` 采用 CodeGraph 轻量模式，保存模块与依赖元数据；源码细节以 CodeGraph 和模块文档为准。
+- 模块与依赖元数据以 `settings.gradle.kts` 和 `.codex/references/dependencies.md` 为准；源码细节以 CodeGraph 和模块文档补充（历史 `_scan.json` 轻量索引可选，缺失时以上述来源为准）。
 - 禁止虚构不存在的类、方法、Gradle task、API endpoint 或外部验证结果。
 - 工作区已有大量业务改动时，只处理当前任务范围内的 `.codex` 与入口文档，不回滚业务代码。
 - 文档-only 改动也必须执行占位符扫描和文档数量检查；代码改动必须运行相关 Gradle verifier。
