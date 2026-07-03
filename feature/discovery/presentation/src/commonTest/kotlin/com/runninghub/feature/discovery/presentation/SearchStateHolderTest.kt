@@ -140,6 +140,19 @@ class SearchStateHolderTest {
     }
 
     @Test
+    fun `hasSearched becomes true after search failure with error exposed`() = runTest(dispatcher) {
+        val repository = FakeSearchCatalogRepository()
+        repository.enqueueSearchResult(Result.failure(IllegalStateException("network")))
+        val stateHolder = SearchStateHolder(repository, this)
+
+        stateHolder.search("robot")
+        advanceUntilIdle()
+
+        assertEquals(true, stateHolder.uiState.value.hasSearched)
+        assertEquals(CatalogPresentationError.SearchFailed, stateHolder.uiState.value.error)
+    }
+
+    @Test
     fun `hasSearched becomes true after search completes`() = runTest(dispatcher) {
         val repository = FakeSearchCatalogRepository()
         val stateHolder = SearchStateHolder(repository, this)

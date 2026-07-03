@@ -128,6 +128,28 @@ class DiscoveryStateHolderTest {
     }
 
     @Test
+    fun `load more failure sets loadMoreFailed and retry success clears it`() = runTest(dispatcher) {
+        val repository = FakeWebAppCatalogRepository()
+        val screenModel = DiscoveryStateHolder(repository, this)
+        screenModel.loadInitialData()
+        advanceUntilIdle()
+
+        repository.enqueueAppListResult(Result.failure(IllegalStateException("network")))
+        screenModel.loadMore()
+        advanceUntilIdle()
+
+        assertEquals(true, screenModel.uiState.value.loadMoreFailed)
+        assertEquals(listOf("initial"), screenModel.uiState.value.apps.map { it.id })
+
+        repository.enqueueAppListResult(Result.success(page(app("second"), hasNext = true, current = 2)))
+        screenModel.loadMore()
+        advanceUntilIdle()
+
+        assertEquals(false, screenModel.uiState.value.loadMoreFailed)
+        assertEquals(listOf("initial", "second"), screenModel.uiState.value.apps.map { it.id })
+    }
+
+    @Test
     fun `refresh preserves selected filter`() = runTest(dispatcher) {
         val repository = FakeWebAppCatalogRepository()
         val screenModel = DiscoveryStateHolder(repository, this)
@@ -213,53 +235,13 @@ class DiscoveryStateHolderTest {
         assertEquals(DiscoveryAppCardMetricKind.USE_COUNT, card.supportingMetric?.kind)
     }
 
-    @Test
-    fun `search result card model keeps empty search state separate`() = runTest(dispatcher) {
-        val repository = FakeWebAppCatalogRepository()
-        repository.enqueueSearchResponse().complete(Result.success(page(hasNext = false)))
-        val screenModel = DiscoveryStateHolder(repository, this)
-
-        screenModel.searchSubmit("missing")
-        advanceUntilIdle()
-
-        assertEquals(emptyList(), screenModel.uiState.value.searchResultCards)
-        assertEquals(false, screenModel.uiState.value.isSearching)
-        assertEquals(null, screenModel.uiState.value.searchError)
-    }
-
-    @Test
-    fun `delayed search response does not overwrite latest keyword result`() = runTest(dispatcher) {
-        val repository = FakeWebAppCatalogRepository()
-        val screenModel = DiscoveryStateHolder(repository, this)
-
-        val oldSearch = repository.enqueueSearchResponse()
-        val newSearch = repository.enqueueSearchResponse()
-
-        screenModel.searchSubmit("old")
-        runCurrent()
-        screenModel.searchSubmit("new")
-        runCurrent()
-
-        newSearch.complete(Result.success(page(app("new-result"))))
-        advanceUntilIdle()
-        oldSearch.complete(Result.success(page(app("old-result"))))
-        advanceUntilIdle()
-
-        assertEquals("new", screenModel.uiState.value.searchQuery)
-        assertEquals(listOf("new-result"), screenModel.uiState.value.searchResults.map { it.id })
-    }
-
     private class FakeWebAppCatalogRepository : WebAppCatalogRepository {
         val appListCalls = mutableListOf<AppListCall>()
         private val appListResponses = ArrayDeque<CompletableDeferred<Result<PageData<WebApp>>>>()
         private val carefullyChosenResponses = ArrayDeque<CompletableDeferred<Result<List<WebApp>>>>()
-        private val searchResponses = ArrayDeque<CompletableDeferred<Result<PageData<WebApp>>>>()
 
         fun enqueueAppListResponse(): CompletableDeferred<Result<PageData<WebApp>>> =
             CompletableDeferred<Result<PageData<WebApp>>>().also { appListResponses.addLast(it) }
-
-        fun enqueueSearchResponse(): CompletableDeferred<Result<PageData<WebApp>>> =
-            CompletableDeferred<Result<PageData<WebApp>>>().also { searchResponses.addLast(it) }
 
         fun enqueueAppListResult(result: Result<PageData<WebApp>>) {
             enqueueAppListResponse().complete(result)
@@ -307,8 +289,7 @@ class DiscoveryStateHolderTest {
             pageNum: Int,
             pageSize: Int,
         ): Result<PageData<WebApp>> =
-            searchResponses.removeFirstOrNull()?.await()
-                ?: Result.success(page(app("$keyword-result"), current = pageNum))
+            Result.success(page(app("$keyword-result"), current = pageNum))
     }
 
     private data class AppListCall(

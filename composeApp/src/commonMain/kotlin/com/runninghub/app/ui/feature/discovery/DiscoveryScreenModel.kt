@@ -11,10 +11,11 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * Discovery Voyager 页面对 Discovery Presentation 状态持有器的生命周期适配层。
  *
- * 分类加载、列表分页、搜索分页、旧响应隔离和目录错误文案映射由 [DiscoveryStateHolder] 承担；
+ * 分类加载、列表分页、旧响应隔离和目录错误文案映射由 [DiscoveryStateHolder] 承担；
+ * 搜索能力由独立搜索页承担，本类不再暴露任何搜索委托。
  * 本类只负责把 Voyager 的 [screenModelScope] 传入并为 Koin/Voyager 暴露原有 ScreenModel 类型。
  *
- * @param webAppRepository WebApp 目录仓库，用于加载公开目录、标签树和搜索结果。
+ * @param webAppRepository WebApp 目录仓库，用于加载公开目录和标签树。
  */
 class DiscoveryScreenModel(
     webAppRepository: WebAppCatalogRepository,
@@ -68,44 +69,5 @@ class DiscoveryScreenModel(
      */
     fun loadMore() {
         stateHolder.loadMore()
-    }
-
-    /**
-     * 展开搜索交互区域。
-     */
-    fun expandSearch() {
-        stateHolder.expandSearch()
-    }
-
-    /**
-     * 收起搜索交互区域并清理搜索状态。
-     */
-    fun collapseSearch() {
-        stateHolder.collapseSearch()
-    }
-
-    /**
-     * 更新搜索输入内容。
-     *
-     * @param query 用户输入框中的原始关键词，允许为空字符串。
-     */
-    fun onSearchQueryChange(query: String) {
-        stateHolder.onSearchQueryChange(query)
-    }
-
-    /**
-     * 提交搜索关键词并加载第一页结果。
-     *
-     * @param query 待提交的关键词，默认使用当前输入框内容。
-     */
-    fun searchSubmit(query: String = uiState.value.searchQuery) {
-        stateHolder.searchSubmit(query)
-    }
-
-    /**
-     * 加载当前搜索关键词的下一页结果。
-     */
-    fun loadMoreSearchResults() {
-        stateHolder.loadMoreSearchResults()
     }
 }

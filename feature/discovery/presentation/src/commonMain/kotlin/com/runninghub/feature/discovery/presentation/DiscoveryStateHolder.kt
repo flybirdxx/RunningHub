@@ -16,7 +16,8 @@ import kotlinx.coroutines.launch
 /**
  * 发现页的完整可渲染状态。
  *
- * 状态由 [DiscoveryStateHolder] 维护，只保存目录浏览、分页和搜索所需的 UI 派生状态。
+ * 状态由 [DiscoveryStateHolder] 维护，只保存目录浏览和分页所需的 UI 派生状态；
+ * 搜索状态完全由独立搜索页的 [SearchStateHolder] 承担。
  * WebApp 任务提交、上传和历史不属于发现页状态，必须通过更窄的任务仓库处理。
  *
  * @property isLoading 是否正在执行首次页面初始化。
@@ -45,21 +46,8 @@ import kotlinx.coroutines.launch
  * @property error 等待页面展示的主列表稳定错误语义。
  * `null` 表示当前没有主列表错误；非空通常来自网络或服务端业务错误，可由刷新动作重试。
  * 该字段不得保存服务端 `msg` 或 [Throwable.message]，最终中文文案由应用壳资源映射。
- * @property isSearchExpanded 搜索框是否展开。
- * `true` 表示页面进入搜索交互态；`false` 表示展示常规发现列表。
- * @property searchQuery 用户当前输入的搜索关键词。
- * 空字符串表示尚未输入或已清空搜索；提交搜索前应去除首尾空白。
- * @property isSearching 是否正在执行搜索请求。
- * `true` 时搜索输入应避免重复提交；`false` 表示没有进行中的搜索请求。
- * @property searchResults 当前搜索结果列表。
- * 列表顺序为服务端搜索排序；空列表表示尚未搜索或当前关键词没有匹配结果。
- * @property searchPage 当前搜索结果已成功加载的页码，从 1 开始。
- * 主列表分页和搜索分页互不共享该值。
- * @property searchHasMore 搜索结果是否还有下一页。
- * `true` 表示允许继续加载搜索结果；`false` 表示当前关键词分页已结束。
- * @property searchError 等待页面展示的搜索稳定错误语义。
- * `null` 表示当前没有搜索错误；非空时只影响搜索区域，不覆盖主列表错误。
- * 该字段不得保存服务端 `msg` 或 [Throwable.message]，最终中文文案由应用壳资源映射。
+ * @property loadMoreFailed 加载更多是否在最近一次尝试中失败，用于列表尾部错误提示与手动重试；
+ * 首页加载失败仍走 [error] 字段。
  */
 data class DiscoveryUiState(
     val isLoading: Boolean = true,
@@ -74,33 +62,24 @@ data class DiscoveryUiState(
     val hasMore: Boolean = true,
     val isLoadingMore: Boolean = false,
     val error: CatalogPresentationError? = null,
-    val isSearchExpanded: Boolean = false,
-    val searchQuery: String = "",
-    val isSearching: Boolean = false,
-    val searchResults: List<WebApp> = emptyList(),
-    val searchPage: Int = 1,
-    val searchHasMore: Boolean = false,
-    val searchError: CatalogPresentationError? = null,
+    val loadMoreFailed: Boolean = false,
 ) {
     /** 发现主列表的创作入口卡片语义，供应用壳直接渲染 AppCard。 */
     val appCards: List<DiscoveryAppCardUiModel>
         get() = apps.map { it.toDiscoveryAppCardUiModel() }
-
-    /** 搜索结果的创作入口卡片语义，和主列表分开保存以保留搜索空态。 */
-    val searchResultCards: List<DiscoveryAppCardUiModel>
-        get() = searchResults.map { it.toDiscoveryAppCardUiModel() }
 }
 
 private const val PAGE_SIZE = 30
 
 /**
- * 持有发现页目录浏览、分页和搜索状态。
+ * 持有发现页目录浏览和分页状态。
  *
+ * 搜索交互与搜索分页完全由独立搜索页的 [SearchStateHolder] 承担，本类不再保存任何搜索状态。
  * 本类位于 Discovery Presentation 层，只依赖 [WebAppCatalogRepository] 领域契约，
  * 不依赖 Compose、Voyager 或任何 Data 实现。应用壳负责传入与页面生命周期绑定的
- * [coroutineScope]，以便 Tab 切换或页面离栈时取消未完成的分页和搜索任务。
+ * [coroutineScope]，以便 Tab 切换或页面离栈时取消未完成的分页任务。
  *
- * @param webAppRepository WebApp 目录仓库，用于加载分类、分页列表和搜索结果。
+ * @param webAppRepository WebApp 目录仓库，用于加载分类和分页列表。
  * @param coroutineScope 与页面生命周期绑定的协程作用域。
  */
 class DiscoveryStateHolder(
@@ -112,19 +91,13 @@ class DiscoveryStateHolder(
     val uiState: StateFlow<DiscoveryUiState> = _uiState.asStateFlow()
 
     private var loadMoreJob: Job? = null
-    // 主列表和搜索分别使用递增版本号隔离旧响应。Repository 请求通常无法保证取消后服务端不再返回，
-    // 因此状态写入前必须确认响应仍属于用户最后一次选择的分类、排序或关键词。
+    // 主列表使用递增版本号隔离旧响应。Repository 请求通常无法保证取消后服务端不再返回，
+    // 因此状态写入前必须确认响应仍属于用户最后一次选择的分类或排序。
     private var appListRequestVersion: Long = 0
-    private var searchRequestVersion: Long = 0
 
     private fun nextAppListRequestVersion(): Long {
         appListRequestVersion += 1
         return appListRequestVersion
-    }
-
-    private fun nextSearchRequestVersion(): Long {
-        searchRequestVersion += 1
-        return searchRequestVersion
     }
 
     /**
@@ -204,7 +177,8 @@ class DiscoveryStateHolder(
                     currentPage = page,
                     hasMore = pageData.hasNext,
                     isLoadingApps = false,
-                    error = null
+                    error = null,
+                    loadMoreFailed = false,
                 )
             }
         }.onFailure { e ->
@@ -216,7 +190,8 @@ class DiscoveryStateHolder(
                         e.toCatalogPresentationError(CatalogPresentationError.LoadFailed)
                     } else {
                         it.error
-                    }
+                    },
+                    loadMoreFailed = !reset,
                 )
             }
         }
@@ -247,7 +222,8 @@ class DiscoveryStateHolder(
                 currentPage = 1,
                 hasMore = true,
                 isLoadingMore = false,
-                error = null
+                error = null,
+                loadMoreFailed = false,
             )
         }
 
@@ -281,7 +257,8 @@ class DiscoveryStateHolder(
                 currentPage = 1,
                 hasMore = true,
                 isLoadingMore = false,
-                error = null
+                error = null,
+                loadMoreFailed = false,
             )
         }
 
@@ -305,7 +282,7 @@ class DiscoveryStateHolder(
 
         coroutineScope.launch {
             _uiState.update {
-                it.copy(isRefreshing = true, isLoadingMore = false, error = null)
+                it.copy(isRefreshing = true, isLoadingMore = false, error = null, loadMoreFailed = false)
             }
             try {
                 loadCategories()
@@ -336,147 +313,6 @@ class DiscoveryStateHolder(
             loadApps(page = nextPage, reset = false, requestVersion = requestVersion)
             if (requestVersion == appListRequestVersion) {
                 _uiState.update { it.copy(isLoadingMore = false) }
-            }
-        }
-    }
-
-    /**
-     * 展开搜索交互区域。
-     *
-     * 展开只改变 UI 交互态，不会立即发起远端搜索；搜索请求由用户提交关键词触发。
-     */
-    fun expandSearch() {
-        _uiState.update { it.copy(isSearchExpanded = true) }
-    }
-
-    /**
-     * 收起搜索交互区域并清理搜索状态。
-     *
-     * 收起时保留主发现列表，清空搜索关键词、结果和搜索错误，避免旧搜索结果影响常规浏览。
-     */
-    fun collapseSearch() {
-        nextSearchRequestVersion()
-        _uiState.update {
-            it.copy(
-                isSearchExpanded = false,
-                searchQuery = "",
-                searchResults = emptyList(),
-                searchPage = 1,
-                searchHasMore = false,
-                isSearching = false,
-                searchError = null,
-            )
-        }
-    }
-
-    /**
-     * 更新搜索输入内容。
-     *
-     * 该方法只同步输入框状态，不自动防抖搜索；发现页搜索由显式提交触发，避免页面重组或输入中间态造成请求风暴。
-     *
-     * @param query 用户输入框中的原始关键词，允许为空字符串。
-     */
-    fun onSearchQueryChange(query: String) {
-        _uiState.update { it.copy(searchQuery = query) }
-    }
-
-    /**
-     * 提交搜索关键词并加载第一页结果。
-     *
-     * 空白关键词会清空搜索结果并停止搜索态；非空关键词会重置搜索分页，确保新结果不会与旧关键词结果混合。
-     *
-     * @param query 待提交的关键词，默认使用当前输入框内容。
-     */
-    fun searchSubmit(query: String = _uiState.value.searchQuery) {
-        val trimmed = query.trim()
-        if (trimmed.isEmpty()) {
-            nextSearchRequestVersion()
-            _uiState.update {
-                it.copy(
-                    searchQuery = "",
-                    searchResults = emptyList(),
-                    searchPage = 1,
-                    searchHasMore = false,
-                    isSearching = false,
-                    searchError = null,
-                )
-            }
-            return
-        }
-
-        val requestVersion = nextSearchRequestVersion()
-        coroutineScope.launch {
-            _uiState.update {
-                it.copy(
-                    searchQuery = trimmed,
-                    isSearching = true,
-                    searchError = null,
-                    searchPage = 1,
-                )
-            }
-            webAppRepository.searchApps(
-                keyword = trimmed,
-                pageNum = 1,
-                pageSize = PAGE_SIZE,
-            ).onSuccess { pageData ->
-                if (requestVersion != searchRequestVersion) return@onSuccess
-                _uiState.update {
-                    it.copy(
-                        isSearching = false,
-                        searchResults = pageData.records,
-                        searchHasMore = pageData.hasNext,
-                        searchError = null,
-                    )
-                }
-            }.onFailure { e ->
-                if (requestVersion != searchRequestVersion) return@onFailure
-                _uiState.update {
-                    it.copy(
-                        isSearching = false,
-                        searchResults = emptyList(),
-                        searchHasMore = false,
-                        searchError = e.toCatalogPresentationError(CatalogPresentationError.SearchFailed),
-                    )
-                }
-            }
-        }
-    }
-
-    /**
-     * 加载当前搜索关键词的下一页结果。
-     *
-     * 当搜索请求进行中、没有下一页或关键词为空时直接返回，避免重复分页请求和无效搜索。
-     */
-    fun loadMoreSearchResults() {
-        val state = _uiState.value
-        if (state.isSearching || !state.searchHasMore || state.searchQuery.isBlank()) return
-
-        val nextPage = state.searchPage + 1
-        val requestVersion = searchRequestVersion
-        coroutineScope.launch {
-            _uiState.update { it.copy(isSearching = true, searchError = null) }
-            webAppRepository.searchApps(
-                keyword = state.searchQuery,
-                pageNum = nextPage,
-                pageSize = PAGE_SIZE,
-            ).onSuccess { pageData ->
-                if (requestVersion != searchRequestVersion) return@onSuccess
-                _uiState.update {
-                    it.copy(
-                        isSearching = false,
-                        searchResults = (it.searchResults + pageData.records).distinctBy { app -> app.id },
-                        searchPage = nextPage,
-                        searchHasMore = pageData.hasNext,
-                    )
-                }
-            }.onFailure { e ->
-                if (requestVersion != searchRequestVersion) return@onFailure
-                _uiState.update {
-                    it.copy(
-                        isSearching = false,
-                        searchError = e.toCatalogPresentationError(CatalogPresentationError.SearchFailed),
-                    )
-                }
             }
         }
     }

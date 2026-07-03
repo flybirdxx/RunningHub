@@ -155,9 +155,7 @@ internal fun previewCategories(): List<Tag> = listOf(
     ),
 )
 
-internal fun previewDiscoveryUiState(
-    searchExpanded: Boolean = false,
-): DiscoveryUiState {
+internal fun previewDiscoveryUiState(): DiscoveryUiState {
     val apps = previewWebApps()
     return DiscoveryUiState(
         isLoading = false,
@@ -168,10 +166,6 @@ internal fun previewDiscoveryUiState(
         apps = apps,
         currentPage = 2,
         hasMore = false,
-        isSearchExpanded = searchExpanded,
-        searchQuery = if (searchExpanded) "portrait workflow" else "",
-        searchResults = apps.take(8),
-        searchHasMore = false,
     )
 }
 

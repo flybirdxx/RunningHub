@@ -1,9 +1,12 @@
 package com.runninghub.app.ui.feature.discovery
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -250,6 +253,27 @@ internal fun DiscoveryContent(
                                         modifier = Modifier.size(24.dp),
                                         color = colors.brandPrimary,
                                         strokeWidth = 2.dp,
+                                    )
+                                }
+                            }
+                            // 加载更多失败时不清空已有列表，在网格尾部提示错误并提供手动重试入口。
+                            uiState.loadMoreFailed -> {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth().padding(RhSpacing.lg),
+                                    horizontalArrangement = Arrangement.Center,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = stringResource(Res.string.discovery_error_load_failed),
+                                        style = RhTypography.caption,
+                                        color = colors.statusFailed,
+                                    )
+                                    Spacer(Modifier.padding(start = RhSpacing.sm))
+                                    Text(
+                                        text = stringResource(Res.string.discovery_error_retry),
+                                        style = RhTypography.caption,
+                                        color = colors.brandPrimary,
+                                        modifier = Modifier.clickable(onClick = onLoadMore),
                                     )
                                 }
                             }
