@@ -128,6 +128,16 @@ class SearchStateHolderTest {
         assertEquals(emptyList(), stateHolder.uiState.value.results)
     }
 
+    @Test
+    fun searchUiStateDerivesResultCardsFromResults() {
+        val app = app("app-1").copy(title = "写实人像")
+        val state = SearchUiState(results = listOf(app))
+
+        assertEquals(1, state.resultCards.size)
+        assertEquals("app-1", state.resultCards.first().id)
+        assertEquals("写实人像", state.resultCards.first().templateName)
+    }
+
     private class FakeSearchCatalogRepository : WebAppCatalogRepository {
         val searchCalls = mutableListOf<SearchCall>()
         private val searchResponses = ArrayDeque<CompletableDeferred<Result<PageData<WebApp>>>>()

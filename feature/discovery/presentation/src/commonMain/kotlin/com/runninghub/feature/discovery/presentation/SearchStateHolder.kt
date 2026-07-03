@@ -42,7 +42,11 @@ data class SearchUiState(
     val currentPage: Int = 1,
     val hasMore: Boolean = true,
     val error: CatalogPresentationError? = null,
-)
+) {
+    /** 搜索结果的创作入口卡片语义，与发现页共用同一 UiModel，供应用壳直接渲染 AppCard。 */
+    val resultCards: List<DiscoveryAppCardUiModel>
+        get() = results.map { it.toDiscoveryAppCardUiModel() }
+}
 
 private const val SEARCH_DEBOUNCE_MS = 350L
 private const val PAGE_SIZE = 10
