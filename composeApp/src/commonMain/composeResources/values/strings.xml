@@ -464,11 +464,8 @@
     <string name="app_detail_error_task_failed">任务失败，请稍后重试</string>
     <string name="app_detail_error_task_timeout">任务超时，请稍后重试</string>
     <string name="app_detail_creation_description_title">简介</string>
-    <string name="app_detail_creation_inputs_title">输入项</string>
     <string name="app_detail_creation_cost_title">预计费用</string>
     <string name="app_detail_creation_cost_unknown">运行前确认费用</string>
-    <string name="app_detail_creation_input_media_provided">已选择素材</string>
-    <string name="app_detail_creation_input_missing">未提供</string>
     <string name="app_detail_creation_technical_title">技术信息</string>
     <string name="app_detail_creation_technical_empty">暂无额外技术信息</string>
     <string name="app_detail_creation_technical_item_format">%1$s：%2$s</string>

@@ -32,16 +32,12 @@ import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.core.model.AppDetail
 import com.runninghub.feature.detail.presentation.AppDetailCreationEntryUiModel
-import com.runninghub.feature.detail.presentation.AppDetailInputNodeValuePreview
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_detail_back_content_description
 import runninghub.composeapp.generated.resources.app_detail_creation_cost_title
 import runninghub.composeapp.generated.resources.app_detail_creation_cost_unknown
 import runninghub.composeapp.generated.resources.app_detail_creation_description_title
-import runninghub.composeapp.generated.resources.app_detail_creation_input_media_provided
-import runninghub.composeapp.generated.resources.app_detail_creation_input_missing
-import runninghub.composeapp.generated.resources.app_detail_creation_inputs_title
 import runninghub.composeapp.generated.resources.app_detail_creation_technical_empty
 import runninghub.composeapp.generated.resources.app_detail_creation_technical_item_format
 import runninghub.composeapp.generated.resources.app_detail_creation_technical_title
@@ -51,7 +47,9 @@ import runninghub.composeapp.generated.resources.app_detail_default_app_name
  * App 详情页创作入口卡片。
  *
  * 从 AppDetailScreen.kt 拆分而来，承载创作入口卡片及其内部的紧凑封面、
- * 消耗信息行和输入预览行；颜色统一读取 RhTheme 语义 token。
+ * 简介摘要、消耗信息行和技术信息折叠；参数编辑统一由下方配置参数区
+ * (AppDetailParamsSection) 承担，此卡片不再重复渲染只读输入预览。
+ * 颜色统一读取 RhTheme 语义 token。
  */
 
 @Composable
@@ -126,23 +124,6 @@ internal fun AppDetailCreationEntry(
             title = stringResource(Res.string.app_detail_creation_cost_title),
             value = entry.estimatedCost.amountLabel ?: stringResource(Res.string.app_detail_creation_cost_unknown),
         )
-
-        if (entry.inputNodes.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(Res.string.app_detail_creation_inputs_title),
-                    color = colors.textPrimary,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                entry.inputNodes.forEach { input ->
-                    CreationInputRow(
-                        title = input.title,
-                        valuePreview = input.valuePreview,
-                    )
-                }
-            }
-        }
 
         CollapsibleSection(
             title = stringResource(Res.string.app_detail_creation_technical_title),
@@ -231,49 +212,6 @@ private fun CreationInfoRow(title: String, value: String) {
             fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-@Composable
-private fun CreationInputRow(title: String, valuePreview: AppDetailInputNodeValuePreview) {
-    val colors = RhTheme.colors
-    val previewText = when (valuePreview) {
-        AppDetailInputNodeValuePreview.MediaProvided ->
-            stringResource(Res.string.app_detail_creation_input_media_provided)
-        AppDetailInputNodeValuePreview.Missing ->
-            stringResource(Res.string.app_detail_creation_input_missing)
-        is AppDetailInputNodeValuePreview.Text -> valuePreview.value
-    }
-    val previewColor = when (valuePreview) {
-        AppDetailInputNodeValuePreview.Missing -> colors.brandPrimary
-        else -> colors.statusSuccess
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(colors.surfaceElevated.copy(alpha = 0.74f))
-            .padding(horizontal = 12.dp, vertical = 9.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = title,
-            color = colors.textPrimary,
-            fontSize = 13.sp,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = previewText,
-            color = previewColor,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.weight(0.72f),
         )
     }
 }
