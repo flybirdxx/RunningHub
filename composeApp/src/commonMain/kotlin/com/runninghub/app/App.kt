@@ -40,7 +40,7 @@ fun App() {
             .build()
     }
     KoinContext {
-        RunningHubTheme(darkTheme = true) {
+        RunningHubTheme {
             val sessionManager = koinInject<SessionManager>()
             val sessionState by sessionManager.state.collectAsState()
 

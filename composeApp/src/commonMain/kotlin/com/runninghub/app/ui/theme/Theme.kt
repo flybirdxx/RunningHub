@@ -1,48 +1,13 @@
 package com.runninghub.app.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import com.runninghub.app.ui.designsystem.theme.LocalRhColors
 import com.runninghub.app.ui.designsystem.theme.LocalRhShapes
 import com.runninghub.app.ui.designsystem.theme.RhDarkColors
 import com.runninghub.app.ui.designsystem.theme.RhDefaultShapes
-import com.runninghub.app.ui.designsystem.theme.RhLightColors
-
-private val LightColorScheme = lightColorScheme(
-    primary = LightPrimary,
-    onPrimary = LightOnPrimary,
-    primaryContainer = LightPrimaryContainer,
-    onPrimaryContainer = LightOnPrimaryContainer,
-    secondary = LightSecondary,
-    onSecondary = LightOnSecondary,
-    secondaryContainer = LightSecondaryContainer,
-    onSecondaryContainer = LightOnSecondaryContainer,
-    tertiary = LightTertiary,
-    onTertiary = LightOnTertiary,
-    tertiaryContainer = LightTertiaryContainer,
-    onTertiaryContainer = LightOnTertiaryContainer,
-    error = LightError,
-    onError = LightOnError,
-    errorContainer = LightErrorContainer,
-    onErrorContainer = LightOnErrorContainer,
-    background = LightBackground,
-    onBackground = LightOnBackground,
-    surface = LightSurface,
-    onSurface = LightOnSurface,
-    surfaceVariant = LightSurfaceVariant,
-    onSurfaceVariant = LightOnSurfaceVariant,
-    outline = LightOutline,
-    outlineVariant = LightOutlineVariant,
-    inverseSurface = LightInverseSurface,
-    inverseOnSurface = LightInverseOnSurface,
-    inversePrimary = LightInversePrimary,
-    surfaceTint = LightSurfaceTint,
-    scrim = LightScrim
-)
 
 private val DarkColorScheme = darkColorScheme(
     primary = DarkPrimary,
@@ -79,23 +44,18 @@ private val DarkColorScheme = darkColorScheme(
 /**
  * 应用壳主题入口。
  *
- * 该入口同时提供旧版扩展色和新的 RunningHub design system token，确保 RM-01/RM-02 的新组件可以逐步接入而不破坏现有页面。
+ * redesign 决策：App 锁定暗色，不跟随系统深浅色。浅色 Material scheme 与
+ * RhLightColors 保留类型定义但不再进入运行路径，收尾批评估删除。
  */
 @Composable
-fun RunningHubTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    content: @Composable () -> Unit
-) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
-    val extendedColors = if (darkTheme) DarkExtendedColors else LightExtendedColors
-
+fun RunningHubTheme(content: @Composable () -> Unit) {
     CompositionLocalProvider(
-        LocalExtendedColors provides extendedColors,
-        LocalRhColors provides if (darkTheme) RhDarkColors else RhLightColors,
+        LocalExtendedColors provides DarkExtendedColors,
+        LocalRhColors provides RhDarkColors,
         LocalRhShapes provides RhDefaultShapes,
     ) {
         MaterialTheme(
-            colorScheme = colorScheme,
+            colorScheme = DarkColorScheme,
             typography = AppTypography,
             content = content
         )

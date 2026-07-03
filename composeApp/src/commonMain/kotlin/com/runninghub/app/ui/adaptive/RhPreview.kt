@@ -51,7 +51,7 @@ fun RunningHubPreviewSurface(
     fontScale: Float = 1f,
     content: @Composable () -> Unit,
 ) {
-    RunningHubTheme(darkTheme = true) {
+    RunningHubTheme {
         val density = LocalDensity.current
         val windowInfo = remember(windowWidth, windowHeight) {
             RhWindowInfo(
