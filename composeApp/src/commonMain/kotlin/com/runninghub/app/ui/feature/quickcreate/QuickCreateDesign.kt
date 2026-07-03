@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
@@ -21,7 +20,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.jetbrains.compose.resources.stringResource
@@ -49,29 +47,6 @@ internal object QuickCreateDesignTokens {
     val Cyan = Color(0xFF16D8FF)
     val Pink = Color(0xFFFF5CF4)
 }
-/**
- * 绘制设计稿中反复出现的深色玻璃面板。
- *
- * @param modifier 外层布局修饰符。
- * @param radius 面板圆角，默认匹配底部输入栏与卡片。
- * @param content 面板内部内容。
- */
-@Composable
-internal fun QuickCreateGlassPanel(
-    modifier: Modifier = Modifier,
-    radius: Dp = 18.dp,
-    content: @Composable BoxScope.() -> Unit,
-) {
-    Surface(
-        modifier = modifier,
-        color = QuickCreateDesignTokens.Panel,
-        shape = RoundedCornerShape(radius),
-        content = {
-            Box(content = content)
-        },
-    )
-}
-
 /**
  * 底部弹层顶部的拖拽条。
  *
