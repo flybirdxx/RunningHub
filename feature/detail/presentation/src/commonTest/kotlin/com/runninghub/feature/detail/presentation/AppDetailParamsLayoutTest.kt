@@ -21,7 +21,7 @@ class AppDetailParamsLayoutTest {
         )
         val layout = appDetailParamsLayout(all)
         assertEquals(2, layout.coreRows.size)
-        assertEquals(listOf("采样", "修复", "输出"), layout.advancedGroups.map { it.title })
+        assertEquals(listOf("采样", "修复", null), layout.advancedGroups.map { it.title })
         assertEquals(listOf(3, 2, 1), layout.advancedGroups.map { it.rows.size })
     }
 
@@ -35,7 +35,21 @@ class AppDetailParamsLayoutTest {
         )
         val layout = appDetailParamsLayout(all)
         assertEquals(1, layout.coreRows.size)
-        assertEquals(listOf("采样", null, "采样", "其他"), layout.advancedGroups.map { it.title })
+        assertEquals(listOf("采样", null), layout.advancedGroups.map { it.title })
+        assertEquals(4, layout.advancedGroups[1].rows.size)
+    }
+
+    @Test
+    fun `alternating singleton node names coalesce into one untitled group`() {
+        val all = listOf(
+            mediaRow("1", "输入"),
+            intRow("2", "easy int"), switchRow("3", "easy boolean"),
+            decimalRow("4", "easy float"), switchRow("5", "easy boolean"),
+            decimalRow("6", "easy float"), intRow("7", "ImpactSwitch"),
+        )
+        val layout = appDetailParamsLayout(all)
+        assertEquals(listOf<String?>(null), layout.advancedGroups.map { it.title })
+        assertEquals(6, layout.advancedGroups.single().rows.size)
     }
 
     @Test

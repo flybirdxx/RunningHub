@@ -6,6 +6,9 @@ const val APP_DETAIL_PARAMS_FLAT_THRESHOLD = 6
 /** 无核心行时兜底保留在核心区的行数。 */
 const val APP_DETAIL_PARAMS_FALLBACK_CORE_ROWS = 3
 
+/** 命名分组保留的最小行数；不足的分组会与相邻不合格分组合并为无标题分组。 */
+const val APP_DETAIL_PARAMS_MIN_NAMED_GROUP_ROWS = 2
+
 /**
  * 参数区高级分组。
  *
@@ -35,7 +38,9 @@ data class AppDetailParamsLayoutUiModel(
  *
  * 规则：总行数 ≤ [APP_DETAIL_PARAMS_FLAT_THRESHOLD] 全部平铺；否则媒体上传与多行文本行
  * 视为核心（全无时前 [APP_DETAIL_PARAMS_FALLBACK_CORE_ROWS] 行兜底），其余按“连续相同节点名”
- * 切分为折叠分组，空节点名合并为无标题分组。
+ * 切分为折叠分组，空节点名合并为无标题分组。命名分组仅当行数
+ * ≥ [APP_DETAIL_PARAMS_MIN_NAMED_GROUP_ROWS] 时保留；不合格的相邻分组按原顺序合并为
+ * 一个无标题分组，避免真实工作流中交替出现的技术节点名产生大量单字段分组。
  */
 fun appDetailParamsLayout(rows: List<AppDetailInputRowUiModel>): AppDetailParamsLayoutUiModel {
     if (rows.size <= APP_DETAIL_PARAMS_FLAT_THRESHOLD) {
@@ -92,5 +97,34 @@ private fun List<AppDetailInputRowUiModel>.toGroups(): List<AppDetailParamsGroup
         currentRows += row
     }
     flush()
-    return groups
+    return groups.coalesceThinGroups()
+}
+
+/**
+ * 合并不合格的分组：命名分组仅当行数 ≥ [APP_DETAIL_PARAMS_MIN_NAMED_GROUP_ROWS] 时保留，
+ * 其余连续段按原顺序合并为一个无标题分组（UI 使用通用文案渲染）。
+ */
+private fun List<AppDetailParamsGroup>.coalesceThinGroups(): List<AppDetailParamsGroup> {
+    val result = mutableListOf<AppDetailParamsGroup>()
+    val pending = mutableListOf<AppDetailParamsGroup>()
+    fun flushPending() {
+        if (pending.isNotEmpty()) {
+            result += AppDetailParamsGroup(
+                title = null,
+                rows = pending.flatMap { it.rows },
+                modifiedCount = pending.sumOf { it.modifiedCount },
+            )
+            pending.clear()
+        }
+    }
+    forEach { group ->
+        if (group.title != null && group.rows.size >= APP_DETAIL_PARAMS_MIN_NAMED_GROUP_ROWS) {
+            flushPending()
+            result += group
+        } else {
+            pending += group
+        }
+    }
+    flushPending()
+    return result
 }
