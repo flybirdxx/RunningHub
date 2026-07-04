@@ -1,6 +1,6 @@
 ---
 name: clean-code
-model: standard
+model: anthropic/claude-opus-4.8
 category: testing
 description: Pragmatic coding standards for writing clean, maintainable code — naming, functions, structure, anti-patterns, and pre-edit safety checks. Use when writing new code, refactoring existing code, reviewing code quality, or establishing coding standards.
 version: 2.0

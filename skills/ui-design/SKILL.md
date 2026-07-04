@@ -1,6 +1,6 @@
 ---
 name: ui-design
-model: standard
+model: anthropic/claude-opus-4.8
 version: 1.0.0
 description: >
   Comprehensive UI design skill covering fundamentals, patterns, and anti-patterns.
