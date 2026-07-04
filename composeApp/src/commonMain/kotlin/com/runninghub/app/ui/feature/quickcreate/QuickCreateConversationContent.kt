@@ -11,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
@@ -34,8 +35,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
@@ -76,6 +79,7 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskSta
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.result.quickCreateResultActions
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_result_action_copy_prompt
@@ -88,9 +92,9 @@ import runninghub.composeapp.generated.resources.quick_create_result_action_try_
 import runninghub.composeapp.generated.resources.quick_create_result_action_view_detail
 import runninghub.composeapp.generated.resources.quick_create_result_action_view_result
 import runninghub.composeapp.generated.resources.quick_create_result_action_view_task
+import runninghub.composeapp.generated.resources.quick_create_result_badge_expiry
 import runninghub.composeapp.generated.resources.quick_create_result_badge_progress_format
 import runninghub.composeapp.generated.resources.quick_create_result_expiry_24h
-import runninghub.composeapp.generated.resources.quick_create_result_expiry_badge
 import runninghub.composeapp.generated.resources.quick_create_result_section_title
 import runninghub.composeapp.generated.resources.quick_create_result_task_id_format
 import runninghub.composeapp.generated.resources.quick_create_task_status_canceled
@@ -123,6 +127,7 @@ internal fun QuickCreateConversationArea(
     }
 
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
     LaunchedEffect(
         conversationItems.size,
         conversationItems.lastOrNull()?.taskStatus,
@@ -141,22 +146,35 @@ internal fun QuickCreateConversationArea(
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
-        conversationItems.forEach { item ->
-            if (item.prompt.isNotBlank()) {
-                UserPromptBubble(prompt = item.prompt)
-            }
-            if (item.results.isNotEmpty() || item.taskStatus != QuickCreateTaskUiStatus.IDLE) {
-                androidx.compose.foundation.layout.Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    QuickCreateRhAvatar(modifier = Modifier.padding(top = 4.dp))
-                    GeneratedPosterCard(
-                        item = item,
-                        onResultAction = { action -> onResultAction(action, item) },
-                        modifier = Modifier.weight(1f),
-                    )
+        conversationItems.forEachIndexed { index, item ->
+            // key 以 taskId 优先（缺失时回退索引）标识条目，避免列表增删导致位置漂移时，
+            // 把上一张卡的局部状态（图片 intrinsic 比例、长按工具条可见性）串到别的条目上。
+            key(item.taskId ?: index) {
+                if (item.prompt.isNotBlank()) {
+                    UserPromptBubble(prompt = item.prompt)
+                }
+                if (item.results.isNotEmpty() || item.taskStatus != QuickCreateTaskUiStatus.IDLE) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.Top,
+                    ) {
+                        QuickCreateRhAvatar(modifier = Modifier.padding(top = 4.dp))
+                        GeneratedPosterCard(
+                            item = item,
+                            onResultAction = { action -> onResultAction(action, item) },
+                            modifier = Modifier.weight(1f),
+                            onToolbarVisibilityChanged = { visible ->
+                                // 最底部条目通常已滚到底，长按浮出的工具条渲染在卡片下方、
+                                // 会落在视口外；工具条变为可见时主动滚到底部把它带进视口。
+                                // 不用 BringIntoViewRequester（实验性 API），
+                                // 复用页面既有的 scrollState 动画方案。
+                                if (visible && index == conversationItems.lastIndex) {
+                                    scope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+                                }
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -209,16 +227,20 @@ private fun UserPromptBubble(prompt: String) {
 /**
  * 会话条目的结果卡分发入口。
  *
- * 叠加式重设计(result-card-v2)后按任务阶段分三条渲染路径:
- * - 成功且有结果:聊天气泡式叠加卡 [ConversationSuccessResultCard],支持长按工具条;
- * - 生成中(提交/排队/运行):叠加卡 + 流体占位 [ConversationGeneratingCard],比例来自提交参数快照;
- * - 其余(失败/取消及成功但暂无输出等边缘态):保持原有 [ResultPreview] 紧凑卡路径不变。
+ * 叠加式重设计（result-card-v2）后按任务阶段分三条渲染路径：
+ * - 成功且有结果：聊天气泡式叠加卡 [ConversationSuccessResultCard]，支持长按工具条；
+ * - 生成中（提交/排队/运行）：叠加卡 + 流体占位 [ConversationGeneratingCard]，比例来自提交参数快照；
+ * - 其余（失败/取消及成功但暂无输出等边缘态）：保持原有 [ResultPreview] 紧凑卡路径不变。
+ *
+ * @param onToolbarVisibilityChanged 长按工具条可见性变化回调；由会话区用来在最底部条目
+ * 浮出工具条时滚动视口，保证工具条完整可见。
  */
 @Composable
 private fun GeneratedPosterCard(
     item: QuickCreateConversationItemUi,
     onResultAction: (QuickCreateResultAction) -> Unit,
     modifier: Modifier = Modifier,
+    onToolbarVisibilityChanged: (Boolean) -> Unit = {},
 ) {
     val result = item.results.firstOrNull()
     when {
@@ -228,6 +250,7 @@ private fun GeneratedPosterCard(
                 result = result,
                 onResultAction = onResultAction,
                 modifier = modifier,
+                onToolbarVisibilityChanged = onToolbarVisibilityChanged,
             )
         item.taskStatus == QuickCreateTaskUiStatus.SUBMITTING ||
             item.taskStatus == QuickCreateTaskUiStatus.QUEUING ||
@@ -244,11 +267,11 @@ private fun GeneratedPosterCard(
 }
 
 /**
- * 生成中(提交/排队/运行)的叠加式占位卡。
+ * 生成中（提交/排队/运行）的叠加式占位卡。
  *
- * 卡片比例来自点击生成时的提交参数快照([QuickCreateConversationItemUi.aspectRatio]),
- * 让占位形状贴近最终结果;媒体槽铺满尺寸感知的流体蒙版。
- * 状态徽:有可见进度时展示短百分数(如「42%」),否则复用现有短状态文案;
+ * 卡片比例来自点击生成时的提交参数快照（[QuickCreateConversationItemUi.aspectRatio]），
+ * 让占位形状贴近最终结果；媒体槽铺满尺寸感知的流体蒙版。
+ * 状态徽：有可见进度时展示短百分数（如「42%」），否则复用现有短状态文案；
  * 生成中不展示叠加操作与过期徽。
  */
 @Composable
@@ -275,11 +298,12 @@ private fun ConversationGeneratingCard(
 }
 
 /**
- * 成功态的叠加式结果卡:媒体即卡片,底部 scrim 上叠下载/复制到素材区圆钮。
+ * 成功态的叠加式结果卡：媒体即卡片，底部 scrim 上叠下载/复制到素材区圆钮。
  *
- * 长按卡片浮出下方胶囊工具条(再来一张/复用参数/复制 Prompt);工具条可见期间卡片
- * 走品牌色描边高亮,再次点击卡片或点任一工具条项收起。工具条可见性是纯 UI 瞬态,
- * 按任务维度 remember 局部持有,不进 UiState。
+ * 长按卡片浮出下方胶囊工具条（再来一张/复用参数/复制 Prompt）；工具条可见期间卡片
+ * 走品牌色描边高亮，再次点击卡片或点任一工具条项收起。工具条可见性是纯 UI 瞬态，
+ * 按任务维度 remember 局部持有，不进 UiState；每次变化通过
+ * [onToolbarVisibilityChanged] 通知会话区处理视口滚动。
  */
 @Composable
 private fun ConversationSuccessResultCard(
@@ -287,9 +311,17 @@ private fun ConversationSuccessResultCard(
     result: QuickCreateResultUi,
     onResultAction: (QuickCreateResultAction) -> Unit,
     modifier: Modifier = Modifier,
+    onToolbarVisibilityChanged: (Boolean) -> Unit = {},
 ) {
     var resolvedImageAspectRatio by remember(result.url) { mutableStateOf<Float?>(null) }
     var toolbarVisible by remember(item.taskId) { mutableStateOf(false) }
+    // 收敛工具条可见性写入口：状态实际变化时同步回调，避免各手势分支漏通知。
+    fun setToolbarVisible(visible: Boolean) {
+        if (toolbarVisible != visible) {
+            toolbarVisible = visible
+            onToolbarVisibilityChanged(visible)
+        }
+    }
     val cardAspectRatio = quickCreateConversationResultAspectRatio(
         resultWidth = result.width,
         resultHeight = result.height,
@@ -308,36 +340,25 @@ private fun ConversationSuccessResultCard(
             aspectRatio = cardAspectRatio,
             statusLabel = stringResource(Res.string.quick_create_task_status_success),
             status = RhTaskStatus.Success,
-            expiryLabel = stringResource(Res.string.quick_create_result_expiry_badge),
+            expiryLabel = stringResource(Res.string.quick_create_result_badge_expiry),
             overlayActions = overlayActions,
             onAction = { actionType -> onResultAction(actionType.toQuickCreateResultAction()) },
             highlighted = toolbarVisible,
-            // 只有工具条可见时才挂整卡点击(用于收起);平时不消费点击,留给未来的预览手势。
-            onClick = if (toolbarVisible) ({ toolbarVisible = false }) else null,
-            onLongPress = { toolbarVisible = true },
+            // 只有工具条可见时才挂整卡点击（用于收起）；平时不消费点击，留给未来的预览手势。
+            onClick = if (toolbarVisible) ({ setToolbarVisible(false) }) else null,
+            onLongPress = { setToolbarVisible(true) },
             mediaContent = {
-                val previewUrl = if (result.mediaType == QuickCreateResultMediaType.IMAGE) {
-                    result.url
-                } else {
-                    result.thumbnailUrl?.takeIf { it.isNotBlank() } ?: result.url
-                }
-                SmartAsyncImage(
-                    imageUrl = previewUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .matchParentSize()
-                        // 比例未知时先隐藏媒体,等服务端宽高或 intrinsic 比例就绪再显示,
-                        // 避免 1:1 回退卡上闪现被裁切的图。
-                        .alpha(if (cardAspectRatio != null) 1f else 0f),
-                    contentScale = ContentScale.Crop,
-                    onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
+                ConversationResultMedia(
+                    result = result,
+                    cardAspectRatio = cardAspectRatio,
+                    onRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
                 )
             },
         )
         if (toolbarVisible) {
             ConversationResultLongPressToolbar(
                 onAction = { action ->
-                    toolbarVisible = false
+                    setToolbarVisible(false)
                     onResultAction(action)
                 },
             )
@@ -348,8 +369,8 @@ private fun ConversationSuccessResultCard(
 /**
  * 失败/取消等非叠加态沿用的原 [ResultPreview] 紧凑卡路径。
  *
- * 保留其动作按钮(重试/查看详情/再来一张)与媒体兜底逻辑;生成中与成功态已迁移到
- * 叠加卡,不再进入该函数。
+ * 保留其动作按钮（重试/查看详情/再来一张）与媒体兜底逻辑；生成中与成功态已迁移到
+ * 叠加卡，不再进入该函数。
  */
 @Composable
 private fun ConversationLegacyStatusCard(
@@ -378,21 +399,12 @@ private fun ConversationLegacyStatusCard(
         onAction = { actionType -> onResultAction(actionType.toQuickCreateResultAction()) },
         modifier = modifier,
         mediaContent = {
-            // media 为 null 时组件不会调用媒体槽,因此这里 result 一定非空。
+            // media 为 null 时组件不会调用媒体槽，因此这里 result 一定非空。
             if (result != null) {
-                val previewUrl = if (result.mediaType == QuickCreateResultMediaType.IMAGE) {
-                    result.url
-                } else {
-                    result.thumbnailUrl?.takeIf { it.isNotBlank() } ?: result.url
-                }
-                SmartAsyncImage(
-                    imageUrl = previewUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .alpha(if (cardAspectRatio != null) 1f else 0f),
-                    contentScale = ContentScale.Crop,
-                    onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
+                ConversationResultMedia(
+                    result = result,
+                    cardAspectRatio = cardAspectRatio,
+                    onRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
                 )
             }
         },
@@ -400,10 +412,38 @@ private fun ConversationLegacyStatusCard(
 }
 
 /**
+ * 成功卡与紧凑卡共用的结果媒体渲染槽。
+ *
+ * 图片结果直接使用原图，视频结果优先使用缩略图；比例未知时先隐藏媒体，
+ * 等服务端宽高或 intrinsic 比例就绪再显示，避免在 1:1 回退卡上闪现被裁切的图。
+ */
+@Composable
+private fun BoxScope.ConversationResultMedia(
+    result: QuickCreateResultUi,
+    cardAspectRatio: Float?,
+    onRatioResolved: (Float) -> Unit,
+) {
+    val previewUrl = if (result.mediaType == QuickCreateResultMediaType.IMAGE) {
+        result.url
+    } else {
+        result.thumbnailUrl?.takeIf { it.isNotBlank() } ?: result.url
+    }
+    SmartAsyncImage(
+        imageUrl = previewUrl,
+        contentDescription = null,
+        modifier = Modifier
+            .matchParentSize()
+            .alpha(if (cardAspectRatio != null) 1f else 0f),
+        contentScale = ContentScale.Crop,
+        onImageAspectRatioResolved = onRatioResolved,
+    )
+}
+
+/**
  * 成功态结果卡长按浮出的胶囊工具条。
  *
- * 占位首版:收纳现有已接线动作(再来一张/复用参数/复制 Prompt),后续可扩。
- * 纯展示组件:只回传动作语义,收起时机由调用方控制。
+ * 占位首版：收纳现有已接线动作（再来一张/复用参数/复制 Prompt），后续可扩。
+ * 纯展示组件：只回传动作语义，收起时机由调用方控制。
  */
 @Composable
 private fun ConversationResultLongPressToolbar(
@@ -474,9 +514,9 @@ private fun ConversationToolbarItem(
 /**
  * 把 Presentation 动作真源映射为叠加卡圆钮状态。
  *
- * 只有下载与复制到素材区两个动作进入叠加圆钮;复制到素材区作为主操作走品牌色强调,
- * 其余动作(重试/再来一张等)由失败态紧凑卡或长按工具条承接,这里返回 null 过滤。
- * 图标取自 material-icons-extended(项目既有依赖,见 composeApp/build.gradle.kts)。
+ * 只有下载与复制到素材区两个动作进入叠加圆钮；复制到素材区作为主操作走品牌色强调，
+ * 其余动作（重试/再来一张等）由失败态紧凑卡或长按工具条承接，这里返回 null 过滤。
+ * 图标取自 material-icons-extended（项目既有依赖，见 composeApp/build.gradle.kts）。
  */
 @Composable
 private fun QuickCreateResultActionUi.toConversationResultCardActionState(): ConversationResultCardActionState? =
@@ -499,7 +539,7 @@ private fun QuickCreateResultActionUi.toConversationResultCardActionState(): Con
     }
 
 /**
- * 叠加卡圆钮动作转回 Presentation 动作语义,复用页面现有 onResultAction 分发。
+ * 叠加卡圆钮动作转回 Presentation 动作语义，复用页面现有 onResultAction 分发。
  */
 private fun ConversationResultCardActionType.toQuickCreateResultAction(): QuickCreateResultAction =
     when (this) {
@@ -738,14 +778,14 @@ internal fun quickCreateConversationResultAspectRatio(
 }
 
 /**
- * 解析提交参数快照中的宽高比协议值,作为生成中占位卡的比例。
+ * 解析提交参数快照中的宽高比协议值，作为生成中占位卡的比例。
  *
- * 支持半角冒号("9:16")、全角冒号("3：4")与斜杠("16/9")三种分隔;
- * 非法输入(缺分隔、非数字、零或负值、空白)返回 null,由叠加卡回退 1:1。
- * 该值只在还没有结果图时使用,结果出现后改用 [quickCreateConversationResultAspectRatio]。
+ * 支持半角冒号（"9:16"）、全角冒号（"3：4"）与斜杠（"16/9"）三种分隔；
+ * 非法输入（缺分隔、非数字、零或负值、NaN/Infinity、空白）返回 null，由叠加卡回退 1:1。
+ * 该值只在还没有结果图时使用，结果出现后改用 [quickCreateConversationResultAspectRatio]。
  *
- * 这里不做区间截断(coerce):极端比例的 clamp 已由 ConversationResultCard 的
- * conversationResultCardSize 统一负责,避免两处 clamp 语义漂移。
+ * 这里不做区间截断（coerce）：极端比例的 clamp 已由 ConversationResultCard 的
+ * conversationResultCardSize 统一负责，避免两处 clamp 语义漂移。
  */
 internal fun quickCreateConversationGeneratingAspectRatio(aspectRatio: String?): Float? {
     val value = aspectRatio?.trim()?.takeIf { it.isNotBlank() } ?: return null
@@ -754,5 +794,7 @@ internal fun quickCreateConversationGeneratingAspectRatio(aspectRatio: String?):
     val width = parts[0].trim().toFloatOrNull()
     val height = parts[1].trim().toFloatOrNull()
     if (width == null || height == null || width <= 0f || height <= 0f) return null
-    return width / height
+    // toFloatOrNull 能解析 "NaN"/"Infinity"，且 NaN 不小于 0 会穿过上面的检查，
+    // 这里统一按「非法返回 null」契约收口。
+    return (width / height).takeIf { it.isFinite() }
 }

@@ -217,6 +217,7 @@ private fun QuickCreateScreen(
             QuickCreateResultAction.ViewTask,
             QuickCreateResultAction.ViewResult,
             QuickCreateResultAction.Save,
+            // TODO(result-card-v2 T5)：接线下载到本地能力。
             QuickCreateResultAction.Download,
             // TODO(result-card-v2 T4)：接线复制到素材区能力。
             QuickCreateResultAction.CopyToComposer,
