@@ -424,6 +424,18 @@ class QuickCreateScreenModel(
     }
 
     /**
+     * 把远端结果图直接挂为图片 Tab 的全局参考素材。
+     *
+     * 该入口服务结果卡「复制到素材区」动作；必要时由 Presentation 先切到 IMAGE Tab，
+     * 引用以远端已完成形式进入素材区，不触发本地媒体读取或上传。
+     *
+     * @param url 远端可访问的图片地址；空白时忽略。
+     */
+    fun attachRemoteImageReference(url: String) {
+        presentation.attachRemoteImageReference(url)
+    }
+
+    /**
      * 添加视频 Tab 的全局参考视频。
      *
      * @param uriString 用户从平台文件选择器返回的本地 URI 字符串。

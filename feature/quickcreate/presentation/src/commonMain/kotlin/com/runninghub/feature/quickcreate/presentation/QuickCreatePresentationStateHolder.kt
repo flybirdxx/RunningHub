@@ -533,6 +533,17 @@ class QuickCreatePresentationStateHolder(
     }
 
     /**
+     * 把远端结果图直接挂为图片 Tab 的全局参考素材。
+     *
+     * 必要时先切到 IMAGE Tab，再以远端 DONE 引用进入素材区，不触发本地上传。
+     *
+     * @param url 远端可访问的图片地址；空白时忽略。
+     */
+    fun attachRemoteImageReference(url: String) {
+        coordinator.attachRemoteImageReference(url)
+    }
+
+    /**
      * 添加视频 Tab 的全局参考视频。
      *
      * @param uriString 用户从平台文件选择器返回的本地 URI 字符串。

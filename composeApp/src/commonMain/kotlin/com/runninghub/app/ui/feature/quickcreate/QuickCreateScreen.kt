@@ -65,6 +65,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaTy
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreatePlazaReuseIntent
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.quick_create_copy_to_composer_success
 import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
 import runninghub.composeapp.generated.resources.quick_create_top_bar_menu_content_description
 import kotlin.math.abs
@@ -110,6 +111,9 @@ private fun QuickCreateScreen(
 
     var pendingPermission by remember { mutableStateOf<Permission?>(null) }
     val errorText = uiState.error?.asQuickCreateText()
+    // 「复制到素材区」的成功提示是页面瞬态反馈，不进入 UiState；tick 用于重复点击时重置 3 秒消失计时。
+    var copyToComposerSuccessVisible by remember { mutableStateOf(false) }
+    var copyToComposerSuccessTick by remember { mutableIntStateOf(0) }
     val activeBusinessSheetVisible = uiState.activeSheet != null && uiState.showCreationInput
     var lastActiveSheet by remember { mutableStateOf<QuickCreateSheet?>(null) }
     val renderedSheet = uiState.activeSheet ?: lastActiveSheet
@@ -214,13 +218,20 @@ private fun QuickCreateScreen(
             }
             QuickCreateResultAction.ReuseParameters -> screenModel.restoreConversationPrompt(item.prompt)
             QuickCreateResultAction.CopyPrompt -> clipboardManager.setText(AnnotatedString(item.prompt))
+            QuickCreateResultAction.CopyToComposer -> {
+                // 动作模型保证产出该动作时第一个结果是图片；URL 不写日志，直接交给素材引用链路。
+                val resultUrl = item.results.firstOrNull()?.url
+                if (!resultUrl.isNullOrBlank()) {
+                    screenModel.attachRemoteImageReference(resultUrl)
+                    copyToComposerSuccessTick += 1
+                    copyToComposerSuccessVisible = true
+                }
+            }
             QuickCreateResultAction.ViewTask,
             QuickCreateResultAction.ViewResult,
             QuickCreateResultAction.Save,
             // TODO(result-card-v2 T5)：接线下载到本地能力。
             QuickCreateResultAction.Download,
-            // TODO(result-card-v2 T4)：接线复制到素材区能力。
-            QuickCreateResultAction.CopyToComposer,
             QuickCreateResultAction.ViewDetail -> Unit
         }
     }
@@ -236,6 +247,14 @@ private fun QuickCreateScreen(
         LaunchedEffect(error) {
             delay(3000)
             currentScreenModel.dismissError()
+        }
+    }
+
+    if (copyToComposerSuccessVisible) {
+        // 成功提示 3 秒后自动消失；以 tick 为 key，重复点击复制时重启计时而不是沿用旧协程。
+        LaunchedEffect(copyToComposerSuccessTick) {
+            delay(3000)
+            copyToComposerSuccessVisible = false
         }
     }
 
@@ -357,6 +376,22 @@ private fun QuickCreateScreen(
                 RhSnackbar(
                     message = errorText.orEmpty(),
                     severity = RhSnackbarSeverity.Error,
+                    modifier = Modifier.padding(horizontal = RhSpacing.lg),
+                )
+            }
+
+            AnimatedVisibility(
+                // 错误提示优先展示，避免成功与错误两条横幅在顶部同时叠放。
+                visible = copyToComposerSuccessVisible && uiState.error == null,
+                enter = slideInVertically { -it } + fadeIn(),
+                exit = slideOutVertically { -it } + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 8.dp),
+            ) {
+                RhSnackbar(
+                    message = stringResource(Res.string.quick_create_copy_to_composer_success),
+                    severity = RhSnackbarSeverity.Info,
                     modifier = Modifier.padding(horizontal = RhSpacing.lg),
                 )
             }

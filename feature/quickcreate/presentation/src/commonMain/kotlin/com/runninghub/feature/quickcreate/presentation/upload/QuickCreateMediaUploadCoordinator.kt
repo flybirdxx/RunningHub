@@ -133,6 +133,41 @@ class QuickCreateMediaUploadCoordinator(
         addMediaReference(uriString = uriString, type = type, fieldParamKey = fieldParamKey)
     }
 
+    /**
+     * 直接挂载已在远端的素材引用，不经过本地读取和上传。
+     *
+     * 复用 Plaza「使用同款」的远端引用机制：引用以 [UploadStatus.DONE] 加 remoteUrl 的形式
+     * 进入当前 Tab 的全局素材区，生成请求直接使用 remoteUrl，不触发 [QuickCreateMediaResolver]
+     * 或上传 Repository。适用于结果图「复制到素材区」等已知远端地址的场景。
+     *
+     * @param url 远端可访问的媒体地址；空白时忽略，与本地选择器返回空 URI 的处理一致。
+     * @param type 素材媒体类型，决定生成请求的参数映射。
+     */
+    fun attachRemoteMediaReference(url: String, type: QuickCreateMediaType) {
+        if (url.isBlank()) return
+        val now = Clock.System.now().toEpochMilliseconds()
+        val targetTab = uiState.value.currentTab
+        val id = "${targetTab.name}_${type.name}_remote_$now"
+        val newRef = MediaReference(
+            id = id,
+            type = type,
+            uri = url,
+            displayName = url.substringAfterLast('/').substringBefore('?')
+                .ifBlank { "${type.name.lowercase()}_$now" },
+            fileSizeBytes = 0L,
+            fieldParamKey = null,
+            uploadStatus = UploadStatus.DONE,
+            uploadProgress = 1f,
+            remoteUrl = url,
+        )
+        uiState.update { state ->
+            state.withMediaReference(targetTab) { mediaReferences ->
+                mediaReferences + newRef
+            }
+        }
+        scheduleFeePreviewForMediaReference(id)
+    }
+
     private fun addMediaReference(
         uriString: String,
         type: QuickCreateMediaType,

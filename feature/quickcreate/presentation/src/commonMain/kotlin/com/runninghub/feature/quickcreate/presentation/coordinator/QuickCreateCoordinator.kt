@@ -626,6 +626,22 @@ class QuickCreateCoordinator(
     }
 
     /**
+     * 把远端结果图直接挂为图片 Tab 的全局参考素材。
+     *
+     * 与 Plaza「使用同款」对齐：先切到 IMAGE Tab，再以远端 DONE 引用形式进入素材区，
+     * 不触发本地媒体读取和上传流程；生成请求直接使用远端地址。
+     *
+     * @param url 远端可访问的图片地址；空白时忽略。
+     */
+    fun attachRemoteImageReference(url: String) {
+        if (url.isBlank()) return
+        if (uiState.value.currentTab != QuickCreateTab.IMAGE) {
+            editorStateHolder.switchTab(QuickCreateTab.IMAGE)
+        }
+        mediaUploadCoordinator.attachRemoteMediaReference(url, QuickCreateMediaType.IMAGE)
+    }
+
+    /**
      * 添加视频 Tab 的全局参考视频。
      *
      * @param uriString 用户从平台文件选择器返回的本地 URI 字符串；空字符串由上传协调器忽略。

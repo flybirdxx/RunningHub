@@ -90,6 +90,54 @@ class QuickCreateMediaUploadCoordinatorTest {
         assertEquals(1, repository.uploadRequests.size)
     }
 
+    @Test
+    fun `attach remote media reference joins as done without resolver or upload`() = runTest {
+        val repository = RecordingQuickCreateRepository()
+        val mediaResolver = RecordingQuickCreateMediaResolver()
+        val uiState = MutableStateFlow(QuickCreateUiState())
+        val coordinator = createCoordinator(
+            repository = repository,
+            mediaResolver = mediaResolver,
+            uiState = uiState,
+            dispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        coordinator.attachRemoteMediaReference(
+            url = "https://example.com/results/output.png",
+            type = QuickCreateMediaType.IMAGE,
+        )
+        advanceUntilIdle()
+
+        val reference = uiState.value.imageConfig.mediaReferences.single()
+        assertEquals(UploadStatus.DONE, reference.uploadStatus)
+        assertEquals("https://example.com/results/output.png", reference.remoteUrl)
+        assertEquals("https://example.com/results/output.png", reference.uri)
+        assertEquals("output.png", reference.displayName)
+        assertEquals(null, reference.fieldParamKey)
+        assertEquals(0, mediaResolver.readRequests)
+        assertEquals(0, repository.uploadRequests.size)
+    }
+
+    @Test
+    fun `attach remote media reference ignores blank url`() = runTest {
+        val repository = RecordingQuickCreateRepository()
+        val mediaResolver = RecordingQuickCreateMediaResolver()
+        val uiState = MutableStateFlow(QuickCreateUiState())
+        val coordinator = createCoordinator(
+            repository = repository,
+            mediaResolver = mediaResolver,
+            uiState = uiState,
+            dispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        coordinator.attachRemoteMediaReference(url = "   ", type = QuickCreateMediaType.IMAGE)
+        advanceUntilIdle()
+
+        assertTrue(uiState.value.imageConfig.mediaReferences.isEmpty())
+        assertEquals(0, mediaResolver.readRequests)
+        assertEquals(0, repository.uploadRequests.size)
+    }
+
     private fun createCoordinator(
         repository: QuickCreationMediaUploadRepository,
         mediaResolver: QuickCreateMediaResolver,
