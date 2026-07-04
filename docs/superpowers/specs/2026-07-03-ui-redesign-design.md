@@ -145,3 +145,37 @@
 4. **`community:presentation` 的 `withHostTestBuilder {}` 留在工作区未提交**(随用户 AGP 迁移),否则 `testAndroidHostTest` 收集不到;`community:data` 无 host test 任务,mapper 断言仅编译级验证。
 5. 短片 `PlazaShortTile` 仅 token 重皮,未升入 designsystem(与作品卡不同,保留页面内私有);`PlazaSortDropdownMetrics/Anchor` 假覆盖已随审查修复删除。
 6. 作品卡作者头像 `authorAvatarContent` 槽:null 头像渲染空圈(designsystem 默认首字母兜底仅在无槽调用时生效);creator 头像已补 contentDescription 兜底。
+
+## 12. 批 4 收尾封板记录(2026-07-04)
+
+- **范围**:我的页(Profile)+ 登录页(Login)+ 设置弹窗 Rh 重皮 + 最小接线;删社区死页;**全拆旧 `ui/theme` 双轨**(含 QuickCreate 批 0 旧组件簇);全局硬编码色清零。基线核实:profile/login/theme 最后一次改动为 `11652fa6`(2026-07-01)/`575109cb`(锁暗色),批 0-3 均未触及。
+- **本会话提交链(14 个,全 path-limited)**:`6877d82f`(我的页重皮 + 去登录按钮 + 金徽 premiumGold→priceMoney)→ `61990126`(ApiKey/Cookie 设置弹窗 Rh 化 + 齿轮经 chooser 接通)→ `33fec7d5`(登录页 + SMS 验证码弹窗橄榄化,交互不变)→ `33f76378`(删社区死页:4 kt + 测试 + DI + 14 死文案,已验真死 + Plaza 独立)→ `0ac3b2ed`/`70c27bb4`/`c3b94bd7`/`c8fcc727`/`63403153`(5 组旧色迁移:shimmer + QuickCreate 7 文件 + component + 媒体 overlay + 残余页面直取色,按语义映射)→ `719abb2e`(硬编码色清零:RhTaskStatusBadge/预览分段指示器/iOS 占位 → token,QuickCreate 插画色保留 + 注释)→ `a158a7c8`(删双轨:ExtendedColors.kt/Dimens.kt 删文件、Color.kt 144→仅 DarkColorScheme 传递闭包、ProvideRhTheme/RhLightColors 删、token 测试更新)。T1-T4/T6/T7 经审查/核验,T5 经规范 + 质量双 gate(SPEC ✅ + QUALITY Approve,零阻塞)。
+- **拆双轨结果**:页面直接取色 91 处 `colorScheme` + 56 处 `typography` 清零;旧符号 `Primary300/Neutral*/ErrorDark/BrandLime/Secondary500/DarkSurfaceVariant/shimmerBase/gradientStart/premiumGold/Dimens/ExtendedColors/ProvideRhTheme/RhLightColors` 在定义文件外 **0 消费**;`ExtendedColors.kt`/`Dimens.kt` 整文件删除;`Color.kt` 293 行删至仅 `DarkColorScheme` 传递闭包(色值 byte 不变)。**`MaterialTheme(colorScheme = DarkColorScheme, typography = AppTypography)` 装配保留**(Material3 组件隐式消费),App 锁暗色外观不变。
+- **最小接线**:未登录态加「去登录」`RhPrimaryButton`(经 `SessionManager.logout()` → root `Unauthenticated` → 登录页,与 App.kt 状态驱动一致);设置齿轮(原死点击)→「账号设置」chooser → ApiKey/Cookie 弹窗闭环。编辑资料/清缓存/关于三菜单无后端能力,视觉恢复 + 登记债务。
+- **验证证据**:`checkArchitectureBoundaries`、`:composeApp:testDebugUnitTest`(含更新后的 `RunningHubThemeTokenTest`)、`:feature:community:presentation:testAndroidHostTest`、`:composeApp:assembleDebug` 全绿;模拟器 Pixel_10_Pro 实测——**QuickCreate(批 0 封板页)视觉零回归**、我的页(金徽/资产卡/菜单)、设置 chooser + ApiKey 弹窗、登录页橄榄化,全流程(创作→我的→设置→弹窗→退出→登录)`logcat -b crash` FATAL **0**,拆双轨无渲染崩溃,用户看图验收通过。**未验证**:iOS 编译/link(Windows 无 macOS 证据,`VideoThumbnail.ios.kt` 与 `SmsCaptchaDialog.ios.kt` 未编译级验证);未登录态「去登录」按钮为代码验证(登出直接路由登录页,游客态难触达)非真机观察;真实短信登录回流。
+
+### 批 4 遗留债务
+
+1. Profile 三菜单(编辑资料/清缓存/关于)无后端能力,当前 no-op;需 presentation/domain 补能力后接线。
+2. `WindowSizeClass.kt` 的 `isWide`/`adaptiveGridColumns`/`adaptiveAppBarHeight` 已 0 引用但保守未删(避让并行加固任务改发现/广场);待其落定后可清。
+3. iOS 侧改动(VideoThumbnail.ios 占位色、SmsCaptchaDialog.ios)未在 macOS 验证;随 iOS 真机验证补。
+4. `.codex/references/feature_community_presentation.md` 仍描述已删的 CommunityStateHolder/工具目录,待文档更新为「仅托管 Plaza」。
+5. QuickCreateDesign 空态插画 Canvas 保留 10 处 `Color(0x...)`(星球/宇航员/白猫参考图设计资产色),已注释为豁免项。
+
+## 13. 全 UI 重设计收官总结(2026-07-04)
+
+**范围**:11 个页面 + 主壳,4 批完成,全部封板。
+
+| 批次 | 内容 | 结果 |
+|---|---|---|
+| 批 0 样板间 | 快速创作 + 主壳 | ✅ 定案全 token 与核心组件,规范封板 |
+| 批 1 | 任务历史 + 应用详情 | ✅ 拆巨型文件,参数区方案 A 自适应折叠 |
+| 批 2 | 发现 + 搜索 | ✅ 整图叠加 AppCard,砍假费用展真实指标 |
+| 批 3 | 广场 + 创作者主页 | ✅ 叠加作品卡 + 作者跳转,复用叠加卡;社区死页登记 |
+| 批 4 收尾 | 我的 + 登录 + 设置 + 拆双轨 | ✅ 删社区死页,全拆旧 theme 双轨,硬编码清零 |
+
+**达成**:①橄榄暗调 Rh 设计系统全量落地,锁暗色;②全局页面直接取 `MaterialTheme.colorScheme/typography` 清零,旧 `ui/theme` 双轨(ExtendedColors/Dimens/Light 色板/死值)拆除,仅保留 Material3 装配层;③硬编码语义色清零(仅插画资产豁免+注释);④巨型文件按治理阈值拆分(Discovery 748→309、Plaza 1069→374、AppDetail 1449→7 文件、TaskHistory 1234→6 文件等);⑤新建并封板 Rh 组件族(RhTopBar/RhChip/RhSegmentedControl/RhSearchBar/RhStates/RhWrapRow/叠加 AppCard/叠加 PlazaWorkCard 等)。
+
+**贯穿方法**:样板间先行 → 每批 mockup 定案 → 子 agent 驱动逐任务(规范 + 质量双 gate)→ 模拟器真机截图验收 → 封板 + 债务登记。真机验证抓到并修复 2 个仅靠编译无法发现的问题(批 0 FlowRow `NoSuchMethodError`、批 3 空-id LazyGrid 重复-key 崩溃)。
+
+**收官未竟(全批债务汇总)**:iOS 编译/真机全程未验证(Windows 无 macOS 证据);登录态跑真实生成流未测;灵感搜索需扩 Domain/Data/服务端;网格空-id key 加固在独立任务 `task_113a291e` 进行;Profile 三菜单/能力标签启发式待后端补齐;若干 `withHostTestBuilder {}` 随用户 AGP 迁移提交。
