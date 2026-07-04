@@ -1,7 +1,5 @@
 package com.runninghub.app.ui.designsystem
 
-import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardAction
-import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardMetricState
 import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardPreviewState
 import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardPreviewType
 import com.runninghub.app.ui.designsystem.components.cards.PlazaWorkCardState
@@ -15,25 +13,31 @@ import kotlin.test.assertTrue
 
 class RhPlazaReuseComponentsContractTest {
     @Test
-    fun `plaza work card exposes use same action and source summary`() {
+    fun `plaza work card exposes overlay author like and use same slots`() {
         val state = PlazaWorkCardState(
             id = "work-1",
             title = "电影感山间小屋",
+            authorId = "owner-9",
             authorName = "Ada",
+            authorAvatar = "https://example.com/avatar.png",
+            likeCountLabel = "喜欢 12",
+            aspectRatio = 0.8f,
             preview = PlazaWorkCardPreviewState(
                 url = "https://example.com/work.png",
                 type = PlazaWorkCardPreviewType.Image,
             ),
-            metric = PlazaWorkCardMetricState(label = "使用", value = "12"),
-            primaryAction = PlazaWorkCardAction.UseSame,
-            sourceProtected = true,
+            useSameLabel = "用同款",
         )
 
         assertEquals("work-1", state.id)
+        assertEquals("owner-9", state.authorId)
         assertEquals("Ada", state.authorName)
+        assertEquals("https://example.com/avatar.png", state.authorAvatar)
+        assertEquals("喜欢 12", state.likeCountLabel)
+        assertEquals(0.8f, state.aspectRatio)
+        assertEquals("用同款", state.useSameLabel)
         assertEquals(PlazaWorkCardPreviewType.Image, state.preview.type)
-        assertEquals(PlazaWorkCardAction.UseSame, state.primaryAction)
-        assertTrue(state.sourceProtected)
+        assertTrue(state.enabled)
     }
 
     @Test
