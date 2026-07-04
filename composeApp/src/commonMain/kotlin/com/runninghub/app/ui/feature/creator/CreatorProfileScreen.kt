@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -211,7 +211,12 @@ private fun ProfileScaffold(
                         }
                     }
 
-                    items(uiState.apps, key = { it.id }) { app ->
+                    // 部分作品的 WebApp id 可能为空，直接以 id 作为 key 会因空串重复触发
+                    // LazyGrid 的重复 key 崩溃；对空 id 回退为带下标的稳定 key。
+                    itemsIndexed(
+                        items = uiState.apps,
+                        key = { index, app -> app.id.ifBlank { "creator-app-$index" } },
+                    ) { _, app ->
                         DiscoveryAppCard(
                             card = app.toDiscoveryAppCardUiModel(),
                             onClick = { onAppClick(app.id) },
