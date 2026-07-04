@@ -1,9 +1,7 @@
 package com.runninghub.app.ui.feature.login
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,27 +10,25 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,21 +36,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
 import cafe.adriel.voyager.koin.koinScreenModel
+import com.runninghub.app.ui.designsystem.components.buttons.RhPrimaryButton
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import com.runninghub.feature.auth.presentation.login.LoginErrorText
 import com.runninghub.feature.auth.presentation.login.LoginUiState
 import org.jetbrains.compose.resources.stringResource
@@ -138,6 +138,7 @@ class LoginVoyagerScreen : Screen {
 
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
+            containerColor = RhTheme.colors.backgroundPrimary,
             contentWindowInsets = WindowInsets(0, 0, 0, 0),
         ) { _ ->
             LoginContent(
@@ -151,7 +152,6 @@ class LoginVoyagerScreen : Screen {
                     else screenModel.pwdLogin()
                 },
                 onToggleMode = screenModel::toggleMode,
-                countdownHasStarted = screenModel.uiState.value.countdownSeconds > 0,
             )
         }
     }
@@ -205,28 +205,20 @@ private fun LoginContent(
     onSendCodeClick: () -> Unit,
     onLoginClick: () -> Unit,
     onToggleMode: () -> Unit,
-    countdownHasStarted: Boolean = false,
 ) {
+    val colors = RhTheme.colors
     val focusManager = LocalFocusManager.current
     val smsCodeFocusRequester = remember { FocusRequester() }
 
-    // AC1: auto-focus code field after SMS sent successfully
+    // AC1：短信发送成功后（倒计时回到 60）自动聚焦验证码输入框。
     LaunchedEffect(uiState.countdownSeconds == 60) {
         smsCodeFocusRequester.requestFocus()
     }
 
-    val gradientBackground = Brush.verticalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.background,
-            MaterialTheme.colorScheme.surface,
-            MaterialTheme.colorScheme.surfaceVariant,
-        )
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(gradientBackground)
+            .background(colors.backgroundGradientBrush)
             .statusBarsPadding()
             .imePadding()
     ) {
@@ -234,64 +226,30 @@ private fun LoginContent(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 32.dp),
+                .padding(horizontal = RhSpacing.xxxl),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Spacer(Modifier.height(80.dp))
 
             Text(
                 text = stringResource(Res.string.login_brand_initial),
-                fontSize = 56.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.primary,
+                style = RhTypography.display,
+                color = colors.brandPrimary,
             )
 
             Text(
                 text = stringResource(Res.string.login_brand_name),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                letterSpacing = 2.sp,
+                style = RhTypography.sectionTitle,
+                color = colors.textPrimary,
             )
 
             Spacer(Modifier.height(48.dp))
 
-            val textFieldColors = OutlinedTextFieldDefaults.colors(
-                focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                unfocusedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                focusedBorderColor = MaterialTheme.colorScheme.primary,
-                unfocusedBorderColor = MaterialTheme.colorScheme.surfaceVariant,
-                cursorColor = MaterialTheme.colorScheme.primary,
-                focusedLabelColor = MaterialTheme.colorScheme.primary,
-                unfocusedLabelColor = MaterialTheme.colorScheme.outline,
-                focusedLeadingIconColor = MaterialTheme.colorScheme.primary,
-                unfocusedLeadingIconColor = MaterialTheme.colorScheme.outline,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-            )
-
-            // Phone number input with +86 prefix
-            OutlinedTextField(
+            // 手机号输入：+86 前缀 + 竖线分隔，仍走 Rh 下沉输入样式。
+            RhLoginField(
                 value = uiState.phone,
                 onValueChange = onPhoneChanged,
-                label = { Text(stringResource(Res.string.login_phone_label)) },
-                leadingIcon = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = stringResource(Res.string.login_phone_country_code),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                        Spacer(Modifier.width(8.dp))
-                        Box(
-                            Modifier
-                                .width(1.dp)
-                                .height(20.dp)
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                        )
-                        Spacer(Modifier.width(8.dp))
-                    }
-                },
+                placeholder = stringResource(Res.string.login_phone_label),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Phone,
                     imeAction = ImeAction.Next,
@@ -299,24 +257,38 @@ private fun LoginContent(
                 keyboardActions = KeyboardActions(
                     onNext = { smsCodeFocusRequester.requestFocus() }
                 ),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = textFieldColors,
+                leadingContent = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = stringResource(Res.string.login_phone_country_code),
+                            color = colors.textSecondary,
+                            style = RhTypography.body,
+                        )
+                        Spacer(Modifier.width(RhSpacing.sm))
+                        Box(
+                            Modifier
+                                .width(1.dp)
+                                .height(20.dp)
+                                .background(colors.borderDefault)
+                        )
+                        Spacer(Modifier.width(RhSpacing.md))
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(RhSpacing.lg))
 
             if (uiState.isSmsMode) {
-                // === SMS code input ===
+                // === 短信验证码输入 + 内联获取验证码按钮 ===
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    OutlinedTextField(
+                    RhLoginField(
                         value = uiState.smsCode,
                         onValueChange = onSmsCodeChanged,
-                        label = { Text(stringResource(Res.string.login_sms_code_label)) },
+                        placeholder = stringResource(Res.string.login_sms_code_label),
                         keyboardOptions = KeyboardOptions(
                             keyboardType = KeyboardType.Number,
                             imeAction = ImeAction.Done,
@@ -327,27 +299,20 @@ private fun LoginContent(
                                 onLoginClick()
                             }
                         ),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = textFieldColors,
                         modifier = Modifier
                             .weight(1f)
                             .focusRequester(smsCodeFocusRequester),
                     )
 
-                    Spacer(Modifier.width(12.dp))
-
                     val sendEnabled = !uiState.isSendingCode && uiState.countdownSeconds == 0
-                    Button(
+                    TextButton(
                         onClick = onSendCodeClick,
                         enabled = sendEnabled,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.secondary,
-                            contentColor = MaterialTheme.colorScheme.onSecondary,
-                            disabledContainerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = colors.brandPrimary,
+                            disabledContentColor = colors.textTertiary,
+                            containerColor = Color.Transparent,
                         ),
-                        modifier = Modifier.height(56.dp),
                     ) {
                         Text(
                             text = when {
@@ -358,16 +323,16 @@ private fun LoginContent(
                                 )
                                 else -> stringResource(Res.string.login_send_code_action)
                             },
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = RhTypography.bodyStrong,
                         )
                     }
                 }
             } else {
-                // === Password input ===
-                OutlinedTextField(
+                // === 密码输入 ===
+                RhLoginField(
                     value = uiState.password,
                     onValueChange = onPasswordChanged,
-                    label = { Text(stringResource(Res.string.login_password_label)) },
+                    placeholder = stringResource(Res.string.login_password_label),
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,
                         imeAction = ImeAction.Done,
@@ -378,80 +343,130 @@ private fun LoginContent(
                             onLoginClick()
                         }
                     ),
-                    singleLine = true,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = textFieldColors,
+                    visualTransformation = PasswordVisualTransformation(),
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(RhSpacing.xxxl))
 
-            // Login button
-            Button(
+            RhPrimaryButton(
+                text = stringResource(Res.string.login_submit_button),
                 onClick = {
                     focusManager.clearFocus()
                     onLoginClick()
                 },
                 enabled = !uiState.isLoading,
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onSurface,
-                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                loading = uiState.isLoading,
+                modifier = Modifier.fillMaxWidth(),
+            )
+
+            Spacer(Modifier.height(RhSpacing.lg))
+
+            TextButton(
+                onClick = onToggleMode,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = colors.brandPrimary,
+                    containerColor = Color.Transparent,
                 ),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
             ) {
-                AnimatedVisibility(
-                    visible = uiState.isLoading,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        strokeWidth = 2.dp,
-                    )
-                }
-                AnimatedVisibility(
-                    visible = !uiState.isLoading,
-                    enter = fadeIn(),
-                    exit = fadeOut(),
-                ) {
-                    Text(
-                        text = stringResource(Res.string.login_submit_button),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(16.dp))
-
-            TextButton(onClick = onToggleMode) {
                 Text(
                     text = if (uiState.isSmsMode) {
                         stringResource(Res.string.login_toggle_password_mode)
                     } else {
                         stringResource(Res.string.login_toggle_sms_mode)
                     },
-                    color = MaterialTheme.colorScheme.primary,
-                    style = MaterialTheme.typography.bodySmall,
+                    color = colors.textSecondary,
+                    style = RhTypography.body,
                 )
             }
 
-            Spacer(Modifier.height(40.dp))
+            Spacer(Modifier.height(RhSpacing.huge))
 
             Text(
                 text = stringResource(Res.string.login_agreement_notice),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelSmall,
+                color = colors.textTertiary,
+                style = RhTypography.caption,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            Spacer(Modifier.height(32.dp))
+            Spacer(Modifier.height(RhSpacing.xxxl))
         }
     }
+}
+
+/**
+ * 登录页专用的 Rh 下沉输入框。
+ *
+ * 与设计系统 `RhSearchBar` / `RhCredentialField` 保持一致，基于 [BasicTextField] 与
+ * [OutlinedTextFieldDefaults.DecorationBox] 组装：下沉表面色承载输入区，聚焦时边框切换为激活色，
+ * 光标使用主品牌色。手机号 +86 前缀等前缀内容通过 [leadingContent] 注入，密码遮罩通过
+ * [visualTransformation] 控制。组件不持久化或记录任何输入内容。
+ *
+ * @param value 当前输入的原始字符串，空字符串表示尚未输入。
+ * @param onValueChange 用户编辑时触发，调用方负责保存状态；组件不缓存敏感输入。
+ * @param placeholder 占位文案，调用方负责本地化。
+ * @param modifier 外层布局修饰符。
+ * @param keyboardOptions 软键盘类型与动作配置。
+ * @param keyboardActions 软键盘动作回调。
+ * @param leadingContent 输入区前导内容，例如手机号国家码前缀；为 null 时不渲染前导区。
+ * @param visualTransformation 文本视觉变换，密码输入传入 [PasswordVisualTransformation] 实现遮罩。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun RhLoginField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    modifier: Modifier = Modifier,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    leadingContent: (@Composable () -> Unit)? = null,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+) {
+    val colors = RhTheme.colors
+    val interactionSource = remember { MutableInteractionSource() }
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedContainerColor = colors.surfaceSunken,
+        unfocusedContainerColor = colors.surfaceSunken,
+        focusedBorderColor = colors.borderActive,
+        unfocusedBorderColor = colors.borderDefault,
+    )
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier.heightIn(min = 56.dp),
+        textStyle = RhTypography.body.copy(color = colors.textPrimary),
+        cursorBrush = SolidColor(colors.brandPrimary),
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        singleLine = true,
+        visualTransformation = visualTransformation,
+        interactionSource = interactionSource,
+        decorationBox = { innerTextField ->
+            OutlinedTextFieldDefaults.DecorationBox(
+                value = value,
+                innerTextField = innerTextField,
+                enabled = true,
+                singleLine = true,
+                visualTransformation = visualTransformation,
+                interactionSource = interactionSource,
+                placeholder = {
+                    Text(text = placeholder, style = RhTypography.body, color = colors.textTertiary)
+                },
+                leadingIcon = leadingContent,
+                colors = fieldColors,
+                container = {
+                    OutlinedTextFieldDefaults.Container(
+                        enabled = true,
+                        isError = false,
+                        interactionSource = interactionSource,
+                        colors = fieldColors,
+                        shape = RoundedCornerShape(RhTheme.shapes.md),
+                    )
+                },
+            )
+        },
+    )
 }

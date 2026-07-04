@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -21,10 +22,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import com.runninghub.core.network.RunningHubApiEnvironment
 
 /**
@@ -82,13 +87,18 @@ actual fun SmsCaptchaDialog(
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             modifier = Modifier.width(360.dp),
-            shape = RoundedCornerShape(20.dp),
+            shape = RoundedCornerShape(RhTheme.shapes.lg),
+            color = RhTheme.colors.surfaceElevated,
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                modifier = Modifier.padding(RhSpacing.xl),
+                verticalArrangement = Arrangement.spacedBy(RhSpacing.md),
             ) {
-                Text(copy.dialogTitle)
+                Text(
+                    text = copy.dialogTitle,
+                    style = RhTypography.sectionTitle,
+                    color = RhTheme.colors.textPrimary,
+                )
                 AndroidView(
                     factory = { webView },
                     modifier = Modifier
@@ -99,8 +109,14 @@ actual fun SmsCaptchaDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.End,
                 ) {
-                    TextButton(onClick = onDismiss) {
-                        Text(copy.dismissAction)
+                    TextButton(
+                        onClick = onDismiss,
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = RhTheme.colors.textSecondary,
+                            containerColor = Color.Transparent,
+                        ),
+                    ) {
+                        Text(text = copy.dismissAction, style = RhTypography.button)
                     }
                 }
             }
