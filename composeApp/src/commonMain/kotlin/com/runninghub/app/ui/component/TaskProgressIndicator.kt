@@ -21,17 +21,16 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.task_progress_indicator_completed_content_description
@@ -120,7 +119,7 @@ fun TaskProgressIndicator(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(RhTheme.colors.surfaceElevated)
             .padding(20.dp)
     ) {
         Row(
@@ -138,7 +137,7 @@ fun TaskProgressIndicator(
                     TaskStep.SUCCESS -> stringResource(Res.string.task_progress_indicator_status_success)
                     TaskStep.FAILED -> stringResource(Res.string.task_progress_indicator_status_failed)
                 },
-                color = MaterialTheme.colorScheme.onSurface,
+                color = RhTheme.colors.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -147,7 +146,7 @@ fun TaskProgressIndicator(
                     CircularProgressIndicator(
                         modifier = Modifier.size(14.dp),
                         strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.primary
+                        color = RhTheme.colors.brandPrimary
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
@@ -155,7 +154,7 @@ fun TaskProgressIndicator(
                             Res.string.task_progress_indicator_elapsed_seconds_format,
                             elapsedSeconds,
                         ),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = RhTheme.colors.textSecondary,
                         fontSize = 12.sp
                     )
                 }
@@ -171,11 +170,11 @@ fun TaskProgressIndicator(
                 .height(4.dp)
                 .clip(RoundedCornerShape(2.dp)),
             color = when (currentStep) {
-                TaskStep.FAILED -> MaterialTheme.colorScheme.error
-                TaskStep.SUCCESS -> MaterialTheme.colorScheme.primary
-                else -> MaterialTheme.colorScheme.primary
+                TaskStep.FAILED -> RhTheme.colors.statusFailed
+                TaskStep.SUCCESS -> RhTheme.colors.brandPrimary
+                else -> RhTheme.colors.brandPrimary
             },
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
+            trackColor = RhTheme.colors.surfaceElevated
         )
 
         Spacer(Modifier.height(16.dp))
@@ -243,10 +242,10 @@ private fun StepIndicator(
                 .clip(CircleShape)
                 .background(
                     when {
-                        isCompleted -> MaterialTheme.colorScheme.primary
-                        isFailed -> MaterialTheme.colorScheme.error
-                        isActive -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.surfaceVariant
+                        isCompleted -> RhTheme.colors.brandPrimary
+                        isFailed -> RhTheme.colors.statusFailed
+                        isActive -> RhTheme.colors.brandPrimary
+                        else -> RhTheme.colors.surfaceElevated
                     }
                 )
         ) {
@@ -256,7 +255,7 @@ private fun StepIndicator(
                     contentDescription = stringResource(
                         Res.string.task_progress_indicator_completed_content_description,
                     ),
-                    tint = MaterialTheme.colorScheme.onPrimary,
+                    tint = RhTheme.colors.textInverse,
                     modifier = Modifier.size(16.dp)
                 )
                 isFailed -> Icon(
@@ -264,13 +263,13 @@ private fun StepIndicator(
                     contentDescription = stringResource(
                         Res.string.task_progress_indicator_failed_content_description,
                     ),
-                    tint = MaterialTheme.colorScheme.onError,
+                    tint = RhTheme.colors.textInverse,
                     modifier = Modifier.size(16.dp)
                 )
                 isActive -> CircularProgressIndicator(
                     modifier = Modifier.size(12.dp),
                     strokeWidth = 1.5.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
+                    color = RhTheme.colors.textInverse
                 )
             }
         }
@@ -278,10 +277,10 @@ private fun StepIndicator(
         Text(
             text = label,
             color = when {
-                isCompleted -> MaterialTheme.colorScheme.primary
-                isFailed -> MaterialTheme.colorScheme.error
-                isActive -> MaterialTheme.colorScheme.onSurface
-                else -> MaterialTheme.colorScheme.onSurfaceVariant
+                isCompleted -> RhTheme.colors.brandPrimary
+                isFailed -> RhTheme.colors.statusFailed
+                isActive -> RhTheme.colors.textPrimary
+                else -> RhTheme.colors.textSecondary
             },
             fontSize = 10.sp,
             fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal
@@ -302,7 +301,7 @@ private fun StepConnector(isActive: Boolean) {
             .width(32.dp)
             .height(2.dp)
             .background(
-                if (isActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                if (isActive) RhTheme.colors.brandPrimary else RhTheme.colors.surfaceElevated,
                 RoundedCornerShape(1.dp)
             )
     )

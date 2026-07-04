@@ -21,7 +21,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,6 +34,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import com.runninghub.core.storage.Permission
 import com.runninghub.core.storage.PermissionTextKey
 import org.jetbrains.compose.resources.stringResource
@@ -83,7 +84,7 @@ fun PermissionBottomSheet(
     val permissionDescription = permission.descriptionKey.asPermissionText()
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = MaterialTheme.colorScheme.surface,
+        containerColor = RhTheme.colors.surfaceSunken,
     ) {
         Column(
             modifier = Modifier
@@ -96,16 +97,16 @@ fun PermissionBottomSheet(
                 imageVector = getIconForPermission(permission.icon),
                 contentDescription = permissionDescription,
                 modifier = Modifier.size(56.dp),
-                tint = MaterialTheme.colorScheme.primary,
+                tint = RhTheme.colors.brandPrimary,
             )
 
             Spacer(Modifier.height(16.dp))
 
             Text(
                 text = permissionDescription,
-                style = MaterialTheme.typography.bodyLarge,
+                style = RhTypography.body,
                 textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = RhTheme.colors.textPrimary,
             )
 
             Spacer(Modifier.height(16.dp))
@@ -126,8 +127,8 @@ fun PermissionBottomSheet(
                     Spacer(Modifier.width(4.dp))
                     Text(
                         text = stringResource(Res.string.permission_bottom_sheet_dont_ask_again),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = RhTypography.body,
+                        color = RhTheme.colors.textSecondary,
                     )
                 }
                 Spacer(Modifier.height(8.dp))

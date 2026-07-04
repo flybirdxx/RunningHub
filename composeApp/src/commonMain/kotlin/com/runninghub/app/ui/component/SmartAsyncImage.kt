@@ -115,8 +115,8 @@ fun SmartAsyncImage(
  */
 @Composable
 fun ShimmerEffect(modifier: Modifier = Modifier) {
-    val shimmerBase = RhTheme.colors.surfaceSunken
-    val shimmerHighlight = RhTheme.colors.surfaceElevated
+    val baseColor = RhTheme.colors.surfaceSunken
+    val highlightColor = RhTheme.colors.surfaceElevated
     val transition = rememberInfiniteTransition()
     val translateAnim by transition.animateFloat(
         initialValue = 0f,
@@ -129,9 +129,9 @@ fun ShimmerEffect(modifier: Modifier = Modifier) {
 
     val shimmerBrush = Brush.linearGradient(
         colors = listOf(
-            shimmerBase,
-            shimmerHighlight,
-            shimmerBase
+            baseColor,
+            highlightColor,
+            baseColor
         ),
         start = Offset(translateAnim - 200f, translateAnim - 200f),
         end = Offset(translateAnim, translateAnim)

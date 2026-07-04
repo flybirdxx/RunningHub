@@ -1,11 +1,12 @@
 package com.runninghub.app.ui.component
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_bar_logo_title
@@ -27,9 +28,9 @@ fun AppBarLogo(
     Text(
         text = stringResource(Res.string.app_bar_logo_title),
         modifier = modifier,
-        style = MaterialTheme.typography.titleMedium,
+        style = RhTypography.cardTitle,
         fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurface,
+        color = RhTheme.colors.textPrimary,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
     )

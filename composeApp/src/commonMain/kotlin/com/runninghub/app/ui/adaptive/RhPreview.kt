@@ -1,7 +1,6 @@
 package com.runninghub.app.ui.adaptive
 
 import androidx.compose.foundation.layout.requiredSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -11,6 +10,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.theme.RunningHubTheme
 
 internal enum class RhPreviewSpec(
@@ -73,7 +73,7 @@ fun RunningHubPreviewSurface(
         ) {
             Surface(
                 modifier = modifier.requiredSize(windowWidth, windowHeight),
-                color = MaterialTheme.colorScheme.background,
+                color = RhTheme.colors.backgroundPrimary,
             ) {
                 content()
             }

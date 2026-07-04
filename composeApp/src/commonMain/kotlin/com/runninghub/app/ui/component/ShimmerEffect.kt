@@ -30,8 +30,8 @@ fun ShimmerPlaceholder(
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.medium
 ) {
-    val shimmerBase = RhTheme.colors.surfaceSunken
-    val shimmerHighlight = RhTheme.colors.surfaceElevated
+    val baseColor = RhTheme.colors.surfaceSunken
+    val highlightColor = RhTheme.colors.surfaceElevated
     val density = LocalDensity.current
     var widthPx by remember { mutableStateOf(600f) }  // default fallback
 
@@ -47,9 +47,9 @@ fun ShimmerPlaceholder(
     )
     val brush = Brush.linearGradient(
         colors = listOf(
-            shimmerBase,
-            shimmerHighlight,
-            shimmerBase
+            baseColor,
+            highlightColor,
+            baseColor
         ),
         start = Offset(translateX, 0f),
         end = Offset(translateX + widthPx, 0f)

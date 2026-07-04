@@ -5,7 +5,9 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import com.runninghub.app.ui.theme.Dimens
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.error_state_retry_action
@@ -29,17 +31,17 @@ fun ErrorState(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(Dimens.SpaceXXL),
+            .padding(RhSpacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
             text = message,
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            style = RhTypography.body,
+            color = RhTheme.colors.textSecondary
         )
         if (onRetry != null) {
-            Spacer(Modifier.height(Dimens.SpaceLG))
+            Spacer(Modifier.height(RhSpacing.lg))
             FilledTonalButton(onClick = onRetry) {
                 Text(stringResource(Res.string.error_state_retry_action))
             }

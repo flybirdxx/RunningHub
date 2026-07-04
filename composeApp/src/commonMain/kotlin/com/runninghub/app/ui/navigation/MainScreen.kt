@@ -25,7 +25,7 @@ import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.NavigationRailItemDefaults
@@ -272,19 +272,19 @@ class MainVoyagerScreen : Screen {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primaryContainer)
+                    .background(RhTheme.colors.brandMuted)
                     .padding(horizontal = 16.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     text = stringResource(Res.string.main_navigation_guest_mode_message),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    style = RhTypography.caption,
+                    color = RhTheme.colors.brandPrimary,
                     modifier = Modifier.weight(1f)
                 )
                 Text(
                     text = stringResource(Res.string.main_navigation_guest_mode_dismiss),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = RhTheme.colors.brandPrimary,
                     modifier = Modifier
                         .clickable { showGuestBanner = false }
                         .padding(4.dp)
@@ -379,7 +379,7 @@ private fun CreditIndicator(
 ) {
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
+        color = RhTheme.colors.surfaceElevated.copy(alpha = 0.9f),
         modifier = modifier.clickable(onClick = onClick),
         tonalElevation = 2.dp,
     ) {
@@ -394,9 +394,9 @@ private fun CreditIndicator(
             Spacer(Modifier.width(4.dp))
             Text(
                 text = coins,
-                style = MaterialTheme.typography.labelLarge,
+                style = RhTypography.body,
                 fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = RhTheme.colors.textSecondary,
             )
         }
     }

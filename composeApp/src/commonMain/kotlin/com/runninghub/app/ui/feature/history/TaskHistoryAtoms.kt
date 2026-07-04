@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -18,6 +17,7 @@ import com.runninghub.app.ui.designsystem.components.states.RhEmptyState
 import com.runninghub.app.ui.designsystem.components.states.RhErrorState
 import com.runninghub.app.ui.designsystem.components.states.RhLoadingState
 import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.task_history_action_retry
@@ -37,7 +37,7 @@ internal fun SourceBadge(source: String) {
             .background(color.copy(alpha = 0.18f))
             .padding(horizontal = 6.dp, vertical = 3.dp),
     ) {
-        Text(sourceLabelText(source), color = color, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(sourceLabelText(source), color = color, style = RhTypography.meta, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 

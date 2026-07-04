@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,6 +43,7 @@ import com.runninghub.app.ui.designsystem.components.badges.RhTaskStatusBadge
 import com.runninghub.app.ui.designsystem.components.billing.BillingInfoCard
 import com.runninghub.app.ui.designsystem.components.result.ResultPreview
 import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.task_history_chevron
 import runninghub.composeapp.generated.resources.task_history_detail_close_content_description
@@ -87,7 +87,7 @@ internal fun TaskDetailDrawer(
             Text(
                 text = stringResource(Res.string.task_history_detail_title),
                 color = RhTheme.colors.textPrimary,
-                style = MaterialTheme.typography.titleMedium,
+                style = RhTypography.cardTitle,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
             )
@@ -106,7 +106,7 @@ internal fun TaskDetailDrawer(
                 Text(
                     text = stringResource(Res.string.task_history_detail_loading),
                     color = RhTheme.colors.textSecondary,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = RhTypography.caption,
                 )
             }
             detail != null -> TaskDetailContent(detail)
@@ -145,7 +145,7 @@ private fun TaskDetailStatusSummary(detail: TaskHistoryDetailUiModel) {
         Text(
             text = detail.title,
             color = RhTheme.colors.textPrimary,
-            style = MaterialTheme.typography.titleSmall,
+            style = RhTypography.bodyStrong,
             fontWeight = FontWeight.Bold,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -163,7 +163,7 @@ private fun TaskDetailStatusSummary(detail: TaskHistoryDetailUiModel) {
         Text(
             text = detail.taskId,
             color = RhTheme.colors.textSecondary,
-            style = MaterialTheme.typography.labelSmall,
+            style = RhTypography.meta,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -187,7 +187,7 @@ private fun TaskDetailResultPreview(layout: TaskDetailLayoutState) {
     Text(
         text = layout.saveStateLabel,
         color = RhTheme.colors.textSecondary,
-        style = MaterialTheme.typography.labelSmall,
+        style = RhTypography.meta,
     )
 }
 
@@ -208,7 +208,7 @@ private fun TaskDetailPromptParameters(layout: TaskDetailLayoutState) {
         Text(
             text = stringResource(Res.string.task_history_detail_prompt_parameters),
             color = RhTheme.colors.textPrimary,
-            style = MaterialTheme.typography.labelLarge,
+            style = RhTypography.body,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 9.dp),
         )
@@ -231,7 +231,7 @@ private fun TaskDetailTechnicalDetails(layout: TaskDetailLayoutState) {
         Text(
             text = stringResource(Res.string.task_history_detail_technical_details),
             color = RhTheme.colors.textPrimary,
-            style = MaterialTheme.typography.labelLarge,
+            style = RhTypography.body,
             fontWeight = FontWeight.Bold,
         )
         layout.technicalSections.forEach { section ->
@@ -260,11 +260,11 @@ private fun TaskDetailTechnicalSection(section: TaskDetailTechnicalSectionState)
             Text(
                 text = section.title,
                 color = RhTheme.colors.textPrimary,
-                style = MaterialTheme.typography.labelLarge,
+                style = RhTypography.body,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f),
             )
-            Text(stringResource(Res.string.task_history_chevron), color = RhTheme.colors.textSecondary, style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(Res.string.task_history_chevron), color = RhTheme.colors.textSecondary, style = RhTypography.cardTitle)
         }
         if (expanded) {
             Box(
@@ -276,7 +276,7 @@ private fun TaskDetailTechnicalSection(section: TaskDetailTechnicalSectionState)
             Text(
                 text = section.content,
                 color = RhTheme.colors.textSecondary,
-                style = MaterialTheme.typography.labelSmall,
+                style = RhTypography.meta,
                 fontFamily = FontFamily.Monospace,
                 softWrap = true,
                 modifier = Modifier.padding(10.dp),
@@ -297,7 +297,7 @@ private fun DetailKeyValueRow(label: String, value: String) {
         Text(
             text = label,
             color = RhTheme.colors.textSecondary,
-            style = MaterialTheme.typography.labelSmall,
+            style = RhTypography.meta,
             modifier = Modifier.width(92.dp),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -305,7 +305,7 @@ private fun DetailKeyValueRow(label: String, value: String) {
         Text(
             text = value,
             color = RhTheme.colors.textPrimary,
-            style = MaterialTheme.typography.labelSmall,
+            style = RhTypography.meta,
             textAlign = TextAlign.End,
             modifier = Modifier.weight(1f),
             softWrap = true,

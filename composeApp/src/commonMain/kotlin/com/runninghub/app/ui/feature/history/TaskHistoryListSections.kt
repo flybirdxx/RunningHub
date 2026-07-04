@@ -19,7 +19,6 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -36,6 +35,7 @@ import com.runninghub.app.ui.designsystem.components.chips.RhChip
 import com.runninghub.app.ui.designsystem.components.navigation.RhTopBar
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import com.runninghub.feature.task.presentation.TaskHistoryEntry
 import com.runninghub.feature.task.presentation.TaskHistoryFilter
@@ -124,19 +124,19 @@ internal fun NoticeBar() {
             Text(
                 stringResource(Res.string.task_history_notice_icon),
                 color = RhTheme.colors.textSecondary,
-                style = MaterialTheme.typography.labelSmall,
+                style = RhTypography.meta,
                 fontWeight = FontWeight.Bold,
             )
         }
         Text(
             text = stringResource(Res.string.task_history_notice_cloud_output),
             color = RhTheme.colors.textSecondary,
-            style = MaterialTheme.typography.labelMedium,
+            style = RhTypography.caption,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
-        Text(stringResource(Res.string.task_history_chevron), color = RhTheme.colors.textSecondary, style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(Res.string.task_history_chevron), color = RhTheme.colors.textSecondary, style = RhTypography.cardTitle)
     }
 }
 
@@ -159,7 +159,7 @@ internal fun HistoryActionPanel(
             Text(
                 text = it,
                 color = RhTheme.colors.brandPrimary,
-                style = MaterialTheme.typography.labelLarge,
+                style = RhTypography.body,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -170,21 +170,21 @@ internal fun HistoryActionPanel(
                 Text(
                     text = stringResource(Res.string.task_history_output_detail_title),
                     color = RhTheme.colors.textPrimary,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = RhTypography.body,
                     fontWeight = FontWeight.Bold,
                     maxLines = 1,
                 )
                 Text(
                     text = listOfNotNull(output.type.uppercase(), output.sizeLabel(), output.expireLabelText()).joinToString(" / "),
                     color = RhTheme.colors.textSecondary,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = RhTypography.caption,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = output.url,
                     color = RhTheme.colors.textSecondary,
-                    style = MaterialTheme.typography.labelSmall,
+                    style = RhTypography.meta,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -194,7 +194,7 @@ internal fun HistoryActionPanel(
             Text(
                 text = stringResource(Res.string.task_history_reusable_params_title),
                 color = RhTheme.colors.textPrimary,
-                style = MaterialTheme.typography.labelLarge,
+                style = RhTypography.body,
                 fontWeight = FontWeight.Bold,
                 maxLines = 1,
             )
@@ -210,9 +210,9 @@ internal fun DateGroupHeader(total: Int) {
             .height(34.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(stringResource(Res.string.task_history_group_all), color = RhTheme.colors.textPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Text(stringResource(Res.string.task_history_group_all), color = RhTheme.colors.textPrimary, style = RhTypography.bodyStrong, fontWeight = FontWeight.Bold)
         Spacer(Modifier.weight(1f))
-        Text(stringResource(Res.string.task_history_total_count_format, total), color = RhTheme.colors.textSecondary, style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(Res.string.task_history_total_count_format, total), color = RhTheme.colors.textSecondary, style = RhTypography.body)
     }
 }
 
@@ -275,7 +275,7 @@ private fun TaskThumbnail(
             Text(
                 item.title.take(1),
                 color = contentColor,
-                style = MaterialTheme.typography.titleLarge,
+                style = RhTypography.sectionTitle,
                 fontWeight = FontWeight.Bold,
             )
         }
