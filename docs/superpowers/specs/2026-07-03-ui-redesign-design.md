@@ -112,3 +112,19 @@
 7. `feature/detail/presentation/build.gradle.kts` 的 `withHostTestBuilder {}` 留在工作区随用户 AGP 迁移提交;建议迁移为全部库模块启用 host test(verifyL1 目前收集不到库模块单测)。
 8. 历史页 CANCELED/UNKNOWN 状态的文案-颜色轻微不一致(迁移前既有语义,原样保留)。
 9. Hero 图片叠加色保留 4 处(压暗渐变/返回钮 scrim/其上白色前景/轮播指示点),语义为内容叠加,非 token 违规。
+
+## 10. 批 2 封板记录(2026-07-04)
+
+- **范围与既有基线**:批 2 = 发现 + 搜索两页(§6)。发现页/搜索页的 Rh token 全量迁移、748 行拆分、RhSearchBar 新建、搜索路由到独立应用搜索页、内联搜索退役、旧 AppSearchBar/旧 AppCard 删除等,**已在本批之前的会话完成**(commits `065e57dc..0e0198c8`,含 `578ab81b`/`c23ad2b4`/`0e0198c8` 等);发现页现 309 行、搜索页 442 行,旧色残留 0 处。核实现状后,本批剩余工作收敛为用户本轮新提的两点:**应用卡片改整图叠加瓦片 + 按真实接口字段优化卡片数据**。
+- **本会话提交**:`5aa39c37`(叠加卡重设计 + 卡片模型:presentation TDD 加 `featured`/`metrics`、移除恒 UNKNOWN 的假 `estimatedCost` 与 `primaryAction`;契约测试同步)→ `e1d32819`(打磨:删未用 `AppCardMetricIcon.Collect`、抽叠加卡图标尺寸常量)→ `78007083`(修搜索页在 360dp 设备退单列的密度 bug,恢复与发现页一致的双列)。叠加卡任务经规范审查 + 质量审查双 gate(质量审查 Approve,仅 Minor,已闭环 2 条)。
+- **定案设计(mockup v2)**:卡片 = 封面铺满 3:4 瓦片 + 底部压暗 scrim,能力药丸(左上)、精选星标(右上,仅 `carefullyChosen`)、标题 + 真实指标(🔥`useCount`/👁`pv`/♥`likeCount`)叠在图层上;砍掉假费用与内联"生成/详情"文字操作(整卡可点)。媒体叠加的 `Color.Black/White`(scrim/药丸/白字)沿批 1 Hero 先例保留并注释,非 token 违规。发现页与搜索结果共用同一叠加卡。
+- **搜索分离裁定(修正决策①)**:用户本轮反转"统一搜索"的初始设想。核实后确认现状已满足诉求——应用搜索为独立页(只搜应用),灵感搜索(广场/社区)独立且属批 3;之前退役的"内联搜索"仅是发现页内重复的应用搜索,删它不构成应用/灵感搜索合并。故批 2 不再改搜索结构,`RhSearchBar` 仅作共享 UI 组件。
+- **验证证据**:`checkArchitectureBoundaries`、`:composeApp:testDebugUnitTest`、`:feature:discovery:presentation:testAndroidHostTest`(24 tests)、`:composeApp:assembleDebug` 全绿;模拟器 Pixel_10_Pro(冷启动)实测发现页/独立搜索页热词态/搜索结果双列态,叠加卡真实数据渲染、白字在暗/浅/图表类封面上均可读,`logcat -b crash` 为空,用户看图验收通过。**未验证**:iOS 编译(Windows 无 macOS 证据);登录态跑真实生成流。
+
+### 批 2 遗留债务
+
+1. **能力标签启发式**:`capability` 由标题/标签关键词推断,少数应用归入"通用创作";彻底解决需服务端补能力元数据(与批 1 债务 1 同源)。
+2. `discovery_cost_unknown`、`discovery_action_generate`、`discovery_action_view_detail` 三个文案键在砍假费用/内联操作后已无 `.kt` 引用,为控制范围本批未删,留待收尾批统一清理。
+3. `feature/discovery/presentation/build.gradle.kts` 的 `withHostTestBuilder {}` 已启用但随用户 AGP 迁移走,不进本批提交(与批 1 债务 7 同款)。实现期一次 `git reset HEAD .` 曾取消暂存用户的构建脚本改动,编辑内容完好,用户如需可重新 `git add`。
+4. 叠加卡依赖封面质量:缺失/纯浅色封面靠 scrim 兜底(已验收可读),无封面走 `surfaceSunken` 占位;后续如遇极端浅色封面标题对比度不足,可评估加固定顶部压暗或首字母占位。
+5. 精选星标仅在 `carefullyChosen=true` 时展示,测试数据中出现较少,真机大范围表现待登录态更多目录数据观察。
