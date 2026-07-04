@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
@@ -282,7 +281,8 @@ private fun ProfileHeader(
         ) {
             SmartAsyncImage(
                 imageUrl = user?.headIcon,
-                contentDescription = user?.nickName,
+                contentDescription = user?.nickName
+                    ?: stringResource(Res.string.creator_profile_unknown_user),
                 modifier = Modifier
                     .size(AvatarSize)
                     .clip(CircleShape)
