@@ -17,6 +17,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -48,8 +50,11 @@ private const val ConversationResultCardMinAspectRatio = 0.35f
 /** 生成比例的上限；比该值更宽的横图按此比例截断，防止卡片过扁。 */
 private const val ConversationResultCardMaxAspectRatio = 2.4f
 
-/** 叠加操作圆钮直径。 */
+/** 叠加操作圆钮的可见圆底直径。 */
 private val OverlayActionButtonSize = 30.dp
+
+/** 叠加操作圆钮的触达命中层尺寸；满足移动端最小可点面积。 */
+private val OverlayActionHitTargetSize = 44.dp
 
 /** 叠加操作圆钮内图标尺寸。 */
 private val OverlayActionIconSize = 15.dp
@@ -83,20 +88,34 @@ internal fun conversationResultCardSize(availableWidth: Dp, aspectRatio: Float?)
 }
 
 /**
- * 对话流结果卡上叠加的操作圆钮描述。
+ * 对话流结果卡叠加操作的稳定动作语义。
  *
+ * 组件只把动作回传给调用方，不在 Design System 内执行下载、引用等副作用；
+ * 枚举独立于 [ResultPreviewActionType]，只收录本卡当前需要的动作，后续按需扩展。
+ */
+enum class ConversationResultCardActionType {
+    /** 下载或保存结果媒体。 */
+    Download,
+
+    /** 把结果图作为素材引用填入创作输入区。 */
+    CopyToComposer,
+}
+
+/**
+ * 对话流结果卡上叠加操作圆钮的状态。
+ *
+ * @property type 动作语义，点击后通过 onAction 回传。
  * @property icon 圆钮图标。
  * @property contentDescription 无障碍描述，调用方传入已本地化文案。
  * @property emphasized true 时使用品牌色实心底与反色图标（主操作）；false 时使用媒体上的半透明白底与白图标。
- * @property enabled 是否可点击；禁用时整钮降透明度且不响应点击。
- * @property onClick 点击回调，由调用方执行实际动作。
+ * @property enabled 是否可点击；禁用时整钮降透明度且不回传动作。
  */
-data class ConversationResultCardAction(
+data class ConversationResultCardActionState(
+    val type: ConversationResultCardActionType,
     val icon: ImageVector,
     val contentDescription: String,
     val emphasized: Boolean = false,
     val enabled: Boolean = true,
-    val onClick: () -> Unit,
 )
 
 /**
@@ -115,6 +134,7 @@ data class ConversationResultCardAction(
  * @param status 任务视觉状态，决定状态徽文字颜色；null 时按主文字白系展示。
  * @param expiryLabel 顶右过期徽文字（如「24h」）；null 不显示。
  * @param overlayActions 底部 scrim 上的操作圆钮列表；为空时不渲染 scrim。
+ * @param onAction 操作圆钮点击回调，回传稳定动作语义，由调用方执行实际动作。
  * @param highlighted 长按态：true 时外层加品牌色描边高亮。
  * @param onClick 整卡点击回调；与 [onLongPress] 均为 null 时不挂手势。
  * @param onLongPress 整卡长按回调。
@@ -127,7 +147,8 @@ fun ConversationResultCard(
     statusLabel: String? = null,
     status: RhTaskStatus? = null,
     expiryLabel: String? = null,
-    overlayActions: List<ConversationResultCardAction> = emptyList(),
+    overlayActions: List<ConversationResultCardActionState> = emptyList(),
+    onAction: (ConversationResultCardActionType) -> Unit = {},
     highlighted: Boolean = false,
     onClick: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
@@ -143,11 +164,17 @@ fun ConversationResultCard(
         }
         // 禁用 combinedClickable（实验性 API，历史上出现过运行期 NoSuchMethodError），
         // 用稳定的 pointerInput + detectTapGestures 组合承接点击与长按。
-        val gestureModifier = if (onClick != null || onLongPress != null) {
-            Modifier.pointerInput(onClick, onLongPress) {
+        // key 只取回调的「有无」而非引用：进度徽每跳一次都会带来新 lambda 实例，
+        // 若以引用为 key 会反复重启手势协程；最新回调经 rememberUpdatedState 在手势内读取。
+        val currentOnClick by rememberUpdatedState(onClick)
+        val currentOnLongPress by rememberUpdatedState(onLongPress)
+        val hasClick = onClick != null
+        val hasLongPress = onLongPress != null
+        val gestureModifier = if (hasClick || hasLongPress) {
+            Modifier.pointerInput(hasClick, hasLongPress) {
                 detectTapGestures(
-                    onTap = onClick?.let { tap -> { _: Offset -> tap() } },
-                    onLongPress = onLongPress?.let { longPress -> { _: Offset -> longPress() } },
+                    onTap = if (hasClick) ({ _: Offset -> currentOnClick?.invoke() }) else null,
+                    onLongPress = if (hasLongPress) ({ _: Offset -> currentOnLongPress?.invoke() }) else null,
                 )
             }
         } else {
@@ -182,6 +209,7 @@ fun ConversationResultCard(
             if (overlayActions.isNotEmpty()) {
                 ConversationResultCardActionScrim(
                     actions = overlayActions,
+                    onAction = onAction,
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth(),
@@ -225,7 +253,7 @@ private fun ConversationResultCardBadge(
             .background(Color.Black.copy(alpha = 0.55f))
             .padding(horizontal = 8.dp, vertical = 3.dp),
         color = textColor,
-        style = RhTypography.meta,
+        style = RhTypography.statusBadge,
     )
 }
 
@@ -234,7 +262,8 @@ private fun ConversationResultCardBadge(
  */
 @Composable
 private fun ConversationResultCardActionScrim(
-    actions: List<ConversationResultCardAction>,
+    actions: List<ConversationResultCardActionState>,
+    onAction: (ConversationResultCardActionType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -246,21 +275,30 @@ private fun ConversationResultCardActionScrim(
                     listOf(Color.Transparent, Color.Black.copy(alpha = 0.8f)),
                 ),
             )
-            .padding(RhSpacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.End),
+            .padding(horizontal = RhSpacing.xs),
+        // 命中层 44dp 比可见圆底 30dp 每侧多出 7dp 透明边；间距取 -8dp，
+        // 使相邻可见圆底之间的视觉间距保持约 6dp（-8 + 7 + 7 = 6）。
+        // 命中层重叠的 8dp 由靠后的圆钮优先响应，各钮独占命中宽度仍大于可见圆底。
+        horizontalArrangement = Arrangement.spacedBy((-8).dp, Alignment.End),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         actions.forEach { action ->
-            ConversationResultCardActionButton(action)
+            ConversationResultCardActionButton(
+                action = action,
+                onAction = onAction,
+            )
         }
     }
 }
 
 /**
- * scrim 上的单个操作圆钮。
+ * scrim 上的单个操作圆钮：外层 44dp 透明命中层承接点击，内层 30dp 圆底承载视觉。
  */
 @Composable
-private fun ConversationResultCardActionButton(action: ConversationResultCardAction) {
+private fun ConversationResultCardActionButton(
+    action: ConversationResultCardActionState,
+    onAction: (ConversationResultCardActionType) -> Unit,
+) {
     // 媒体叠加层色例外：非强调钮使用半透明白底与白图标，属于媒体上白图标语义
     // （批 1 Hero 封板先例），不迁 Rh 色板；强调钮仍走品牌色 token。
     val backgroundColor = if (action.emphasized) {
@@ -271,22 +309,30 @@ private fun ConversationResultCardActionButton(action: ConversationResultCardAct
     val iconTint = if (action.emphasized) RhTheme.colors.textInverse else Color.White
     Box(
         modifier = Modifier
-            .size(OverlayActionButtonSize)
-            .alpha(if (action.enabled) 1f else OverlayActionDisabledAlpha)
-            .clip(CircleShape)
-            .background(backgroundColor)
-            .clickable(
-                enabled = action.enabled,
-                role = Role.Button,
-                onClick = action.onClick,
-            ),
+            .size(OverlayActionHitTargetSize)
+            // 禁用态也保持 clickable 消费事件：防止点击禁用钮穿透触发整卡 onTap；
+            // 是否回传动作由 action.enabled 在回调内判定，视觉禁用由 alpha 表达。
+            .clickable(role = Role.Button) {
+                if (action.enabled) {
+                    onAction(action.type)
+                }
+            },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            imageVector = action.icon,
-            contentDescription = action.contentDescription,
-            tint = iconTint,
-            modifier = Modifier.size(OverlayActionIconSize),
-        )
+        Box(
+            modifier = Modifier
+                .size(OverlayActionButtonSize)
+                .alpha(if (action.enabled) 1f else OverlayActionDisabledAlpha)
+                .clip(CircleShape)
+                .background(backgroundColor),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = action.icon,
+                contentDescription = action.contentDescription,
+                tint = iconTint,
+                modifier = Modifier.size(OverlayActionIconSize),
+            )
+        }
     }
 }
