@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
@@ -26,6 +28,9 @@ import com.runninghub.app.ui.designsystem.components.buttons.RhButtonStyle
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
+
+/** 结果媒体预览的最大高度；避免竖版大图在手机上占满一屏、把状态与操作区挤出视口。 */
+private val ResultPreviewMediaMaxHeight = 340.dp
 
 /**
  * 结果预览中媒体内容的稳定类型。
@@ -129,13 +134,27 @@ fun ResultPreview(
             verticalArrangement = Arrangement.spacedBy(RhSpacing.sm),
         ) {
             state.media?.let { media ->
+                // 媒体区限制最大高度：手机上竖版结果图若按整宽渲染会超过一屏,
+                // 超限时按宽高比自动收窄并水平居中,两侧用 sunken 底色留边。
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .then(media.aspectRatio?.let { Modifier.aspectRatio(it) } ?: Modifier.height(220.dp))
-                        .clip(RoundedCornerShape(topStart = RhTheme.shapes.lg, topEnd = RhTheme.shapes.lg)),
+                        .clip(RoundedCornerShape(topStart = RhTheme.shapes.lg, topEnd = RhTheme.shapes.lg))
+                        .background(RhTheme.colors.surfaceSunken),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    mediaContent(media)
+                    // 注意不能加 fillMaxWidth：它会把 minWidth 锁成整宽,竖图时 aspectRatio
+                    // 找不到可行尺寸而放弃比例;去掉后竖图按 340dp 上限自动收窄居中。
+                    Box(
+                        modifier = Modifier
+                            .heightIn(max = ResultPreviewMediaMaxHeight)
+                            .then(
+                                media.aspectRatio?.let { Modifier.aspectRatio(it) }
+                                    ?: Modifier.fillMaxWidth().height(220.dp),
+                            ),
+                    ) {
+                        mediaContent(media)
+                    }
                 }
             }
             Column(

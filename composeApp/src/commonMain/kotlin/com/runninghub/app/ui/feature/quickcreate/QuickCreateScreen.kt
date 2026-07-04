@@ -18,7 +18,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
@@ -98,6 +100,7 @@ private fun QuickCreateScreen(
     val currentScreenModel by rememberUpdatedState(screenModel)
     val windowInfo = LocalRhWindowInfo.current
     val density = LocalDensity.current
+    val focusManager = LocalFocusManager.current
     val clipboardManager = LocalClipboardManager.current
     val rootWindowHeightPx = rememberRootWindowHeightPx().toFloat()
 
@@ -113,6 +116,7 @@ private fun QuickCreateScreen(
     var availableContentHeightPx by remember { mutableFloatStateOf(0f) }
     var rootBottomWindowPx by remember { mutableFloatStateOf(0f) }
     var editorBottomPx by remember { mutableFloatStateOf(0f) }
+    var editorHeightPx by remember { mutableFloatStateOf(0f) }
     var editorImeOffsetPx by remember { mutableFloatStateOf(0f) }
     var sheetHeightPx by remember { mutableFloatStateOf(0f) }
     val imeBottomPx = WindowInsets.ime.getBottom(density).toFloat()
@@ -144,6 +148,10 @@ private fun QuickCreateScreen(
 
     LaunchedEffect(uiState.activeSheet) {
         uiState.activeSheet?.let { lastActiveSheet = it }
+        // 任一业务 sheet 弹出时收起软键盘,避免确认弹窗与键盘叠在一起互相遮挡。
+        if (uiState.activeSheet != null) {
+            focusManager.clearFocus()
+        }
     }
 
     LaunchedEffect(screenModel) {
@@ -254,6 +262,13 @@ private fun QuickCreateScreen(
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     CreationScrollableArea(
                         uiState = uiState,
+                        // 悬浮输入面板覆盖会话区底部;按面板实测高度收缩会话视口,
+                        // 让最后一张结果卡的操作按钮可以完整滚出。
+                        bottomInset = if (uiState.showCreationInput) {
+                            with(density) { editorHeightPx.toDp() }
+                        } else {
+                            0.dp
+                        },
                         onResultAction = ::handleResultAction,
                         onSampleClick = screenModel::restoreConversationPrompt,
                     )
@@ -286,6 +301,7 @@ private fun QuickCreateScreen(
                     .offset { IntOffset(x = 0, y = editorImeOffsetPx.roundToInt()) }
                     .onGloballyPositioned { coordinates ->
                         editorBottomPx = coordinates.positionInWindow().y + coordinates.size.height
+                        editorHeightPx = coordinates.size.height.toFloat()
                     },
             ) {
                 QuickCreateEditorPanel(
@@ -347,7 +363,10 @@ private fun QuickCreateScreen(
             visible = activeBusinessSheetVisible,
             enter = slideInVertically { it } + fadeIn(animationSpec = tween(220)),
             exit = slideOutVertically { it } + fadeOut(animationSpec = tween(160)),
-            modifier = Modifier.align(Alignment.BottomCenter),
+            // imePadding 保证键盘尚未收起时,确认/参数等 sheet 整体抬升到键盘之上,不被遮挡。
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .imePadding(),
         ) {
             Box(
                 modifier = Modifier
@@ -504,6 +523,7 @@ private fun CreationScrollableArea(
     uiState: QuickCreateUiState,
     onResultAction: (QuickCreateResultAction, QuickCreateConversationItemUi) -> Unit,
     onSampleClick: (String) -> Unit,
+    bottomInset: Dp = 0.dp,
 ) {
     val hasConversation = uiState.conversationItems.isNotEmpty() ||
         uiState.submittedPrompt.isNotBlank() ||
@@ -513,6 +533,7 @@ private fun CreationScrollableArea(
     if (hasConversation) {
         QuickCreateConversationArea(
             uiState = uiState,
+            bottomInset = bottomInset,
             onResultAction = onResultAction,
         )
     } else {
