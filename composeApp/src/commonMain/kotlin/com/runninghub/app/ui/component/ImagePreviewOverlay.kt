@@ -384,9 +384,9 @@ private fun ImagePreviewSegmentIndicator(
                         .clip(RoundedCornerShape(3.dp))
                         .background(
                             if (index == activeSegment) {
-                                Color(0xFFB23CFF)
+                                RhTheme.colors.brandSecondary
                             } else {
-                                Color(0xFF8C8796).copy(alpha = 0.62f)
+                                RhTheme.colors.textTertiary.copy(alpha = 0.62f)
                             },
                         ),
                 )

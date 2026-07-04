@@ -7,7 +7,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
@@ -75,7 +74,7 @@ fun RhTaskStatusBadge(
             .clip(RoundedCornerShape(RhTheme.shapes.sm))
             .background(color.copy(alpha = 0.14f))
             .padding(horizontal = RhSpacing.sm, vertical = RhSpacing.xs),
-        color = color.takeUnless { status == RhTaskStatus.Canceled } ?: Color(0xFF8B929D),
+        color = color.takeUnless { status == RhTaskStatus.Canceled } ?: colors.textTertiary,
         style = RhTypography.statusBadge,
     )
 }

@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.sp
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 
 @Composable
 actual fun VideoThumbnail(
@@ -30,7 +31,7 @@ actual fun VideoThumbnail(
         )
     } else {
         Box(
-            modifier = modifier.background(Color(0xFF1E2A5E)),
+            modifier = modifier.background(RhTheme.colors.surfaceSunken),
             contentAlignment = Alignment.Center,
         ) {
             Text("▶", fontSize = 32.sp, color = Color.White.copy(alpha = 0.6f))

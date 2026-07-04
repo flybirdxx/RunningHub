@@ -77,6 +77,9 @@ internal fun QuickCreateSheetHandle(
     }
 }
 
+// 说明：以下 QuickCreateRhAvatar 与 QuickCreateCatThumbnail 内的所有 Color(0x……) 均为
+// Canvas 插画占位素材（品牌头像圆盘与“白猫参考图”缩略），属于设计资产而非语义化 UI 颜色，
+// 故有意豁免 Rh Token 化，保持与设计图一致，不纳入 designsystem 主题色治理范围。
 /**
  * RH 助手头像占位。
  *
