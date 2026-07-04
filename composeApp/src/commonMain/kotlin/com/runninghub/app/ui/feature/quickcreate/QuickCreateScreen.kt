@@ -537,7 +537,12 @@ private fun CreationScrollableArea(
             onResultAction = onResultAction,
         )
     } else {
-        QuickCreateEmptyGuide(onSampleClick = onSampleClick)
+        // 空引导态同样被悬浮输入面板覆盖:按面板高度收缩后再居中,
+        // 避免矮屏设备上示例词条沉到面板后面。
+        QuickCreateEmptyGuide(
+            onSampleClick = onSampleClick,
+            modifier = Modifier.padding(bottom = bottomInset),
+        )
     }
 }
 
