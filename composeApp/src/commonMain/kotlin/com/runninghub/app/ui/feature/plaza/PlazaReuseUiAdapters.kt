@@ -43,6 +43,7 @@ import runninghub.composeapp.generated.resources.plaza_reuse_parameter_resolutio
 import runninghub.composeapp.generated.resources.plaza_reuse_sheet_dismiss
 import runninghub.composeapp.generated.resources.plaza_reuse_sheet_source_protection
 import runninghub.composeapp.generated.resources.plaza_reuse_sheet_title
+import runninghub.composeapp.generated.resources.plaza_author_profile_a11y_hint
 import runninghub.composeapp.generated.resources.plaza_like_count_format
 import runninghub.composeapp.generated.resources.plaza_untitled_creation
 import runninghub.composeapp.generated.resources.plaza_use_same_action
@@ -66,6 +67,9 @@ internal fun PlazaWorkCardUiModel.toPlazaWorkCardState(): PlazaWorkCardState =
             type = preview.type.toDsPlazaWorkCardPreviewType(),
         ),
         useSameLabel = stringResource(Res.string.plaza_use_same_action),
+        authorProfileHint = ownerId?.takeIf { it.isNotBlank() }
+            ?.let { stringResource(Res.string.plaza_author_profile_a11y_hint) }
+            ?: "",
     )
 
 /**

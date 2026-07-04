@@ -81,20 +81,4 @@ class PlazaScreenVisibilityTest {
 
         assertEquals("最热", label)
     }
-
-    @Test
-    fun `sort dropdown is anchored to mode tab row`() {
-        assertEquals(PlazaSortDropdownAnchor.ModeTabs, plazaSortDropdownAnchor())
-    }
-
-    @Test
-    fun `sort dropdown uses compact mode tab metrics`() {
-        val metrics = plazaSortDropdownMetrics()
-
-        assertEquals(96, metrics.widthDp)
-        assertEquals(34, metrics.heightDp)
-        assertEquals(8, metrics.cornerRadiusDp)
-        assertEquals(8, metrics.horizontalPaddingDp)
-        assertEquals(14, metrics.iconSizeDp)
-    }
 }

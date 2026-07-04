@@ -20,53 +20,6 @@ internal data class PlazaSortOption(
 )
 
 /**
- * 广场排序下拉控件的紧凑视觉尺寸。
- *
- * @property widthDp 下拉按钮宽度，单位 dp；需要比内容分类 chip 更轻，避免压过模式 tab。
- * @property heightDp 下拉按钮高度，单位 dp；与模式 tab 文字区接近，避免右侧显得过大。
- * @property cornerRadiusDp 圆角半径，单位 dp；紧凑按钮使用小圆角，匹配内容分类 chip 的克制风格。
- * @property horizontalPaddingDp 左右内边距，单位 dp；保证短文案和箭头不挤压。
- * @property iconSizeDp 箭头图标尺寸，单位 dp；随按钮高度收窄，降低视觉重量。
- */
-internal data class PlazaSortDropdownMetrics(
-    val widthDp: Int,
-    val heightDp: Int,
-    val cornerRadiusDp: Int,
-    val horizontalPaddingDp: Int,
-    val iconSizeDp: Int,
-)
-
-/**
- * 广场排序下拉控件的布局锚点。
- *
- * @property ModeTabs 表示排序下拉与“灵感/短片”模式 tab 同行展示，避免在标题下方产生额外空行。
- */
-internal enum class PlazaSortDropdownAnchor {
-    ModeTabs,
-}
-
-/**
- * 返回广场排序下拉当前使用的布局锚点。
- *
- * 该值固定为模式 tab 行，防止排序控件再次被放回独占一行的空白区域。
- */
-internal fun plazaSortDropdownAnchor(): PlazaSortDropdownAnchor = PlazaSortDropdownAnchor.ModeTabs
-
-/**
- * 返回排序下拉在模式 tab 行使用的紧凑尺寸。
- *
- * 尺寸固定为轻量按钮，避免右侧排序控件在视觉上大于左侧“灵感/短片”模式 tab。
- */
-internal fun plazaSortDropdownMetrics(): PlazaSortDropdownMetrics =
-    PlazaSortDropdownMetrics(
-        widthDp = 96,
-        heightDp = 34,
-        cornerRadiusDp = 8,
-        horizontalPaddingDp = 8,
-        iconSizeDp = 14,
-    )
-
-/**
  * 返回右侧排序下拉菜单展示的固定排序选项。
  *
  * 选项顺序保持与原顶部 segmented control 一致，避免用户认知变化。

@@ -75,6 +75,7 @@
     <string name="plaza_loading_more">加载中</string>
     <string name="plaza_featured_badge">精选</string>
     <string name="plaza_use_same_action">使用同款</string>
+    <string name="plaza_author_profile_a11y_hint">，进入创作者主页</string>
     <string name="plaza_use_same_generate_action">带入创作页</string>
     <string name="plaza_reuse_sheet_title">使用同款</string>
     <string name="plaza_reuse_sheet_dismiss">先看看</string>

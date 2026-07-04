@@ -43,7 +43,6 @@ import com.runninghub.feature.community.presentation.PlazaMode
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.plaza_category_all
-import runninghub.composeapp.generated.resources.plaza_filter_label
 import runninghub.composeapp.generated.resources.plaza_mode_creations
 import runninghub.composeapp.generated.resources.plaza_mode_shorts
 import runninghub.composeapp.generated.resources.plaza_refresh_content_description
@@ -153,7 +152,8 @@ private fun PlazaSortDropdown(
             )
             Icon(
                 Icons.Default.KeyboardArrowDown,
-                contentDescription = stringResource(Res.string.plaza_filter_label),
+                // 旁边已有可见的排序标签，箭头仅为装饰，读屏不重复播报。
+                contentDescription = null,
                 tint = colors.textTertiary,
                 modifier = Modifier.size(16.dp),
             )

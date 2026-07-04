@@ -30,7 +30,6 @@ import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
-import com.runninghub.feature.community.domain.PlazaCreationCard
 import com.runninghub.feature.community.domain.PlazaShortCard
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
@@ -89,10 +88,6 @@ internal fun PlazaShortTile(
                 }
                 else -> {
                     PlazaMissingMediaVisual(
-                        PlazaCreationCard(
-                            id = card.id,
-                            intro = card.name,
-                        ),
                         mediaType = stringResource(Res.string.plaza_short_media_type_fallback),
                     )
                 }
@@ -180,7 +175,7 @@ internal fun PlazaShortTile(
  * 渐变底色属于占位内容层；为满足全面迁移 Rh token 的要求，改用语义色 [RhTheme] 而非旧硬编码色值。
  */
 @Composable
-internal fun PlazaMissingMediaVisual(card: PlazaCreationCard, mediaType: String? = card.mediaType) {
+internal fun PlazaMissingMediaVisual(mediaType: String?) {
     Box(
         modifier = Modifier
             .fillMaxSize()

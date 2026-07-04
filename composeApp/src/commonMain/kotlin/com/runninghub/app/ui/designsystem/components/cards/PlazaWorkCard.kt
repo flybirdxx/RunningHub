@@ -25,6 +25,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
@@ -67,6 +71,7 @@ data class PlazaWorkCardPreviewState(
  * @property aspectRatio 封面宽高比；为空时回退到默认 0.75f。
  * @property preview 作品媒体预览。
  * @property useSameLabel 调用方已本地化的“用同款”药丸文案。
+ * @property authorProfileHint 调用方已本地化的作者行读屏补充语（如“ 创作者主页”），仅用于无障碍播报；为空时只播报作者名。
  * @property enabled 是否允许触发“用同款”动作。
  */
 data class PlazaWorkCardState(
@@ -79,6 +84,7 @@ data class PlazaWorkCardState(
     val aspectRatio: Float?,
     val preview: PlazaWorkCardPreviewState,
     val useSameLabel: String,
+    val authorProfileHint: String = "",
     val enabled: Boolean = true,
 )
 
@@ -147,6 +153,8 @@ fun PlazaWorkCard(
                     .clip(RoundedCornerShape(RhTheme.shapes.full))
                     .background(RhTheme.colors.brandPrimary)
                     .clickable(enabled = state.enabled) { onUseSame() }
+                    // 让读屏把药丸播报为按钮，而非普通文本。
+                    .semantics { role = Role.Button }
                     .padding(horizontal = RhSpacing.md, vertical = RhSpacing.xs),
             )
 
@@ -170,13 +178,25 @@ fun PlazaWorkCard(
                     horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
+                    val authorRowSemantics = if (state.authorId != null) {
+                        Modifier.semantics(mergeDescendants = true) {
+                            role = Role.Button
+                            state.authorName?.takeIf { it.isNotBlank() }?.let { author ->
+                                // 让读屏把作者行播报为可进入创作者主页的按钮，而不仅是名字。
+                                contentDescription = author + state.authorProfileHint
+                            }
+                        }
+                    } else {
+                        Modifier
+                    }
                     Row(
                         modifier = Modifier
                             .weight(1f)
                             .clip(RoundedCornerShape(RhTheme.shapes.full))
                             .clickable(enabled = state.authorId != null) {
                                 state.authorId?.let(onAuthorClick)
-                            },
+                            }
+                            .then(authorRowSemantics),
                         horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
