@@ -74,6 +74,40 @@ data class MediaReference(
 )
 
 /**
+ * 构建远端已完成的素材引用。
+ *
+ * 适用于地址本身已可远端访问的素材（Plaza「使用同款」、灵感模板素材、结果图复制到素材区）：
+ * 引用以 [UploadStatus.DONE] 加 remoteUrl 的形式进入素材区，生成请求直接使用远端地址，
+ * 不触发本地媒体读取或上传流程。
+ *
+ * displayName 先剥离 query 再取最后一个路径段，避免 OSS 签名 URL 查询串中的 `/` 混入文件名。
+ *
+ * @param url 远端可访问的媒体地址，调用方保证非空白。
+ * @param type 素材媒体类型。
+ * @param id 客户端稳定引用 ID，由调用方按来源语义生成。
+ * @param fallbackDisplayName URL 解析不出文件名时的降级展示名。
+ * @param fieldParamKey 绑定的动态上传字段参数名；`null` 表示全局素材。
+ */
+fun remoteDoneMediaReference(
+    url: String,
+    type: QuickCreateMediaType,
+    id: String,
+    fallbackDisplayName: String,
+    fieldParamKey: String? = null,
+): MediaReference =
+    MediaReference(
+        id = id,
+        type = type,
+        uri = url,
+        displayName = url.substringBefore('?').substringAfterLast('/').ifBlank { fallbackDisplayName },
+        fileSizeBytes = 0L,
+        fieldParamKey = fieldParamKey,
+        uploadStatus = UploadStatus.DONE,
+        uploadProgress = 1f,
+        remoteUrl = url,
+    )
+
+/**
  * 图片生成内置宽高比选项。
  *
  * @property displayName 页面展示文案；该值为比例协议文本，不承载本地化中文内容。

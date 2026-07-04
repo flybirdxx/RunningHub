@@ -119,6 +119,30 @@ class QuickCreateMediaUploadCoordinatorTest {
     }
 
     @Test
+    fun `attach remote media reference strips query before resolving display name`() = runTest {
+        val repository = RecordingQuickCreateRepository()
+        val mediaResolver = RecordingQuickCreateMediaResolver()
+        val uiState = MutableStateFlow(QuickCreateUiState())
+        val coordinator = createCoordinator(
+            repository = repository,
+            mediaResolver = mediaResolver,
+            uiState = uiState,
+            dispatcher = StandardTestDispatcher(testScheduler),
+        )
+
+        // OSS 签名 URL 的查询串可能含 `/`；展示名必须先剥离 query 再取路径段。
+        coordinator.attachRemoteMediaReference(
+            url = "https://cdn.example.com/img/cat.png?Signature=ab/cd",
+            type = QuickCreateMediaType.IMAGE,
+        )
+        advanceUntilIdle()
+
+        val reference = uiState.value.imageConfig.mediaReferences.single()
+        assertEquals("cat.png", reference.displayName)
+        assertEquals("https://cdn.example.com/img/cat.png?Signature=ab/cd", reference.remoteUrl)
+    }
+
+    @Test
     fun `attach remote media reference ignores blank url`() = runTest {
         val repository = RecordingQuickCreateRepository()
         val mediaResolver = RecordingQuickCreateMediaResolver()

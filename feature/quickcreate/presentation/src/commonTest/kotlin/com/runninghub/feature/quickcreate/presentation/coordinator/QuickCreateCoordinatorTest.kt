@@ -25,6 +25,8 @@ import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationTaskHistoryRepository
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
+import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -73,6 +75,38 @@ class QuickCreateCoordinatorTest {
         assertEquals("video-binding", state.value.selectedVideoServiceModel?.bindingId)
         assertEquals(listOf("history-task"), state.value.historyItems.map { it.taskId })
         assertEquals(listOf("project-1"), state.value.projects.map { it.projectId })
+    }
+
+    @Test
+    fun `attach remote image reference switches to image tab and joins image config`() = runTest {
+        val dependencies = RecordingQuickCreateDependencies()
+        val state = MutableStateFlow(QuickCreateUiState(currentTab = QuickCreateTab.VIDEO))
+        val coordinator = QuickCreateCoordinator(
+            historyRepository = dependencies,
+            inspirationRepository = dependencies,
+            mediaResolver = RecordingQuickCreateMediaResolver(),
+            draftRepository = dependencies,
+            modelSelectionRepository = dependencies,
+            scope = this,
+            uiState = state,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
+            modelCatalogRepository = dependencies,
+            generationRepository = dependencies,
+            feePreviewRepository = dependencies,
+            mediaUploadRepository = dependencies,
+            projectRepository = dependencies,
+        )
+
+        // fake 的 saveDraft/uploadMedia/readBytes 均 fail-fast：
+        // 本用例同时保证程序化切 Tab 不触发草稿保存，也不触发本地媒体读取或上传。
+        coordinator.attachRemoteImageReference("https://example.com/results/output.png")
+        runCurrent()
+
+        assertEquals(QuickCreateTab.IMAGE, state.value.currentTab)
+        val reference = state.value.imageConfig.mediaReferences.single()
+        assertEquals(UploadStatus.DONE, reference.uploadStatus)
+        assertEquals("https://example.com/results/output.png", reference.remoteUrl)
+        assertTrue(state.value.videoConfig.mediaReferences.isEmpty())
     }
 
     /**

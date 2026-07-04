@@ -71,6 +71,9 @@ import runninghub.composeapp.generated.resources.quick_create_top_bar_menu_conte
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/** 顶部横幅(错误 / 成功提示)自动消失的等待毫秒数。 */
+private const val BANNER_AUTO_DISMISS_MS = 3000L
+
 /**
  * 快捷创作页面在 Voyager 导航中的入口。
  *
@@ -111,9 +114,9 @@ private fun QuickCreateScreen(
 
     var pendingPermission by remember { mutableStateOf<Permission?>(null) }
     val errorText = uiState.error?.asQuickCreateText()
-    // 「复制到素材区」的成功提示是页面瞬态反馈，不进入 UiState；tick 用于重复点击时重置 3 秒消失计时。
-    var copyToComposerSuccessVisible by remember { mutableStateOf(false) }
-    var copyToComposerSuccessTick by remember { mutableIntStateOf(0) }
+    // 「复制到素材区」的成功提示是页面瞬态反馈，不进入 UiState。
+    // token 为 null 表示隐藏；每次点击赋新值，作为 effect key 重启自动消失计时。
+    var copyToComposerSuccessToken by remember { mutableStateOf<Long?>(null) }
     val activeBusinessSheetVisible = uiState.activeSheet != null && uiState.showCreationInput
     var lastActiveSheet by remember { mutableStateOf<QuickCreateSheet?>(null) }
     val renderedSheet = uiState.activeSheet ?: lastActiveSheet
@@ -223,8 +226,7 @@ private fun QuickCreateScreen(
                 val resultUrl = item.results.firstOrNull()?.url
                 if (!resultUrl.isNullOrBlank()) {
                     screenModel.attachRemoteImageReference(resultUrl)
-                    copyToComposerSuccessTick += 1
-                    copyToComposerSuccessVisible = true
+                    copyToComposerSuccessToken = (copyToComposerSuccessToken ?: 0L) + 1L
                 }
             }
             QuickCreateResultAction.ViewTask,
@@ -242,19 +244,19 @@ private fun QuickCreateScreen(
     }
 
     uiState.error?.let { error ->
-        // 错误提示由页面状态驱动展示，但自动清理需要等待 3 秒后回调最新 ScreenModel。
+        // 错误提示由页面状态驱动展示，但自动清理需要等待横幅停留时长后回调最新 ScreenModel。
         // rememberUpdatedState 可避免延迟期间重组导致协程持有旧实例。
         LaunchedEffect(error) {
-            delay(3000)
+            delay(BANNER_AUTO_DISMISS_MS)
             currentScreenModel.dismissError()
         }
     }
 
-    if (copyToComposerSuccessVisible) {
-        // 成功提示 3 秒后自动消失；以 tick 为 key，重复点击复制时重启计时而不是沿用旧协程。
-        LaunchedEffect(copyToComposerSuccessTick) {
-            delay(3000)
-            copyToComposerSuccessVisible = false
+    copyToComposerSuccessToken?.let { token ->
+        // 成功提示停留后自动消失；以 token 为 key，重复点击复制时重启计时而不是沿用旧协程。
+        LaunchedEffect(token) {
+            delay(BANNER_AUTO_DISMISS_MS)
+            copyToComposerSuccessToken = null
         }
     }
 
@@ -382,7 +384,7 @@ private fun QuickCreateScreen(
 
             AnimatedVisibility(
                 // 错误提示优先展示，避免成功与错误两条横幅在顶部同时叠放。
-                visible = copyToComposerSuccessVisible && uiState.error == null,
+                visible = copyToComposerSuccessToken != null && uiState.error == null,
                 enter = slideInVertically { -it } + fadeIn(),
                 exit = slideOutVertically { -it } + fadeOut(),
                 modifier = Modifier

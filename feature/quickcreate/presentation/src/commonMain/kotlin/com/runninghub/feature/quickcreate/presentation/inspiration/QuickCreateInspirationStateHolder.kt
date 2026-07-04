@@ -12,7 +12,7 @@ import com.runninghub.feature.quickcreate.presentation.editor.ImageQuality
 import com.runninghub.feature.quickcreate.presentation.editor.ImageResolution
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
-import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.editor.remoteDoneMediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.VideoAspectRatio
 import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
@@ -423,16 +423,12 @@ class QuickCreateInspirationStateHolder(
             }
             ?.paramKey
         return listOf(
-            MediaReference(
-                id = "plaza_${sourceWorkId.plazaReuseReferenceIdPart()}_${mediaType.name}",
+            remoteDoneMediaReference(
+                url = url,
                 type = mediaType,
-                uri = url,
-                displayName = url.substringAfterLast('/').ifBlank { sourceWorkId },
-                fileSizeBytes = 0L,
+                id = "plaza_${sourceWorkId.plazaReuseReferenceIdPart()}_${mediaType.name}",
+                fallbackDisplayName = sourceWorkId,
                 fieldParamKey = fieldParamKey,
-                uploadStatus = UploadStatus.DONE,
-                uploadProgress = 1f,
-                remoteUrl = url,
             ),
         )
     }
@@ -467,16 +463,12 @@ class QuickCreateInspirationStateHolder(
                 else -> null
             }
             values.mapIndexed { index, url ->
-                MediaReference(
-                    id = "template_${categoryId.templateCategoryIdPart()}_${templateId}_${fieldIndex}_${key.templateReferenceIdPart()}_${mediaType.name}_$index",
+                remoteDoneMediaReference(
+                    url = url,
                     type = mediaType,
-                    uri = url,
-                    displayName = url.substringAfterLast('/').ifBlank { "${mediaType.name.lowercase()}_$index" },
-                    fileSizeBytes = 0L,
+                    id = "template_${categoryId.templateCategoryIdPart()}_${templateId}_${fieldIndex}_${key.templateReferenceIdPart()}_${mediaType.name}_$index",
+                    fallbackDisplayName = "${mediaType.name.lowercase()}_$index",
                     fieldParamKey = fieldParamKey,
-                    uploadStatus = UploadStatus.DONE,
-                    uploadProgress = 1f,
-                    remoteUrl = url,
                 )
             }
         }

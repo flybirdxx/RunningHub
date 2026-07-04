@@ -7,6 +7,7 @@ import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.editor.remoteDoneMediaReference
 import com.runninghub.feature.quickcreate.presentation.generation.QuickCreateGenerationRequestFactory
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
@@ -148,17 +149,11 @@ class QuickCreateMediaUploadCoordinator(
         val now = Clock.System.now().toEpochMilliseconds()
         val targetTab = uiState.value.currentTab
         val id = "${targetTab.name}_${type.name}_remote_$now"
-        val newRef = MediaReference(
-            id = id,
+        val newRef = remoteDoneMediaReference(
+            url = url,
             type = type,
-            uri = url,
-            displayName = url.substringAfterLast('/').substringBefore('?')
-                .ifBlank { "${type.name.lowercase()}_$now" },
-            fileSizeBytes = 0L,
-            fieldParamKey = null,
-            uploadStatus = UploadStatus.DONE,
-            uploadProgress = 1f,
-            remoteUrl = url,
+            id = id,
+            fallbackDisplayName = "${type.name.lowercase()}_$now",
         )
         uiState.update { state ->
             state.withMediaReference(targetTab) { mediaReferences ->

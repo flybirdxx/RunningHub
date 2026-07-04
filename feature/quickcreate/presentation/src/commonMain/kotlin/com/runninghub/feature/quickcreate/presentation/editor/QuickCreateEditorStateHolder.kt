@@ -36,13 +36,24 @@ class QuickCreateEditorStateHolder(
      * Tab 切换会清理上一 Tab 的远端计费预览状态，避免页面短暂展示另一种创作类型的费用或预览错误。
      */
     fun switchTab(tab: QuickCreateTab) {
+        switchTabWithoutDraftSideEffects(tab)
+        onDraftChanged()
+    }
+
+    /**
+     * 切换 Tab 但不触发草稿自动保存链路。
+     *
+     * 适用于程序化承接外部内容时的 Tab 归位（例如结果图「复制到素材区」需要先切到 IMAGE Tab）：
+     * 此类切换不代表用户编辑意图，若照常触发草稿链，空 Prompt 状态下的自动保存会清掉用户
+     * 尚未恢复的持久化草稿。计费预览仍按普通切换清理并刷新。
+     */
+    fun switchTabWithoutDraftSideEffects(tab: QuickCreateTab) {
         uiState.update {
             it.copy(
                 currentTab = tab,
             ).withoutStaleFeePreview()
         }
         onFeePreviewRequired()
-        onDraftChanged()
     }
 
     /**

@@ -628,15 +628,17 @@ class QuickCreateCoordinator(
     /**
      * 把远端结果图直接挂为图片 Tab 的全局参考素材。
      *
-     * 与 Plaza「使用同款」对齐：先切到 IMAGE Tab，再以远端 DONE 引用形式进入素材区，
-     * 不触发本地媒体读取和上传流程；生成请求直接使用远端地址。
+     * Tab 归位与 Plaza「使用同款」一致（Plaza 在状态归约中直接写 `currentTab = IMAGE`，
+     * 不经过用户切换 Tab 的草稿链）：这里通过无草稿副作用的切换入口先切到 IMAGE Tab，
+     * 避免程序化切换在空 Prompt 状态下触发草稿自动保存、清掉用户尚未恢复的持久化草稿；
+     * 随后以远端 DONE 引用形式进入素材区，不触发本地媒体读取和上传流程。
      *
      * @param url 远端可访问的图片地址；空白时忽略。
      */
     fun attachRemoteImageReference(url: String) {
         if (url.isBlank()) return
         if (uiState.value.currentTab != QuickCreateTab.IMAGE) {
-            editorStateHolder.switchTab(QuickCreateTab.IMAGE)
+            editorStateHolder.switchTabWithoutDraftSideEffects(QuickCreateTab.IMAGE)
         }
         mediaUploadCoordinator.attachRemoteMediaReference(url, QuickCreateMediaType.IMAGE)
     }
