@@ -1,6 +1,5 @@
 package com.runninghub.app.ui.component
 
-import com.runninghub.app.ui.theme.Dimens
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -29,14 +28,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.collapsible_section_collapse_content_description
@@ -73,8 +69,8 @@ fun CollapsibleSection(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Dimens.RadiusMD))
-            .background(DarkSurface)
+            .clip(RoundedCornerShape(RhTheme.shapes.md))
+            .background(RhTheme.colors.surfaceSunken)
             .animateContentSize()
     ) {
         Row(
@@ -82,7 +78,7 @@ fun CollapsibleSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .clickable { expanded = !expanded }
-                .padding(horizontal = Dimens.SpaceLG, vertical = Dimens.SpaceMD)
+                .padding(horizontal = RhSpacing.lg, vertical = RhSpacing.md)
         ) {
             Icon(
                 imageVector = Icons.Default.KeyboardArrowDown,
@@ -91,15 +87,15 @@ fun CollapsibleSection(
                 } else {
                     stringResource(Res.string.collapsible_section_expand_content_description)
                 },
-                tint = Neutral400,
+                tint = RhTheme.colors.textSecondary,
                 modifier = Modifier
-                    .size(Dimens.IconSizeSM2)
+                    .size(20.dp)
                     .rotate(rotationAngle)
             )
-            Spacer(Modifier.width(Dimens.SpaceSM))
+            Spacer(Modifier.width(RhSpacing.sm))
             Text(
                 text = title,
-                color = Color.White,
+                color = RhTheme.colors.textPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.weight(1f)
@@ -108,14 +104,14 @@ fun CollapsibleSection(
             if (!expanded) {
                 Text(
                     text = stringResource(Res.string.collapsible_section_expand_hint),
-                    color = Primary300,
+                    color = RhTheme.colors.brandPrimary,
                     fontSize = 12.sp
                 )
             }
         }
 
         if (expanded) {
-            Column(modifier = Modifier.padding(bottom = Dimens.SpaceSM)) {
+            Column(modifier = Modifier.padding(bottom = RhSpacing.sm)) {
                 content()
             }
         }

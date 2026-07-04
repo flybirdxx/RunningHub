@@ -40,11 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.ErrorDark
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.image_upload_button_local_preview_badge
@@ -140,13 +136,13 @@ fun ImageUploadButton(
                 .then(uploadSizeModifier)
                 .align(Alignment.Center)
                 .clip(RoundedCornerShape(12.dp))
-                .background(DarkSurfaceVariant.copy(alpha = 0.72f))
+                .background(RhTheme.colors.surfaceElevated.copy(alpha = 0.72f))
                 .border(
                     width = 1.5.dp,
                     color = when {
-                        isError -> ErrorDark.copy(alpha = 0.6f)
-                        hasFile -> Primary300.copy(alpha = 0.5f)
-                        else -> Neutral400.copy(alpha = 0.35f)
+                        isError -> RhTheme.colors.statusFailed.copy(alpha = 0.6f)
+                        hasFile -> RhTheme.colors.brandPrimary.copy(alpha = 0.5f)
+                        else -> RhTheme.colors.textSecondary.copy(alpha = 0.35f)
                     },
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -164,7 +160,7 @@ fun ImageUploadButton(
                     ) {
                         CircularProgressIndicator(
                             modifier = Modifier.size(32.dp),
-                            color = Primary300,
+                            color = RhTheme.colors.brandPrimary,
                             strokeWidth = 2.5.dp
                         )
                         Spacer(Modifier.height(10.dp))
@@ -173,7 +169,7 @@ fun ImageUploadButton(
                                 Res.string.image_upload_button_uploading_progress_format,
                                 (uploadProgress * 100).toInt(),
                             ),
-                            color = Neutral400,
+                            color = RhTheme.colors.textSecondary,
                             fontSize = 13.sp
                         )
                         Spacer(Modifier.height(8.dp))
@@ -183,8 +179,8 @@ fun ImageUploadButton(
                                 .fillMaxWidth()
                                 .height(3.dp)
                                 .clip(RoundedCornerShape(2.dp)),
-                            color = Primary300,
-                            trackColor = DarkSurface
+                            color = RhTheme.colors.brandPrimary,
+                            trackColor = RhTheme.colors.surfaceSunken
                         )
                     }
                 }
@@ -202,13 +198,13 @@ fun ImageUploadButton(
                             contentDescription = stringResource(
                                 Res.string.image_upload_button_upload_failed_content_description,
                             ),
-                            tint = ErrorDark,
+                            tint = RhTheme.colors.statusFailed,
                             modifier = Modifier.size(28.dp)
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = stringResource(Res.string.image_upload_button_upload_failed_retry),
-                            color = ErrorDark,
+                            color = RhTheme.colors.statusFailed,
                             fontSize = 13.sp
                         )
                     }
@@ -242,13 +238,13 @@ fun ImageUploadButton(
                                         Icons.Default.MusicNote
                                     },
                                     contentDescription = uploadLabel,
-                                    tint = Primary300,
+                                    tint = RhTheme.colors.brandPrimary,
                                     modifier = Modifier.size(28.dp)
                                 )
                                 Spacer(Modifier.height(8.dp))
                                 Text(
                                     text = fileName ?: displayUrl.substringAfterLast("/").substringAfterLast("%2F"),
-                                    color = Color.White.copy(alpha = 0.86f),
+                                    color = RhTheme.colors.textPrimary,
                                     fontSize = 12.sp,
                                     maxLines = if (square) 2 else 1,
                                     overflow = TextOverflow.Ellipsis
@@ -263,6 +259,7 @@ fun ImageUploadButton(
                         ) {
                             Box(
                                 modifier = Modifier
+                                    // 徽标叠在媒体预览上，沿用黑色半透明底保证在任意画面上的可读性。
                                     .background(
                                         Color.Black.copy(alpha = 0.6f),
                                         RoundedCornerShape(6.dp)
@@ -275,7 +272,7 @@ fun ImageUploadButton(
                                     } else {
                                         stringResource(Res.string.image_upload_button_local_preview_badge)
                                     },
-                                    color = Primary300,
+                                    color = RhTheme.colors.brandPrimary,
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -287,6 +284,7 @@ fun ImageUploadButton(
                                     contentDescription = stringResource(
                                         Res.string.image_upload_button_remove_content_description,
                                     ),
+                                    // 移除按钮叠在媒体预览上，固定白色保证在任意画面上的可见度。
                                     tint = Color.White,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -297,11 +295,13 @@ fun ImageUploadButton(
                                 modifier = Modifier
                                     .align(Alignment.BottomStart)
                                     .fillMaxWidth()
+                                    // 文件名条叠在媒体预览底部，沿用黑色半透明底保证可读性。
                                     .background(Color.Black.copy(alpha = 0.5f))
                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                             ) {
                                 Text(
                                     text = fileName,
+                                    // 文件名文字叠在媒体预览上，固定白色保证在任意画面上的可读性。
                                     color = Color.White.copy(alpha = 0.8f),
                                     fontSize = 11.sp,
                                     maxLines = 1,
@@ -327,13 +327,13 @@ fun ImageUploadButton(
                                 MediaType.AUDIO -> Icons.Default.MusicNote
                             },
                             contentDescription = uploadLabel,
-                            tint = Neutral400,
+                            tint = RhTheme.colors.textSecondary,
                             modifier = Modifier.size(28.dp)
                         )
                         Spacer(Modifier.height(6.dp))
                         Text(
                             text = pickHint,
-                            color = Neutral400,
+                            color = RhTheme.colors.textSecondary,
                             fontSize = if (square) 12.sp else 13.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
