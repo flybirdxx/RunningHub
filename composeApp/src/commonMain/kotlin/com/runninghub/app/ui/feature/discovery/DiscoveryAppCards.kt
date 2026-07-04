@@ -10,8 +10,7 @@ import androidx.compose.ui.layout.ContentScale
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.app.ui.designsystem.components.cards.AppCard
-import com.runninghub.app.ui.designsystem.components.cards.AppCardActionState
-import com.runninghub.app.ui.designsystem.components.cards.AppCardActionType
+import com.runninghub.app.ui.designsystem.components.cards.AppCardMetricIcon
 import com.runninghub.app.ui.designsystem.components.cards.AppCardMetricState
 import com.runninghub.app.ui.designsystem.components.cards.AppCardPreviewState
 import com.runninghub.app.ui.designsystem.components.cards.AppCardState
@@ -20,21 +19,15 @@ import com.runninghub.app.ui.designsystem.components.cards.AppCardPreviewType as
 import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.feature.discovery.presentation.DiscoveryAppCapability
 import com.runninghub.feature.discovery.presentation.DiscoveryAppCardMetricKind
-import com.runninghub.feature.discovery.presentation.DiscoveryAppCardPrimaryAction
 import com.runninghub.feature.discovery.presentation.DiscoveryAppCardUiModel
-import com.runninghub.feature.discovery.presentation.DiscoveryAppEstimatedCostKind
 import com.runninghub.feature.discovery.presentation.DiscoveryAppPreviewType
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
-import runninghub.composeapp.generated.resources.discovery_action_generate
-import runninghub.composeapp.generated.resources.discovery_action_view_detail
 import runninghub.composeapp.generated.resources.discovery_capability_audio
 import runninghub.composeapp.generated.resources.discovery_capability_general
 import runninghub.composeapp.generated.resources.discovery_capability_image
 import runninghub.composeapp.generated.resources.discovery_capability_video
-import runninghub.composeapp.generated.resources.discovery_cost_unknown
-import runninghub.composeapp.generated.resources.discovery_metric_use_count
-import runninghub.composeapp.generated.resources.discovery_metric_view_count
+import runninghub.composeapp.generated.resources.discovery_featured_label
 
 /**
  * 发现页应用卡片渲染与展示映射。
@@ -52,7 +45,7 @@ internal fun DiscoveryAppCard(
     AppCard(
         state = card.toAppCardState(),
         onClick = onClick,
-        onAction = { onClick() },
+        featuredLabel = stringResource(Res.string.discovery_featured_label),
         modifier = modifier,
         previewContent = { preview ->
             DiscoveryAppCardPreview(preview)
@@ -96,17 +89,13 @@ private fun DiscoveryAppCardUiModel.toAppCardState(): AppCardState = AppCardStat
         url = preview.url,
         type = preview.type.toDesignSystemPreviewType(),
     ),
-    estimatedCostLabel = estimatedCost.kind.toEstimatedCostLabel(),
-    metric = supportingMetric?.let { metric ->
+    metrics = metrics.map { metric ->
         AppCardMetricState(
-            label = metric.kind.toMetricLabel(),
+            icon = metric.kind.toMetricIcon(),
             value = formatCount(metric.value),
         )
     },
-    primaryAction = AppCardActionState(
-        type = primaryAction.toDesignSystemActionType(),
-        label = primaryAction.toActionLabel(),
-    ),
+    featured = featured,
 )
 
 @Composable
@@ -119,39 +108,17 @@ private fun DiscoveryAppCapability.toCapabilityLabel(): String = stringResource(
     },
 )
 
-@Composable
-private fun DiscoveryAppEstimatedCostKind.toEstimatedCostLabel(): String = stringResource(
-    when (this) {
-        DiscoveryAppEstimatedCostKind.UNKNOWN -> Res.string.discovery_cost_unknown
-    },
-)
-
-@Composable
-private fun DiscoveryAppCardMetricKind.toMetricLabel(): String = stringResource(
-    when (this) {
-        DiscoveryAppCardMetricKind.USE_COUNT -> Res.string.discovery_metric_use_count
-        DiscoveryAppCardMetricKind.VIEW_COUNT -> Res.string.discovery_metric_view_count
-    },
-)
-
-@Composable
-private fun DiscoveryAppCardPrimaryAction.toActionLabel(): String = stringResource(
-    when (this) {
-        DiscoveryAppCardPrimaryAction.GENERATE -> Res.string.discovery_action_generate
-        DiscoveryAppCardPrimaryAction.VIEW_DETAIL -> Res.string.discovery_action_view_detail
-    },
-)
+private fun DiscoveryAppCardMetricKind.toMetricIcon(): AppCardMetricIcon = when (this) {
+    DiscoveryAppCardMetricKind.USE_COUNT -> AppCardMetricIcon.Use
+    DiscoveryAppCardMetricKind.VIEW_COUNT -> AppCardMetricIcon.View
+    DiscoveryAppCardMetricKind.LIKE_COUNT -> AppCardMetricIcon.Like
+}
 
 private fun DiscoveryAppPreviewType.toDesignSystemPreviewType(): DsAppCardPreviewType = when (this) {
     DiscoveryAppPreviewType.IMAGE -> DsAppCardPreviewType.Image
     DiscoveryAppPreviewType.VIDEO -> DsAppCardPreviewType.Video
     DiscoveryAppPreviewType.AUDIO -> DsAppCardPreviewType.Audio
     DiscoveryAppPreviewType.EMPTY -> DsAppCardPreviewType.Empty
-}
-
-private fun DiscoveryAppCardPrimaryAction.toDesignSystemActionType(): AppCardActionType = when (this) {
-    DiscoveryAppCardPrimaryAction.GENERATE -> AppCardActionType.Generate
-    DiscoveryAppCardPrimaryAction.VIEW_DETAIL -> AppCardActionType.ViewDetail
 }
 
 internal fun formatCount(raw: String): String {

@@ -19,21 +19,11 @@ enum class DiscoveryAppPreviewType {
     EMPTY,
 }
 
-/** 发现页 App 卡片预计费用的稳定状态。 */
-enum class DiscoveryAppEstimatedCostKind {
-    UNKNOWN,
-}
-
 /** 发现页 App 卡片辅助指标类型。 */
 enum class DiscoveryAppCardMetricKind {
     USE_COUNT,
     VIEW_COUNT,
-}
-
-/** 发现页 App 卡片主操作。 */
-enum class DiscoveryAppCardPrimaryAction {
-    VIEW_DETAIL,
-    GENERATE,
+    LIKE_COUNT,
 }
 
 /**
@@ -48,20 +38,9 @@ data class DiscoveryAppPreviewUi(
 )
 
 /**
- * 发现页 App 卡片的预计费用语义。
- *
- * @property kind 当前费用状态。RM-11 暂无稳定费用协议时使用 [DiscoveryAppEstimatedCostKind.UNKNOWN]。
- * @property amountLabel 已格式化费用摘要；为空表示需要应用壳映射“运行前确认费用”资源文案。
- */
-data class DiscoveryAppEstimatedCostUi(
-    val kind: DiscoveryAppEstimatedCostKind,
-    val amountLabel: String? = null,
-)
-
-/**
  * 发现页 App 卡片的辅助指标语义。
  *
- * @property kind 指标类型，例如使用次数或浏览次数。
+ * @property kind 指标类型，例如使用次数、浏览次数或点赞次数。
  * @property value 服务端返回的展示数字，保持原格式。
  */
 data class DiscoveryAppCardMetricUi(
@@ -76,18 +55,16 @@ data class DiscoveryAppCardMetricUi(
  * @property templateName 普通用户可理解的模板名称。
  * @property capability 卡片能力类型，避免把 API、工作流 ID 或节点名作为首要信息。
  * @property preview 结果预览资源。
- * @property estimatedCost 预计费用状态。
- * @property supportingMetric 使用或浏览指标。
- * @property primaryAction 卡片主操作语义。
+ * @property metrics 真实辅助指标，按展示优先级排序（0..2 条）。
+ * @property featured 是否为运营精选内容。
  */
 data class DiscoveryAppCardUiModel(
     val id: String,
     val templateName: String,
     val capability: DiscoveryAppCapability,
     val preview: DiscoveryAppPreviewUi,
-    val estimatedCost: DiscoveryAppEstimatedCostUi,
-    val supportingMetric: DiscoveryAppCardMetricUi?,
-    val primaryAction: DiscoveryAppCardPrimaryAction,
+    val metrics: List<DiscoveryAppCardMetricUi>,
+    val featured: Boolean,
 )
 
 /** 把目录 WebApp 摘要转换为发现页创作入口卡片语义。 */
@@ -109,13 +86,8 @@ fun WebApp.toDiscoveryAppCardUiModel(): DiscoveryAppCardUiModel {
                 else -> DiscoveryAppPreviewType.IMAGE
             },
         ),
-        estimatedCost = DiscoveryAppEstimatedCostUi(kind = DiscoveryAppEstimatedCostKind.UNKNOWN),
-        supportingMetric = supportingMetric(),
-        primaryAction = if (id.isBlank()) {
-            DiscoveryAppCardPrimaryAction.VIEW_DETAIL
-        } else {
-            DiscoveryAppCardPrimaryAction.GENERATE
-        },
+        metrics = buildMetrics(),
+        featured = carefullyChosen,
     )
 }
 
@@ -132,28 +104,25 @@ private fun WebApp.inferCapability(): DiscoveryAppCapability {
 
     return when {
         coverMediaType == CoverMediaType.VIDEO || !videoUrl.isNullOrBlank() -> DiscoveryAppCapability.VIDEO
-        searchableText.containsAny("video", "\u5f71\u7247", "\u89c6\u9891", "\u77ed\u7247", "\u8fd0\u955c") ->
+        searchableText.containsAny("video", "影片", "视频", "短片", "运镜") ->
             DiscoveryAppCapability.VIDEO
-        searchableText.containsAny("audio", "music", "voice", "\u97f3\u9891", "\u97f3\u4e50", "\u914d\u97f3") ->
+        searchableText.containsAny("audio", "music", "voice", "音频", "音乐", "配音") ->
             DiscoveryAppCapability.AUDIO
-        searchableText.containsAny("image", "photo", "\u56fe\u7247", "\u7167\u7247", "\u6d77\u62a5", "\u56fe\u50cf") ->
+        searchableText.containsAny("image", "photo", "图片", "照片", "海报", "图像") ->
             DiscoveryAppCapability.IMAGE
         else -> DiscoveryAppCapability.GENERAL
     }
 }
 
-private fun WebApp.supportingMetric(): DiscoveryAppCardMetricUi? {
+/** 构建卡片真实指标：优先展示使用/浏览次数，再追加点赞次数。 */
+private fun WebApp.buildMetrics(): List<DiscoveryAppCardMetricUi> = buildList {
     useCount.takeIf { it.isNotBlank() }?.let { value ->
-        return DiscoveryAppCardMetricUi(
-            kind = DiscoveryAppCardMetricKind.USE_COUNT,
-            value = value,
-        )
+        add(DiscoveryAppCardMetricUi(kind = DiscoveryAppCardMetricKind.USE_COUNT, value = value))
+    } ?: pv.takeIf { it.isNotBlank() }?.let { value ->
+        add(DiscoveryAppCardMetricUi(kind = DiscoveryAppCardMetricKind.VIEW_COUNT, value = value))
     }
-    return pv.takeIf { it.isNotBlank() }?.let { value ->
-        DiscoveryAppCardMetricUi(
-            kind = DiscoveryAppCardMetricKind.VIEW_COUNT,
-            value = value,
-        )
+    likeCount.takeIf { it.isNotBlank() }?.let { value ->
+        add(DiscoveryAppCardMetricUi(kind = DiscoveryAppCardMetricKind.LIKE_COUNT, value = value))
     }
 }
 

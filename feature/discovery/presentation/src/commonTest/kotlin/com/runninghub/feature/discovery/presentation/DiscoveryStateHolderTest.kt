@@ -230,9 +230,7 @@ class DiscoveryStateHolderTest {
         assertEquals(DiscoveryAppCapability.VIDEO, card.capability)
         assertEquals("https://cdn.example.com/video-cover.png", card.preview.url)
         assertEquals(DiscoveryAppPreviewType.VIDEO, card.preview.type)
-        assertEquals(DiscoveryAppEstimatedCostKind.UNKNOWN, card.estimatedCost.kind)
-        assertEquals(DiscoveryAppCardPrimaryAction.GENERATE, card.primaryAction)
-        assertEquals(DiscoveryAppCardMetricKind.USE_COUNT, card.supportingMetric?.kind)
+        assertEquals(DiscoveryAppCardMetricKind.USE_COUNT, card.metrics.first().kind)
     }
 
     private class FakeWebAppCatalogRepository : WebAppCatalogRepository {
