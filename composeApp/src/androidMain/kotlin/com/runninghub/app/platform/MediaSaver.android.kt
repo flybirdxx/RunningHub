@@ -103,11 +103,20 @@ private class AndroidMediaSaver(private val context: Context) : MediaSaver {
 
         // 磁盘缓存不可用（被清理/禁用/异常）时降级：用解码位图重编码为 JPEG。
         // 会丢失动图帧并轻微降质，但保证下载动作仍可完成。
+        // toBitmap() 对非位图 Image 实现可抛 IllegalArgumentException，超大图重编码也可能 OOM；
+        // 这里统一归一化为获取失败（返回 null → FETCH_FAILED），不让异常穿透 saveImageToGallery 契约。
         if (result is SuccessResult) {
-            val bitmap = result.image.toBitmap()
-            val output = ByteArrayOutputStream()
-            bitmap.compress(Bitmap.CompressFormat.JPEG, FALLBACK_JPEG_QUALITY, output)
-            return ImagePayload(output.toByteArray(), "image/jpeg", "jpg")
+            return try {
+                val bitmap = result.image.toBitmap()
+                val output = ByteArrayOutputStream()
+                bitmap.compress(Bitmap.CompressFormat.JPEG, FALLBACK_JPEG_QUALITY, output)
+                ImagePayload(output.toByteArray(), "image/jpeg", "jpg")
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (t: Throwable) {
+                Log.d(TAG, "bitmap re-encode failed: ${t::class.simpleName}")
+                null
+            }
         }
         return null
     }

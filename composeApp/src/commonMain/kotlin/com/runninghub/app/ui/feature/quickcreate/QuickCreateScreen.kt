@@ -54,6 +54,7 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.fields.quickCreationServiceFieldUiItems
 import com.runninghub.core.storage.Permission
 import com.runninghub.core.storage.PermissionStateStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
@@ -267,17 +268,25 @@ private fun QuickCreateScreen(
                         downloadingResultUrls = downloadingResultUrls + resultUrl
                         downloadCoroutineScope.launch {
                             // URL 不写日志；保存细节由平台 MediaSaver 归一化为稳定结果语义。
-                            val saveResult = try {
+                            // MediaSaver 契约上不抛非取消异常，但 UI 不把崩溃风险寄托在契约上：
+                            // 这里兜底 catch 作为最后防线，非取消异常一律收敛为失败横幅；
+                            // 取消（页面离开）原样重抛走结构化取消，不弹横幅。
+                            val saveSucceeded = try {
                                 mediaSaver.saveImageToGallery(
                                     url = resultUrl,
                                     displayName = "runninghub_quickcreate",
-                                )
+                                ) is MediaSaveResult.Success
+                            } catch (cancellation: CancellationException) {
+                                throw cancellation
+                            } catch (t: Throwable) {
+                                // 异常详情不透传 UI，内部 debug 日志由平台实现负责；此处只保留失败语义。
+                                false
                             } finally {
                                 downloadingResultUrls = downloadingResultUrls - resultUrl
                             }
                             downloadBanner = QuickCreateDownloadBanner(
                                 token = (downloadBanner?.token ?: 0L) + 1L,
-                                success = saveResult is MediaSaveResult.Success,
+                                success = saveSucceeded,
                             )
                         }
                     }
