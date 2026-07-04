@@ -262,7 +262,7 @@ fun PlazaScreenContent(
                                     RhEmptyState(title = stringResource(Res.string.plaza_empty_shorts))
                                 }
                             } else {
-                                gridItemsIndexed(uiState.shorts, key = { _, card -> card.id }) { _, card ->
+                                gridItemsIndexed(uiState.shorts, key = { index, card -> card.id.ifBlank { "plaza-short-$index" } }) { _, card ->
                                     val shortPreviewItem = plazaShortPreviewItem(card)
                                     PlazaShortTile(
                                         card = card,
@@ -291,7 +291,7 @@ fun PlazaScreenContent(
                                     RhEmptyState(title = stringResource(Res.string.plaza_empty_creations))
                                 }
                             } else {
-                                staggeredItemsIndexed(uiState.workCards, key = { _, card -> card.id }) { _, workCard ->
+                                staggeredItemsIndexed(uiState.workCards, key = { index, card -> card.id.ifBlank { "plaza-work-$index" } }) { _, workCard ->
                                     val cardState = workCard.toPlazaWorkCardState()
                                     PlazaWorkCard(
                                         state = cardState,

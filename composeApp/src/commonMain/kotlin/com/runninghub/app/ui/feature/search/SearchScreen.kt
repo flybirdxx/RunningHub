@@ -269,7 +269,8 @@ private fun SearchResultsGrid(
     ) {
         items(
             count = cards.size,
-            key = { index -> cards[index].id },
+            // 空或重复的作品 id 会触发 LazyGrid 重复 key 崩溃，对空 id 回退为带下标的稳定 key。
+            key = { index -> cards[index].id.ifBlank { "search-app-$index" } },
         ) { index ->
             val card = cards[index]
             DiscoveryAppCard(
