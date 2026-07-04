@@ -2,7 +2,6 @@ package com.runninghub.app.di
 
 import com.runninghub.app.platform.MediaResolver
 import com.runninghub.app.platform.createMediaResolver
-import com.runninghub.app.ui.feature.community.CommunityScreenModel
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreenModel
 import com.runninghub.app.ui.feature.detail.AppDetailScreenModel
 import com.runninghub.app.ui.feature.discovery.DiscoveryScreenModel
@@ -61,7 +60,6 @@ val appModule = module {
     }
 
     factoryOf(::DiscoveryScreenModel)
-    factoryOf(::CommunityScreenModel)
     // AC-03：历史创作状态机已从生产源码退役，组合根只保留当前 QuickCreate 创作入口。
     // 这样可以避免两个创作流程同时请求模型、计费、上传或轮询任务。
     factoryOf(::PlazaScreenModel)
