@@ -24,3 +24,6 @@ __pycache__/
 .agents/
 .gemini/
 .cursor/
+
+# 仓库根目录的临时验证截图(batch*/before-* 等 ad-hoc 截图,不影响模块 res/ 资源图)
+/*.png
