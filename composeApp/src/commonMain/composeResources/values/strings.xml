@@ -246,9 +246,8 @@
     <string name="creator_profile_stat_fans">粉丝</string>
     <string name="creator_profile_stat_following">关注</string>
     <string name="creator_profile_stat_likes">获赞</string>
-    <string name="creator_profile_use_count_format">%1$s次使用</string>
-    <string name="creator_profile_metric_separator">·</string>
-    <string name="creator_profile_like_count_format">%1$s赞</string>
+    <string name="creator_profile_loading">加载中</string>
+    <string name="creator_profile_retry_action">重试</string>
     <string name="profile_default_user_name">RunningHub 用户</string>
     <string name="profile_settings_content_description">设置</string>
     <string name="profile_avatar_content_description">头像</string>
