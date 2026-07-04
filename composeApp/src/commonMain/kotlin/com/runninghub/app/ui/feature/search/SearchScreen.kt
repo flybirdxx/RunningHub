@@ -255,9 +255,11 @@ private fun SearchResultsGrid(
     LazyVerticalGrid(
         state = gridState,
         columns = GridCells.Adaptive(minSize = windowInfo.feedGridMinCardWidth),
+        // 横向内边距压到 sm：在 360dp 设备上 lg（16dp）会把可用宽度挤到 160dp 双列阈值以下退成单列，
+        // 单张 3:4 竖卡接近整屏；与发现页一致保持轻内边距，确保常见手机维持两列密度。
         contentPadding = PaddingValues(
-            start = RhSpacing.lg,
-            end = RhSpacing.lg,
+            start = RhSpacing.sm,
+            end = RhSpacing.sm,
             top = RhSpacing.sm,
             bottom = RhSpacing.xl,
         ),
