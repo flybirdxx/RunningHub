@@ -36,7 +36,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -60,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.koin.koinScreenModel
 import coil3.compose.AsyncImage
+import org.koin.compose.koinInject
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
@@ -72,10 +72,12 @@ import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceAction
 import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceCard
 import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceCardState
 import com.runninghub.app.ui.designsystem.components.billing.WalletBalanceRiskState
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.RunningHubThemeExt
+import com.runninghub.app.ui.designsystem.components.buttons.RhPrimaryButton
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import com.runninghub.core.model.MemberInfo
 import com.runninghub.core.model.User
+import com.runninghub.feature.auth.domain.SessionManager
 import com.runninghub.feature.auth.presentation.profile.ProfileAssetCenterUiModel
 import com.runninghub.feature.auth.presentation.profile.ProfileAssetLoadState
 import com.runninghub.feature.auth.presentation.profile.ProfileMembershipCenterUiModel
@@ -104,6 +106,7 @@ import runninghub.composeapp.generated.resources.profile_menu_clear_cache
 import runninghub.composeapp.generated.resources.profile_menu_edit_profile
 import runninghub.composeapp.generated.resources.profile_menu_logout
 import runninghub.composeapp.generated.resources.profile_menu_more_content_description
+import runninghub.composeapp.generated.resources.profile_not_logged_in_action
 import runninghub.composeapp.generated.resources.profile_not_logged_in_subtitle
 import runninghub.composeapp.generated.resources.profile_not_logged_in_title
 import runninghub.composeapp.generated.resources.profile_settings_content_description
@@ -125,6 +128,7 @@ class ProfileVoyagerScreen : Screen {
     @Composable
     override fun Content() {
         val screenModel = koinScreenModel<ProfileScreenModel>()
+        val sessionManager = koinInject<SessionManager>()
         val uiState by screenModel.uiState.collectAsState()
 
         // Voyager rule: no suspend in ScreenModel.init{} - load here.
@@ -137,6 +141,8 @@ class ProfileVoyagerScreen : Screen {
             onRefresh = screenModel::refreshUserData,
             // 注销只更新 SessionManager 背后的会话事实来源；根 App 统一观察会话状态并清空业务页面栈。
             onLogout = { screenModel.logout() },
+            // 未登录态“去登录”与根导航保持同一机制：把会话事实置为未认证，交给根 App 用 replaceAll 切到登录页。
+            onGoToLogin = { sessionManager.logout() },
         )
     }
 }
@@ -150,6 +156,7 @@ class ProfileVoyagerScreen : Screen {
  * @param uiState Profile Presentation 层输出的可渲染状态。
  * @param onRefresh 用户下拉刷新时触发的资料刷新回调。
  * @param onLogout 用户点击退出登录时触发的会话清理回调。
+ * @param onGoToLogin 未登录态点击“去登录”时触发的登录导航回调。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -159,13 +166,14 @@ fun ProfileScreenContent(
     onRefresh: () -> Unit = {},
     onRecharge: () -> Unit = {},
     onLogout: () -> Unit = {},
+    onGoToLogin: () -> Unit = {},
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val isRefreshing = uiState.isLoading && uiState.user != null
 
     Scaffold(
         modifier = modifier,
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = RhTheme.colors.backgroundPrimary,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
     ) { padding ->
         when {
@@ -173,7 +181,10 @@ fun ProfileScreenContent(
                 LoadingIndicator(Modifier.padding(padding))
             }
             !uiState.isLoggedIn && uiState.user == null -> {
-                NotLoggedInContent(modifier = Modifier.padding(padding))
+                NotLoggedInContent(
+                    modifier = Modifier.padding(padding),
+                    onGoToLogin = onGoToLogin,
+                )
             }
             else -> {
                 PullToRefreshBox(
@@ -220,8 +231,8 @@ private fun ProfileHeader(user: User?) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.surfaceVariant,
-                        MaterialTheme.colorScheme.background,
+                        RhTheme.colors.brandMuted,
+                        RhTheme.colors.surfaceElevated,
                     )
                 )
             )
@@ -239,8 +250,8 @@ private fun ProfileHeader(user: User?) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = user?.nickName?.takeIf { it.isNotBlank() } ?: defaultUserName,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    style = RhTypography.sectionTitle,
+                    color = RhTheme.colors.textPrimary,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -248,8 +259,8 @@ private fun ProfileHeader(user: User?) {
                 Spacer(Modifier.height(6.dp))
                 Text(
                     text = maskPhone(user?.mobile, unboundMobileText),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = RhTypography.body,
+                    color = RhTheme.colors.textSecondary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -259,9 +270,10 @@ private fun ProfileHeader(user: User?) {
             Icon(
                 Icons.Default.Settings,
                 contentDescription = stringResource(Res.string.profile_settings_content_description),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = RhTheme.colors.textSecondary,
                 modifier = Modifier
                     .size(24.dp)
+                    // TODO(settings): StateHolder 暂无 showSettings() 设置弹窗能力，待后续任务补齐后再接入打开动作。
                     .clickable { },
             )
         }
@@ -275,7 +287,7 @@ private fun ProfileAvatar(user: User?) {
         modifier = Modifier
             .size(76.dp)
             .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant),
+            .background(RhTheme.colors.surfaceSunken),
         contentAlignment = Alignment.Center,
     ) {
         if (!user?.headIcon.isNullOrEmpty()) {
@@ -290,7 +302,7 @@ private fun ProfileAvatar(user: User?) {
                 Icons.Default.Person,
                 contentDescription = stringResource(Res.string.profile_default_avatar_content_description),
                 modifier = Modifier.size(34.dp),
-                tint = MaterialTheme.colorScheme.outline,
+                tint = RhTheme.colors.textTertiary,
             )
         }
     }
@@ -307,7 +319,7 @@ private fun MemberBadge(
     Surface(
         modifier = modifier.widthIn(max = 240.dp),
         shape = RoundedCornerShape(999.dp),
-        color = RunningHubThemeExt.colors.premiumGold.copy(alpha = 0.14f),
+        color = RhTheme.colors.priceMoney.copy(alpha = 0.14f),
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -316,7 +328,7 @@ private fun MemberBadge(
             Icon(
                 Icons.Default.Star,
                 contentDescription = stringResource(Res.string.profile_member_level_content_description),
-                tint = RunningHubThemeExt.colors.premiumGold,
+                tint = RhTheme.colors.priceMoney,
                 modifier = Modifier.size(14.dp),
             )
             Spacer(Modifier.width(5.dp))
@@ -328,8 +340,8 @@ private fun MemberBadge(
                         append(it)
                     }
                 },
-                style = MaterialTheme.typography.labelMedium,
-                color = RunningHubThemeExt.colors.premiumGold,
+                style = RhTypography.caption,
+                color = RhTheme.colors.priceMoney,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -419,8 +431,8 @@ private fun ProfileMenuSection(onLogout: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        shape = RoundedCornerShape(Dimens.RadiusLG),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(RhTheme.shapes.lg),
+        colors = CardDefaults.cardColors(containerColor = RhTheme.colors.surfaceDefault),
     ) {
         Column {
             ProfileMenuItem(
@@ -444,7 +456,7 @@ private fun ProfileMenuSection(onLogout: () -> Unit) {
             ProfileMenuItem(
                 icon = Icons.AutoMirrored.Filled.ExitToApp,
                 title = stringResource(Res.string.profile_menu_logout),
-                titleColor = MaterialTheme.colorScheme.error,
+                titleColor = RhTheme.colors.statusFailed,
                 onClick = onLogout,
             )
         }
@@ -456,7 +468,7 @@ private fun MenuDivider() {
     HorizontalDivider(
         modifier = Modifier.padding(horizontal = 56.dp),
         thickness = 0.5.dp,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = RhTheme.colors.borderSubtle,
     )
 }
 
@@ -464,7 +476,7 @@ private fun MenuDivider() {
 private fun ProfileMenuItem(
     icon: ImageVector,
     title: String,
-    titleColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    titleColor: Color = RhTheme.colors.textSecondary,
     onClick: () -> Unit,
 ) {
     Row(
@@ -483,7 +495,7 @@ private fun ProfileMenuItem(
         Spacer(Modifier.width(14.dp))
         Text(
             text = title,
-            style = MaterialTheme.typography.bodyLarge,
+            style = RhTypography.body,
             color = titleColor,
             modifier = Modifier.weight(1f),
             maxLines = 1,
@@ -492,14 +504,17 @@ private fun ProfileMenuItem(
         Icon(
             Icons.Default.ChevronRight,
             contentDescription = stringResource(Res.string.profile_menu_more_content_description),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = RhTheme.colors.textTertiary,
             modifier = Modifier.size(18.dp),
         )
     }
 }
 
 @Composable
-private fun NotLoggedInContent(modifier: Modifier = Modifier) {
+private fun NotLoggedInContent(
+    modifier: Modifier = Modifier,
+    onGoToLogin: () -> Unit = {},
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -513,7 +528,7 @@ private fun NotLoggedInContent(modifier: Modifier = Modifier) {
                 .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
-                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.secondary)
+                        listOf(RhTheme.colors.brandPrimary, RhTheme.colors.brandSecondary)
                     )
                 ),
             contentAlignment = Alignment.Center,
@@ -521,21 +536,26 @@ private fun NotLoggedInContent(modifier: Modifier = Modifier) {
             Icon(
                 Icons.Default.Lock,
                 contentDescription = stringResource(Res.string.profile_locked_content_description),
-                tint = MaterialTheme.colorScheme.onSurface,
+                tint = RhTheme.colors.textInverse,
                 modifier = Modifier.size(40.dp),
             )
         }
         Spacer(Modifier.height(24.dp))
         Text(
             text = stringResource(Res.string.profile_not_logged_in_title),
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onSurface,
+            style = RhTypography.sectionTitle,
+            color = RhTheme.colors.textPrimary,
         )
         Spacer(Modifier.height(8.dp))
         Text(
             text = stringResource(Res.string.profile_not_logged_in_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.outline,
+            style = RhTypography.body,
+            color = RhTheme.colors.textTertiary,
+        )
+        Spacer(Modifier.height(24.dp))
+        RhPrimaryButton(
+            text = stringResource(Res.string.profile_not_logged_in_action),
+            onClick = onGoToLogin,
         )
     }
 }
