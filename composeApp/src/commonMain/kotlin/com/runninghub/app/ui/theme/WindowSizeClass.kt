@@ -29,20 +29,8 @@ fun rememberWindowSizeClass(): WindowSizeClass {
     }
 }
 
-fun adaptiveGridColumns(sizeClass: WindowSizeClass): Int = when (sizeClass) {
-    WindowSizeClass.Compact -> 2
-    WindowSizeClass.Medium -> 3
-    WindowSizeClass.Expanded -> 4
-}
-
 fun adaptiveGridSpacing(sizeClass: WindowSizeClass): Dp = when (sizeClass) {
     WindowSizeClass.Compact -> 12.dp
     WindowSizeClass.Medium -> 16.dp
     WindowSizeClass.Expanded -> 20.dp
-}
-
-fun adaptiveAppBarHeight(sizeClass: WindowSizeClass): Dp = when (sizeClass) {
-    WindowSizeClass.Compact -> 56.dp
-    WindowSizeClass.Medium -> 64.dp
-    WindowSizeClass.Expanded -> 72.dp
 }
