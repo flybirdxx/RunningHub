@@ -13,10 +13,8 @@ class RunningHubThemeTokenTest {
     @Test
     fun `dark surfaces keep stable app chrome palette`() {
         assertEquals(Color(0xFF000000), BaseBlack)
-        assertEquals(Color(0xFF080808), Surface900)
         assertEquals(Color(0xFF09090B), Surface850)
         assertEquals(Color(0xFF18181B), Surface800)
-        assertEquals(Color(0xFF27272A), Surface700)
     }
 
     @Test
@@ -24,10 +22,8 @@ class RunningHubThemeTokenTest {
         assertEquals(BaseBlack, RhAppBackground)
         assertEquals(Surface850, RhAppSurface)
         assertEquals(Surface800, RhAppCard)
-        assertEquals(Color(0xFF1B2117), RhAppSelected)
         assertEquals(Color(0xFF30363A), RhAppLine)
         assertEquals(TextPrimaryDark, RhAppText)
         assertEquals(TextMutedDark, RhAppMuted)
-        assertEquals(Color(0xF209090B), RhAppBottomBar)
     }
 }

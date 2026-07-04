@@ -103,35 +103,3 @@ val RhDarkColors = RhColors(
     overlayScrim = Color(0xB3000000),
     overlaySheet = Color(0xF2171B22),
 )
-
-/**
- * 浅色兼容色板，用于系统浅色模式下保持组件可读；当前不是 redesign 的主视觉验收基准。
- */
-val RhLightColors = RhColors(
-    backgroundPrimary = Color(0xFFF8FAFC),
-    backgroundSecondary = Color(0xFFF1F5F9),
-    backgroundGradient = listOf(Color(0xFFFFFFFF), Color(0xFFF1F5F9)),
-    surfaceDefault = Color.White,
-    surfaceElevated = Color(0xFFF8FAFC),
-    surfaceSunken = Color(0xFFE2E8F0),
-    surfaceSelected = Color(0xFFE9FBC4),
-    surfaceDisabled = Color(0xFFE5E7EB),
-    textPrimary = Color(0xFF0F172A),
-    textSecondary = Color(0xFF475569),
-    textTertiary = Color(0xFF64748B),
-    textInverse = Color(0xFF050608),
-    borderDefault = Color(0xFFCBD5E1),
-    borderSubtle = Color(0xFFE2E8F0),
-    borderActive = Color(0xFF4E6200),
-    brandPrimary = Color(0xFF4E6200),
-    brandSecondary = Color(0xFF6C5CE7),
-    brandMuted = Color(0xFFDFF7A7),
-    statusSuccess = Color(0xFF16A34A),
-    statusFailed = Color(0xFFDC2626),
-    statusProcessing = Color(0xFF0284C7),
-    statusWarning = Color(0xFFD97706),
-    priceCredit = Color(0xFF4E6200),
-    priceMoney = Color(0xFFB45309),
-    overlayScrim = Color(0x99000000),
-    overlaySheet = Color(0xF2FFFFFF),
-)

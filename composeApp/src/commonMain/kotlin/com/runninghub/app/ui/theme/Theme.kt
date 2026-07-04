@@ -44,13 +44,12 @@ private val DarkColorScheme = darkColorScheme(
 /**
  * 应用壳主题入口。
  *
- * redesign 决策：App 锁定暗色，不跟随系统深浅色。浅色 Material scheme 与
- * RhLightColors 保留类型定义但不再进入运行路径，收尾批评估删除。
+ * redesign 决策：App 锁定暗色，不跟随系统深浅色。主题装配统一提供 Rh 设计系统色板与圆角，
+ * 并把 [DarkColorScheme] 交给 Material3 组件消费。
  */
 @Composable
 fun RunningHubTheme(content: @Composable () -> Unit) {
     CompositionLocalProvider(
-        LocalExtendedColors provides DarkExtendedColors,
         LocalRhColors provides RhDarkColors,
         LocalRhShapes provides RhDefaultShapes,
     ) {
@@ -60,14 +59,4 @@ fun RunningHubTheme(content: @Composable () -> Unit) {
             content = content
         )
     }
-}
-
-/**
- * 旧版主题扩展色读取入口。
- *
- * 新增页面优先使用 `RhTheme`，既有页面在迁移完成前继续通过该对象读取历史 token。
- */
-object RunningHubThemeExt {
-    val colors: ExtendedColors
-        @Composable get() = LocalExtendedColors.current
 }
