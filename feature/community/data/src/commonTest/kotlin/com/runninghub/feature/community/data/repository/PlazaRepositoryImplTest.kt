@@ -84,6 +84,7 @@ class PlazaRepositoryImplTest {
 
         assertEquals(listOf("2067532558576996354"), creations.items.map { it.id })
         assertEquals("https://image.png", creations.items.single().mediaUrl)
+        assertEquals("1970504488576520194", creations.items.single().ownerId)
         assertEquals(
             PlazaShortPage(
                 page = 1,

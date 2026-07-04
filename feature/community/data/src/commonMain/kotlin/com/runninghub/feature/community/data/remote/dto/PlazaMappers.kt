@@ -31,6 +31,7 @@ fun PlazaCreationCardDto.toDomain(): PlazaCreationCard =
         id = id,
         intro = intro,
         publishTime = publishTime,
+        ownerId = owner?.id,
         ownerName = owner?.name,
         ownerAvatar = owner?.avatar,
         mediaUrl = creationShowreelInfo?.fileUrl,

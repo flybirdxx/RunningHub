@@ -84,6 +84,7 @@ data class PlazaCreationReuseSnapshot(
  * @property id 内容稳定标识。
  * @property intro 内容简介。
  * @property publishTime 发布时间文案，保留服务端格式。
+ * @property ownerId 作者稳定 ID，用于跳转创作者主页；匿名或缺失时为空。
  * @property ownerName 作者名称。
  * @property ownerAvatar 作者头像地址。
  * @property mediaUrl 展示媒体地址。
@@ -101,6 +102,7 @@ data class PlazaCreationCard(
     val id: String,
     val intro: String? = null,
     val publishTime: String? = null,
+    val ownerId: String? = null,
     val ownerName: String? = null,
     val ownerAvatar: String? = null,
     val mediaUrl: String? = null,
