@@ -85,6 +85,8 @@
     <string name="quick_create_result_section_title">生成结果</string>
     <string name="quick_create_result_task_id_format">任务 ID：%1$s</string>
     <string name="quick_create_result_expiry_24h">云端结果将在 24 小时后过期</string>
+    <string name="quick_create_result_expiry_badge">24h</string>
+    <string name="quick_create_result_badge_progress_format">%1$d%%</string>
     <string name="quick_create_result_action_view_task">查看任务</string>
     <string name="quick_create_result_action_view_result">查看结果</string>
     <string name="quick_create_result_action_save">保存</string>

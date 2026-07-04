@@ -6,18 +6,29 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.unit.IntSize
@@ -42,7 +54,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.designsystem.components.badges.RhTaskStatus
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
+import com.runninghub.app.ui.designsystem.components.result.ConversationResultCard
+import com.runninghub.app.ui.designsystem.components.result.ConversationResultCardActionState
+import com.runninghub.app.ui.designsystem.components.result.ConversationResultCardActionType
 import com.runninghub.app.ui.designsystem.components.result.ResultPreview
 import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionState
 import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionType
@@ -71,7 +88,9 @@ import runninghub.composeapp.generated.resources.quick_create_result_action_try_
 import runninghub.composeapp.generated.resources.quick_create_result_action_view_detail
 import runninghub.composeapp.generated.resources.quick_create_result_action_view_result
 import runninghub.composeapp.generated.resources.quick_create_result_action_view_task
+import runninghub.composeapp.generated.resources.quick_create_result_badge_progress_format
 import runninghub.composeapp.generated.resources.quick_create_result_expiry_24h
+import runninghub.composeapp.generated.resources.quick_create_result_expiry_badge
 import runninghub.composeapp.generated.resources.quick_create_result_section_title
 import runninghub.composeapp.generated.resources.quick_create_result_task_id_format
 import runninghub.composeapp.generated.resources.quick_create_task_status_canceled
@@ -187,6 +206,14 @@ private fun UserPromptBubble(prompt: String) {
     }
 }
 
+/**
+ * 会话条目的结果卡分发入口。
+ *
+ * 叠加式重设计(result-card-v2)后按任务阶段分三条渲染路径:
+ * - 成功且有结果:聊天气泡式叠加卡 [ConversationSuccessResultCard],支持长按工具条;
+ * - 生成中(提交/排队/运行):叠加卡 + 流体占位 [ConversationGeneratingCard],比例来自提交参数快照;
+ * - 其余(失败/取消及成功但暂无输出等边缘态):保持原有 [ResultPreview] 紧凑卡路径不变。
+ */
 @Composable
 private fun GeneratedPosterCard(
     item: QuickCreateConversationItemUi,
@@ -194,14 +221,149 @@ private fun GeneratedPosterCard(
     modifier: Modifier = Modifier,
 ) {
     val result = item.results.firstOrNull()
+    when {
+        item.taskStatus == QuickCreateTaskUiStatus.SUCCESS && result != null ->
+            ConversationSuccessResultCard(
+                item = item,
+                result = result,
+                onResultAction = onResultAction,
+                modifier = modifier,
+            )
+        item.taskStatus == QuickCreateTaskUiStatus.SUBMITTING ||
+            item.taskStatus == QuickCreateTaskUiStatus.QUEUING ||
+            item.taskStatus == QuickCreateTaskUiStatus.RUNNING ->
+            ConversationGeneratingCard(item = item, modifier = modifier)
+        else ->
+            ConversationLegacyStatusCard(
+                item = item,
+                result = result,
+                onResultAction = onResultAction,
+                modifier = modifier,
+            )
+    }
+}
+
+/**
+ * 生成中(提交/排队/运行)的叠加式占位卡。
+ *
+ * 卡片比例来自点击生成时的提交参数快照([QuickCreateConversationItemUi.aspectRatio]),
+ * 让占位形状贴近最终结果;媒体槽铺满尺寸感知的流体蒙版。
+ * 状态徽:有可见进度时展示短百分数(如「42%」),否则复用现有短状态文案;
+ * 生成中不展示叠加操作与过期徽。
+ */
+@Composable
+private fun ConversationGeneratingCard(
+    item: QuickCreateConversationItemUi,
+    modifier: Modifier = Modifier,
+) {
+    val progress = (item.statusText as? QuickCreateTaskStatusText.Running)?.progressPercent
+    val visibleProgress = progress?.takeIf { it > 0 }?.coerceIn(0, 100)
+    val statusLabel = if (visibleProgress != null) {
+        stringResource(Res.string.quick_create_result_badge_progress_format, visibleProgress)
+    } else {
+        item.taskStatus.quickCreateTaskStatusLabel(progress = null)
+    }
+    ConversationResultCard(
+        aspectRatio = quickCreateConversationGeneratingAspectRatio(item.aspectRatio),
+        modifier = modifier,
+        statusLabel = statusLabel,
+        status = item.taskStatus.toRhTaskStatus(),
+        mediaContent = {
+            GeneratingFluidMask(modifier = Modifier.matchParentSize())
+        },
+    )
+}
+
+/**
+ * 成功态的叠加式结果卡:媒体即卡片,底部 scrim 上叠下载/复制到素材区圆钮。
+ *
+ * 长按卡片浮出下方胶囊工具条(再来一张/复用参数/复制 Prompt);工具条可见期间卡片
+ * 走品牌色描边高亮,再次点击卡片或点任一工具条项收起。工具条可见性是纯 UI 瞬态,
+ * 按任务维度 remember 局部持有,不进 UiState。
+ */
+@Composable
+private fun ConversationSuccessResultCard(
+    item: QuickCreateConversationItemUi,
+    result: QuickCreateResultUi,
+    onResultAction: (QuickCreateResultAction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var resolvedImageAspectRatio by remember(result.url) { mutableStateOf<Float?>(null) }
+    var toolbarVisible by remember(item.taskId) { mutableStateOf(false) }
+    val cardAspectRatio = quickCreateConversationResultAspectRatio(
+        resultWidth = result.width,
+        resultHeight = result.height,
+        resolvedImageAspectRatio = resolvedImageAspectRatio,
+    )
+    val overlayActions = quickCreateResultActions(
+        taskStatus = item.taskStatus,
+        taskId = item.taskId,
+        results = item.results,
+    ).mapNotNull { action -> action.toConversationResultCardActionState() }
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        ConversationResultCard(
+            aspectRatio = cardAspectRatio,
+            statusLabel = stringResource(Res.string.quick_create_task_status_success),
+            status = RhTaskStatus.Success,
+            expiryLabel = stringResource(Res.string.quick_create_result_expiry_badge),
+            overlayActions = overlayActions,
+            onAction = { actionType -> onResultAction(actionType.toQuickCreateResultAction()) },
+            highlighted = toolbarVisible,
+            // 只有工具条可见时才挂整卡点击(用于收起);平时不消费点击,留给未来的预览手势。
+            onClick = if (toolbarVisible) ({ toolbarVisible = false }) else null,
+            onLongPress = { toolbarVisible = true },
+            mediaContent = {
+                val previewUrl = if (result.mediaType == QuickCreateResultMediaType.IMAGE) {
+                    result.url
+                } else {
+                    result.thumbnailUrl?.takeIf { it.isNotBlank() } ?: result.url
+                }
+                SmartAsyncImage(
+                    imageUrl = previewUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .matchParentSize()
+                        // 比例未知时先隐藏媒体,等服务端宽高或 intrinsic 比例就绪再显示,
+                        // 避免 1:1 回退卡上闪现被裁切的图。
+                        .alpha(if (cardAspectRatio != null) 1f else 0f),
+                    contentScale = ContentScale.Crop,
+                    onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
+                )
+            },
+        )
+        if (toolbarVisible) {
+            ConversationResultLongPressToolbar(
+                onAction = { action ->
+                    toolbarVisible = false
+                    onResultAction(action)
+                },
+            )
+        }
+    }
+}
+
+/**
+ * 失败/取消等非叠加态沿用的原 [ResultPreview] 紧凑卡路径。
+ *
+ * 保留其动作按钮(重试/查看详情/再来一张)与媒体兜底逻辑;生成中与成功态已迁移到
+ * 叠加卡,不再进入该函数。
+ */
+@Composable
+private fun ConversationLegacyStatusCard(
+    item: QuickCreateConversationItemUi,
+    result: QuickCreateResultUi?,
+    onResultAction: (QuickCreateResultAction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val progress = (item.statusText as? QuickCreateTaskStatusText.Running)?.progressPercent
     var resolvedImageAspectRatio by remember(result?.url) { mutableStateOf<Float?>(null) }
-    val cardAspectRatio = if (result == null) {
-        quickCreateConversationGeneratingAspectRatio(item.aspectRatio)
-    } else {
+    val cardAspectRatio = result?.let {
         quickCreateConversationResultAspectRatio(
-            resultWidth = result.width,
-            resultHeight = result.height,
+            resultWidth = it.width,
+            resultHeight = it.height,
             resolvedImageAspectRatio = resolvedImageAspectRatio,
         )
     }
@@ -216,37 +378,134 @@ private fun GeneratedPosterCard(
         onAction = { actionType -> onResultAction(actionType.toQuickCreateResultAction()) },
         modifier = modifier,
         mediaContent = {
-            when {
-                result?.mediaType == QuickCreateResultMediaType.IMAGE -> {
-                    SmartAsyncImage(
-                        imageUrl = result.url,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .matchParentSize()
-                            .alpha(if (cardAspectRatio != null) 1f else 0f),
-                        contentScale = ContentScale.Crop,
-                        onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
-                    )
+            // media 为 null 时组件不会调用媒体槽,因此这里 result 一定非空。
+            if (result != null) {
+                val previewUrl = if (result.mediaType == QuickCreateResultMediaType.IMAGE) {
+                    result.url
+                } else {
+                    result.thumbnailUrl?.takeIf { it.isNotBlank() } ?: result.url
                 }
-                result != null -> {
-                    val previewUrl = result.thumbnailUrl?.takeIf { it.isNotBlank() } ?: result.url
-                    SmartAsyncImage(
-                        imageUrl = previewUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .matchParentSize()
-                            .alpha(if (cardAspectRatio != null) 1f else 0f),
-                        contentScale = ContentScale.Crop,
-                        onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
-                    )
-                }
-                else -> {
-                    GeneratingFluidMask(modifier = Modifier.matchParentSize())
-                }
+                SmartAsyncImage(
+                    imageUrl = previewUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .alpha(if (cardAspectRatio != null) 1f else 0f),
+                    contentScale = ContentScale.Crop,
+                    onImageAspectRatioResolved = { ratio -> resolvedImageAspectRatio = ratio },
+                )
             }
         },
     )
 }
+
+/**
+ * 成功态结果卡长按浮出的胶囊工具条。
+ *
+ * 占位首版:收纳现有已接线动作(再来一张/复用参数/复制 Prompt),后续可扩。
+ * 纯展示组件:只回传动作语义,收起时机由调用方控制。
+ */
+@Composable
+private fun ConversationResultLongPressToolbar(
+    onAction: (QuickCreateResultAction) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(RhTheme.shapes.full),
+        color = RhTheme.colors.surfaceElevated,
+        border = BorderStroke(1.dp, RhTheme.colors.borderDefault),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = RhSpacing.xs, vertical = RhSpacing.xs),
+            horizontalArrangement = Arrangement.spacedBy(RhSpacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            ConversationToolbarItem(
+                icon = Icons.Default.Refresh,
+                label = stringResource(Res.string.quick_create_result_action_try_again),
+                onClick = { onAction(QuickCreateResultAction.TryAgain) },
+            )
+            ConversationToolbarItem(
+                icon = Icons.Default.Tune,
+                label = stringResource(Res.string.quick_create_result_action_reuse_parameters),
+                onClick = { onAction(QuickCreateResultAction.ReuseParameters) },
+            )
+            ConversationToolbarItem(
+                icon = Icons.Default.ContentCopy,
+                label = stringResource(Res.string.quick_create_result_action_copy_prompt),
+                onClick = { onAction(QuickCreateResultAction.CopyPrompt) },
+            )
+        }
+    }
+}
+
+/**
+ * 长按工具条中的单个「图标 + 文字」项。
+ */
+@Composable
+private fun ConversationToolbarItem(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(RhTheme.shapes.full))
+            .clickable(onClick = onClick)
+            .padding(horizontal = RhSpacing.sm, vertical = 6.dp),
+        horizontalArrangement = Arrangement.spacedBy(RhSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = RhTheme.colors.textSecondary,
+            modifier = Modifier.size(14.dp),
+        )
+        Text(
+            text = label,
+            color = RhTheme.colors.textPrimary,
+            style = RhTypography.caption,
+        )
+    }
+}
+
+/**
+ * 把 Presentation 动作真源映射为叠加卡圆钮状态。
+ *
+ * 只有下载与复制到素材区两个动作进入叠加圆钮;复制到素材区作为主操作走品牌色强调,
+ * 其余动作(重试/再来一张等)由失败态紧凑卡或长按工具条承接,这里返回 null 过滤。
+ * 图标取自 material-icons-extended(项目既有依赖,见 composeApp/build.gradle.kts)。
+ */
+@Composable
+private fun QuickCreateResultActionUi.toConversationResultCardActionState(): ConversationResultCardActionState? =
+    when (action) {
+        QuickCreateResultAction.Download -> ConversationResultCardActionState(
+            type = ConversationResultCardActionType.Download,
+            icon = Icons.Default.Download,
+            contentDescription = stringResource(Res.string.quick_create_result_action_download),
+            emphasized = false,
+            enabled = enabled,
+        )
+        QuickCreateResultAction.CopyToComposer -> ConversationResultCardActionState(
+            type = ConversationResultCardActionType.CopyToComposer,
+            icon = Icons.Default.AddPhotoAlternate,
+            contentDescription = stringResource(Res.string.quick_create_result_action_copy_to_composer),
+            emphasized = true,
+            enabled = enabled,
+        )
+        else -> null
+    }
+
+/**
+ * 叠加卡圆钮动作转回 Presentation 动作语义,复用页面现有 onResultAction 分发。
+ */
+private fun ConversationResultCardActionType.toQuickCreateResultAction(): QuickCreateResultAction =
+    when (this) {
+        ConversationResultCardActionType.Download -> QuickCreateResultAction.Download
+        ConversationResultCardActionType.CopyToComposer -> QuickCreateResultAction.CopyToComposer
+    }
 
 @Composable
 private fun quickCreateResultPreviewState(
@@ -255,18 +514,7 @@ private fun quickCreateResultPreviewState(
     cardAspectRatio: Float?,
     progress: Int?,
 ): ResultPreviewState {
-    val media = when {
-        result != null -> result.toResultPreviewMediaState(cardAspectRatio)
-        item.taskStatus == QuickCreateTaskUiStatus.SUBMITTING ||
-            item.taskStatus == QuickCreateTaskUiStatus.QUEUING ||
-            item.taskStatus == QuickCreateTaskUiStatus.RUNNING -> ResultPreviewMediaState(
-                url = "",
-                previewUrl = null,
-                mediaType = PreviewMediaType.Image,
-                aspectRatio = cardAspectRatio,
-            )
-        else -> null
-    }
+    val media = result?.toResultPreviewMediaState(cardAspectRatio)
     return ResultPreviewState(
         title = stringResource(Res.string.quick_create_result_section_title),
         taskIdLabel = item.taskId?.takeIf { it.isNotBlank() }?.let { taskId ->
@@ -488,10 +736,16 @@ internal fun quickCreateConversationResultAspectRatio(
     }
     return resultRatio ?: resolvedImageAspectRatio?.takeIf { it.isFinite() && it > 0f }
 }
+
 /**
- * 返回生成中状态卡片可使用的占位比例。
+ * 解析提交参数快照中的宽高比协议值,作为生成中占位卡的比例。
  *
- * 该值只在还没有结果图时使用，用于让排队、生成中的视觉占位贴近本次提交参数；结果图出现后会改用实际图片比例。
+ * 支持半角冒号("9:16")、全角冒号("3：4")与斜杠("16/9")三种分隔;
+ * 非法输入(缺分隔、非数字、零或负值、空白)返回 null,由叠加卡回退 1:1。
+ * 该值只在还没有结果图时使用,结果出现后改用 [quickCreateConversationResultAspectRatio]。
+ *
+ * 这里不做区间截断(coerce):极端比例的 clamp 已由 ConversationResultCard 的
+ * conversationResultCardSize 统一负责,避免两处 clamp 语义漂移。
  */
 internal fun quickCreateConversationGeneratingAspectRatio(aspectRatio: String?): Float? {
     val value = aspectRatio?.trim()?.takeIf { it.isNotBlank() } ?: return null
@@ -500,5 +754,5 @@ internal fun quickCreateConversationGeneratingAspectRatio(aspectRatio: String?):
     val width = parts[0].trim().toFloatOrNull()
     val height = parts[1].trim().toFloatOrNull()
     if (width == null || height == null || width <= 0f || height <= 0f) return null
-    return (width / height).coerceIn(0.35f, 2.4f)
+    return width / height
 }

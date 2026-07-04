@@ -42,13 +42,20 @@ class QuickCreateConversationContentTest {
     fun `conversation generating card can use submitted aspect ratio`() {
         val ratio = quickCreateConversationGeneratingAspectRatio("9:16")
 
-        assertEquals(9f / 16f, ratio)
+        assertEquals(0.5625f, ratio)
     }
 
     @Test
     fun `conversation generating card accepts full width colon ratio`() {
         val ratio = quickCreateConversationGeneratingAspectRatio("3：4")
 
-        assertEquals(3f / 4f, ratio)
+        assertEquals(0.75f, ratio)
+    }
+
+    @Test
+    fun `conversation generating card rejects invalid aspect ratio input`() {
+        assertNull(quickCreateConversationGeneratingAspectRatio("abc"))
+        assertNull(quickCreateConversationGeneratingAspectRatio(""))
+        assertNull(quickCreateConversationGeneratingAspectRatio("9:0"))
     }
 }
