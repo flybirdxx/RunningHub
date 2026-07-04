@@ -62,6 +62,7 @@ import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_result_action_copy_prompt
+import runninghub.composeapp.generated.resources.quick_create_result_action_copy_to_composer
 import runninghub.composeapp.generated.resources.quick_create_result_action_download
 import runninghub.composeapp.generated.resources.quick_create_result_action_retry
 import runninghub.composeapp.generated.resources.quick_create_result_action_reuse_parameters
@@ -339,6 +340,7 @@ private fun QuickCreateResultAction.toResultPreviewActionType(): ResultPreviewAc
         QuickCreateResultAction.ViewResult -> ResultPreviewActionType.ViewResult
         QuickCreateResultAction.Save -> ResultPreviewActionType.Save
         QuickCreateResultAction.Download -> ResultPreviewActionType.Download
+        QuickCreateResultAction.CopyToComposer -> ResultPreviewActionType.CopyToComposer
         QuickCreateResultAction.ReuseParameters -> ResultPreviewActionType.ReuseParameters
         QuickCreateResultAction.CopyPrompt -> ResultPreviewActionType.CopyPrompt
         QuickCreateResultAction.TryAgain -> ResultPreviewActionType.TryAgain
@@ -352,6 +354,7 @@ private fun ResultPreviewActionType.toQuickCreateResultAction(): QuickCreateResu
         ResultPreviewActionType.ViewResult -> QuickCreateResultAction.ViewResult
         ResultPreviewActionType.Save -> QuickCreateResultAction.Save
         ResultPreviewActionType.Download -> QuickCreateResultAction.Download
+        ResultPreviewActionType.CopyToComposer -> QuickCreateResultAction.CopyToComposer
         ResultPreviewActionType.ReuseParameters -> QuickCreateResultAction.ReuseParameters
         ResultPreviewActionType.CopyPrompt -> QuickCreateResultAction.CopyPrompt
         ResultPreviewActionType.TryAgain -> QuickCreateResultAction.TryAgain
@@ -366,6 +369,7 @@ private fun QuickCreateResultAction.quickCreateResultActionLabel(): String =
         QuickCreateResultAction.ViewResult -> stringResource(Res.string.quick_create_result_action_view_result)
         QuickCreateResultAction.Save -> stringResource(Res.string.quick_create_result_action_save)
         QuickCreateResultAction.Download -> stringResource(Res.string.quick_create_result_action_download)
+        QuickCreateResultAction.CopyToComposer -> stringResource(Res.string.quick_create_result_action_copy_to_composer)
         QuickCreateResultAction.ReuseParameters -> stringResource(Res.string.quick_create_result_action_reuse_parameters)
         QuickCreateResultAction.CopyPrompt -> stringResource(Res.string.quick_create_result_action_copy_prompt)
         QuickCreateResultAction.TryAgain -> stringResource(Res.string.quick_create_result_action_try_again)

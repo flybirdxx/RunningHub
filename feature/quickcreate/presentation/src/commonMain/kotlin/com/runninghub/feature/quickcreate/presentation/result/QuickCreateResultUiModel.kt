@@ -114,6 +114,9 @@ enum class QuickCreateResultAction {
     ViewResult,
     Save,
     Download,
+
+    /** 把结果图作为素材引用填入创作输入区。 */
+    CopyToComposer,
     ReuseParameters,
     CopyPrompt,
     TryAgain,
@@ -133,10 +136,13 @@ data class QuickCreateResultActionUi(
 )
 
 /**
- * 根据任务阶段生成结果卡下一步动作集合。
+ * 根据任务阶段生成结果卡叠加动作集合。
  *
  * 动作集合在 Presentation 层集中维护，避免 Composable 通过中文文案或远端状态字符串临时判断按钮。
- * 保存、下载、查看任务等平台副作用仅作为语义输出；真正执行前必须由页面或平台层再次确认能力边界。
+ * 结果卡采用叠加式布局：生成中（排队、运行）不展示任何按钮；成功态只保留下载与复制到素材区两个叠加按钮，
+ * 其余动作（再来一张、复用参数、复制 Prompt 等）由 UI 层的长按工具条直接组装，不经过本函数。
+ * 复制到素材区仅在结果中存在图片时提供；视频结果只保留下载。
+ * 下载、复制到素材区等平台副作用仅作为语义输出；真正执行前必须由页面或平台层再次确认能力边界。
  */
 fun quickCreateResultActions(
     taskStatus: QuickCreateTaskUiStatus,
@@ -145,29 +151,18 @@ fun quickCreateResultActions(
     results: List<QuickCreateResultUi>,
 ): List<QuickCreateResultActionUi> {
     val hasTaskId = !taskId.isNullOrBlank()
-    val hasPrompt = prompt.isNotBlank()
     val hasResults = results.isNotEmpty()
     return when (taskStatus) {
         QuickCreateTaskUiStatus.IDLE,
         QuickCreateTaskUiStatus.SUBMITTING -> emptyList()
         QuickCreateTaskUiStatus.QUEUING,
-        QuickCreateTaskUiStatus.RUNNING -> buildList {
-            if (hasTaskId) {
-                add(QuickCreateResultActionUi(QuickCreateResultAction.ViewTask))
-            }
-        }
+        QuickCreateTaskUiStatus.RUNNING -> emptyList()
         QuickCreateTaskUiStatus.SUCCESS -> buildList {
             if (hasResults) {
-                add(QuickCreateResultActionUi(QuickCreateResultAction.ViewResult))
-            }
-            add(QuickCreateResultActionUi(QuickCreateResultAction.TryAgain))
-            if (hasResults) {
-                add(QuickCreateResultActionUi(QuickCreateResultAction.Save))
                 add(QuickCreateResultActionUi(QuickCreateResultAction.Download))
-                add(QuickCreateResultActionUi(QuickCreateResultAction.ReuseParameters))
-            }
-            if (hasPrompt) {
-                add(QuickCreateResultActionUi(QuickCreateResultAction.CopyPrompt))
+                if (results.any { it.mediaType == QuickCreateResultMediaType.IMAGE }) {
+                    add(QuickCreateResultActionUi(QuickCreateResultAction.CopyToComposer))
+                }
             }
         }
         QuickCreateTaskUiStatus.FAILED -> buildList {

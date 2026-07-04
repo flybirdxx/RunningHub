@@ -88,15 +88,11 @@ class QuickCreateTaskStatusUiTest {
             results = emptyList(),
         )
 
-        assertEquals(listOf(QuickCreateResultAction.ViewTask), runningActions.map { it.action })
+        assertEquals(emptyList(), runningActions.map { it.action })
         assertEquals(
             listOf(
-                QuickCreateResultAction.ViewResult,
-                QuickCreateResultAction.TryAgain,
-                QuickCreateResultAction.Save,
                 QuickCreateResultAction.Download,
-                QuickCreateResultAction.ReuseParameters,
-                QuickCreateResultAction.CopyPrompt,
+                QuickCreateResultAction.CopyToComposer,
             ),
             successActions.map { it.action },
         )
@@ -108,5 +104,26 @@ class QuickCreateTaskStatusUiTest {
             failedActions.map { it.action },
         )
         assertTrue(successActions.all { it.enabled })
+    }
+
+    @Test
+    fun `success actions keep download only for video results`() {
+        val successActions = quickCreateResultActions(
+            taskStatus = QuickCreateTaskUiStatus.SUCCESS,
+            taskId = "task-4",
+            prompt = "green icon",
+            results = listOf(
+                QuickCreateResultUi(
+                    url = "https://example.com/result.mp4",
+                    type = "mp4",
+                    mediaType = QuickCreateResultMediaType.VIDEO,
+                )
+            ),
+        )
+
+        assertEquals(
+            listOf(QuickCreateResultAction.Download),
+            successActions.map { it.action },
+        )
     }
 }

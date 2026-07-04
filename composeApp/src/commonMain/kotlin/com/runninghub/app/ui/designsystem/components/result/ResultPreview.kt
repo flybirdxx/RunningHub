@@ -52,6 +52,9 @@ enum class ResultPreviewActionType {
     ViewResult,
     Save,
     Download,
+
+    /** 把结果图作为素材引用填入创作输入区。 */
+    CopyToComposer,
     ReuseParameters,
     CopyPrompt,
     TryAgain,
