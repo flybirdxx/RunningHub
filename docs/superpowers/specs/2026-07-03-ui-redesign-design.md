@@ -128,3 +128,20 @@
 3. `feature/discovery/presentation/build.gradle.kts` 的 `withHostTestBuilder {}` 已启用但随用户 AGP 迁移走,不进本批提交(与批 1 债务 7 同款)。实现期一次 `git reset HEAD .` 曾取消暂存用户的构建脚本改动,编辑内容完好,用户如需可重新 `git add`。
 4. 叠加卡依赖封面质量:缺失/纯浅色封面靠 scrim 兜底(已验收可读),无封面走 `surfaceSunken` 占位;后续如遇极端浅色封面标题对比度不足,可评估加固定顶部压暗或首字母占位。
 5. 精选星标仅在 `carefullyChosen=true` 时展示,测试数据中出现较少,真机大范围表现待登录态更多目录数据观察。
+
+## 11. 批 3 封板记录(2026-07-04)
+
+- **范围**:批 3 = 广场页(Plaza,底栏「灵感」tab)+ 创作者主页(CreatorProfile)。社区页(CommunityScreen,导航不可达死页)经用户裁定**本批不动**,登记债务。这三页最后一次改动是 `11652fa6`(2026-07-01),批 1/2 的 redesign 均未触及,即本批为真实待改基线(核实后开工,吸取批 2 探查报告过时的教训)。
+- **本会话提交链**:`cd791f31`(Domain+Data:`PlazaCreationCard` 加 `ownerId`,mapper 映射 `owner.id`,契约测试)→ `cb7a2128`(presentation:`PlazaWorkCardUiModel` 加 `ownerId`/`ownerAvatar`/`likeCount`/`aspectRatio`,`plazaCardAspectRatio` clamp 0.6~1.4,host test 3 通过)→ `f585df34`(作品卡重做叠加式 + 广场重皮拆 1069→374 行,分 `PlazaHeaderSection`/`PlazaShortTile`/`PlazaScreenLogic`)+ `f79f27c1`(审查修复:"用同款"/作者行 a11y `Role.Button`、去临时 domain 耦合、删死排序锚点及假覆盖断言)→ `2c81efa4`(创作者主页重皮 + 复用叠加卡)+ `ee72a53c`(打磨:删未用 import、头像 contentDescription 兜底)→ `2d1d2e36`(**真机崩溃修复**)。作品卡任务经规范 + 质量双 gate(质量 Approve,2 条 Important 已闭环);创作者任务规范+质量合并审 Approve。
+- **定案设计(mockup 定案)**:①作品卡沿批 2 叠加卡视觉语言重做——封面按**原始宽高比**(clamp 0.6~1.4)铺满 + 底部 scrim,叠标题 + 作者头像/昵称(**可点跳创作者主页**)+ 点赞,右上「用同款」橄榄胶囊;去掉旧"图下文"块与内联文字操作。②灵感/短片 → RhSegmentedControl,标签 → RhChip,排序下拉 → Rh 色板,三态 → RhStates(补重试),死搜索图标隐藏。③短片 16:9 瓦片仅 token 重皮(播放键/时长/scrim 为媒体叠加,保留+注释)。④创作者应用网格**零新组件复用批 2 叠加 AppCard**(`WebApp → toDiscoveryAppCardUiModel → DiscoveryAppCard`),关注按钮 RhPrimaryButton / 已关注 RhButton Secondary。⑤作者跳转唯一超纯 UI 层改动 = `ownerId`(domain+data),已 TDD。
+- **验证证据**:`checkArchitectureBoundaries`、`:composeApp:testDebugUnitTest`、`:feature:community:presentation:testAndroidHostTest`(3 tests)全绿;`:feature:community:data` 无 host test 任务(AGP KMP-library DSL,仅 macOS `iosSimulatorArm64Test`),`ownerId` mapper 断言为**编译级验证**(未执行,macOS CI 补跑);`:composeApp:assembleDebug` 绿;模拟器 Pixel_10_Pro 实测广场瀑布流(叠加作品卡:作者+点赞+用同款)、短片双列瓦片、创作者主页(作者跳转 + 复用叠加卡双列),修复后 `logcat -b crash` FATAL 计数 0,用户看图验收通过。**未验证**:iOS 编译(Windows 无 macOS 证据);登录态关注/取消关注写操作;community:data 断言执行。
+- **真机验证抓到并修复的崩溃**:点作者跳创作者主页时 `IllegalArgumentException: Key "" was already used`——该创作者的 `getUserAppList` 返回多个 `id` 为空的 WebApp,`LazyVerticalGrid` 以 `app.id` 为 key 时空串 "" 重复触发 LazyGrid 重复-key 崩溃。修复:`itemsIndexed` + `app.id.ifBlank { "creator-app-$index" }`(`2d1d2e36`)。
+
+### 批 3 遗留债务
+
+1. **社区页(CommunityScreen)为导航不可达死页**(6 个本地静态工具卡,点击不导航),本批未动;去留待收尾批或产品决策。
+2. **灵感搜索未做**:广场死搜索图标已隐藏;做灵感搜索需先扩 `PlazaRepository`(加 keyword)+ Data 实现 + 服务端确认,超纯 UI 边界,单独排期。
+3. **网格空-id key 崩溃为共性风险**:发现页/搜索页/广场瀑布流的 Lazy grid 同样按作品/应用 id keying,空或重复 id 会同类崩溃;批 2 数据恰未触发。已开后台任务 `task_113a291e` 统一加固(空-id 兜底),不阻塞本批。
+4. **`community:presentation` 的 `withHostTestBuilder {}` 留在工作区未提交**(随用户 AGP 迁移),否则 `testAndroidHostTest` 收集不到;`community:data` 无 host test 任务,mapper 断言仅编译级验证。
+5. 短片 `PlazaShortTile` 仅 token 重皮,未升入 designsystem(与作品卡不同,保留页面内私有);`PlazaSortDropdownMetrics/Anchor` 假覆盖已随审查修复删除。
+6. 作品卡作者头像 `authorAvatarContent` 槽:null 头像渲染空圈(designsystem 默认首字母兜底仅在无槽调用时生效);creator 头像已补 contentDescription 兜底。
