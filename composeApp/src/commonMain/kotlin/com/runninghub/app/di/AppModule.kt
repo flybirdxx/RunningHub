@@ -1,7 +1,9 @@
 package com.runninghub.app.di
 
 import com.runninghub.app.platform.MediaResolver
+import com.runninghub.app.platform.MediaSaver
 import com.runninghub.app.platform.createMediaResolver
+import com.runninghub.app.platform.createMediaSaver
 import com.runninghub.app.ui.feature.creator.CreatorProfileScreenModel
 import com.runninghub.app.ui.feature.detail.AppDetailScreenModel
 import com.runninghub.app.ui.feature.discovery.DiscoveryScreenModel
@@ -32,6 +34,7 @@ import org.koin.dsl.module
  */
 val appModule = module {
     single<MediaResolver> { createMediaResolver() }
+    single<MediaSaver> { createMediaSaver() }
     single<QuickCreateMediaResolver> {
         MediaResolverQuickCreateMediaResolver(get<MediaResolver>())
     }

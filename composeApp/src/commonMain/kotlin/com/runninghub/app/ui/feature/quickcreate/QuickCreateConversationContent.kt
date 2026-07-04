@@ -116,6 +116,7 @@ internal fun QuickCreateConversationArea(
     uiState: QuickCreateUiState,
     bottomInset: Dp = 0.dp,
     onResultAction: (QuickCreateResultAction, QuickCreateConversationItemUi) -> Unit = { _, _ -> },
+    downloadingResultUrls: Set<String> = emptySet(),
 ) {
     val conversationItems = uiState.conversationItems.ifEmpty {
         uiState.asLegacyConversationItems()
@@ -164,6 +165,10 @@ internal fun QuickCreateConversationArea(
                             item = item,
                             onResultAction = { action -> onResultAction(action, item) },
                             modifier = Modifier.weight(1f),
+                            // 下载中的判定与页面下载协程一致：以卡片渲染的第一个结果 URL 为键。
+                            downloadInProgress = item.results.firstOrNull()
+                                ?.url
+                                ?.let { url -> url in downloadingResultUrls } == true,
                             onToolbarVisibilityChanged = { visible ->
                                 // 最底部条目通常已滚到底，长按浮出的工具条渲染在卡片下方、
                                 // 会落在视口外；工具条变为可见时主动滚到底部把它带进视口。
@@ -234,6 +239,7 @@ private fun UserPromptBubble(prompt: String) {
  *
  * @param onToolbarVisibilityChanged 长按工具条可见性变化回调；由会话区用来在最底部条目
  * 浮出工具条时滚动视口，保证工具条完整可见。
+ * @param downloadInProgress 该卡结果图是否正在保存到相册；下载中禁用叠加下载圆钮防重复触发。
  */
 @Composable
 private fun GeneratedPosterCard(
@@ -241,6 +247,7 @@ private fun GeneratedPosterCard(
     onResultAction: (QuickCreateResultAction) -> Unit,
     modifier: Modifier = Modifier,
     onToolbarVisibilityChanged: (Boolean) -> Unit = {},
+    downloadInProgress: Boolean = false,
 ) {
     val result = item.results.firstOrNull()
     when {
@@ -251,6 +258,7 @@ private fun GeneratedPosterCard(
                 onResultAction = onResultAction,
                 modifier = modifier,
                 onToolbarVisibilityChanged = onToolbarVisibilityChanged,
+                downloadInProgress = downloadInProgress,
             )
         item.taskStatus == QuickCreateTaskUiStatus.SUBMITTING ||
             item.taskStatus == QuickCreateTaskUiStatus.QUEUING ||
@@ -312,6 +320,7 @@ private fun ConversationSuccessResultCard(
     onResultAction: (QuickCreateResultAction) -> Unit,
     modifier: Modifier = Modifier,
     onToolbarVisibilityChanged: (Boolean) -> Unit = {},
+    downloadInProgress: Boolean = false,
 ) {
     var resolvedImageAspectRatio by remember(result.url) { mutableStateOf<Float?>(null) }
     var toolbarVisible by remember(item.taskId) { mutableStateOf(false) }
@@ -331,7 +340,9 @@ private fun ConversationSuccessResultCard(
         taskStatus = item.taskStatus,
         taskId = item.taskId,
         results = item.results,
-    ).mapNotNull { action -> action.toConversationResultCardActionState() }
+    ).mapNotNull { action ->
+        action.toConversationResultCardActionState(downloadInProgress = downloadInProgress)
+    }
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -517,16 +528,20 @@ private fun ConversationToolbarItem(
  * 只有下载与复制到素材区两个动作进入叠加圆钮；复制到素材区作为主操作走品牌色强调，
  * 其余动作（重试/再来一张等）由失败态紧凑卡或长按工具条承接，这里返回 null 过滤。
  * 图标取自 material-icons-extended（项目既有依赖，见 composeApp/build.gradle.kts）。
+ *
+ * @param downloadInProgress 该卡结果图是否正在保存到相册；只影响下载圆钮的可点击性。
  */
 @Composable
-private fun QuickCreateResultActionUi.toConversationResultCardActionState(): ConversationResultCardActionState? =
+private fun QuickCreateResultActionUi.toConversationResultCardActionState(
+    downloadInProgress: Boolean = false,
+): ConversationResultCardActionState? =
     when (action) {
         QuickCreateResultAction.Download -> ConversationResultCardActionState(
             type = ConversationResultCardActionType.Download,
             icon = Icons.Default.Download,
             contentDescription = stringResource(Res.string.quick_create_result_action_download),
             emphasized = false,
-            enabled = enabled,
+            enabled = enabled && !downloadInProgress,
         )
         QuickCreateResultAction.CopyToComposer -> ConversationResultCardActionState(
             type = ConversationResultCardActionType.CopyToComposer,

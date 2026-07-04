@@ -28,6 +28,8 @@ import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
 import cafe.adriel.voyager.koin.koinScreenModel
 import com.runninghub.app.ui.component.MediaType
+import com.runninghub.app.platform.MediaSaveResult
+import com.runninghub.app.platform.MediaSaver
 import com.runninghub.app.platform.PermissionController
 import com.runninghub.app.platform.SystemBackHandler
 import com.runninghub.app.platform.rememberPermissionController
@@ -53,6 +55,7 @@ import com.runninghub.feature.quickcreate.presentation.fields.quickCreationServi
 import com.runninghub.core.storage.Permission
 import com.runninghub.core.storage.PermissionStateStore
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateNavigationLabel
@@ -62,10 +65,13 @@ import com.runninghub.feature.quickcreate.presentation.result.QuickCreateConvers
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultAction
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
+import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultMediaType
 import com.runninghub.feature.quickcreate.presentation.inspiration.QuickCreatePlazaReuseIntent
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_copy_to_composer_success
+import runninghub.composeapp.generated.resources.quick_create_download_failure
+import runninghub.composeapp.generated.resources.quick_create_download_success
 import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
 import runninghub.composeapp.generated.resources.quick_create_top_bar_menu_content_description
 import kotlin.math.abs
@@ -73,6 +79,14 @@ import kotlin.math.roundToInt
 
 /** 顶部横幅(错误 / 成功提示)自动消失的等待毫秒数。 */
 private const val BANNER_AUTO_DISMISS_MS = 3000L
+
+/**
+ * 「下载到相册」结果横幅的页面瞬态语义。
+ *
+ * token 每次展示自增，作为自动消失计时的 effect key；success 决定成功/失败文案与配色。
+ * 与复制成功横幅一样不进 UiState，由页面局部持有。
+ */
+private data class QuickCreateDownloadBanner(val token: Long, val success: Boolean)
 
 /**
  * 快捷创作页面在 Voyager 导航中的入口。
@@ -117,6 +131,12 @@ private fun QuickCreateScreen(
     // 「复制到素材区」的成功提示是页面瞬态反馈，不进入 UiState。
     // token 为 null 表示隐藏；每次点击赋新值，作为 effect key 重启自动消失计时。
     var copyToComposerSuccessToken by remember { mutableStateOf<Long?>(null) }
+    // 保存到相册是页面级副作用：下载协程随页面离开自动取消，状态不进 UiState。
+    val mediaSaver: MediaSaver = koinInject()
+    val downloadCoroutineScope = rememberCoroutineScope()
+    // 正在保存到相册的结果 URL 集合；用于禁用对应卡片的下载圆钮并防止重复触发。
+    var downloadingResultUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var downloadBanner by remember { mutableStateOf<QuickCreateDownloadBanner?>(null) }
     val activeBusinessSheetVisible = uiState.activeSheet != null && uiState.showCreationInput
     var lastActiveSheet by remember { mutableStateOf<QuickCreateSheet?>(null) }
     val renderedSheet = uiState.activeSheet ?: lastActiveSheet
@@ -229,11 +249,43 @@ private fun QuickCreateScreen(
                     copyToComposerSuccessToken = (copyToComposerSuccessToken ?: 0L) + 1L
                 }
             }
+            QuickCreateResultAction.Download -> {
+                val result = item.results.firstOrNull()
+                val resultUrl = result?.url
+                when {
+                    resultUrl.isNullOrBlank() -> Unit
+                    // 本批只接图片结果的相册保存；视频下载留待后续批次扩展，
+                    // 先按统一失败文案提示，避免按钮点击无任何反馈。
+                    result.mediaType != QuickCreateResultMediaType.IMAGE ->
+                        downloadBanner = QuickCreateDownloadBanner(
+                            token = (downloadBanner?.token ?: 0L) + 1L,
+                            success = false,
+                        )
+                    // 同一结果下载期间圆钮已禁用；这里再拦一次防御竞态触发。
+                    resultUrl in downloadingResultUrls -> Unit
+                    else -> {
+                        downloadingResultUrls = downloadingResultUrls + resultUrl
+                        downloadCoroutineScope.launch {
+                            // URL 不写日志；保存细节由平台 MediaSaver 归一化为稳定结果语义。
+                            val saveResult = try {
+                                mediaSaver.saveImageToGallery(
+                                    url = resultUrl,
+                                    displayName = "runninghub_quickcreate",
+                                )
+                            } finally {
+                                downloadingResultUrls = downloadingResultUrls - resultUrl
+                            }
+                            downloadBanner = QuickCreateDownloadBanner(
+                                token = (downloadBanner?.token ?: 0L) + 1L,
+                                success = saveResult is MediaSaveResult.Success,
+                            )
+                        }
+                    }
+                }
+            }
             QuickCreateResultAction.ViewTask,
             QuickCreateResultAction.ViewResult,
             QuickCreateResultAction.Save,
-            // TODO(result-card-v2 T5)：接线下载到本地能力。
-            QuickCreateResultAction.Download,
             QuickCreateResultAction.ViewDetail -> Unit
         }
     }
@@ -257,6 +309,14 @@ private fun QuickCreateScreen(
         LaunchedEffect(token) {
             delay(BANNER_AUTO_DISMISS_MS)
             copyToComposerSuccessToken = null
+        }
+    }
+
+    downloadBanner?.let { banner ->
+        // 下载结果横幅同款自动消失；token 自增保证连续下载时重启计时。
+        LaunchedEffect(banner.token) {
+            delay(BANNER_AUTO_DISMISS_MS)
+            downloadBanner = null
         }
     }
 
@@ -295,6 +355,7 @@ private fun QuickCreateScreen(
                         },
                         onResultAction = ::handleResultAction,
                         onSampleClick = screenModel::restoreConversationPrompt,
+                        downloadingResultUrls = downloadingResultUrls,
                     )
                 }
 
@@ -382,9 +443,42 @@ private fun QuickCreateScreen(
                 )
             }
 
+            // 横幅互斥优先级：页面错误 > 下载结果 > 复制成功；同一时间只显示一条。
+            // 成功/失败按两条 AnimatedVisibility 分开渲染，退出动画期间不会闪成另一种文案。
             AnimatedVisibility(
-                // 错误提示优先展示，避免成功与错误两条横幅在顶部同时叠放。
-                visible = copyToComposerSuccessToken != null && uiState.error == null,
+                visible = downloadBanner?.success == true && uiState.error == null,
+                enter = slideInVertically { -it } + fadeIn(),
+                exit = slideOutVertically { -it } + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 8.dp),
+            ) {
+                RhSnackbar(
+                    message = stringResource(Res.string.quick_create_download_success),
+                    severity = RhSnackbarSeverity.Info,
+                    modifier = Modifier.padding(horizontal = RhSpacing.lg),
+                )
+            }
+
+            AnimatedVisibility(
+                visible = downloadBanner?.success == false && uiState.error == null,
+                enter = slideInVertically { -it } + fadeIn(),
+                exit = slideOutVertically { -it } + fadeOut(),
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 8.dp),
+            ) {
+                RhSnackbar(
+                    message = stringResource(Res.string.quick_create_download_failure),
+                    severity = RhSnackbarSeverity.Error,
+                    modifier = Modifier.padding(horizontal = RhSpacing.lg),
+                )
+            }
+
+            AnimatedVisibility(
+                visible = copyToComposerSuccessToken != null &&
+                    uiState.error == null &&
+                    downloadBanner == null,
                 enter = slideInVertically { -it } + fadeIn(),
                 exit = slideOutVertically { -it } + fadeOut(),
                 modifier = Modifier
@@ -564,6 +658,7 @@ private fun CreationScrollableArea(
     onResultAction: (QuickCreateResultAction, QuickCreateConversationItemUi) -> Unit,
     onSampleClick: (String) -> Unit,
     bottomInset: Dp = 0.dp,
+    downloadingResultUrls: Set<String> = emptySet(),
 ) {
     val hasConversation = uiState.conversationItems.isNotEmpty() ||
         uiState.submittedPrompt.isNotBlank() ||
@@ -575,6 +670,7 @@ private fun CreationScrollableArea(
             uiState = uiState,
             bottomInset = bottomInset,
             onResultAction = onResultAction,
+            downloadingResultUrls = downloadingResultUrls,
         )
     } else {
         // 空引导态同样被悬浮输入面板覆盖:按面板高度收缩后再居中,

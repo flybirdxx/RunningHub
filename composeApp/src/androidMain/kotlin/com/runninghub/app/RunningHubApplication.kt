@@ -4,6 +4,7 @@ import android.app.Application
 import com.runninghub.app.di.androidRuntimeModule
 import com.runninghub.app.di.appModule
 import com.runninghub.app.platform.initMediaResolver
+import com.runninghub.app.platform.initMediaSaver
 import com.runninghub.core.storage.initDataStore
 import com.runninghub.feature.audio.data.di.audioDataModule
 import com.runninghub.feature.auth.data.di.authDataModule
@@ -28,6 +29,7 @@ class RunningHubApplication : Application() {
         super.onCreate()
         initDataStore(this)
         initMediaResolver(this)
+        initMediaSaver(this)
         val koinApplication = startKoin {
             androidLogger()
             androidContext(this@RunningHubApplication)
