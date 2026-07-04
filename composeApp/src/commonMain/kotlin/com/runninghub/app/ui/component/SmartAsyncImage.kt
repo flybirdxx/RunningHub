@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,8 +17,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.compose.AsyncImagePainter
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.LocalExtendedColors
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.smart_async_image_error
@@ -43,7 +41,7 @@ fun SmartAsyncImage(
     contentDescription: String?,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
-    shape: Shape = RoundedCornerShape(Dimens.RadiusMD),
+    shape: Shape = RoundedCornerShape(RhTheme.shapes.md),
     onImageAspectRatioResolved: (Float) -> Unit = {},
 ) {
     var isLoading by remember { mutableStateOf(false) }
@@ -95,12 +93,12 @@ fun SmartAsyncImage(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                    .background(RhTheme.colors.surfaceElevated),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = stringResource(Res.string.smart_async_image_error),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = RhTheme.colors.textSecondary,
                     fontSize = 12.sp
                 )
             }
@@ -117,7 +115,8 @@ fun SmartAsyncImage(
  */
 @Composable
 fun ShimmerEffect(modifier: Modifier = Modifier) {
-    val extendedColors = LocalExtendedColors.current
+    val shimmerBase = RhTheme.colors.surfaceSunken
+    val shimmerHighlight = RhTheme.colors.surfaceElevated
     val transition = rememberInfiniteTransition()
     val translateAnim by transition.animateFloat(
         initialValue = 0f,
@@ -130,9 +129,9 @@ fun ShimmerEffect(modifier: Modifier = Modifier) {
 
     val shimmerBrush = Brush.linearGradient(
         colors = listOf(
-            extendedColors.shimmerBase,
-            extendedColors.shimmerHighlight,
-            extendedColors.shimmerBase
+            shimmerBase,
+            shimmerHighlight,
+            shimmerBase
         ),
         start = Offset(translateAnim - 200f, translateAnim - 200f),
         end = Offset(translateAnim, translateAnim)

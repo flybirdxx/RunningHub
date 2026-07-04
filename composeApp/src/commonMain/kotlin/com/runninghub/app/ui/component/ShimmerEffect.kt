@@ -22,15 +22,16 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.LocalExtendedColors
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 
 @Composable
 fun ShimmerPlaceholder(
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.medium
 ) {
-    val extendedColors = LocalExtendedColors.current
+    val shimmerBase = RhTheme.colors.surfaceSunken
+    val shimmerHighlight = RhTheme.colors.surfaceElevated
     val density = LocalDensity.current
     var widthPx by remember { mutableStateOf(600f) }  // default fallback
 
@@ -46,9 +47,9 @@ fun ShimmerPlaceholder(
     )
     val brush = Brush.linearGradient(
         colors = listOf(
-            extendedColors.shimmerBase,
-            extendedColors.shimmerHighlight,
-            extendedColors.shimmerBase
+            shimmerBase,
+            shimmerHighlight,
+            shimmerBase
         ),
         start = Offset(translateX, 0f),
         end = Offset(translateX + widthPx, 0f)
@@ -65,7 +66,7 @@ fun ShimmerPlaceholder(
 fun AppCardSkeleton(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)
+        verticalArrangement = Arrangement.spacedBy(RhSpacing.sm)
     ) {
         ShimmerPlaceholder(
             modifier = Modifier.fillMaxWidth().aspectRatio(0.8f)
