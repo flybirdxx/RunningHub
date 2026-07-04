@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BookmarkBorder
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.LocalFireDepartment
 import androidx.compose.material.icons.rounded.Star
@@ -47,8 +46,10 @@ enum class AppCardMetricIcon {
     Use,
     Like,
     View,
-    Collect,
 }
+
+/** 叠加卡内前导图标的统一尺寸，供精选星标与指标图标共用。 */
+private val AppCardIconSize = 14.dp
 
 /**
  * AppCard 结果预览状态。
@@ -158,7 +159,7 @@ fun AppCard(
                         imageVector = Icons.Rounded.Star,
                         contentDescription = null,
                         tint = RhTheme.colors.textInverse,
-                        modifier = Modifier.size(14.dp),
+                        modifier = Modifier.size(AppCardIconSize),
                     )
                     Text(
                         text = featuredLabel,
@@ -197,7 +198,7 @@ fun AppCard(
                                     imageVector = metric.icon.toMetricVector(),
                                     contentDescription = null,
                                     tint = Color.White.copy(alpha = 0.82f),
-                                    modifier = Modifier.size(14.dp),
+                                    modifier = Modifier.size(AppCardIconSize),
                                 )
                                 Text(
                                     text = metric.value,
@@ -220,7 +221,6 @@ private fun AppCardMetricIcon.toMetricVector(): ImageVector = when (this) {
     AppCardMetricIcon.Use -> Icons.Rounded.LocalFireDepartment
     AppCardMetricIcon.Like -> Icons.Rounded.FavoriteBorder
     AppCardMetricIcon.View -> Icons.Rounded.Visibility
-    AppCardMetricIcon.Collect -> Icons.Rounded.BookmarkBorder
 }
 
 @Composable
