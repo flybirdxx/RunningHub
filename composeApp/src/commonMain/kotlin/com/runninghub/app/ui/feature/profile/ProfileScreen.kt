@@ -31,6 +31,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,12 +41,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -110,6 +116,10 @@ import runninghub.composeapp.generated.resources.profile_not_logged_in_action
 import runninghub.composeapp.generated.resources.profile_not_logged_in_subtitle
 import runninghub.composeapp.generated.resources.profile_not_logged_in_title
 import runninghub.composeapp.generated.resources.profile_settings_content_description
+import runninghub.composeapp.generated.resources.settings_chooser_api_key_entry
+import runninghub.composeapp.generated.resources.settings_chooser_cookie_entry
+import runninghub.composeapp.generated.resources.settings_chooser_title
+import runninghub.composeapp.generated.resources.settings_dialog_cancel_action
 import runninghub.composeapp.generated.resources.profile_unbound_mobile
 import runninghub.composeapp.generated.resources.profile_wallet_balance_failed
 import runninghub.composeapp.generated.resources.profile_wallet_cny_label
@@ -143,6 +153,12 @@ class ProfileVoyagerScreen : Screen {
             onLogout = { screenModel.logout() },
             // 未登录态“去登录”与根导航保持同一机制：把会话事实置为未认证，交给根 App 用 replaceAll 切到登录页。
             onGoToLogin = { sessionManager.logout() },
+            onOpenApiKeyDialog = screenModel::showApiKeyDialog,
+            onDismissApiKeyDialog = screenModel::dismissApiKeyDialog,
+            onConfirmApiKey = screenModel::bindApiKey,
+            onOpenCookieDialog = screenModel::showCookieDialog,
+            onDismissCookieDialog = screenModel::dismissCookieDialog,
+            onConfirmCookie = screenModel::bindCookie,
         )
     }
 }
@@ -157,6 +173,12 @@ class ProfileVoyagerScreen : Screen {
  * @param onRefresh 用户下拉刷新时触发的资料刷新回调。
  * @param onLogout 用户点击退出登录时触发的会话清理回调。
  * @param onGoToLogin 未登录态点击“去登录”时触发的登录导航回调。
+ * @param onOpenApiKeyDialog 用户在设置入口选择 API Key 绑定时触发的打开回调。
+ * @param onDismissApiKeyDialog API Key 弹窗取消或系统返回时触发的关闭回调。
+ * @param onConfirmApiKey 用户确认绑定 API Key 时触发的回调，参数为敏感凭据原文，不做本地日志或回显。
+ * @param onOpenCookieDialog 用户在设置入口选择 Cookie 登录时触发的打开回调。
+ * @param onDismissCookieDialog Cookie 弹窗取消或系统返回时触发的关闭回调。
+ * @param onConfirmCookie 用户确认 Cookie 登录时触发的回调，参数为敏感凭据原文，不做本地日志或回显。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -167,9 +189,18 @@ fun ProfileScreenContent(
     onRecharge: () -> Unit = {},
     onLogout: () -> Unit = {},
     onGoToLogin: () -> Unit = {},
+    onOpenApiKeyDialog: () -> Unit = {},
+    onDismissApiKeyDialog: () -> Unit = {},
+    onConfirmApiKey: (String) -> Unit = {},
+    onOpenCookieDialog: () -> Unit = {},
+    onDismissCookieDialog: () -> Unit = {},
+    onConfirmCookie: (String) -> Unit = {},
 ) {
     val pullToRefreshState = rememberPullToRefreshState()
     val isRefreshing = uiState.isLoading && uiState.user != null
+    // 设置入口只是一个应用壳内的本地选择器，用于把齿轮点击分流到两个独立凭据弹窗；
+    // 弹窗真实开关仍由 Presentation 层的 ProfileUiState 持有，避免把业务状态拉回 composeApp。
+    var showSettingsChooser by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -204,7 +235,10 @@ fun ProfileScreenContent(
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState())
                         ) {
-                            ProfileHeader(user = uiState.user)
+                            ProfileHeader(
+                                user = uiState.user,
+                                onOpenSettings = { showSettingsChooser = true },
+                            )
                             Spacer(Modifier.height(16.dp))
                             AssetCenterSection(
                                 assetCenter = uiState.assetCenter,
@@ -219,10 +253,141 @@ fun ProfileScreenContent(
             }
         }
     }
+
+    if (showSettingsChooser) {
+        SettingsChooserDialog(
+            onDismiss = { showSettingsChooser = false },
+            onSelectApiKey = {
+                showSettingsChooser = false
+                onOpenApiKeyDialog()
+            },
+            onSelectCookie = {
+                showSettingsChooser = false
+                onOpenCookieDialog()
+            },
+        )
+    }
+
+    if (uiState.showApiKeyDialog) {
+        ApiKeyDialog(
+            onDismiss = onDismissApiKeyDialog,
+            onConfirm = onConfirmApiKey,
+        )
+    }
+
+    if (uiState.showCookieDialog) {
+        CookieDialog(
+            onDismiss = onDismissCookieDialog,
+            onConfirm = onConfirmCookie,
+        )
+    }
+}
+
+/**
+ * 渲染账号设置选择器。
+ *
+ * 齿轮入口下有两个相互独立的凭据流程（API Key 绑定、Cookie 登录），此选择器只做分流，
+ * 不持有任何凭据；真正的弹窗开关由 Presentation 层的 ProfileUiState 决定。
+ *
+ * @param onDismiss 用户取消或点击遮罩时触发的关闭回调。
+ * @param onSelectApiKey 用户选择 API Key 绑定入口时触发的回调。
+ * @param onSelectCookie 用户选择 Cookie 登录入口时触发的回调。
+ */
+@Composable
+private fun SettingsChooserDialog(
+    onDismiss: () -> Unit,
+    onSelectApiKey: () -> Unit,
+    onSelectCookie: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = RhTheme.colors.surfaceElevated,
+        shape = RoundedCornerShape(RhTheme.shapes.lg),
+        title = {
+            Text(
+                text = stringResource(Res.string.settings_chooser_title),
+                style = RhTypography.sectionTitle,
+                color = RhTheme.colors.textPrimary,
+            )
+        },
+        text = {
+            Column {
+                SettingsChooserEntry(
+                    icon = Icons.Default.Lock,
+                    title = stringResource(Res.string.settings_chooser_api_key_entry),
+                    onClick = onSelectApiKey,
+                )
+                SettingsChooserEntry(
+                    icon = Icons.Default.Person,
+                    title = stringResource(Res.string.settings_chooser_cookie_entry),
+                    onClick = onSelectCookie,
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = RhTheme.colors.textSecondary,
+                ),
+            ) {
+                Text(
+                    text = stringResource(Res.string.settings_dialog_cancel_action),
+                    style = RhTypography.button,
+                )
+            }
+        },
+    )
+}
+
+/**
+ * 渲染账号设置选择器中的单个入口行。
+ *
+ * @param icon 入口图标。
+ * @param title 已本地化的入口文案。
+ * @param onClick 点击该入口时触发的回调。
+ */
+@Composable
+private fun SettingsChooserEntry(
+    icon: ImageVector,
+    title: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = RhTheme.colors.brandPrimary,
+            modifier = Modifier.size(22.dp),
+        )
+        Spacer(Modifier.width(14.dp))
+        Text(
+            text = title,
+            style = RhTypography.body,
+            color = RhTheme.colors.textPrimary,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            Icons.Default.ChevronRight,
+            contentDescription = null,
+            tint = RhTheme.colors.textTertiary,
+            modifier = Modifier.size(18.dp),
+        )
+    }
 }
 
 @Composable
-private fun ProfileHeader(user: User?) {
+private fun ProfileHeader(
+    user: User?,
+    onOpenSettings: () -> Unit = {},
+) {
     val defaultUserName = stringResource(Res.string.profile_default_user_name)
     val unboundMobileText = stringResource(Res.string.profile_unbound_mobile)
     Box(
@@ -273,8 +438,7 @@ private fun ProfileHeader(user: User?) {
                 tint = RhTheme.colors.textSecondary,
                 modifier = Modifier
                     .size(24.dp)
-                    // TODO(settings): StateHolder 暂无 showSettings() 设置弹窗能力，待后续任务补齐后再接入打开动作。
-                    .clickable { },
+                    .clickable(onClick = onOpenSettings),
             )
         }
     }

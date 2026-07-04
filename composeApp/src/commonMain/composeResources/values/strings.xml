@@ -292,6 +292,9 @@
     <string name="settings_dialog_cookie_help">获取方式：浏览器 F12 → Application → Cookies</string>
     <string name="settings_dialog_cookie_confirm">确认登录</string>
     <string name="settings_dialog_cancel_action">取消</string>
+    <string name="settings_chooser_title">账号设置</string>
+    <string name="settings_chooser_api_key_entry">API Key 绑定</string>
+    <string name="settings_chooser_cookie_entry">Cookie 登录</string>
     <string name="search_screen_title">搜索</string>
     <string name="search_back_content_description">返回</string>
     <string name="search_bar_placeholder">搜索应用、工作流...</string>
