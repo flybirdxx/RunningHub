@@ -279,7 +279,6 @@ private fun quickCreateResultPreviewState(
         actions = quickCreateResultActions(
             taskStatus = item.taskStatus,
             taskId = item.taskId,
-            prompt = item.prompt,
             results = item.results,
         ).map { action -> action.toResultPreviewActionState() },
     )

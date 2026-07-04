@@ -140,14 +140,15 @@ data class QuickCreateResultActionUi(
  *
  * 动作集合在 Presentation 层集中维护，避免 Composable 通过中文文案或远端状态字符串临时判断按钮。
  * 结果卡采用叠加式布局：生成中（排队、运行）不展示任何按钮；成功态只保留下载与复制到素材区两个叠加按钮，
- * 其余动作（再来一张、复用参数、复制 Prompt 等）由 UI 层的长按工具条直接组装，不经过本函数。
- * 复制到素材区仅在结果中存在图片时提供；视频结果只保留下载。
+ * 其余动作（再来一张、复用参数、复制 Prompt 等）将由长按工具条承接（见
+ * docs/superpowers/plans/2026-07-05-quickcreate-result-card-v2.md T3），不经过本函数。
+ * 卡片只渲染第一个结果，复制目标即卡片展示的第一个结果；仅当第一个结果是图片时提供复制到素材区，
+ * 视频结果只保留下载。
  * 下载、复制到素材区等平台副作用仅作为语义输出；真正执行前必须由页面或平台层再次确认能力边界。
  */
 fun quickCreateResultActions(
     taskStatus: QuickCreateTaskUiStatus,
     taskId: String?,
-    prompt: String,
     results: List<QuickCreateResultUi>,
 ): List<QuickCreateResultActionUi> {
     val hasTaskId = !taskId.isNullOrBlank()
@@ -160,7 +161,7 @@ fun quickCreateResultActions(
         QuickCreateTaskUiStatus.SUCCESS -> buildList {
             if (hasResults) {
                 add(QuickCreateResultActionUi(QuickCreateResultAction.Download))
-                if (results.any { it.mediaType == QuickCreateResultMediaType.IMAGE }) {
+                if (results.firstOrNull()?.mediaType == QuickCreateResultMediaType.IMAGE) {
                     add(QuickCreateResultActionUi(QuickCreateResultAction.CopyToComposer))
                 }
             }

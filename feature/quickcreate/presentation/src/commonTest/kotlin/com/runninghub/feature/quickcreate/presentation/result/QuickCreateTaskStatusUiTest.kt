@@ -66,13 +66,11 @@ class QuickCreateTaskStatusUiTest {
         val runningActions = quickCreateResultActions(
             taskStatus = QuickCreateTaskUiStatus.RUNNING,
             taskId = "task-1",
-            prompt = "green icon",
             results = emptyList(),
         )
         val successActions = quickCreateResultActions(
             taskStatus = QuickCreateTaskUiStatus.SUCCESS,
             taskId = "task-2",
-            prompt = "green icon",
             results = listOf(
                 QuickCreateResultUi(
                     url = "https://example.com/result.png",
@@ -84,7 +82,6 @@ class QuickCreateTaskStatusUiTest {
         val failedActions = quickCreateResultActions(
             taskStatus = QuickCreateTaskUiStatus.FAILED,
             taskId = "task-3",
-            prompt = "green icon",
             results = emptyList(),
         )
 
@@ -111,7 +108,6 @@ class QuickCreateTaskStatusUiTest {
         val successActions = quickCreateResultActions(
             taskStatus = QuickCreateTaskUiStatus.SUCCESS,
             taskId = "task-4",
-            prompt = "green icon",
             results = listOf(
                 QuickCreateResultUi(
                     url = "https://example.com/result.mp4",
@@ -125,5 +121,69 @@ class QuickCreateTaskStatusUiTest {
             listOf(QuickCreateResultAction.Download),
             successActions.map { it.action },
         )
+    }
+
+    @Test
+    fun `success actions include copy to composer when first result is image`() {
+        val successActions = quickCreateResultActions(
+            taskStatus = QuickCreateTaskUiStatus.SUCCESS,
+            taskId = "task-5",
+            results = listOf(
+                QuickCreateResultUi(
+                    url = "https://example.com/result.png",
+                    type = "png",
+                    mediaType = QuickCreateResultMediaType.IMAGE,
+                ),
+                QuickCreateResultUi(
+                    url = "https://example.com/result.mp4",
+                    type = "mp4",
+                    mediaType = QuickCreateResultMediaType.VIDEO,
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                QuickCreateResultAction.Download,
+                QuickCreateResultAction.CopyToComposer,
+            ),
+            successActions.map { it.action },
+        )
+    }
+
+    @Test
+    fun `success actions skip copy to composer when first result is video`() {
+        val successActions = quickCreateResultActions(
+            taskStatus = QuickCreateTaskUiStatus.SUCCESS,
+            taskId = "task-6",
+            results = listOf(
+                QuickCreateResultUi(
+                    url = "https://example.com/result.mp4",
+                    type = "mp4",
+                    mediaType = QuickCreateResultMediaType.VIDEO,
+                ),
+                QuickCreateResultUi(
+                    url = "https://example.com/result.png",
+                    type = "png",
+                    mediaType = QuickCreateResultMediaType.IMAGE,
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(QuickCreateResultAction.Download),
+            successActions.map { it.action },
+        )
+    }
+
+    @Test
+    fun `queuing task exposes no result actions`() {
+        val queuingActions = quickCreateResultActions(
+            taskStatus = QuickCreateTaskUiStatus.QUEUING,
+            taskId = "task-7",
+            results = emptyList(),
+        )
+
+        assertEquals(emptyList(), queuingActions.map { it.action })
     }
 }

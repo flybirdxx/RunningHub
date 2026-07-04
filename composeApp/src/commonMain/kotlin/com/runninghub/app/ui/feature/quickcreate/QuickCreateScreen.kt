@@ -218,7 +218,7 @@ private fun QuickCreateScreen(
             QuickCreateResultAction.ViewResult,
             QuickCreateResultAction.Save,
             QuickCreateResultAction.Download,
-            // T4 再接线复制到素材区的实际能力,这里先保持无副作用。
+            // TODO(result-card-v2 T4)：接线复制到素材区能力。
             QuickCreateResultAction.CopyToComposer,
             QuickCreateResultAction.ViewDetail -> Unit
         }
