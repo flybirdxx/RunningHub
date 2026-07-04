@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -65,14 +66,19 @@ fun AppBottomBar(
 ) {
     val colors = RhTheme.colors
     Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(72.dp),
+        modifier = modifier.fillMaxWidth(),
         color = colors.surfaceElevated,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp,
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        // edge-to-edge 下系统导航条(三键/手势)叠在窗口底部:背景由 Surface 延伸垫底,
+        // 内容区先按导航条 inset 抬高再固定 72dp,避免三键导航设备上系统键与底栏图标重叠。
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .navigationBarsPadding()
+                .height(72.dp),
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
