@@ -179,3 +179,11 @@
 **贯穿方法**:样板间先行 → 每批 mockup 定案 → 子 agent 驱动逐任务(规范 + 质量双 gate)→ 模拟器真机截图验收 → 封板 + 债务登记。真机验证抓到并修复 2 个仅靠编译无法发现的问题(批 0 FlowRow `NoSuchMethodError`、批 3 空-id LazyGrid 重复-key 崩溃)。
 
 **收官未竟(全批债务汇总)**:iOS 编译/真机全程未验证(Windows 无 macOS 证据);登录态跑真实生成流未测;灵感搜索需扩 Domain/Data/服务端;网格空-id key 加固在独立任务 `task_113a291e` 进行;Profile 三菜单/能力标签启发式待后端补齐;若干 `withHostTestBuilder {}` 随用户 AGP 迁移提交。
+
+## 14. 对话流结果卡 v2 封板记录(2026-07-05)
+
+- **范围**:补批 0 遗漏的对话流结果卡重构(当时实施计划漏列任务、真机验收两次顺延)。定案 mockup A 整图叠加式 + v3 比例规则:卡片按提交参数/结果图比例驱动,宽高双上限(70% 可用宽、320dp 高),聊天气泡式;完成态仅「下载」「复制到素材区」两叠加圆钮;长按浮出工具条(再来一张/复用参数/复制 Prompt);生成中蒙版铺满 + 尺寸感知流体动画;失败/取消保持紧凑卡。计划:`docs/superpowers/plans/2026-07-05-quickcreate-result-card-v2.md`。
+- **提交链(11 个,全 path-limited,规范 + 质量双 gate)**:`b40448e6`/`d4a9a42b`(动作真源收敛 + CopyToComposer,10 测试)→ `21a68b33`/`1e916066`(ConversationResultCard 叠加卡组件,尺寸纯函数 8 测试;审查修复:API 对齐仓库惯例/手势 key/44dp 命中层/防穿透)→ `40ebd731`/`33a5c921`(对话流三路分发接线 + 比例快照恢复 11 测试 + 长按工具条;审查修复:composeResources `%%` 渲染缺陷 4 处/key 防串卡/视口滚动)→ `d4081abd`/`42c7e2d2`(复制到素材:复用 Plaza 远端 DONE 引用机制 + 切 tab 不触发草稿副作用 + 远端引用工厂统一三处)→ `de9e5fec`/`0c09c0b9`/`c4449abf`(MediaSaver 平台边界:Android MediaStore + Coil 缓存取字节 + 魔数嗅探 MIME;审查修复:异常穿透双层防护/硬件位图/缓存 key 解耦)+ 工具条滚动时序修复(等两帧再滚)。
+- **验证证据**:`:composeApp:testDebugUnitTest`、`:feature:quickcreate:presentation:testAndroidHostTest`、`checkArchitectureBoundaries` 全绿;模拟器 Pixel_10_Pro 真实生成 2 单(¥0.07×2)逐项截图验收——9:16 生成中占位 180×320dp 命中规则、蒙版铺满且两帧动画位置各异、完成态双徽 + 双圆钮一屏完整、长按工具条滚入视口、复制→素材条出现缩略图 + banner、下载→`Pictures/RunningHub/*.jpg` 真实落盘(343KB)、全程 `logcat -b crash` FATAL 0。
+- **未验证**:iOS 编译/渲染/保存(Windows 无 macOS 证据,`MediaSaver.ios.kt` 为 TODO 占位);Android 8/9(API 26–28)下载按范围裁剪统一提示失败;真机(非模拟器)相册写入与国产 ROM 差异。
+- **登记债务**:①`QuickCreateResultAction.ViewTask/ViewResult/Save` 及 composeApp 映射/label/资源成僵尸,待清理;②legacy 卡 RUNNING 带进度分支不可达、visibleProgress 规则两处重复;③下载协程绑页面 scope,切页丢下载(评估升级 ScreenModel scope);④三条顶部 banner 结构重复,建议抽 TopBannerHost;⑤不可重试失败(平台不支持/低版本)统一「请重试」文案待分化;⑥MediaSaver 将来加视频/进度建议引入 request 对象参数;⑦strings 既有 3 处 `%%` 已顺带修复,真机已验证进度文案正常。

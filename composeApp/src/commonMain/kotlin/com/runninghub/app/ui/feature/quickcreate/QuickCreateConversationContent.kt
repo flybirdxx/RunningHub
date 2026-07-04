@@ -40,6 +40,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.Modifier
@@ -175,7 +176,14 @@ internal fun QuickCreateConversationArea(
                                 // 不用 BringIntoViewRequester（实验性 API），
                                 // 复用页面既有的 scrollState 动画方案。
                                 if (visible && index == conversationItems.lastIndex) {
-                                    scope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+                                    scope.launch {
+                                        // 回调发生在工具条组合之前，此刻 maxValue 还是旧值、
+                                        // 已滚到底时再滚就是 no-op；等两帧让工具条完成组合与
+                                        // 测量、maxValue 更新后再滚，工具条才能进入视口。
+                                        withFrameNanos { }
+                                        withFrameNanos { }
+                                        scrollState.animateScrollTo(scrollState.maxValue)
+                                    }
                                 }
                             },
                         )
