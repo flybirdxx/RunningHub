@@ -22,7 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -40,7 +39,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.runninghub.app.ui.theme.BrandLime
+import com.runninghub.app.ui.designsystem.theme.RhTheme
+import com.runninghub.app.ui.designsystem.theme.RhTypography
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.video_preview_close_content_description
@@ -80,6 +80,7 @@ fun RhVideoPreviewOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
+            // 全屏视频预览遮罩固定用黑色底，保证任意画面在其上都有稳定对比。
             .background(Color.Black.copy(alpha = 0.9f))
             .blockVideoPreviewClickThrough(),
     ) {
@@ -90,11 +91,13 @@ fun RhVideoPreviewOverlay(
                 .padding(start = 22.dp, top = 54.dp)
                 .size(44.dp)
                 .clip(CircleShape)
+                // 关闭按钮叠在媒体遮罩上，沿用黑色半透明底保证可点可见。
                 .background(Color.Black.copy(alpha = 0.46f)),
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = stringResource(Res.string.video_preview_close_content_description),
+                // 关闭图标叠在媒体遮罩上，固定白色保证在任意画面上的可见度。
                 tint = Color.White,
             )
         }
@@ -114,6 +117,7 @@ fun RhVideoPreviewOverlay(
                     .width(previewWidth)
                     .fillMaxHeight()
                     .clip(shape)
+                    // 视频区域底色固定用黑色，作为视频/海报的信箱边填充。
                     .background(Color.Black),
             ) {
                 if (videoUrl != null) {
@@ -145,6 +149,7 @@ fun RhVideoPreviewOverlay(
                         modifier = Modifier
                             .align(Alignment.BottomStart)
                             .fillMaxWidth()
+                            // 底部文字信息叠在媒体上，沿用黑色渐变蒙层保证标题可读。
                             .background(
                                 Brush.verticalGradient(
                                     listOf(Color.Transparent, Color.Black.copy(alpha = 0.74f)),
@@ -156,8 +161,9 @@ fun RhVideoPreviewOverlay(
                         if (!item.title.isNullOrBlank()) {
                             Text(
                                 text = item.title,
+                                // 标题叠在媒体渐变蒙层上，固定白色保证可读性。
                                 color = Color.White,
-                                style = MaterialTheme.typography.titleSmall,
+                                style = RhTypography.bodyStrong,
                                 fontWeight = FontWeight.Bold,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
@@ -171,8 +177,9 @@ fun RhVideoPreviewOverlay(
                             if (!item.subtitle.isNullOrBlank()) {
                                 Text(
                                     text = item.subtitle,
+                                    // 副标题叠在媒体渐变蒙层上，固定白色保证可读性。
                                     color = Color.White.copy(alpha = 0.72f),
-                                    style = MaterialTheme.typography.labelSmall,
+                                    style = RhTypography.meta,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
                                     modifier = Modifier.weight(1f),
@@ -206,8 +213,9 @@ private fun VideoPreviewProgressControl(
     ) {
         Text(
             text = videoPreviewFormatTime(progress.positionMs),
+            // 播放时间叠在媒体上，固定白色保证可读性。
             color = Color.White.copy(alpha = 0.76f),
-            style = MaterialTheme.typography.labelSmall,
+            style = RhTypography.meta,
             maxLines = 1,
             modifier = Modifier.width(42.dp),
         )
@@ -220,8 +228,9 @@ private fun VideoPreviewProgressControl(
 
         Text(
             text = videoPreviewFormatTime(progress.durationMs),
+            // 总时长叠在媒体上，固定白色保证可读性。
             color = Color.White.copy(alpha = 0.76f),
-            style = MaterialTheme.typography.labelSmall,
+            style = RhTypography.meta,
             maxLines = 1,
             modifier = Modifier.width(42.dp),
         )
@@ -266,6 +275,7 @@ private fun VideoPreviewSeekBar(
                 .fillMaxWidth()
                 .height(trackHeight)
                 .clip(CircleShape)
+                // 进度条底轨叠在媒体上，沿用白色半透明保证在任意画面上的可见度。
                 .background(Color.White.copy(alpha = 0.2f)),
         )
         Box(
@@ -273,6 +283,7 @@ private fun VideoPreviewSeekBar(
                 .fillMaxWidth(bufferedFraction.coerceIn(0f, 1f))
                 .height(trackHeight)
                 .clip(CircleShape)
+                // 缓冲进度叠在媒体上，沿用白色半透明保证在任意画面上的可见度。
                 .background(Color.White.copy(alpha = 0.36f)),
         )
         Box(
@@ -280,14 +291,15 @@ private fun VideoPreviewSeekBar(
                 .fillMaxWidth(playedFraction.coerceIn(0f, 1f))
                 .height(trackHeight)
                 .clip(CircleShape)
-                .background(BrandLime),
+                .background(RhTheme.colors.brandPrimary),
         )
         Box(
             modifier = Modifier
                 .offset(x = (maxWidth - thumbSize) * playedFraction.coerceIn(0f, 1f))
                 .size(thumbSize)
                 .clip(CircleShape)
-                .background(if (canSeek) BrandLime else Color.White.copy(alpha = 0.5f)),
+                // 可拖动时用品牌色滑块；不可拖动时回退到白色半透明占位。
+                .background(if (canSeek) RhTheme.colors.brandPrimary else Color.White.copy(alpha = 0.5f)),
         )
     }
 }

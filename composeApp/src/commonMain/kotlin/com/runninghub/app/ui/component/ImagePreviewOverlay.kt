@@ -44,7 +44,7 @@ import coil3.SingletonImageLoader
 import coil3.compose.LocalPlatformContext
 import coil3.request.CachePolicy
 import coil3.request.ImageRequest
-import com.runninghub.app.ui.theme.BrandLime
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.image_preview_close_content_description
@@ -89,6 +89,7 @@ fun RhImagePreviewOverlay(
     Box(
         modifier = modifier
             .fillMaxSize()
+            // 全屏图片预览遮罩固定用黑色底，保证任意图片在其上都有稳定对比。
             .background(Color.Black.copy(alpha = 0.88f)),
     ) {
         IconButton(
@@ -98,11 +99,13 @@ fun RhImagePreviewOverlay(
                 .padding(start = 22.dp, top = 54.dp)
                 .size(44.dp)
                 .clip(CircleShape)
+                // 关闭按钮叠在媒体遮罩上，沿用黑色半透明底保证可点可见。
                 .background(Color.Black.copy(alpha = 0.46f)),
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
                 contentDescription = stringResource(Res.string.image_preview_close_content_description),
+                // 关闭图标叠在媒体遮罩上，固定白色保证在任意画面上的可见度。
                 tint = Color.White,
             )
         }
@@ -333,7 +336,7 @@ private fun ImagePreviewCandidateThumbnail(
         Modifier
     }
     val selectedModifier = if (visual.selected) {
-        Modifier.border(2.dp, BrandLime, shape)
+        Modifier.border(2.dp, RhTheme.colors.brandPrimary, shape)
     } else {
         Modifier
     }
