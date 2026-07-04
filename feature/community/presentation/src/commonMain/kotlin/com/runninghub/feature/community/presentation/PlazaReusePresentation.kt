@@ -89,6 +89,10 @@ data class PlazaWorkCardUiModel(
     val authorName: String?,
     val preview: PlazaWorkPreviewUiModel,
     val useCount: String?,
+    val ownerId: String?,
+    val ownerAvatar: String?,
+    val likeCount: String?,
+    val aspectRatio: Float?,
     val reuseSummary: PlazaReuseSummaryUiModel,
     val primaryAction: PlazaWorkCardPrimaryAction = PlazaWorkCardPrimaryAction.UseSame,
     val sourceProtected: Boolean = true,
@@ -120,8 +124,23 @@ internal fun PlazaCreationCard.toPlazaWorkCardUiModel(): PlazaWorkCardUiModel =
         authorName = ownerName,
         preview = toPlazaWorkPreviewUiModel(),
         useCount = useCount,
+        ownerId = ownerId,
+        ownerAvatar = ownerAvatar,
+        likeCount = likeCount,
+        aspectRatio = plazaCardAspectRatio(imageWidth, imageHeight),
         reuseSummary = toPlazaReuseSummaryUiModel(),
     )
+
+/**
+ * 计算 Plaza 瀑布流作品卡片的宽高比。
+ *
+ * 当 [width] 或 [height] 为空或非正数时返回 null，表示无法确定卡片比例；
+ * 否则用宽除以高得到比例，并夹紧到 0.6f 到 1.4f，避免极端长宽卡片破坏瀑布流布局。
+ */
+internal fun plazaCardAspectRatio(width: Int?, height: Int?): Float? {
+    if (width == null || height == null || width <= 0 || height <= 0) return null
+    return (width.toFloat() / height.toFloat()).coerceIn(0.6f, 1.4f)
+}
 
 internal fun PlazaCreationCard.toPlazaWorkDetailUiModel(): PlazaWorkDetailUiModel =
     PlazaWorkDetailUiModel(
