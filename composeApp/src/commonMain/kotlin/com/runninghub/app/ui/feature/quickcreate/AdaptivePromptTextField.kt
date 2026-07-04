@@ -13,7 +13,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.runninghub.app.ui.theme.*
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.feature.quickcreate.presentation.state.MAX_PROMPT_CHARS
 
 private const val MIN_HEIGHT_DP = 52
@@ -46,7 +47,7 @@ fun AdaptivePromptTextField(
     modifier: Modifier = Modifier,
 ) {
     val textStyle = TextStyle(
-        color = Neutral200,
+        color = RhTheme.colors.textPrimary,
         fontSize = 14.sp,
         lineHeight = LINE_HEIGHT_SP.sp,
         fontWeight = FontWeight.Normal,
@@ -56,14 +57,14 @@ fun AdaptivePromptTextField(
     val maxHeight = (MIN_HEIGHT_DP + (LINE_HEIGHT_SP * (MAX_LINES - 1))).dp
 
     val borderColor = when {
-        overLimit -> ErrorDark
-        else -> DarkOutlineVariant
+        overLimit -> RhTheme.colors.statusFailed
+        else -> RhTheme.colors.borderDefault
     }
 
     Box(modifier = modifier) {
         Surface(
-            shape = RoundedCornerShape(Dimens.RadiusMD),
-            color = DarkSurfaceVariant,
+            shape = RoundedCornerShape(RhTheme.shapes.md),
+            color = RhTheme.colors.surfaceElevated,
             border = BorderStroke(1.dp, borderColor),
             modifier = Modifier.fillMaxWidth(),
         ) {
@@ -71,12 +72,12 @@ fun AdaptivePromptTextField(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = minHeight, max = maxHeight)
-                    .padding(horizontal = Dimens.SpaceMD, vertical = Dimens.SpaceSM),
+                    .padding(horizontal = RhSpacing.md, vertical = RhSpacing.sm),
             ) {
                 if (prompt.isEmpty()) {
                     Text(
                         text = placeholder,
-                        style = textStyle.copy(color = Neutral500),
+                        style = textStyle.copy(color = RhTheme.colors.textTertiary),
                     )
                 }
                 BasicTextField(
@@ -90,15 +91,15 @@ fun AdaptivePromptTextField(
                         .fillMaxWidth()
                         .defaultMinSize(minHeight = minHeight),
                     textStyle = textStyle,
-                    cursorBrush = SolidColor(Primary300),
+                    cursorBrush = SolidColor(RhTheme.colors.brandPrimary),
                 )
             }
         }
 
         val countColor = when {
-            overLimit -> ErrorDark
-            nearLimit -> WarningDark
-            else -> Neutral500
+            overLimit -> RhTheme.colors.statusFailed
+            nearLimit -> RhTheme.colors.statusWarning
+            else -> RhTheme.colors.textTertiary
         }
         Text(
             text = charCount.toString(),
@@ -107,7 +108,7 @@ fun AdaptivePromptTextField(
             fontWeight = FontWeight.Medium,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = Dimens.SpaceMD, bottom = Dimens.SpaceXS),
+                .padding(end = RhSpacing.md, bottom = RhSpacing.xs),
         )
     }
 }

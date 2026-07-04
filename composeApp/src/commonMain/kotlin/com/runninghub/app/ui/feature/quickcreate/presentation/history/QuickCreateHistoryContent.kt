@@ -30,11 +30,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.Neutral500
-import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryDetailUiItem
 import com.runninghub.feature.quickcreate.presentation.history.QuickCreateHistoryOutputMediaType
 import org.jetbrains.compose.resources.stringResource
@@ -81,7 +78,7 @@ internal fun QuickCreateHistoryDetailDialog(
             if (isLoading || item == null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                    horizontalArrangement = Arrangement.spacedBy(RhSpacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
@@ -89,14 +86,14 @@ internal fun QuickCreateHistoryDetailDialog(
                 }
             } else {
                 val output = item.primaryOutput
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
+                Column(verticalArrangement = Arrangement.spacedBy(RhSpacing.md)) {
                     val previewUrl = output?.previewUrl
                     if (previewUrl != null) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(180.dp)
-                                .background(DarkSurfaceVariant, RoundedCornerShape(Dimens.RadiusMD)),
+                                .background(RhTheme.colors.surfaceElevated, RoundedCornerShape(RhTheme.shapes.md)),
                             contentAlignment = Alignment.Center,
                         ) {
                             SmartAsyncImage(
@@ -110,6 +107,7 @@ internal fun QuickCreateHistoryDetailDialog(
                                     Icons.Default.PlayCircle,
                                     contentDescription = null,
                                     modifier = Modifier.size(38.dp),
+                                    // 媒体预览上的播放图标固定用白色，保证覆盖在任意缩略图上的可见度。
                                     tint = Color.White.copy(alpha = 0.86f),
                                 )
                             }
@@ -124,21 +122,21 @@ internal fun QuickCreateHistoryDetailDialog(
                     )
                     Text(
                         item.metadataText,
-                        color = Neutral500,
+                        color = RhTheme.colors.textTertiary,
                         fontSize = 12.sp,
                     )
                     item.cashText?.let { cashText ->
                         Text(
                             cashText,
-                            color = Primary300,
+                            color = RhTheme.colors.brandPrimary,
                             fontSize = 12.sp,
                         )
                     }
                 }
             }
         },
-        containerColor = DarkSurface,
-        titleContentColor = Color.White,
-        textContentColor = Color.White.copy(alpha = 0.82f),
+        containerColor = RhTheme.colors.surfaceSunken,
+        titleContentColor = RhTheme.colors.textPrimary,
+        textContentColor = RhTheme.colors.textSecondary,
     )
 }

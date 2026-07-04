@@ -28,7 +28,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,11 +37,8 @@ import com.runninghub.app.ui.feature.quickcreate.asQuickCreateErrorText
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultUi
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateResultMediaType
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskUiStatus
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.ErrorDark
-import com.runninghub.app.ui.theme.Primary300
-import com.runninghub.app.ui.theme.SuccessDark
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskIndicator
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskStatusText
 import com.runninghub.feature.quickcreate.presentation.result.quickCreateTaskStatusDisplay
@@ -73,9 +69,9 @@ import runninghub.composeapp.generated.resources.quick_create_task_status_upload
 internal fun QuickCreateTaskStatusArea(status: QuickCreateTaskUiStatus, statusText: QuickCreateTaskStatusText?) {
     val display = quickCreateTaskStatusDisplay(status.toQuickCreateTaskPresentationStatus(), statusText)
     val indicatorColor = when (display.indicator) {
-        QuickCreateTaskIndicator.Progress -> Primary300
-        QuickCreateTaskIndicator.Success -> SuccessDark
-        QuickCreateTaskIndicator.Error -> ErrorDark
+        QuickCreateTaskIndicator.Progress -> RhTheme.colors.brandPrimary
+        QuickCreateTaskIndicator.Success -> RhTheme.colors.statusSuccess
+        QuickCreateTaskIndicator.Error -> RhTheme.colors.statusFailed
     }
 
     Box(
@@ -102,10 +98,10 @@ internal fun QuickCreateTaskStatusArea(status: QuickCreateTaskUiStatus, statusTe
                     tint = indicatorColor,
                 )
             }
-            Spacer(Modifier.height(Dimens.SpaceXL))
+            Spacer(Modifier.height(RhSpacing.xl))
             Text(
                 quickCreateTaskStatusText(display.text),
-                color = Color.White.copy(alpha = 0.7f),
+                color = RhTheme.colors.textSecondary,
                 fontSize = 15.sp,
             )
         }
@@ -149,7 +145,7 @@ internal fun QuickCreateResultArea(results: List<QuickCreateResultUi>, onClear: 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(Dimens.SpaceMD),
+            .padding(RhSpacing.md),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -158,7 +154,7 @@ internal fun QuickCreateResultArea(results: List<QuickCreateResultUi>, onClear: 
         ) {
             Text(
                 stringResource(Res.string.quick_create_result_section_title),
-                color = Color.White.copy(alpha = 0.6f),
+                color = RhTheme.colors.textTertiary,
                 fontSize = 13.sp,
             )
             TextButton(onClick = onClear, contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)) {
@@ -166,20 +162,20 @@ internal fun QuickCreateResultArea(results: List<QuickCreateResultUi>, onClear: 
                     Icons.Default.Refresh,
                     contentDescription = null,
                     modifier = Modifier.size(14.dp),
-                    tint = Primary300,
+                    tint = RhTheme.colors.brandPrimary,
                 )
                 Spacer(Modifier.width(4.dp))
-                Text(stringResource(Res.string.quick_create_result_clear_action), color = Primary300, fontSize = 12.sp)
+                Text(stringResource(Res.string.quick_create_result_clear_action), color = RhTheme.colors.brandPrimary, fontSize = 12.sp)
             }
         }
 
-        Spacer(Modifier.height(Dimens.SpaceSM))
+        Spacer(Modifier.height(RhSpacing.sm))
 
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(RhSpacing.md)) {
             items(results) { result ->
                 Surface(
-                    shape = RoundedCornerShape(Dimens.RadiusLG),
-                    color = DarkSurface,
+                    shape = RoundedCornerShape(RhTheme.shapes.lg),
+                    color = RhTheme.colors.surfaceSunken,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     when (result.mediaType) {

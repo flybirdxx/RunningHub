@@ -31,13 +31,8 @@ import com.runninghub.app.ui.feature.quickcreate.MediaChipCard
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
-import com.runninghub.app.ui.theme.DarkOutlineVariant
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.Neutral300
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Neutral500
-import com.runninghub.app.ui.theme.Primary300
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_upload_audio_reference
@@ -76,7 +71,7 @@ internal fun QuickCreateMediaToolbarRow(
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+        horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
     ) {
         val imageCount = mediaReferences.count { it.type == QuickCreateMediaType.IMAGE }
         val videoCount = mediaReferences.count { it.type == QuickCreateMediaType.VIDEO }
@@ -149,10 +144,10 @@ internal fun QuickCreateServiceUploadFieldPicker(
         QuickCreateMediaType.AUDIO -> stringResource(Res.string.quick_create_upload_field_select_audio)
         null -> stringResource(Res.string.quick_create_upload_field_select_media)
     }
-    Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
+    Column(verticalArrangement = Arrangement.spacedBy(RhSpacing.sm)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
@@ -169,16 +164,16 @@ internal fun QuickCreateServiceUploadFieldPicker(
                         stringResource(Res.string.quick_create_upload_field_default_hint)
                     },
                     fontSize = 11.sp,
-                    color = Neutral500,
+                    color = RhTheme.colors.textTertiary,
                 )
             }
             Surface(
                 enabled = mediaType != null,
-                shape = RoundedCornerShape(Dimens.RadiusSM),
-                color = if (doneCount > 0) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
+                shape = RoundedCornerShape(RhTheme.shapes.sm),
+                color = if (doneCount > 0) RhTheme.colors.brandPrimary.copy(alpha = 0.12f) else RhTheme.colors.surfaceElevated,
                 border = BorderStroke(
                     1.dp,
-                    if (doneCount > 0) Primary300.copy(alpha = 0.4f) else DarkOutlineVariant,
+                    if (doneCount > 0) RhTheme.colors.brandPrimary.copy(alpha = 0.4f) else RhTheme.colors.borderDefault,
                 ),
                 onClick = {
                     val resolvedType = mediaType ?: return@Surface
@@ -186,7 +181,7 @@ internal fun QuickCreateServiceUploadFieldPicker(
                 },
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 7.dp),
+                    modifier = Modifier.padding(horizontal = RhSpacing.md, vertical = 7.dp),
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -198,13 +193,13 @@ internal fun QuickCreateServiceUploadFieldPicker(
                             null -> Icons.Default.Upload
                         },
                         contentDescription = null,
-                        tint = if (doneCount > 0) Primary300 else Neutral400,
+                        tint = if (doneCount > 0) RhTheme.colors.brandPrimary else RhTheme.colors.textSecondary,
                         modifier = Modifier.size(14.dp),
                     )
                     Text(
                         text = label,
                         fontSize = 12.sp,
-                        color = if (doneCount > 0) Primary300 else Neutral300,
+                        color = if (doneCount > 0) RhTheme.colors.brandPrimary else RhTheme.colors.textSecondary,
                         fontWeight = if (doneCount > 0) FontWeight.Medium else FontWeight.Normal,
                     )
                 }
@@ -229,15 +224,15 @@ private fun MediaToolbarChip(
 ) {
     Surface(
         onClick = onClick,
-        color = if (hasItems) Primary300.copy(alpha = 0.12f) else DarkSurfaceVariant,
-        shape = RoundedCornerShape(Dimens.RadiusSM),
+        color = if (hasItems) RhTheme.colors.brandPrimary.copy(alpha = 0.12f) else RhTheme.colors.surfaceElevated,
+        shape = RoundedCornerShape(RhTheme.shapes.sm),
         border = BorderStroke(
             1.dp,
-            if (hasItems) Primary300.copy(alpha = 0.4f) else DarkOutlineVariant,
+            if (hasItems) RhTheme.colors.brandPrimary.copy(alpha = 0.4f) else RhTheme.colors.borderDefault,
         ),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = RhSpacing.md, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
@@ -245,13 +240,13 @@ private fun MediaToolbarChip(
                 icon,
                 null,
                 modifier = Modifier.size(14.dp),
-                tint = if (hasItems) Primary300 else Neutral500,
+                tint = if (hasItems) RhTheme.colors.brandPrimary else RhTheme.colors.textTertiary,
             )
             Text(
                 label,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
-                color = if (hasItems) Primary300 else Neutral400,
+                color = if (hasItems) RhTheme.colors.brandPrimary else RhTheme.colors.textSecondary,
             )
         }
     }

@@ -19,7 +19,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.runninghub.app.ui.component.SmartAsyncImage
-import com.runninghub.app.ui.theme.*
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.util.formatMinutesSeconds
 import com.runninghub.app.util.formatOneDecimal
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
@@ -62,13 +63,13 @@ fun MediaChipCard(
 
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Dimens.RadiusSM),
-        color = DarkSurfaceVariant,
+        shape = RoundedCornerShape(RhTheme.shapes.sm),
+        color = RhTheme.colors.surfaceElevated,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(Dimens.SpaceSM),
+                .padding(RhSpacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             MediaThumb(
@@ -76,14 +77,14 @@ fun MediaChipCard(
                 modifier = Modifier.size(40.dp),
             )
 
-            Spacer(Modifier.width(Dimens.SpaceSM))
+            Spacer(Modifier.width(RhSpacing.sm))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = reference.displayName,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Neutral200,
+                    color = RhTheme.colors.textPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -110,7 +111,7 @@ fun MediaChipCard(
                 Text(
                     text = typeLabel,
                     fontSize = 10.sp,
-                    color = Neutral500,
+                    color = RhTheme.colors.textTertiary,
                 )
 
                 Spacer(Modifier.height(4.dp))
@@ -118,16 +119,16 @@ fun MediaChipCard(
                 val uploadErrorText = reference.errorMessage?.asQuickCreateText()
                 val (barColor, statusText) = when (reference.uploadStatus) {
                     UploadStatus.UPLOADING -> Pair(
-                        Primary300,
+                        RhTheme.colors.brandPrimary,
                         stringResource(
                             Res.string.quick_create_media_uploading_format,
                             (reference.uploadProgress * 100).toInt(),
                         ),
                     )
-                    UploadStatus.PROCESSING -> Pair(WarningDark, stringResource(Res.string.quick_create_media_processing))
-                    UploadStatus.DONE -> Pair(SuccessDark, stringResource(Res.string.quick_create_media_ready))
+                    UploadStatus.PROCESSING -> Pair(RhTheme.colors.statusWarning, stringResource(Res.string.quick_create_media_processing))
+                    UploadStatus.DONE -> Pair(RhTheme.colors.statusSuccess, stringResource(Res.string.quick_create_media_ready))
                     UploadStatus.FAILED -> Pair(
-                        ErrorDark,
+                        RhTheme.colors.statusFailed,
                         uploadErrorText ?: stringResource(Res.string.quick_create_media_failed),
                     )
                 }
@@ -141,7 +142,7 @@ fun MediaChipCard(
                         .height(2.dp)
                         .clip(RoundedCornerShape(1.dp)),
                     color = barColor.copy(alpha = alpha),
-                    trackColor = DarkSurface,
+                    trackColor = RhTheme.colors.surfaceSunken,
                 )
 
                 if (reference.uploadStatus != UploadStatus.DONE) {
@@ -155,17 +156,18 @@ fun MediaChipCard(
                 }
             }
 
-            Spacer(Modifier.width(Dimens.SpaceSM))
+            Spacer(Modifier.width(RhSpacing.sm))
 
             if (reference.uploadStatus == UploadStatus.DONE) {
                 Surface(
-                    shape = RoundedCornerShape(Dimens.RadiusFull),
-                    color = SuccessDark,
+                    shape = RoundedCornerShape(RhTheme.shapes.full),
+                    color = RhTheme.colors.statusSuccess,
                     modifier = Modifier.size(18.dp),
                 ) {
                     Icon(
                         Icons.Default.Check,
                         contentDescription = null,
+                        // 成功徽标上的对勾固定用白色，保证在状态绿底上的对比度。
                         tint = Color.White,
                         modifier = Modifier
                             .padding(2.dp)
@@ -182,7 +184,7 @@ fun MediaChipCard(
                 Icon(
                     Icons.Default.Close,
                     contentDescription = stringResource(Res.string.quick_create_media_remove_content_description),
-                    tint = Neutral500,
+                    tint = RhTheme.colors.textTertiary,
                     modifier = Modifier.size(14.dp),
                 )
             }
@@ -197,8 +199,8 @@ private fun MediaThumb(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(Dimens.RadiusSM),
-        color = DarkSurface,
+        shape = RoundedCornerShape(RhTheme.shapes.sm),
+        color = RhTheme.colors.surfaceSunken,
     ) {
         when (reference.type) {
             QuickCreateMediaType.IMAGE -> {
@@ -217,7 +219,7 @@ private fun MediaThumb(
                         Icon(
                             Icons.Default.Image,
                             contentDescription = null,
-                            tint = Neutral500,
+                            tint = RhTheme.colors.textTertiary,
                             modifier = Modifier.size(20.dp),
                         )
                     }
@@ -231,7 +233,7 @@ private fun MediaThumb(
                     Icon(
                         Icons.Default.Videocam,
                         contentDescription = null,
-                        tint = Neutral500,
+                        tint = RhTheme.colors.textTertiary,
                         modifier = Modifier.size(20.dp),
                     )
                 }
@@ -244,7 +246,7 @@ private fun MediaThumb(
                     Icon(
                         Icons.Default.MusicNote,
                         contentDescription = null,
-                        tint = Neutral500,
+                        tint = RhTheme.colors.textTertiary,
                         modifier = Modifier.size(20.dp),
                     )
                 }

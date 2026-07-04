@@ -61,16 +61,8 @@ import com.runninghub.feature.quickcreate.presentation.editor.VideoDuration
 import com.runninghub.feature.quickcreate.presentation.editor.VideoResolution
 import com.runninghub.app.ui.feature.quickcreate.presentation.upload.QuickCreateMediaToolbarRow
 import com.runninghub.feature.quickcreate.presentation.draft.resumeSummary
-import com.runninghub.app.ui.theme.DarkOutlineVariant
-import com.runninghub.app.ui.theme.DarkSurface
-import com.runninghub.app.ui.theme.DarkSurfaceVariant
-import com.runninghub.app.ui.theme.Dimens
-import com.runninghub.app.ui.theme.Neutral100
-import com.runninghub.app.ui.theme.Neutral300
-import com.runninghub.app.ui.theme.Neutral400
-import com.runninghub.app.ui.theme.Neutral500
-import com.runninghub.app.ui.theme.Primary300
-import com.runninghub.app.ui.theme.Secondary500
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
+import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateBillingPreviewUi
 import com.runninghub.feature.quickcreate.presentation.billing.QuickCreateSendButtonLabel
 import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendButtonLabel
@@ -166,8 +158,8 @@ internal fun QuickCreateClassicComposer(
     val windowInfo = LocalRhWindowInfo.current
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = DarkSurface.copy(alpha = 0.97f),
-        shape = RoundedCornerShape(topStart = Dimens.RadiusXL, topEnd = Dimens.RadiusXL),
+        color = RhTheme.colors.surfaceSunken.copy(alpha = 0.97f),
+        shape = RoundedCornerShape(topStart = RhTheme.shapes.xl, topEnd = RhTheme.shapes.xl),
     ) {
         Box(
             modifier = Modifier.fillMaxWidth(),
@@ -177,9 +169,9 @@ internal fun QuickCreateClassicComposer(
                 modifier = Modifier
                     .fillMaxWidth()
                     .widthIn(max = windowInfo.bottomSheetMaxWidth)
-                    .padding(horizontal = Dimens.SpaceMD)
+                    .padding(horizontal = RhSpacing.md)
                     .navigationBarsPadding()
-                    .padding(top = Dimens.SpaceSM, bottom = Dimens.SpaceMD),
+                    .padding(top = RhSpacing.sm, bottom = RhSpacing.md),
             ) {
                 if (uiState.hasDraft && !isTaskActive) {
                     DraftResumeRow(
@@ -187,7 +179,7 @@ internal fun QuickCreateClassicComposer(
                         onRestoreDraft = onRestoreDraft,
                         onDiscardDraft = onDiscardDraft,
                     )
-                    Spacer(Modifier.height(Dimens.SpaceSM))
+                    Spacer(Modifier.height(RhSpacing.sm))
                 }
 
                 TabPillRow(
@@ -195,7 +187,7 @@ internal fun QuickCreateClassicComposer(
                     onTabSelected = onTabSwitch,
                 )
 
-                Spacer(Modifier.height(Dimens.SpaceSM))
+                Spacer(Modifier.height(RhSpacing.sm))
 
                 ServiceModelSummaryRow(
                     model = if (isImage) uiState.selectedImageServiceModelUi else uiState.selectedVideoServiceModelUi,
@@ -206,7 +198,7 @@ internal fun QuickCreateClassicComposer(
                     onClick = onOpenModelSheet,
                 )
 
-                Spacer(Modifier.height(Dimens.SpaceSM))
+                Spacer(Modifier.height(RhSpacing.sm))
 
                 QuickCreateMediaToolbarRow(
                     mediaReferences = mediaReferences,
@@ -215,7 +207,7 @@ internal fun QuickCreateClassicComposer(
                     onLaunchAudioPicker = onLaunchAudioPicker,
                 )
 
-                Spacer(Modifier.height(Dimens.SpaceSM))
+                Spacer(Modifier.height(RhSpacing.sm))
 
                 if (mediaReferences.isNotEmpty()) {
                     mediaReferences.forEach { reference ->
@@ -227,7 +219,7 @@ internal fun QuickCreateClassicComposer(
                     }
                 }
 
-                Spacer(Modifier.height(Dimens.SpaceSM))
+                Spacer(Modifier.height(RhSpacing.sm))
                 AdaptivePromptTextField(
                     prompt = prompt,
                     onPromptChange = onPromptChange,
@@ -242,10 +234,10 @@ internal fun QuickCreateClassicComposer(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                Spacer(Modifier.height(Dimens.SpaceSM))
+                Spacer(Modifier.height(RhSpacing.sm))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+                    horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(
@@ -254,11 +246,11 @@ internal fun QuickCreateClassicComposer(
                             .size(38.dp)
                             .background(
                                 if (uiState.activeSheet == QuickCreateSheet.PARAMS) {
-                                    Primary300.copy(alpha = 0.12f)
+                                    RhTheme.colors.brandPrimary.copy(alpha = 0.12f)
                                 } else {
-                                    DarkSurfaceVariant
+                                    RhTheme.colors.surfaceElevated
                                 },
-                                RoundedCornerShape(Dimens.RadiusMD),
+                                RoundedCornerShape(RhTheme.shapes.md),
                             ),
                         enabled = !isTaskActive,
                     ) {
@@ -268,7 +260,7 @@ internal fun QuickCreateClassicComposer(
                                 Res.string.quick_create_classic_params_content_description,
                             ),
                             modifier = Modifier.size(18.dp),
-                            tint = if (uiState.activeSheet == QuickCreateSheet.PARAMS) Primary300 else Neutral400,
+                            tint = if (uiState.activeSheet == QuickCreateSheet.PARAMS) RhTheme.colors.brandPrimary else RhTheme.colors.textSecondary,
                         )
                     }
 
@@ -305,24 +297,24 @@ private fun DraftResumeRow(
     if (draftData == null) return
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        color = Primary300.copy(alpha = 0.10f),
-        shape = RoundedCornerShape(Dimens.RadiusMD),
+        color = RhTheme.colors.brandPrimary.copy(alpha = 0.10f),
+        shape = RoundedCornerShape(RhTheme.shapes.md),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = RhSpacing.md, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
         ) {
             Icon(
                 Icons.Default.History,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = Primary300,
+                tint = RhTheme.colors.brandPrimary,
             )
             Text(
                 text = quickCreateDraftResumeSummaryText(draftData.resumeSummary()),
                 modifier = Modifier.weight(1f),
-                color = Neutral100,
+                color = RhTheme.colors.textPrimary,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,
@@ -334,7 +326,7 @@ private fun DraftResumeRow(
             ) {
                 Text(
                     text = stringResource(Res.string.quick_create_classic_discard_draft),
-                    color = Neutral400,
+                    color = RhTheme.colors.textSecondary,
                     fontSize = 12.sp,
                 )
             }
@@ -344,7 +336,7 @@ private fun DraftResumeRow(
             ) {
                 Text(
                     text = stringResource(Res.string.quick_create_classic_restore_draft),
-                    color = Primary300,
+                    color = RhTheme.colors.brandPrimary,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.SemiBold,
                 )
@@ -383,17 +375,17 @@ private fun TabPillRow(
     selectedTab: QuickCreateTab,
     onTabSelected: (QuickCreateTab) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm)) {
         QuickCreateTab.entries.forEach { tab ->
             val selected = tab == selectedTab
             Surface(
                 onClick = { onTabSelected(tab) },
-                color = if (selected) Primary300.copy(alpha = 0.15f) else Color.Transparent,
-                shape = RoundedCornerShape(Dimens.RadiusFull),
-                border = if (selected) BorderStroke(1.dp, Primary300.copy(alpha = 0.45f)) else null,
+                color = if (selected) RhTheme.colors.brandPrimary.copy(alpha = 0.15f) else Color.Transparent,
+                shape = RoundedCornerShape(RhTheme.shapes.full),
+                border = if (selected) BorderStroke(1.dp, RhTheme.colors.brandPrimary.copy(alpha = 0.45f)) else null,
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 6.dp),
+                    modifier = Modifier.padding(horizontal = RhSpacing.md, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(5.dp),
                 ) {
@@ -401,12 +393,12 @@ private fun TabPillRow(
                         if (tab == QuickCreateTab.IMAGE) Icons.Default.Image else Icons.Default.Videocam,
                         null,
                         modifier = Modifier.size(14.dp),
-                        tint = if (selected) Primary300 else Neutral500,
+                        tint = if (selected) RhTheme.colors.brandPrimary else RhTheme.colors.textTertiary,
                     )
                     Text(
                         quickCreateNavigationText(tab.navigationLabel),
                         fontSize = 12.sp,
-                        color = if (selected) Color.White else Neutral500,
+                        color = if (selected) RhTheme.colors.textPrimary else RhTheme.colors.textTertiary,
                         fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
                     )
                 }
@@ -433,19 +425,19 @@ private fun ServiceModelSummaryRow(
     Surface(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
-        color = DarkSurfaceVariant,
-        shape = RoundedCornerShape(Dimens.RadiusMD),
+        color = RhTheme.colors.surfaceElevated,
+        shape = RoundedCornerShape(RhTheme.shapes.md),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = Dimens.SpaceMD, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = RhSpacing.md, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceSM),
+            horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
         ) {
             Icon(
                 Icons.Default.Tune,
                 contentDescription = null,
                 modifier = Modifier.size(15.dp),
-                tint = Primary300,
+                tint = RhTheme.colors.brandPrimary,
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -455,7 +447,7 @@ private fun ServiceModelSummaryRow(
                     },
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Medium,
-                    color = Neutral100,
+                    color = RhTheme.colors.textPrimary,
                     maxLines = 1,
                 )
                 val subtitle = when {
@@ -466,7 +458,7 @@ private fun ServiceModelSummaryRow(
                     Text(
                         text = subtitle,
                         fontSize = 11.sp,
-                        color = Neutral500,
+                        color = RhTheme.colors.textTertiary,
                         maxLines = 1,
                     )
                 }
@@ -481,16 +473,16 @@ private fun ServiceModelSummaryRow(
             }
             priceText?.let {
                 Surface(
-                    color = Primary300.copy(alpha = 0.10f),
-                    shape = RoundedCornerShape(Dimens.RadiusFull),
-                    border = BorderStroke(1.dp, Primary300.copy(alpha = 0.28f)),
+                    color = RhTheme.colors.brandPrimary.copy(alpha = 0.10f),
+                    shape = RoundedCornerShape(RhTheme.shapes.full),
+                    border = BorderStroke(1.dp, RhTheme.colors.brandPrimary.copy(alpha = 0.28f)),
                 ) {
                     Text(
                         text = it,
                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Primary300,
+                        color = RhTheme.colors.brandPrimary,
                         maxLines = 1,
                     )
                 }
@@ -499,7 +491,7 @@ private fun ServiceModelSummaryRow(
                 Icons.Default.ChevronRight,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
-                tint = Neutral500,
+                tint = RhTheme.colors.textTertiary,
             )
         }
     }
@@ -526,17 +518,17 @@ private fun SendButton(
             .height(38.dp)
             .background(
                 brush = if (enabled) {
-                    Brush.linearGradient(listOf(Primary300, Secondary500))
+                    Brush.linearGradient(listOf(RhTheme.colors.brandPrimary, RhTheme.colors.brandSecondary))
                 } else {
-                    Brush.linearGradient(listOf(DarkSurfaceVariant, DarkSurfaceVariant))
+                    Brush.linearGradient(listOf(RhTheme.colors.surfaceElevated, RhTheme.colors.surfaceElevated))
                 },
-                shape = RoundedCornerShape(Dimens.RadiusMD),
+                shape = RoundedCornerShape(RhTheme.shapes.md),
             ),
         contentAlignment = Alignment.Center,
     ) {
         Surface(
             onClick = if (enabled && !isLoading) onClick else { {} },
-            shape = RoundedCornerShape(Dimens.RadiusMD),
+            shape = RoundedCornerShape(RhTheme.shapes.md),
             color = Color.Transparent,
             modifier = Modifier.fillMaxSize(),
         ) {
@@ -554,6 +546,7 @@ private fun SendButton(
                 if (isLoading) {
                     CircularProgressIndicator(
                         modifier = Modifier.size(18.dp),
+                        // 发送按钮内容固定用白色，保证在品牌渐变按钮上的对比度。
                         color = Color.White,
                         strokeWidth = 2.dp,
                     )
@@ -567,6 +560,7 @@ private fun SendButton(
                             Res.string.quick_create_classic_generate_content_description,
                         ),
                         modifier = Modifier.size(16.dp),
+                        // 发送按钮内容固定用白色，保证在品牌渐变按钮上的对比度。
                         tint = Color.White,
                     )
                 }
@@ -578,7 +572,8 @@ private fun SendButton(
                             sendLabel,
                             fontSize = if (sendButtonLabel == QuickCreateSendButtonLabel.Generate) 14.sp else 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (enabled) Color.White else Neutral500,
+                            // 启用态文字固定白色贴合品牌渐变按钮；禁用态回退到弱化文字色。
+                            color = if (enabled) Color.White else RhTheme.colors.textTertiary,
                             maxLines = 1,
                         )
                     } else {
@@ -586,7 +581,8 @@ private fun SendButton(
                             text = stringResource(Res.string.quick_create_classic_generate_button_label),
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = if (enabled) Color.White else Neutral500,
+                            // 启用态文字固定白色贴合品牌渐变按钮；禁用态回退到弱化文字色。
+                            color = if (enabled) Color.White else RhTheme.colors.textTertiary,
                         )
                     }
                 }
@@ -599,6 +595,7 @@ private fun SendButton(
 private fun FeePreviewLoadingIndicator() {
     CircularProgressIndicator(
         modifier = Modifier.size(18.dp),
+        // 发送按钮内容固定用白色，保证在品牌渐变按钮上的对比度。
         color = Color.White,
         strokeWidth = 2.dp,
     )

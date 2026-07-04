@@ -30,8 +30,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
+import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
-import com.runninghub.app.ui.theme.Dimens
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailUiItem
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailRowLabel
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectDetailRowValue
@@ -133,14 +133,14 @@ internal fun QuickCreateProjectDetailDialog(
             if (isLoading || project == null) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(Dimens.SpaceMD),
+                    horizontalArrangement = Arrangement.spacedBy(RhSpacing.md),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(22.dp), strokeWidth = 2.dp)
                     Text(stringResource(Res.string.quick_create_project_detail_loading_body))
                 }
             } else {
-                Column(verticalArrangement = Arrangement.spacedBy(Dimens.SpaceMD)) {
+                Column(verticalArrangement = Arrangement.spacedBy(RhSpacing.md)) {
                     if (project.coverUrl != null) {
                         SmartAsyncImage(
                             imageUrl = project.coverUrl,
@@ -148,7 +148,7 @@ internal fun QuickCreateProjectDetailDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(160.dp)
-                                .background(RhTheme.colors.surfaceElevated, RoundedCornerShape(Dimens.RadiusMD)),
+                                .background(RhTheme.colors.surfaceElevated, RoundedCornerShape(RhTheme.shapes.md)),
                             contentScale = ContentScale.Crop,
                         )
                     }
