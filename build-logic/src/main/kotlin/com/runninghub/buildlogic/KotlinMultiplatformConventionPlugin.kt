@@ -14,12 +14,12 @@ class KotlinMultiplatformConventionPlugin : Plugin<Project> {
     }
 
     private fun Project.configureAndroidTargetWhenPresent() {
+        // Application 模块（composeApp）仍使用经典 com.android.application + androidTarget()。
         pluginManager.withPlugin("com.android.application") {
             configureAndroidTarget()
         }
-        pluginManager.withPlugin("com.android.library") {
-            configureAndroidTarget()
-        }
+        // KMP 库模块已迁移到 com.android.kotlin.multiplatform.library，该插件自行提供
+        // android target，无需再调用 androidTarget()。相关配置见 AndroidLibraryConventionPlugin。
     }
 
     private fun Project.configureAndroidTarget() {

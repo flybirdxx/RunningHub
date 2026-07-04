@@ -16,7 +16,3 @@ kotlin {
         }
     }
 }
-
-android {
-    namespace = "com.runninghub.feature.model.domain"
-}

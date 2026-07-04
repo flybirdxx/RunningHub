@@ -20,7 +20,3 @@ kotlin {
         }
     }
 }
-
-android {
-    namespace = "com.runninghub.feature.audio.domain"
-}

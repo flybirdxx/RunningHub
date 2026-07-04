@@ -22,7 +22,3 @@ kotlin {
         }
     }
 }
-
-android {
-    namespace = "com.runninghub.feature.task.presentation"
-}

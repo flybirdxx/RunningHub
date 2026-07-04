@@ -24,7 +24,3 @@ kotlin {
         }
     }
 }
-
-android {
-    namespace = "com.runninghub.feature.auth.presentation"
-}

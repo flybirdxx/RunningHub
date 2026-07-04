@@ -34,7 +34,3 @@ kotlin {
         }
     }
 }
-
-android {
-    namespace = "com.runninghub.feature.task.data"
-}

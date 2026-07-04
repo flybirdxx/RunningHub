@@ -35,7 +35,3 @@ kotlin {
         }
     }
 }
-
-android {
-    namespace = "com.runninghub.feature.quickcreate.data"
-}

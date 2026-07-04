@@ -38,7 +38,3 @@ kotlin {
         }
     }
 }
-
-android {
-    namespace = "com.runninghub.core.network"
-}

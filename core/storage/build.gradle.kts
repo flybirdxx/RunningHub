@@ -23,7 +23,3 @@ kotlin {
         }
     }
 }
-
-android {
-    namespace = "com.runninghub.core.storage"
-}

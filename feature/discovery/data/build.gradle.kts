@@ -31,7 +31,3 @@ kotlin {
         }
     }
 }
-
-android {
-    namespace = "com.runninghub.feature.discovery.data"
-}
