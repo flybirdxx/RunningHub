@@ -11,8 +11,11 @@ import android.util.Log
 import coil3.ImageLoader
 import coil3.SingletonImageLoader
 import coil3.request.CachePolicy
+import coil3.request.ErrorResult
 import coil3.request.ImageRequest
 import coil3.request.SuccessResult
+import coil3.request.allowHardware
+import coil3.size.Size
 import coil3.toBitmap
 import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.CancellationException
@@ -83,6 +86,12 @@ private class AndroidMediaSaver(private val context: Context) : MediaSaver {
             imageLoader.execute(
                 ImageRequest.Builder(context)
                     .data(url)
+                    // 保存场景不需要硬件位图：硬件位图 toBitmap() 后 compress 会抛 ISE，
+                    // 会让重编码兜底在现代设备上形同虚设。
+                    .allowHardware(false)
+                    // 无 target 的 execute 默认按屏幕尺寸降采样；保存必须保留原始分辨率，
+                    // 否则 4K 结果图走兜底路径会被降到屏幕大小。
+                    .size(Size.ORIGINAL)
                     .memoryCachePolicy(CachePolicy.ENABLED)
                     .diskCachePolicy(CachePolicy.ENABLED)
                     .networkCachePolicy(CachePolicy.ENABLED)
@@ -95,9 +104,14 @@ private class AndroidMediaSaver(private val context: Context) : MediaSaver {
             Log.d(TAG, "image fetch threw: ${t::class.simpleName}")
             null
         }
+        if (result is ErrorResult) {
+            // 与异常路径保持同格式诊断：只记失败语义与异常类型，不含 URL。
+            Log.d(TAG, "image request failed: ${result.throwable::class.simpleName}")
+        }
 
-        readDiskCacheBytes(imageLoader, url)?.let { cachedBytes ->
-            val (mimeType, extension) = inferImageMime(url)
+        val diskCacheKey = (result as? SuccessResult)?.diskCacheKey ?: url
+        readDiskCacheBytes(imageLoader, diskCacheKey)?.let { cachedBytes ->
+            val (mimeType, extension) = inferImageMime(cachedBytes, url)
             return ImagePayload(cachedBytes, mimeType, extension)
         }
 
@@ -121,11 +135,16 @@ private class AndroidMediaSaver(private val context: Context) : MediaSaver {
         return null
     }
 
-    /** 读取 Coil 磁盘缓存中的原始编码字节；默认缓存 key 即请求 URL。 */
-    private fun readDiskCacheBytes(imageLoader: ImageLoader, url: String): ByteArray? {
+    /**
+     * 读取 Coil 磁盘缓存中的原始编码字节。
+     *
+     * [diskCacheKey] 优先取 [SuccessResult.diskCacheKey]（真实写入 key，兼容全局
+     * ImageLoader 未来配置自定义 Keyer 的情况），请求失败或 key 缺失时回退请求 URL。
+     */
+    private fun readDiskCacheBytes(imageLoader: ImageLoader, diskCacheKey: String): ByteArray? {
         val diskCache = imageLoader.diskCache ?: return null
         return try {
-            diskCache.openSnapshot(url)?.use { snapshot ->
+            diskCache.openSnapshot(diskCacheKey)?.use { snapshot ->
                 diskCache.fileSystem.source(snapshot.data).buffer().use { source ->
                     source.readByteArray()
                 }
@@ -203,11 +222,15 @@ private class AndroidMediaSaver(private val context: Context) : MediaSaver {
 }
 
 /**
- * 根据 URL 后缀推断图片 MIME 类型与扩展名；未知后缀默认 image/jpeg。
+ * 推断图片 MIME 类型与扩展名（二者联动）。
  *
- * 只用于磁盘缓存原始字节路径：缓存内容即服务端原始编码，后缀通常与内容一致。
+ * 只用于磁盘缓存原始字节路径：优先按字节魔数嗅探（PNG/JPEG/GIF/WebP），
+ * 内容真源比 URL 后缀可靠（CDN 地址可能无后缀或后缀与实际编码不一致）；
+ * 嗅探未命中时回退 URL 后缀，仍未知则默认 image/jpeg。
+ * avif/heic 等新格式暂未覆盖魔数嗅探，会走后缀回退或默认值。
  */
-private fun inferImageMime(url: String): Pair<String, String> {
+private fun inferImageMime(bytes: ByteArray, url: String): Pair<String, String> {
+    sniffImageMime(bytes)?.let { return it }
     val extension = url
         .substringBefore('?')
         .substringBefore('#')
@@ -220,4 +243,31 @@ private fun inferImageMime(url: String): Pair<String, String> {
         "jpg", "jpeg" -> "image/jpeg" to "jpg"
         else -> "image/jpeg" to "jpg"
     }
+}
+
+/** 按文件头魔数嗅探常见图片格式；无法识别返回 null 由调用方回退。 */
+private fun sniffImageMime(bytes: ByteArray): Pair<String, String>? = when {
+    // PNG：89 50 4E 47
+    bytes.startsWith(0x89, 0x50, 0x4E, 0x47) -> "image/png" to "png"
+    // JPEG：FF D8
+    bytes.startsWith(0xFF, 0xD8) -> "image/jpeg" to "jpg"
+    // GIF："GIF8"
+    bytes.startsWith(0x47, 0x49, 0x46, 0x38) -> "image/gif" to "gif"
+    // WebP：0-3 为 "RIFF"，8-11 为 "WEBP"
+    bytes.size >= 12 &&
+        bytes.startsWith(0x52, 0x49, 0x46, 0x46) &&
+        bytes[8] == 0x57.toByte() &&
+        bytes[9] == 0x45.toByte() &&
+        bytes[10] == 0x42.toByte() &&
+        bytes[11] == 0x50.toByte() -> "image/webp" to "webp"
+    else -> null
+}
+
+/** 判断字节数组是否以给定魔数序列开头。 */
+private fun ByteArray.startsWith(vararg magic: Int): Boolean {
+    if (size < magic.size) return false
+    for (index in magic.indices) {
+        if (this[index] != magic[index].toByte()) return false
+    }
+    return true
 }
