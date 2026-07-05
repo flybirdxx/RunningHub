@@ -5,8 +5,10 @@ import com.runninghub.feature.quickcreate.data.remote.api.QuickCreateApi
 import com.runninghub.feature.quickcreate.data.repository.QuickCreateDraftRepositoryImpl
 import com.runninghub.feature.quickcreate.data.repository.QuickCreateModelSelectionRepositoryImpl
 import com.runninghub.feature.quickcreate.data.repository.QuickCreateRepositoryImpl
+import com.runninghub.feature.quickcreate.data.repository.QuickCreateSessionSnapshotRepositoryImpl
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreateSessionSnapshotRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
@@ -27,6 +29,7 @@ import org.koin.dsl.module
 val quickCreateDataModule = module {
     single<QuickCreateDraftRepository> { QuickCreateDraftRepositoryImpl(get(), get()) }
     single<QuickCreateModelSelectionRepository> { QuickCreateModelSelectionRepositoryImpl(get()) }
+    single<QuickCreateSessionSnapshotRepository> { QuickCreateSessionSnapshotRepositoryImpl(get(), get()) }
     single { QuickCreateApi(get(), get()) }
     single { QuickCreateRepositoryImpl(get(), get(), get(), get(), get<ModelCatalogCacheStore>()) }
     single<QuickCreationFeePreviewRepository> { get<QuickCreateRepositoryImpl>() }

@@ -2,6 +2,7 @@ package com.runninghub.feature.quickcreate.presentation.coordinator
 
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreateSessionSnapshotRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
@@ -31,6 +32,7 @@ import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateM
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateModelPickerFilter
 import com.runninghub.feature.quickcreate.presentation.project.QuickCreateProjectStateHolder
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateTaskPollingController
+import com.runninghub.feature.quickcreate.presentation.session.QuickCreateSessionSnapshotStateHolder
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
@@ -72,6 +74,7 @@ class QuickCreateCoordinator(
     private val mediaResolver: QuickCreateMediaResolver,
     private val draftRepository: QuickCreateDraftRepository,
     private val modelSelectionRepository: QuickCreateModelSelectionRepository,
+    private val sessionSnapshotRepository: QuickCreateSessionSnapshotRepository? = null,
     private val scope: CoroutineScope,
     private val uiState: MutableStateFlow<QuickCreateUiState>,
     private val ioDispatcher: CoroutineDispatcher,
@@ -88,6 +91,13 @@ class QuickCreateCoordinator(
         stateProvider = { uiState.value },
         updateState = { reducer -> uiState.update(reducer) },
     )
+    private val sessionSnapshotStateHolder = sessionSnapshotRepository?.let { repository ->
+        QuickCreateSessionSnapshotStateHolder(
+            sessionSnapshotRepository = repository,
+            scope = scope,
+            uiState = uiState,
+        )
+    }
     private val generationRequestFactory = QuickCreateGenerationRequestFactory()
     private val feePreviewInteractor = QuickCreateFeePreviewInteractor(
         feePreviewRepository = feePreviewRepository,
@@ -161,6 +171,7 @@ class QuickCreateCoordinator(
      * 这些请求彼此独立，由各 StateHolder 内部使用页面作用域启动。
      */
     fun initialize() {
+        sessionSnapshotStateHolder?.start()
         checkForDraft()
         loadServiceModels()
         loadQuickCreationHistory()
@@ -179,6 +190,7 @@ class QuickCreateCoordinator(
         feePreviewInteractor.dispose()
         mediaUploadCoordinator.dispose()
         draftStateHolder.dispose()
+        sessionSnapshotStateHolder?.dispose()
     }
 
     /**

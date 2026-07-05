@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.map
  * 本类同时实现 [CredentialStore]、[BalanceCache] 和 [QuickCreateDraftStore]，
  * 是为了兼容 L1 迁移期间已经写入 Preferences 的历史凭据。生产组合根不应再直接把本类绑定为
  * [CredentialStore]；应通过 [MigratingCredentialStore] 把旧凭据迁移到平台安全存储。
- * 余额缓存和草稿属于非敏感数据，继续由本类保存。
+ * 余额缓存、草稿和 UI 快照属于非敏感数据，继续由本类保存。
  *
  * @param dataStore 应用级 Preferences DataStore，由 [createDataStore] 创建并保证平台文件路径一致。
  */
@@ -24,7 +24,8 @@ class PreferencesSettingsStore(
     QuickCreateDraftStore,
     QuickCreateModelSelectionStore,
     ModelCatalogCacheStore,
-    AppStartupStore {
+    AppStartupStore,
+    UiStateSnapshotStore {
 
     companion object {
         // 这些凭据键只用于读取和清理 L1 迁移前的旧数据；新凭据写入必须进入平台安全存储。
@@ -45,6 +46,7 @@ class PreferencesSettingsStore(
         private const val KEY_MODEL_CATALOG_LIST_PREFIX = "model_catalog_standard_list_"
         private const val KEY_MODEL_CATALOG_DETAIL_PREFIX = "model_catalog_standard_detail_"
         private const val KEY_QUICK_CREATE_MODEL_CATALOG_PREFIX = "quick_create_model_catalog_"
+        private const val KEY_UI_STATE_SNAPSHOT_PREFIX = "ui_state_snapshot_"
     }
 
     override suspend fun getApiKey(): String? =
@@ -174,6 +176,17 @@ class PreferencesSettingsStore(
 
     override suspend fun saveQuickCreateModelCatalog(kindKey: String, json: String) {
         dataStore.edit { it[stringPreferencesKey(KEY_QUICK_CREATE_MODEL_CATALOG_PREFIX + kindKey)] = json }
+    }
+
+    override suspend fun getSnapshot(key: String): String? =
+        dataStore.data.map { it[stringPreferencesKey(KEY_UI_STATE_SNAPSHOT_PREFIX + key)] }.first()
+
+    override suspend fun saveSnapshot(key: String, snapshot: String) {
+        dataStore.edit { it[stringPreferencesKey(KEY_UI_STATE_SNAPSHOT_PREFIX + key)] = snapshot }
+    }
+
+    override suspend fun clearSnapshot(key: String) {
+        dataStore.edit { it.remove(stringPreferencesKey(KEY_UI_STATE_SNAPSHOT_PREFIX + key)) }
     }
 
     override suspend fun clearAll() {

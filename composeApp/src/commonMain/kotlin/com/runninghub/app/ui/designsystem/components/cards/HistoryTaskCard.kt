@@ -19,6 +19,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -68,6 +70,18 @@ enum class HistoryTaskCardCostKind {
 }
 
 /**
+ * History 任务卡来源标签类型。
+ *
+ * Design System 仅根据类型选择视觉样式，具体来源识别由调用方完成。
+ */
+enum class HistoryTaskSourceBadgeType {
+    QuickCreate,
+    Workflow,
+    Api,
+    WebApp,
+}
+
+/**
  * History 任务卡状态徽标状态。
  *
  * @property type 稳定状态类型。
@@ -103,12 +117,26 @@ data class HistoryTaskCardActionState(
 )
 
 /**
+ * History 任务卡来源短标签状态。
+ *
+ * @property type 稳定来源类型，用于选择弱强调视觉。
+ * @property label 标题前展示的短标签文案。
+ * @property contentDescription 完整来源语义，供辅助功能读取。
+ */
+data class HistoryTaskSourceBadgeState(
+    val type: HistoryTaskSourceBadgeType,
+    val label: String,
+    val contentDescription: String,
+)
+
+/**
  * History 任务卡完整状态。
  *
  * @property title 任务名或模型名。
  * @property thumbnailUrl 可选缩略图地址，仅供调用方媒体 slot 使用。
  * @property status 状态徽标状态。
  * @property sourceLabel 生成方式文案。
+ * @property sourceBadge 标题前的来源短标签；为空时不展示来源标签。
  * @property cost 可选费用状态。
  * @property durationLabel 可选耗时文案。
  * @property expiryLabel 可选过期提醒文案。
@@ -121,6 +149,7 @@ data class HistoryTaskCardState(
     val thumbnailUrl: String?,
     val status: HistoryTaskCardStatusState,
     val sourceLabel: String,
+    val sourceBadge: HistoryTaskSourceBadgeState? = null,
     val cost: HistoryTaskCardCostState?,
     val durationLabel: String?,
     val expiryLabel: String?,
@@ -163,23 +192,13 @@ fun HistoryTaskCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(RhSpacing.xs),
             ) {
-                Text(
-                    text = state.title,
-                    color = RhTheme.colors.textPrimary,
-                    style = RhTypography.cardTitle,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                HistoryTaskCardTitle(
+                    title = state.title,
+                    sourceBadge = state.sourceBadge,
                 )
                 RhTaskStatusBadge(
                     status = state.status.type.toRhTaskStatus(),
                     label = state.status.label,
-                )
-                Text(
-                    text = state.sourceLabel,
-                    color = RhTheme.colors.textSecondary,
-                    style = RhTypography.meta,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                 )
                 state.expiryLabel?.let { label ->
                     Text(
@@ -197,7 +216,9 @@ fun HistoryTaskCard(
                 )
             }
             Column(
-                modifier = Modifier.width(92.dp),
+                modifier = Modifier
+                    .width(92.dp)
+                    .padding(top = RhSpacing.xxl),
                 horizontalAlignment = Alignment.End,
                 verticalArrangement = Arrangement.spacedBy(RhSpacing.xs),
             ) {
@@ -235,6 +256,58 @@ fun HistoryTaskCard(
 }
 
 @Composable
+private fun HistoryTaskCardTitle(
+    title: String,
+    sourceBadge: HistoryTaskSourceBadgeState?,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(RhSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        sourceBadge?.let { badge -> HistoryTaskSourceBadge(badge) }
+        Text(
+            modifier = Modifier.weight(1f),
+            text = title,
+            color = RhTheme.colors.textPrimary,
+            style = RhTypography.cardTitle,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+@Composable
+private fun HistoryTaskSourceBadge(state: HistoryTaskSourceBadgeState) {
+    val colors = RhTheme.colors
+    val contentColor = when (state.type) {
+        HistoryTaskSourceBadgeType.QuickCreate -> colors.brandPrimary
+        HistoryTaskSourceBadgeType.Workflow -> colors.statusProcessing
+        HistoryTaskSourceBadgeType.Api -> colors.brandSecondary
+        HistoryTaskSourceBadgeType.WebApp -> colors.textTertiary
+    }
+    val containerColor = when (state.type) {
+        HistoryTaskSourceBadgeType.WebApp -> colors.surfaceSunken
+        else -> contentColor.copy(alpha = 0.16f)
+    }
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(5.dp))
+            .background(containerColor)
+            .clearAndSetSemantics { contentDescription = state.contentDescription }
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = state.label,
+            color = contentColor,
+            style = RhTypography.meta,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
 private fun BoxScope.HistoryTaskThumbnailPlaceholder() {
     Box(
         modifier = Modifier
@@ -249,12 +322,14 @@ private fun HistoryTaskCardActions(
     secondaryActions: List<HistoryTaskCardActionState>,
     onAction: (HistoryTaskCardActionType) -> Unit,
 ) {
-    if (primaryAction == null && secondaryActions.isEmpty()) return
+    val visiblePrimaryAction = primaryAction?.takeIf { it.type.shouldShowInHistoryCard() }
+    val visibleSecondaryActions = secondaryActions.filter { it.type.shouldShowInHistoryCard() }
+    if (visiblePrimaryAction == null && visibleSecondaryActions.isEmpty()) return
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
     ) {
-        primaryAction?.let { action ->
+        visiblePrimaryAction?.let { action ->
             RhButton(
                 text = action.label,
                 onClick = { onAction(action.type) },
@@ -262,7 +337,7 @@ private fun HistoryTaskCardActions(
                 style = RhButtonStyle.Secondary,
             )
         }
-        secondaryActions.take(1).forEach { action ->
+        visibleSecondaryActions.take(1).forEach { action ->
             RhButton(
                 text = action.label,
                 onClick = { onAction(action.type) },
@@ -272,6 +347,14 @@ private fun HistoryTaskCardActions(
         }
         Spacer(modifier = Modifier.weight(1f))
     }
+}
+
+private fun HistoryTaskCardActionType.shouldShowInHistoryCard(): Boolean = when (this) {
+    HistoryTaskCardActionType.ViewResult,
+    HistoryTaskCardActionType.ReuseParameters,
+    HistoryTaskCardActionType.ViewDetail -> false
+    HistoryTaskCardActionType.Retry,
+    HistoryTaskCardActionType.Cancel -> true
 }
 
 private fun HistoryTaskCardStatusType.toRhTaskStatus(): RhTaskStatus = when (this) {

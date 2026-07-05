@@ -42,6 +42,7 @@ import com.runninghub.app.ui.component.SmartAsyncImage
 import com.runninghub.app.ui.designsystem.components.badges.RhTaskStatusBadge
 import com.runninghub.app.ui.designsystem.components.billing.BillingInfoCard
 import com.runninghub.app.ui.designsystem.components.result.ResultPreview
+import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionType
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
 import runninghub.composeapp.generated.resources.Res
@@ -59,6 +60,7 @@ internal fun TaskDetailDrawer(
     detail: TaskHistoryDetailUiModel?,
     isLoading: Boolean,
     onClose: () -> Unit,
+    onResultAction: (ResultPreviewActionType) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -109,13 +111,16 @@ internal fun TaskDetailDrawer(
                     style = RhTypography.caption,
                 )
             }
-            detail != null -> TaskDetailContent(detail)
+            detail != null -> TaskDetailContent(detail, onResultAction)
         }
     }
 }
 
 @Composable
-private fun TaskDetailContent(detail: TaskHistoryDetailUiModel) {
+private fun TaskDetailContent(
+    detail: TaskHistoryDetailUiModel,
+    onResultAction: (ResultPreviewActionType) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -124,7 +129,7 @@ private fun TaskDetailContent(detail: TaskHistoryDetailUiModel) {
     ) {
         val layout = detail.toTaskDetailLayoutState()
         TaskDetailStatusSummary(detail)
-        TaskDetailResultPreview(layout)
+        TaskDetailResultPreview(layout, onResultAction)
         TaskDetailBillingSection(layout)
         TaskDetailPromptParameters(layout)
         TaskDetailTechnicalDetails(layout)
@@ -171,10 +176,14 @@ private fun TaskDetailStatusSummary(detail: TaskHistoryDetailUiModel) {
 }
 
 @Composable
-private fun TaskDetailResultPreview(layout: TaskDetailLayoutState) {
+private fun TaskDetailResultPreview(
+    layout: TaskDetailLayoutState,
+    onResultAction: (ResultPreviewActionType) -> Unit,
+) {
     ResultPreview(
         state = layout.resultPreview,
-        onAction = {},
+        onAction = onResultAction,
+        compactActions = true,
         mediaContent = { media ->
             SmartAsyncImage(
                 imageUrl = media.renderUrl,

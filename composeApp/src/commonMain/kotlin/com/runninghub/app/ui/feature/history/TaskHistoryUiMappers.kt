@@ -10,6 +10,8 @@ import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardCostSt
 import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardState
 import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardStatusState
 import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardStatusType
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskSourceBadgeState
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskSourceBadgeType
 import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionState
 import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionType
 import com.runninghub.app.ui.designsystem.components.result.ResultPreviewMediaState
@@ -64,6 +66,10 @@ import runninghub.composeapp.generated.resources.task_history_error_history_load
 import runninghub.composeapp.generated.resources.task_history_output_count_format
 import runninghub.composeapp.generated.resources.task_history_remaining_days_format
 import runninghub.composeapp.generated.resources.task_history_source_api_model
+import runninghub.composeapp.generated.resources.task_history_source_badge_api_model
+import runninghub.composeapp.generated.resources.task_history_source_badge_quick_create
+import runninghub.composeapp.generated.resources.task_history_source_badge_webapp
+import runninghub.composeapp.generated.resources.task_history_source_badge_workflow
 import runninghub.composeapp.generated.resources.task_history_source_quick_create
 import runninghub.composeapp.generated.resources.task_history_source_webapp
 import runninghub.composeapp.generated.resources.task_history_source_workflow
@@ -210,6 +216,7 @@ internal fun TaskHistoryEntry.toHistoryTaskCardState(): HistoryTaskCardState = H
     thumbnailUrl = thumbnailUrl,
     status = cardStatus.toHistoryTaskCardStatusState(),
     sourceLabel = sourceLabelText(source),
+    sourceBadge = sourceBadgeState(source),
     cost = cost?.let { cost ->
         HistoryTaskCardCostState(
             kind = cost.kind.toHistoryTaskCardCostKind(),
@@ -298,6 +305,33 @@ internal fun sourceLabelText(source: String): String = when {
     source.contains("api", ignoreCase = true) || source.contains("model", ignoreCase = true) -> stringResource(Res.string.task_history_source_api_model)
     source.contains("web", ignoreCase = true) -> stringResource(Res.string.task_history_source_webapp)
     else -> stringResource(Res.string.task_history_source_quick_create)
+}
+
+@Composable
+private fun sourceBadgeState(source: String): HistoryTaskSourceBadgeState {
+    val type = source.toHistoryTaskSourceBadgeType()
+    return HistoryTaskSourceBadgeState(
+        type = type,
+        label = when (type) {
+            HistoryTaskSourceBadgeType.QuickCreate ->
+                stringResource(Res.string.task_history_source_badge_quick_create)
+            HistoryTaskSourceBadgeType.Workflow ->
+                stringResource(Res.string.task_history_source_badge_workflow)
+            HistoryTaskSourceBadgeType.Api ->
+                stringResource(Res.string.task_history_source_badge_api_model)
+            HistoryTaskSourceBadgeType.WebApp ->
+                stringResource(Res.string.task_history_source_badge_webapp)
+        },
+        contentDescription = sourceLabelText(source),
+    )
+}
+
+private fun String.toHistoryTaskSourceBadgeType(): HistoryTaskSourceBadgeType = when {
+    contains("quick", ignoreCase = true) -> HistoryTaskSourceBadgeType.QuickCreate
+    contains("workflow", ignoreCase = true) -> HistoryTaskSourceBadgeType.Workflow
+    contains("api", ignoreCase = true) || contains("model", ignoreCase = true) -> HistoryTaskSourceBadgeType.Api
+    contains("web", ignoreCase = true) -> HistoryTaskSourceBadgeType.WebApp
+    else -> HistoryTaskSourceBadgeType.QuickCreate
 }
 
 @Composable

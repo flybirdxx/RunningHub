@@ -39,7 +39,7 @@ val appModule = module {
         MediaResolverQuickCreateMediaResolver(get<MediaResolver>())
     }
     single { TaskHistoryInvalidationBus() }
-    single { WebAppTaskHistoryOverlayStore() }
+    single { WebAppTaskHistoryOverlayStore(get(), get()) }
     single<TaskHistoryInvalidationEvents> { get<TaskHistoryInvalidationBus>() }
     single<TaskHistoryInvalidationNotifier> { get<TaskHistoryInvalidationBus>() }
     // 通用历史页已依赖 Task Domain 契约；迁移期由 composeApp 聚合当前已接入的 QuickCreate 与 WebApp 历史源。
@@ -57,6 +57,7 @@ val appModule = module {
             mediaResolver = get<QuickCreateMediaResolver>(),
             draftRepository = get(),
             modelSelectionRepository = get(),
+            sessionSnapshotRepository = get(),
             ioDispatcher = Dispatchers.Default,
             onTaskHistoryInvalidated = historyInvalidationNotifier::notifyTaskHistoryInvalidated,
         )
@@ -82,6 +83,7 @@ val appModule = module {
         TaskHistoryScreenModel(
             generationHistoryRepository = get(),
             historyInvalidationEvents = get(),
+            taskHistorySnapshotRepository = get(),
         )
     }
     factoryOf(::CreatorProfileScreenModel)

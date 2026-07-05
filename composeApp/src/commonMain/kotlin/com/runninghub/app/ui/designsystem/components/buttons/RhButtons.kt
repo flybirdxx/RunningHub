@@ -17,6 +17,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
@@ -45,6 +46,7 @@ enum class RhButtonStyle(val tokenName: String) {
  * @param enabled 为 true 时允许点击；为 false 时展示禁用视觉并阻止交互。
  * @param loading 为 true 时展示加载指示并临时阻止重复点击。
  * @param style 按钮视觉层级，决定容器、边框和内容颜色。
+ * @param height 按钮高度，默认用于主要页面操作，紧凑容器可传入更小高度。
  */
 @Composable
 fun RhButton(
@@ -54,6 +56,7 @@ fun RhButton(
     enabled: Boolean = true,
     loading: Boolean = false,
     style: RhButtonStyle = RhButtonStyle.Primary,
+    height: Dp = 48.dp,
 ) {
     val colors = RhTheme.colors
     val shape = RoundedCornerShape(RhTheme.shapes.md)
@@ -72,7 +75,7 @@ fun RhButton(
             Text(text = text, style = RhTypography.button)
         }
     }
-    val buttonModifier = modifier.height(48.dp)
+    val buttonModifier = modifier.height(height)
 
     when (style) {
         RhButtonStyle.Primary -> Button(

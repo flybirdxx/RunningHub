@@ -61,6 +61,7 @@ import com.runninghub.app.ui.feature.profile.ProfileVoyagerScreen
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateVoyagerScreen
 import com.runninghub.app.ui.theme.WindowSizeClass
 import com.runninghub.app.ui.theme.rememberWindowSizeClass
+import com.runninghub.core.storage.UiStateSnapshotStore
 import com.runninghub.feature.community.domain.PlazaReuseMediaKind
 import com.runninghub.feature.community.presentation.PlazaWorkDetailUiModel
 import com.runninghub.feature.community.presentation.PlazaWorkPreviewType
@@ -234,7 +235,9 @@ class MainVoyagerScreen : Screen {
 
     @Composable
     override fun Content() {
+        val uiStateSnapshotStore = koinInject<UiStateSnapshotStore>()
         var selectedTab by rememberSaveable { mutableStateOf(MainNavigationDefaults.defaultTab) }
+        var selectedTabRestored by remember { mutableStateOf(false) }
         var pendingPlazaReuseIntent by remember { mutableStateOf<QuickCreatePlazaReuseIntent?>(null) }
         val screenRegistry = remember {
             MainTabScreenRegistry(
@@ -255,6 +258,24 @@ class MainVoyagerScreen : Screen {
         }
         val getLastKnownBalance = koinInject<GetLastKnownBalanceUseCase>()
         var creditCoins by rememberSaveable { mutableStateOf("--") }
+
+        LaunchedEffect(uiStateSnapshotStore) {
+            uiStateSnapshotStore.getSnapshot(MAIN_NAVIGATION_TAB_SNAPSHOT_KEY)
+                ?.toBottomNavTabOrNull()
+                ?.let { selectedTab = it }
+            selectedTabRestored = true
+        }
+
+        LaunchedEffect(selectedTab, selectedTabRestored, uiStateSnapshotStore) {
+            if (selectedTabRestored) {
+                uiStateSnapshotStore.saveSnapshot(MAIN_NAVIGATION_TAB_SNAPSHOT_KEY, selectedTab.name)
+            }
+        }
+
+        if (!selectedTabRestored) {
+            Box(modifier = Modifier.fillMaxSize())
+            return
+        }
 
         LaunchedEffect(Unit) {
             // 主导航只展示最近一次余额快照；实时余额仍由 Profile/账户接口负责刷新。
@@ -401,3 +422,8 @@ private fun CreditIndicator(
         }
     }
 }
+
+private const val MAIN_NAVIGATION_TAB_SNAPSHOT_KEY = "main_navigation_tab_v1"
+
+private fun String.toBottomNavTabOrNull(): BottomNavTab? =
+    enumValues<BottomNavTab>().firstOrNull { it.name == this }

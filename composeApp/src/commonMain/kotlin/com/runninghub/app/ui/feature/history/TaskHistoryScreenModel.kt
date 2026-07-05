@@ -3,6 +3,7 @@ package com.runninghub.app.ui.feature.history
 import cafe.adriel.voyager.core.model.ScreenModel
 import cafe.adriel.voyager.core.model.screenModelScope
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
+import com.runninghub.feature.task.domain.TaskHistorySnapshotRepository
 import com.runninghub.feature.task.presentation.TaskHistoryFilter
 import com.runninghub.feature.task.presentation.TaskHistoryInvalidationEvents
 import com.runninghub.feature.task.presentation.TaskHistoryStateHolder
@@ -23,12 +24,14 @@ import kotlinx.coroutines.flow.StateFlow
 class TaskHistoryScreenModel(
     generationHistoryRepository: GenerationHistoryRepository,
     historyInvalidationEvents: TaskHistoryInvalidationEvents,
+    taskHistorySnapshotRepository: TaskHistorySnapshotRepository? = null,
     enablePolling: Boolean = true,
 ) : ScreenModel {
     private val stateHolder = TaskHistoryStateHolder(
         generationHistoryRepository = generationHistoryRepository,
         coroutineScope = screenModelScope,
         historyInvalidations = historyInvalidationEvents.invalidations,
+        snapshotRepository = taskHistorySnapshotRepository,
         enablePolling = enablePolling,
     )
 

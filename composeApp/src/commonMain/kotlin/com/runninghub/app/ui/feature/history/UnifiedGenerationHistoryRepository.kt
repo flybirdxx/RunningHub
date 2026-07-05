@@ -33,6 +33,7 @@ internal class UnifiedGenerationHistoryRepository(
     private var lastMergedItems: List<GenerationHistoryItem> = emptyList()
 
     override suspend fun listHistory(page: Int, size: Int): Result<GenerationHistoryPage> {
+        webAppTaskHistoryOverlayStore.restore()
         val quickResult = quickCreateAdapter.listHistory(page = page, size = size)
         val webAppResult = webAppTaskHistoryRepository.getTaskHistory(pageNum = page, pageSize = size)
 

@@ -7,6 +7,8 @@ import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardCostSt
 import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardState
 import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardStatusState
 import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskCardStatusType
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskSourceBadgeState
+import com.runninghub.app.ui.designsystem.components.cards.HistoryTaskSourceBadgeType
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -22,6 +24,11 @@ class RhHistoryTaskCardComponentsContractTest {
                 label = "已完成",
             ),
             sourceLabel = "快捷创作",
+            sourceBadge = HistoryTaskSourceBadgeState(
+                type = HistoryTaskSourceBadgeType.QuickCreate,
+                label = "快",
+                contentDescription = "快捷创作",
+            ),
             cost = HistoryTaskCardCostState(
                 kind = HistoryTaskCardCostKind.Rhb,
                 amountLabel = "12.5 RHB",
@@ -42,6 +49,8 @@ class RhHistoryTaskCardComponentsContractTest {
         )
 
         assertEquals(HistoryTaskCardStatusType.Success, state.status.type)
+        assertEquals(HistoryTaskSourceBadgeType.QuickCreate, state.sourceBadge?.type)
+        assertEquals("快", state.sourceBadge?.label)
         assertEquals(HistoryTaskCardCostKind.Rhb, state.cost?.kind)
         assertEquals("2 天后过期", state.expiryLabel)
         assertEquals(HistoryTaskCardActionType.ViewResult, state.primaryAction?.type)

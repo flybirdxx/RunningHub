@@ -5,6 +5,8 @@ import com.runninghub.feature.task.domain.GenerationHistoryOutput
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
 import com.runninghub.feature.task.domain.GenerationHistorySource
 import com.runninghub.feature.task.domain.GenerationTaskDetail
+import com.runninghub.feature.task.domain.TaskHistorySnapshot
+import com.runninghub.feature.task.domain.TaskHistorySnapshotRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -284,6 +286,7 @@ class TaskHistoryStateHolder(
     private val generationHistoryRepository: GenerationHistoryRepository,
     private val coroutineScope: CoroutineScope,
     historyInvalidations: Flow<Unit> = emptyFlow(),
+    private val snapshotRepository: TaskHistorySnapshotRepository? = null,
     private val enablePolling: Boolean = true,
 ) {
     private val _uiState = MutableStateFlow(TaskHistoryUiState())
@@ -301,6 +304,7 @@ class TaskHistoryStateHolder(
     private var invalidationRefreshJob: Job? = null
 
     init {
+        restoreSnapshot()
         observeTaskHistoryInvalidations(historyInvalidations)
     }
 
@@ -329,6 +333,7 @@ class TaskHistoryStateHolder(
                 items = state.allItems.toEntries(filter),
             )
         }
+        saveSnapshot(filter)
     }
 
     /**
@@ -510,6 +515,27 @@ class TaskHistoryStateHolder(
         }
     }
 
+    private fun restoreSnapshot() {
+        val repository = snapshotRepository ?: return
+        coroutineScope.launch {
+            val snapshot = repository.getSnapshot() ?: return@launch
+            val restoredFilter = snapshot.filter.toTaskHistoryFilter() ?: return@launch
+            _uiState.update { state ->
+                state.copy(
+                    filter = restoredFilter,
+                    items = state.allItems.toEntries(restoredFilter),
+                )
+            }
+        }
+    }
+
+    private fun saveSnapshot(filter: TaskHistoryFilter) {
+        val repository = snapshotRepository ?: return
+        coroutineScope.launch {
+            repository.saveSnapshot(TaskHistorySnapshot(filter = filter.name))
+        }
+    }
+
     private suspend fun refreshHistory(showLoading: Boolean) {
         if (showLoading) {
             _uiState.update { it.copy(isLoading = true, error = null, actionMessage = null) }
@@ -567,6 +593,9 @@ private fun List<GenerationHistoryItem>.filterByStatus(filter: TaskHistoryFilter
     TaskHistoryFilter.IN_PROGRESS -> filter { it.isRunning }
 }
 
+private fun String.toTaskHistoryFilter(): TaskHistoryFilter? =
+    enumValues<TaskHistoryFilter>().firstOrNull { it.name == this }
+
 private fun GenerationHistoryItem.toTaskHistoryEntry(): TaskHistoryEntry {
     val primaryOutput = outputs.firstOrNull()
     val titleText = taskType ?: modelId ?: "Generation task"
@@ -622,7 +651,6 @@ private fun taskHistoryPrimaryAction(
     status.isCompletedStatus() && canViewOutput -> TaskHistoryCardAction.VIEW_RESULT
     status.isFailedStatus() && canRetry -> TaskHistoryCardAction.RETRY
     canCancel -> TaskHistoryCardAction.CANCEL
-    status.isNotBlank() -> TaskHistoryCardAction.VIEW_DETAIL
     else -> null
 }
 

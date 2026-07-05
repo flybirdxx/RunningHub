@@ -2,6 +2,7 @@ package com.runninghub.feature.quickcreate.presentation
 
 import com.runninghub.feature.quickcreate.domain.QuickCreateDraftRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreateSessionSnapshotRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationFeePreviewRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationGenerationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
@@ -63,6 +64,7 @@ class QuickCreatePresentationStateHolderFactory(
     private val mediaResolver: QuickCreateMediaResolver,
     private val draftRepository: QuickCreateDraftRepository,
     private val modelSelectionRepository: QuickCreateModelSelectionRepository,
+    private val sessionSnapshotRepository: QuickCreateSessionSnapshotRepository? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val onTaskHistoryInvalidated: () -> Unit = {},
 ) {
@@ -83,6 +85,7 @@ class QuickCreatePresentationStateHolderFactory(
             mediaResolver = mediaResolver,
             draftRepository = draftRepository,
             modelSelectionRepository = modelSelectionRepository,
+            sessionSnapshotRepository = sessionSnapshotRepository,
             scope = scope,
             ioDispatcher = ioDispatcher,
             onTaskHistoryInvalidated = onTaskHistoryInvalidated,
@@ -120,6 +123,7 @@ class QuickCreatePresentationStateHolder(
     mediaResolver: QuickCreateMediaResolver,
     draftRepository: QuickCreateDraftRepository,
     modelSelectionRepository: QuickCreateModelSelectionRepository,
+    sessionSnapshotRepository: QuickCreateSessionSnapshotRepository? = null,
     scope: CoroutineScope,
     ioDispatcher: CoroutineDispatcher,
     onTaskHistoryInvalidated: () -> Unit = {},
@@ -140,6 +144,7 @@ class QuickCreatePresentationStateHolder(
         mediaResolver = mediaResolver,
         draftRepository = draftRepository,
         modelSelectionRepository = modelSelectionRepository,
+        sessionSnapshotRepository = sessionSnapshotRepository,
         scope = scope,
         uiState = mutableUiState,
         ioDispatcher = ioDispatcher,

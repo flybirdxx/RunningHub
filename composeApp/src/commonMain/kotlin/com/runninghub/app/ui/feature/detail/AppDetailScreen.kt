@@ -4,17 +4,26 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -22,6 +31,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
@@ -49,10 +63,11 @@ import com.runninghub.feature.detail.presentation.AppDetailMediaType
 import com.runninghub.feature.detail.presentation.AppDetailTaskStep
 import com.runninghub.feature.detail.presentation.AppDetailUiState
 import com.runninghub.feature.detail.presentation.appDetailParamsLayout
-import com.runninghub.feature.detail.presentation.creationEntry
 import com.runninghub.feature.detail.presentation.inputRows
 import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
+import runninghub.composeapp.generated.resources.app_detail_back_content_description
+import runninghub.composeapp.generated.resources.app_detail_default_app_name
 import runninghub.composeapp.generated.resources.app_detail_output_section_title
 import runninghub.composeapp.generated.resources.app_detail_parameter_count_format
 import runninghub.composeapp.generated.resources.app_detail_parameters_section_title
@@ -167,6 +182,20 @@ internal fun DetailContent(
     val detail = uiState.detail ?: return
     val windowInfo = LocalRhWindowInfo.current
     val taskError = uiState.taskError?.let { appDetailErrorMessage(it) }
+    val listState = rememberLazyListState()
+    val density = LocalDensity.current
+    val toolbarFadeStartPx = remember(density) { with(density) { 112.dp.toPx() } }
+    val toolbarFadeRangePx = remember(density) { with(density) { 88.dp.toPx() } }
+    val toolbarCollapseProgress by remember(toolbarFadeStartPx, toolbarFadeRangePx) {
+        derivedStateOf {
+            detailToolbarCollapseProgress(
+                firstVisibleItemIndex = listState.firstVisibleItemIndex,
+                firstVisibleItemScrollOffset = listState.firstVisibleItemScrollOffset,
+                fadeStartPx = toolbarFadeStartPx,
+                fadeRangePx = toolbarFadeRangePx,
+            )
+        }
+    }
     // 长下拉字段的底部弹层选择目标；非空时弹出 AppDetailOptionPickerSheet。
     var pickerField by remember { mutableStateOf<AppDetailInputFieldUiModel?>(null) }
 
@@ -188,23 +217,16 @@ internal fun DetailContent(
         ) {
             LazyColumn(
                 contentPadding = PaddingValues(bottom = 168.dp),
+                state = listState,
                 modifier = Modifier.fillMaxSize()
             ) {
-                item(key = "creation_entry") {
-                    uiState.creationEntry?.let { entry ->
-                        AppDetailCreationEntry(
-                            entry = entry,
-                            detail = detail,
-                            onBack = onBack,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                        )
-                    }
-                }
-
-                if (uiState.taskStep == AppDetailTaskStep.IDLE && !uiState.isRunningTask) {
-                    item(key = "creation_spacing") {
-                        Spacer(Modifier.height(4.dp))
-                    }
+                item(key = "about_detail") {
+                    AppDetailHero(
+                        detail = detail,
+                        onBack = onBack,
+                        onAuthorClick = { detail.owner?.id?.let(onAuthorClick) },
+                        showBackButton = false,
+                    )
                 }
 
                 // 任务提交后保留阶段进度，用户能区分“已提交”和“正在等待结果”的状态。
@@ -244,7 +266,7 @@ internal fun DetailContent(
                     }
                 }
 
-                // 参数区紧跟创作入口，保证用户在详情首屏即可看到需要补齐的输入。
+                // 参数区跟随详情介绍，用户先确认应用信息，再补齐生成所需输入。
                 if (detail.inputNodes.isNotEmpty()) {
                     item(key = "input_header") {
                         Row(
@@ -305,15 +327,6 @@ internal fun DetailContent(
                         )
                     }
                 }
-
-                item(key = "about_detail") {
-                    AppDetailHero(
-                        detail = detail,
-                        onBack = onBack,
-                        onAuthorClick = { detail.owner?.id?.let(onAuthorClick) },
-                        showBackButton = false,
-                    )
-                }
             }
 
             RunTaskBottomBar(
@@ -323,6 +336,14 @@ internal fun DetailContent(
                 onRun = onRunTask,
                 onReset = onResetTask,
                 modifier = Modifier.align(Alignment.BottomCenter)
+            )
+
+            // Compose 中模拟 CoordinatorLayout/CollapsingToolbar：内容滚动，Toolbar 固定并随折叠进度显示背景和标题。
+            DetailCollapsingTopBar(
+                title = detail.name ?: stringResource(Res.string.app_detail_default_app_name),
+                collapseProgress = toolbarCollapseProgress,
+                onBack = onBack,
+                modifier = Modifier.align(Alignment.TopCenter),
             )
         }
 
@@ -340,6 +361,70 @@ internal fun DetailContent(
             )
         }
     }
+}
+
+@Composable
+private fun DetailCollapsingTopBar(
+    title: String,
+    collapseProgress: Float,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val colors = RhTheme.colors
+    val progress = collapseProgress.coerceIn(0f, 1f)
+    val expandedButtonAlpha = 0.42f * (1f - progress)
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(colors.backgroundPrimary.copy(alpha = progress))
+    ) {
+        Row(
+            modifier = Modifier
+                .statusBarsPadding()
+                .height(56.dp)
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = onBack,
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(Color.Black.copy(alpha = expandedButtonAlpha))
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = stringResource(Res.string.app_detail_back_content_description),
+                    tint = if (progress < 0.55f) Color.White else colors.textPrimary,
+                )
+            }
+
+            Text(
+                text = title.ifBlank { stringResource(Res.string.app_detail_default_app_name) },
+                color = colors.textPrimary.copy(alpha = progress),
+                style = RhTypography.cardTitle,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp, end = 12.dp),
+            )
+        }
+    }
+}
+
+private fun detailToolbarCollapseProgress(
+    firstVisibleItemIndex: Int,
+    firstVisibleItemScrollOffset: Int,
+    fadeStartPx: Float,
+    fadeRangePx: Float,
+): Float {
+    if (firstVisibleItemIndex > 0) return 1f
+    // 先让 Hero 保持沉浸展示，滚过视觉安全距离后再让 pinned toolbar 渐显，贴近 CollapsingToolbar 的 scrim 触发节奏。
+    return ((firstVisibleItemScrollOffset - fadeStartPx) / fadeRangePx).coerceIn(0f, 1f)
 }
 
 /* ═══════════════════════════════════════════════════

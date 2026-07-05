@@ -1,7 +1,9 @@
 package com.runninghub.feature.task.data.di
 
 import com.runninghub.feature.task.data.remote.api.WebAppTaskApi
+import com.runninghub.feature.task.data.repository.TaskHistorySnapshotRepositoryImpl
 import com.runninghub.feature.task.data.repository.WebAppTaskRepositoryImpl
+import com.runninghub.feature.task.domain.TaskHistorySnapshotRepository
 import com.runninghub.feature.task.domain.WebAppTaskHistoryRepository
 import com.runninghub.feature.task.domain.WebAppTaskRepository
 import org.koin.dsl.module
@@ -15,6 +17,7 @@ import org.koin.dsl.module
 val taskDataModule = module {
     single { WebAppTaskApi(get()) }
     single { WebAppTaskRepositoryImpl(get(), get()) }
+    single<TaskHistorySnapshotRepository> { TaskHistorySnapshotRepositoryImpl(get(), get()) }
     single<WebAppTaskRepository> { get<WebAppTaskRepositoryImpl>() }
     single<WebAppTaskHistoryRepository> { get<WebAppTaskRepositoryImpl>() }
 }

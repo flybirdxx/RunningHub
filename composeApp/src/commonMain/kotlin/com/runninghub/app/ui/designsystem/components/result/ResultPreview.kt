@@ -124,6 +124,7 @@ fun ResultPreview(
     state: ResultPreviewState,
     onAction: (ResultPreviewActionType) -> Unit,
     modifier: Modifier = Modifier,
+    compactActions: Boolean = false,
     mediaContent: @Composable BoxScope.(ResultPreviewMediaState) -> Unit = { media ->
         ResultPreviewMediaPlaceholder(media)
     },
@@ -199,6 +200,7 @@ fun ResultPreview(
                     ResultPreviewActions(
                         actions = state.actions,
                         onAction = onAction,
+                        compact = compactActions,
                     )
                 }
             }
@@ -225,12 +227,33 @@ private fun BoxScope.ResultPreviewMediaPlaceholder(media: ResultPreviewMediaStat
 private fun ResultPreviewActions(
     actions: List<ResultPreviewActionState>,
     onAction: (ResultPreviewActionType) -> Unit,
+    compact: Boolean,
 ) {
+    val buttonHeight = if (compact) 36.dp else 48.dp
+    val itemSpacing = if (compact) RhSpacing.xs else RhSpacing.sm
+    if (compact) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(itemSpacing),
+        ) {
+            actions.forEachIndexed { index, action ->
+                RhButton(
+                    text = action.label,
+                    onClick = { onAction(action.type) },
+                    modifier = Modifier.weight(1f),
+                    enabled = action.enabled,
+                    style = if (index == 0) RhButtonStyle.Secondary else RhButtonStyle.Ghost,
+                    height = buttonHeight,
+                )
+            }
+        }
+        return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(RhSpacing.xs)) {
         actions.chunked(2).forEach { rowActions ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(RhSpacing.sm),
+                horizontalArrangement = Arrangement.spacedBy(itemSpacing),
             ) {
                 rowActions.forEachIndexed { index, action ->
                     RhButton(
@@ -239,6 +262,7 @@ private fun ResultPreviewActions(
                         modifier = Modifier.weight(1f),
                         enabled = action.enabled,
                         style = if (index == 0) RhButtonStyle.Secondary else RhButtonStyle.Ghost,
+                        height = buttonHeight,
                     )
                 }
                 if (rowActions.size == 1) {

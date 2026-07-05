@@ -104,6 +104,33 @@ class TaskHistoryStateHolderTest {
     }
 
     @Test
+    fun `history entries do not expose view detail as card button`() = runTest {
+        val repository = FakeGenerationHistoryRepository(
+            items = listOf(
+                GenerationHistoryItem(
+                    taskId = "success-without-output",
+                    source = GenerationHistorySource.WORKFLOW,
+                    status = "SUCCESS",
+                    taskType = "Workflow",
+                ),
+                GenerationHistoryItem(
+                    taskId = "failed-without-params",
+                    source = GenerationHistorySource.WORKFLOW,
+                    status = "FAILED",
+                    taskType = "Workflow",
+                ),
+            )
+        )
+        val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
+
+        stateHolder.loadHistory()
+        runCurrent()
+
+        val entries = stateHolder.uiState.value.items
+        assertEquals(listOf(null, null), entries.map { it.primaryAction })
+    }
+
+    @Test
     fun `selectOutput loads history detail and exposes reusable params`() = runTest {
         val repository = FakeGenerationHistoryRepository()
         val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)

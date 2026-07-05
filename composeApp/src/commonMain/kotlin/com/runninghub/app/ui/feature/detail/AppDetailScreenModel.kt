@@ -47,7 +47,9 @@ class AppDetailScreenModel(
         coroutineScope = screenModelScope,
         ioDispatcher = ioDispatcher,
         onTaskHistoryInvalidated = taskHistoryInvalidationNotifier::notifyTaskHistoryInvalidated,
-        onTaskHistoryTaskChanged = webAppTaskHistoryOverlayStore::trackSubmittedTask,
+        onTaskHistoryTaskChanged = { task ->
+            webAppTaskHistoryOverlayStore.trackSubmittedTask(task, screenModelScope)
+        },
     )
 
     /**
