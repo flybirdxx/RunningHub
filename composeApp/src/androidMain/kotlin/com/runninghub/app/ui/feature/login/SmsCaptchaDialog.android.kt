@@ -80,6 +80,7 @@ actual fun SmsCaptchaDialog(
     DisposableEffect(webView) {
         onDispose {
             // 弹窗关闭时销毁 WebView，避免验证码脚本持有过期页面回调。
+            bridge.dispose()
             webView.destroy()
         }
     }
@@ -144,6 +145,18 @@ private class SmsCaptchaBridge(
     private val onDismiss: () -> Unit,
 ) {
     private val mainHandler = Handler(Looper.getMainLooper())
+    private var isActive = true
+
+    /**
+     * 让已经关闭的验证码容器失效。
+     *
+     * WebView 的 scheme 拦截回调会异步切回主线程；弹窗关闭后必须同时清理已排队的回调，
+     * 避免旧验证码实例在用户取消或重新打开后继续触发短信发送。
+     */
+    fun dispose() {
+        isActive = false
+        mainHandler.removeCallbacksAndMessages(null)
+    }
 
     /**
      * TAC 校验成功后把 `validToken` 回传给登录页。
@@ -152,7 +165,12 @@ private class SmsCaptchaBridge(
      * 避免直接从 WebView 回调栈修改 Compose 状态或启动 ScreenModel 业务流程。
      */
     fun onToken(token: String?) {
-        mainHandler.post { onVerifiedToken(token) }
+        if (!isActive) return
+        mainHandler.post {
+            if (isActive) {
+                onVerifiedToken(token)
+            }
+        }
     }
 
     /**
@@ -161,7 +179,12 @@ private class SmsCaptchaBridge(
      * 关闭动作同样切回主线程执行，保持与 Compose UI 状态更新的线程约束一致。
      */
     fun onClose() {
-        mainHandler.post { onDismiss() }
+        if (!isActive) return
+        mainHandler.post {
+            if (isActive) {
+                onDismiss()
+            }
+        }
     }
 }
 

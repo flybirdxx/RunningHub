@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.modelcatalog
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 
@@ -232,7 +233,10 @@ fun QuickCreationServiceModel.quickCreateServiceModelIdentityKey(): String =
  * @return 可由 UI 边界映射为最终文案的模型副标题语义，缺失分组时只保留参数数量语义。
  */
 fun QuickCreationServiceModel.quickCreationServiceModelSubtitle(): QuickCreateServiceModelSubtitle {
-    val parameterCount = fields.size
+    val parameterCount = QuickCreationServiceSchema.resolvedFields(
+        model = this,
+        serviceParams = emptyMap(),
+    ).size
     val group = groupName?.takeIf { it.isNotBlank() }
     return when {
         group != null && parameterCount > 0 ->

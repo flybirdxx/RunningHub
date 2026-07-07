@@ -87,12 +87,26 @@ enum class AppDetailErrorText {
      * 表示客户端停止等待；远端任务是否最终完成需要用户稍后通过历史记录查看。
      */
     TaskTimeout,
+
+    /**
+     * 详情页仍有媒体文件正在上传。
+     *
+     * 任务提交必须等待所有上传完成后才能继续，避免把本地 URI、空值或旧远端文件名提交给后端。
+     */
+    MediaUploadPending,
+
+    /**
+     * 详情页存在上传失败的媒体文件。
+     *
+     * 用户需要删除失败文件或重新上传成功后才能提交，避免远端任务收到缺失素材参数。
+     */
+    MediaUploadFailed,
 }
 
 /**
  * AppDetail 媒体读取端口。
  *
- * StateHolder 只通过该接口读取本地 URI 的显示名和字节内容；Android/iOS 的真实权限、
+ * StateHolder 只通过该接口读取本地 URI 的显示名、大小和字节内容；Android/iOS 的真实权限、
  * URI 访问和安全范围由 composeApp 平台适配层负责实现。
  */
 interface AppDetailMediaReader {
@@ -111,6 +125,14 @@ interface AppDetailMediaReader {
      * @return 可用于上传接口的文件名；`null` 表示平台无法解析，调用方会从 URI 或默认名降级。
      */
     fun getDisplayName(uri: String): String?
+
+    /**
+     * 读取本地媒体 URI 的文件大小。
+     *
+     * @param uri 平台媒体选择器返回的本地 URI 字符串。
+     * @return 文件大小，单位为字节；无法解析时返回 `0`，表示不阻断上传但不展示大小。
+     */
+    fun getFileSizeBytes(uri: String): Long
 }
 
 /**
@@ -219,6 +241,7 @@ data class AppDetailSubmittedTask(
  * @param mediaReader 本地媒体读取端口，由 composeApp 适配 Android/iOS 平台能力。
  * @param coroutineScope 页面生命周期绑定的协程作用域；作用域取消后本类发起的请求和轮询也应停止。
  * @param ioDispatcher 媒体字节读取使用的调度器，默认使用跨平台可用的 [Dispatchers.Default]。
+ * @param maxLocalUploadBytes 本地一次性读入内存前允许的最大文件大小；超过后直接进入上传失败态。
  * @param onTaskHistoryInvalidated 远端任务被服务端接收或终态变化后触发的历史刷新信号。
  * @param onTaskHistoryTaskChanged 已提交 WebApp 任务的本地历史快照变化回调，用于服务端宽表同步前兜底展示。
  */
@@ -228,6 +251,7 @@ class AppDetailStateHolder(
     private val mediaReader: AppDetailMediaReader,
     private val coroutineScope: CoroutineScope,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val maxLocalUploadBytes: Long = LOCAL_MEDIA_UPLOAD_MAX_BYTES,
     private val onTaskHistoryInvalidated: () -> Unit = {},
     private val onTaskHistoryTaskChanged: (AppDetailSubmittedTask) -> Unit = {},
 ) {
@@ -377,6 +401,11 @@ class AppDetailStateHolder(
                         .take(64)
                         .ifBlank { defaultFileName(mediaType) }
                 val mimeType = inferMimeType(fileName, mediaType)
+                val fileSizeBytes = mediaReader.getFileSizeBytes(localUri)
+                if (fileSizeBytes > 0L && fileSizeBytes > maxLocalUploadBytes) {
+                    markUploadFailed(nodeId, localUri)
+                    return@launch
+                }
 
                 _uiState.update {
                     it.copy(
@@ -446,6 +475,26 @@ class AppDetailStateHolder(
         val state = _uiState.value
         if (state.isRunningTask) return
         val detail = state.detail ?: return
+        val uploadError = state.uploadingNodes.values.firstOrNull { it.isError }
+        if (uploadError != null) {
+            _uiState.update {
+                it.copy(
+                    taskStep = AppDetailTaskStep.IDLE,
+                    taskError = AppDetailErrorText.MediaUploadFailed,
+                )
+            }
+            return
+        }
+        val uploadPending = state.uploadingNodes.isNotEmpty()
+        if (uploadPending) {
+            _uiState.update {
+                it.copy(
+                    taskStep = AppDetailTaskStep.IDLE,
+                    taskError = AppDetailErrorText.MediaUploadPending,
+                )
+            }
+            return
+        }
         coroutineScope.launch {
             _uiState.update {
                 it.copy(
@@ -636,6 +685,7 @@ private fun AppDetail.toSubmittedTask(taskId: Long, status: String): AppDetailSu
 
 private const val TASK_OUTPUT_POLLING_INTERVAL_MILLIS = 5_000L
 private const val MAX_TASK_OUTPUT_POLLING_ATTEMPTS = 120
+private const val LOCAL_MEDIA_UPLOAD_MAX_BYTES = 100L * 1024L * 1024L
 
 /**
  * 生成 AppDetail 输入节点值 Map 的稳定 Key。

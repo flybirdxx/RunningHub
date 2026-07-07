@@ -16,6 +16,7 @@
 - `docs/adr/`：已生效的架构决策记录。
 - `docs/governance/`：长期治理、发布、性能、日志、文案资源化和契约测试说明。
 - `docs/migration/`：仍被 L1 迁移门禁或迁移状态引用的活动证据；仅追溯 Gate/AC 时读取。
+- `docs/migration/ios-completion-plan.md`：macOS 环境下补齐 iOS 端能力前的仓库剖析、缺口和验证矩阵。
 - `docs/scrape/`：带日期的数据抓取结果；使用前必须确认日期和数据来源是否仍有效。
 - `docs/design/`：设计草稿和素材；除非任务明确要求设计追溯，否则不作为当前实现事实来源。
 

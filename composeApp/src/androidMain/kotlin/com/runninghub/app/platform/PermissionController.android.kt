@@ -40,6 +40,8 @@ private class PermissionControllerImpl(
     private var pendingPermissionCallback: ((Boolean) -> Unit)? = null
     private var pendingMediaCallback: ((String) -> Unit)? = null
     private var pendingMediaDeniedCallback: (() -> Unit)? = null
+    private var pendingMediaCancelledCallback: (() -> Unit)? = null
+    private var pendingMediaPermanentlyDeniedCallback: (() -> Unit)? = null
     private var pendingMediaType: MediaType? = null
     private var pendingRequestedPermission: Permission? = null
 
@@ -63,13 +65,15 @@ private class PermissionControllerImpl(
                 val shouldShowRationale = activity.shouldShowRequestPermissionRationale(manifest)
                 if (!shouldShowRationale) {
                     permissionKey?.let { permissionStateStore.markPermanentlyDenied(it) }
-                    pendingMediaDeniedCallback?.invoke()
+                    pendingMediaPermanentlyDeniedCallback?.invoke()
                 } else {
                     permissionKey?.let { permissionStateStore.markDenied(it) }
                     pendingMediaDeniedCallback?.invoke()
                 }
                 pendingMediaCallback = null
                 pendingMediaDeniedCallback = null
+                pendingMediaCancelledCallback = null
+                pendingMediaPermanentlyDeniedCallback = null
                 pendingMediaType = null
             }
             pendingPermissionCallback?.invoke(granted)
@@ -114,9 +118,11 @@ private class PermissionControllerImpl(
         intent: Intent?,
     ) {
         if (resultCode != Activity.RESULT_OK) {
-            pendingMediaDeniedCallback?.invoke()
+            pendingMediaCancelledCallback?.invoke()
             pendingMediaCallback = null
             pendingMediaDeniedCallback = null
+            pendingMediaCancelledCallback = null
+            pendingMediaPermanentlyDeniedCallback = null
             pendingMediaType = null
             return
         }
@@ -136,7 +142,7 @@ private class PermissionControllerImpl(
                 }
                 pendingMediaCallback?.invoke(uri.toString())
             } else {
-                pendingMediaDeniedCallback?.invoke()
+                pendingMediaCancelledCallback?.invoke()
             }
         } catch (error: Exception) {
             handleMediaPickerFailure(error)
@@ -144,6 +150,8 @@ private class PermissionControllerImpl(
         } finally {
             pendingMediaCallback = null
             pendingMediaDeniedCallback = null
+            pendingMediaCancelledCallback = null
+            pendingMediaPermanentlyDeniedCallback = null
             pendingMediaType = null
         }
     }
@@ -168,6 +176,8 @@ private class PermissionControllerImpl(
             val path = result.selectedFilePath
             if (!path.isNullOrBlank()) {
                 pendingMediaCallback?.invoke(path)
+            } else {
+                pendingMediaCancelledCallback?.invoke()
             }
         } catch (error: Exception) {
             handleMediaPickerFailure(error)
@@ -175,6 +185,8 @@ private class PermissionControllerImpl(
         } finally {
             pendingMediaCallback = null
             pendingMediaDeniedCallback = null
+            pendingMediaCancelledCallback = null
+            pendingMediaPermanentlyDeniedCallback = null
             pendingMediaType = null
         }
     }
@@ -184,9 +196,13 @@ private class PermissionControllerImpl(
         mediaType: MediaType,
         onSuccess: (String) -> Unit,
         onPermissionDenied: () -> Unit,
+        onPickerCancelled: () -> Unit,
+        onPermissionPermanentlyDenied: () -> Unit,
     ) {
         pendingMediaCallback = onSuccess
         pendingMediaDeniedCallback = onPermissionDenied
+        pendingMediaCancelledCallback = onPickerCancelled
+        pendingMediaPermanentlyDeniedCallback = onPermissionPermanentlyDenied
         pendingMediaType = mediaType
 
         when (mediaType) {
@@ -203,9 +219,11 @@ private class PermissionControllerImpl(
                             launchAudioPicker()
                         }
                         PermissionStatus.PERMANENTLY_DENIED -> {
-                            onPermissionDenied()
+                            onPermissionPermanentlyDenied()
                             pendingMediaCallback = null
                             pendingMediaDeniedCallback = null
+                            pendingMediaCancelledCallback = null
+                            pendingMediaPermanentlyDeniedCallback = null
                             pendingMediaType = null
                         }
                         else -> {

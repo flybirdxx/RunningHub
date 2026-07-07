@@ -1,6 +1,10 @@
 package com.runninghub.feature.quickcreate.presentation.upload
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationMediaUploadRepository
+import com.runninghub.feature.quickcreate.domain.QuickCreationResolvedFieldKind
+import com.runninghub.feature.quickcreate.domain.QuickCreationResolvedServiceField
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
+import com.runninghub.feature.quickcreate.domain.QuickCreationUploadMediaKind
 import com.runninghub.feature.quickcreate.presentation.QuickCreateRuntimeUiText
 import com.runninghub.feature.quickcreate.presentation.QuickCreateUiMessage
 import com.runninghub.feature.quickcreate.presentation.asQuickCreateUiMessage
@@ -173,6 +177,8 @@ class QuickCreateMediaUploadCoordinator(
         val id = "${targetTab.name}_${type.name}_$now"
         val fileName = mediaResolver.getDisplayName(uriString) ?: "${type.name.lowercase()}_$now"
         val fileSize = mediaResolver.getFileSizeBytes(uriString)
+        val maxUploadBytes = maxAllowedUploadBytes(type = type, fieldParamKey = fieldParamKey, targetTab = targetTab)
+        val uploadBlocked = fileSize > 0L && fileSize > maxUploadBytes
 
         val newRef = MediaReference(
             id = id,
@@ -181,8 +187,9 @@ class QuickCreateMediaUploadCoordinator(
             displayName = fileName,
             fileSizeBytes = fileSize,
             fieldParamKey = fieldParamKey,
-            uploadStatus = UploadStatus.UPLOADING,
+            uploadStatus = if (uploadBlocked) UploadStatus.FAILED else UploadStatus.UPLOADING,
             uploadProgress = 0f,
+            errorMessage = if (uploadBlocked) MEDIA_UPLOAD_BLOCKED_MESSAGE else null,
         )
         uiState.update { state ->
             state.withMediaReference(targetTab) { mediaReferences ->
@@ -190,7 +197,11 @@ class QuickCreateMediaUploadCoordinator(
             }
         }
 
-        uploadReference(id, uriString, type, targetTab)
+        if (uploadBlocked) {
+            scheduleFeePreviewForMediaReference(id)
+        } else {
+            uploadReference(id, uriString, type, targetTab, fileName)
+        }
     }
 
     /**
@@ -294,11 +305,13 @@ class QuickCreateMediaUploadCoordinator(
         uriString: String,
         type: QuickCreateMediaType,
         targetTab: QuickCreateTab,
+        displayName: String,
     ) {
         uploadJobs[id]?.cancel()
         uploadJobs[id] = scope.launch {
-            val mimeType = type.uploadMimeType()
-            val actualFileName = type.remoteUploadFileName()
+            val extension = type.uploadExtensionFrom(displayName)
+            val mimeType = type.uploadMimeType(extension)
+            val actualFileName = type.remoteUploadFileName(extension)
 
             try {
                 updateReferenceStatus(id, UploadStatus.UPLOADING, 0.1f, targetTab)
@@ -425,23 +438,106 @@ class QuickCreateMediaUploadCoordinator(
     private fun MediaReference.isUploadPending(): Boolean =
         uploadStatus == UploadStatus.UPLOADING || uploadStatus == UploadStatus.PROCESSING
 
-    private fun QuickCreateMediaType.uploadMimeType(): String =
-        when (this) {
-            QuickCreateMediaType.IMAGE -> "image/jpeg"
-            QuickCreateMediaType.VIDEO -> "video/mp4"
-            QuickCreateMediaType.AUDIO -> "audio/mpeg"
+    private fun QuickCreateMediaType.uploadExtensionFrom(displayName: String): String {
+        val extension = displayName
+            .substringBefore('?')
+            .substringBefore('#')
+            .substringAfterLast('/')
+            .substringAfterLast("%2F")
+            .substringAfterLast('.')
+            .lowercase()
+            .takeIf { it.isNotBlank() && it.length <= 8 }
+        return when (this) {
+            QuickCreateMediaType.IMAGE -> extension.takeIf { it in setOf("jpg", "jpeg", "png", "webp", "gif", "heic") } ?: "jpg"
+            QuickCreateMediaType.VIDEO -> extension.takeIf { it in setOf("mp4", "mov", "webm") } ?: "mp4"
+            QuickCreateMediaType.AUDIO -> extension.takeIf { it in setOf("mp3", "m4a", "wav", "aac", "ogg") } ?: "mp3"
+        }
+    }
+
+    private fun QuickCreateMediaType.uploadMimeType(extension: String): String =
+        when (extension) {
+            "jpg", "jpeg" -> "image/jpeg"
+            "png" -> "image/png"
+            "webp" -> "image/webp"
+            "gif" -> "image/gif"
+            "heic" -> "image/heic"
+            "mov" -> "video/quicktime"
+            "webm" -> "video/webm"
+            "mp4" -> "video/mp4"
+            "m4a" -> "audio/mp4"
+            "wav" -> "audio/wav"
+            "aac" -> "audio/aac"
+            "ogg" -> "audio/ogg"
+            "mp3" -> "audio/mpeg"
+            else -> when (this) {
+                QuickCreateMediaType.IMAGE -> "image/jpeg"
+                QuickCreateMediaType.VIDEO -> "video/mp4"
+                QuickCreateMediaType.AUDIO -> "audio/mpeg"
+            }
         }
 
-    private fun QuickCreateMediaType.remoteUploadFileName(): String {
-        val extension = when (this) {
-            QuickCreateMediaType.IMAGE -> "jpg"
-            QuickCreateMediaType.VIDEO -> "mp4"
-            QuickCreateMediaType.AUDIO -> "mp3"
-        }
+    private fun QuickCreateMediaType.remoteUploadFileName(extension: String): String {
         return "${name.lowercase()}_${Clock.System.now().toEpochMilliseconds()}.$extension"
     }
+
+    private fun maxAllowedUploadBytes(
+        type: QuickCreateMediaType,
+        fieldParamKey: String?,
+        targetTab: QuickCreateTab,
+    ): Long {
+        val serviceMaxBytes = serviceUploadMaxSizeBytes(type = type, fieldParamKey = fieldParamKey, targetTab = targetTab)
+        return minOf(serviceMaxBytes ?: LOCAL_MEDIA_UPLOAD_MAX_BYTES, LOCAL_MEDIA_UPLOAD_MAX_BYTES)
+    }
+
+    private fun serviceUploadMaxSizeBytes(
+        type: QuickCreateMediaType,
+        fieldParamKey: String?,
+        targetTab: QuickCreateTab,
+    ): Long? {
+        val state = uiState.value
+        val model = if (targetTab == QuickCreateTab.IMAGE) {
+            state.selectedImageServiceModel
+        } else {
+            state.selectedVideoServiceModel
+        }
+        val params = if (targetTab == QuickCreateTab.IMAGE) {
+            state.imageServiceParams
+        } else {
+            state.videoServiceParams
+        }
+        val activeUploadFields = QuickCreationServiceSchema
+            .resolvedFields(model = model, serviceParams = params)
+            .flattenedActiveUploadFields()
+        if (!fieldParamKey.isNullOrBlank()) {
+            return activeUploadFields.firstOrNull { it.paramKey == fieldParamKey }?.maxUploadSizeBytes
+        }
+        val mediaKind = type.toQuickCreationUploadMediaKind()
+        return activeUploadFields
+            .filter { it.uploadMediaKind == mediaKind }
+            .mapNotNull { it.maxUploadSizeBytes }
+            .minOrNull()
+    }
+
+    private fun List<QuickCreationResolvedServiceField>.flattenedActiveUploadFields(): List<QuickCreationResolvedServiceField> =
+        flatMap { field ->
+            buildList {
+                if (field.kind == QuickCreationResolvedFieldKind.UPLOAD) {
+                    add(field)
+                }
+                addAll(field.childFields.flattenedActiveUploadFields())
+            }
+        }
+
+    private fun QuickCreateMediaType.toQuickCreationUploadMediaKind(): QuickCreationUploadMediaKind =
+        when (this) {
+            QuickCreateMediaType.IMAGE -> QuickCreationUploadMediaKind.IMAGE
+            QuickCreateMediaType.VIDEO -> QuickCreationUploadMediaKind.VIDEO
+            QuickCreateMediaType.AUDIO -> QuickCreationUploadMediaKind.AUDIO
+        }
 }
 
 // 等待上传完成时抛给页面的错误不拼接 displayName，避免本地媒体文件名进入错误上报或日志链路。
-private val MEDIA_UPLOAD_FAILED_MESSAGE = QuickCreateRuntimeUiText.MediaUploadBlocked.asQuickCreateUiMessage()
+private val MEDIA_UPLOAD_FAILED_MESSAGE = QuickCreateRuntimeUiText.MediaUploadFailed.asQuickCreateUiMessage()
 private val MEDIA_UPLOAD_TIMEOUT_MESSAGE = QuickCreateRuntimeUiText.MediaUploadTimeout.asQuickCreateUiMessage()
+private val MEDIA_UPLOAD_BLOCKED_MESSAGE = QuickCreateRuntimeUiText.MediaUploadBlocked.asQuickCreateUiMessage()
+private const val LOCAL_MEDIA_UPLOAD_MAX_BYTES = 100L * 1024L * 1024L

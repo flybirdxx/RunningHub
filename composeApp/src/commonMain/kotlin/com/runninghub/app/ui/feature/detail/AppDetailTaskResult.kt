@@ -58,11 +58,8 @@ internal fun TaskErrorCard(error: String, modifier: Modifier = Modifier) {
 internal fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
     val colors = RhTheme.colors
     val url = output.fileUrl.orEmpty()
-    val isImage = output.fileType?.startsWith("image") == true ||
-        url.endsWith(".png") || url.endsWith(".jpg") ||
-        url.endsWith(".jpeg") || url.endsWith(".webp")
-    val isVideo = output.fileType?.startsWith("video") == true ||
-        url.endsWith(".mp4") || url.endsWith(".mov") || url.endsWith(".webm")
+    val isImage = output.isTaskOutputImage()
+    val isVideo = output.isTaskOutputVideo()
 
     Column(
         modifier = modifier
@@ -117,4 +114,17 @@ internal fun TaskOutputCard(output: TaskOutput, modifier: Modifier = Modifier) {
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
         )
     }
+}
+
+internal fun TaskOutput.isTaskOutputImage(): Boolean =
+    fileType?.lowercase()?.startsWith("image") == true ||
+        fileUrl.orEmpty().hasTaskOutputSuffix(setOf("png", "jpg", "jpeg", "webp"))
+
+internal fun TaskOutput.isTaskOutputVideo(): Boolean =
+    fileType?.lowercase()?.startsWith("video") == true ||
+        fileUrl.orEmpty().hasTaskOutputSuffix(setOf("mp4", "mov", "webm", "m4v"))
+
+private fun String.hasTaskOutputSuffix(suffixes: Set<String>): Boolean {
+    val path = substringBefore('?').substringBefore('#').lowercase()
+    return suffixes.any { suffix -> path.endsWith(".$suffix") }
 }

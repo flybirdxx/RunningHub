@@ -24,4 +24,16 @@ class GenerationHistoryTest {
         assertTrue(video.isVideo)
         assertFalse(video.isImage)
     }
+
+    @Test
+    fun `output type helpers classify signed video urls when type is generic`() {
+        val video = GenerationHistoryOutput(
+            outputId = "video-signed",
+            url = "https://example.com/result.MP4?token=abc",
+            type = "file",
+        )
+
+        assertTrue(video.isVideo)
+        assertFalse(video.isImage)
+    }
 }

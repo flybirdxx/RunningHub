@@ -201,7 +201,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                     )
                     requireDocumentSnippets(
                         relativePath = "docs/governance/ui-copy-hardcoded-baseline.txt",
-                        snippets = listOf("filePath|maxMatches|reason", "当前无正数基线"),
+                        snippets = listOf("filePath|maxMatches|reason", "登记项必须说明"),
                         violations = violations,
                     )
                     requireDocumentSnippets(
@@ -1084,6 +1084,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 "runninghub.release.webBaseUrl",
                 "RUNNINGHUB_WEB_BASE_URL",
                 "RUNNINGHUB_TRUSTED_AUTH_HOSTS",
+                "binaryOption(\"bundleId\", \"com.runninghub.app.compose\")",
             ),
             violations = violations,
         )
@@ -1194,6 +1195,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 "SecItemAdd",
                 "SecItemCopyMatching",
                 "SecItemDelete",
+                "KEYCHAIN_WRITE_FAILED_STATUS_",
                 "kSecClassGenericPassword",
                 "kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly",
             ),
@@ -1577,7 +1579,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
      * 防止 iOS 权限和媒体选择重新退回占位实现。
      *
      * 复核要求 iOS 不得用固定 `GRANTED`、空 picker 或空设置跳转替代真实平台能力。该检查只锁定
-     * 可静态证明的关键实现点：PhotoKit 授权回调、图片/视频选择器、音频文件选择器、设置页跳转、
+     * 可静态证明的关键实现点：PhotoKit 授权回调、PHPicker 图片/视频选择器、音频文件选择器、设置页跳转、
      * iOS 权限轨迹持久化、Info.plist 权限说明和安全作用域 URL 读取。
      * 真实 Simulator/真机上传回归仍需外部证据。
      */
@@ -1585,17 +1587,68 @@ class LongTermGovernancePlugin : Plugin<Project> {
         val permissionController = rootDir.resolve(
             "composeApp/src/iosMain/kotlin/com/runninghub/app/platform/PermissionController.ios.kt"
         )
+        val permissionControllerCommon = rootDir.resolve(
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/platform/PermissionController.kt"
+        )
         val permissionStore = rootDir.resolve(
             "core/storage/src/iosMain/kotlin/com/runninghub/core/storage/PermissionDataStoreImpl.ios.kt"
         )
         val mediaResolver = rootDir.resolve(
             "composeApp/src/iosMain/kotlin/com/runninghub/app/platform/MediaResolver.ios.kt"
         )
+        val mediaSaveBoundary = rootDir.resolve(
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/platform/MediaSaver.kt"
+        )
+        val iosMediaSaver = rootDir.resolve(
+            "composeApp/src/iosMain/kotlin/com/runninghub/app/platform/MediaSaver.ios.kt"
+        )
+        val quickCreateScreen = rootDir.resolve(
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/quickcreate/QuickCreateScreen.kt"
+        )
+        val taskHistoryScreen = rootDir.resolve(
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/history/TaskHistoryScreen.kt"
+        )
+        val appDetailScreen = rootDir.resolve(
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/detail/AppDetailScreen.kt"
+        )
         val infoPlist = rootDir.resolve("iosApp/iosApp/Info.plist")
         val privacyManifest = rootDir.resolve("iosApp/iosApp/PrivacyInfo.xcprivacy")
         val xcodeProject = rootDir.resolve("iosApp/iosApp.xcodeproj/project.pbxproj")
+        val pickedMediaCopyTest = rootDir.resolve(
+            "composeApp/src/iosTest/kotlin/com/runninghub/app/platform/IosPickedMediaCopyTest.kt"
+        )
+        val mediaSaveRecoveryTest = rootDir.resolve(
+            "composeApp/src/commonTest/kotlin/com/runninghub/app/platform/MediaSaveResultRecoveryTest.kt"
+        )
+        val iosMediaSaverTest = rootDir.resolve(
+            "composeApp/src/iosTest/kotlin/com/runninghub/app/platform/IosMediaSaverTest.kt"
+        )
+        val permissionAuthorizationMappingTest = rootDir.resolve(
+            "composeApp/src/iosTest/kotlin/com/runninghub/app/platform/IosPermissionAuthorizationMappingTest.kt"
+        )
+        val permissionControllerContractTest = rootDir.resolve(
+            "composeApp/src/commonTest/kotlin/com/runninghub/app/platform/PermissionControllerContractTest.kt"
+        )
 
-        val requiredFiles = listOf(permissionController, permissionStore, mediaResolver, infoPlist, privacyManifest, xcodeProject)
+        val requiredFiles = listOf(
+            permissionControllerCommon,
+            permissionController,
+            permissionStore,
+            mediaResolver,
+            mediaSaveBoundary,
+            iosMediaSaver,
+            quickCreateScreen,
+            taskHistoryScreen,
+            appDetailScreen,
+            infoPlist,
+            privacyManifest,
+            xcodeProject,
+            pickedMediaCopyTest,
+            mediaSaveRecoveryTest,
+            iosMediaSaverTest,
+            permissionAuthorizationMappingTest,
+            permissionControllerContractTest,
+        )
         requiredFiles
             .filterNot { it.isFile }
             .forEach { file -> violations += "iOS permission/media guard source is missing: ${file.relativeTo(rootDir).invariantSeparatorsPath}." }
@@ -1604,16 +1657,177 @@ class LongTermGovernancePlugin : Plugin<Project> {
         }
 
         requireFileSnippets(
+            file = permissionControllerCommon,
+            snippets = listOf(
+                "fun openPermissionSettings(permission: Permission)",
+                "openAppSettings()",
+                "iOS Photo Library Limited",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
             file = permissionController,
             snippets = listOf(
                 "PHPhotoLibrary.authorizationStatus()",
                 "PHPhotoLibrary.requestAuthorization",
                 "PHAuthorizationStatusLimited",
-                "UIImagePickerController()",
+                "IosPhotoLibraryManagementTarget.LIMITED_LIBRARY_PICKER",
+                "presentLimitedLibraryPickerFromViewController",
+                "override fun openPermissionSettings(permission: Permission)",
+                "PHPickerConfiguration()",
+                "PHPickerViewController",
+                "loadFileRepresentationForTypeIdentifier",
+                "copyPickedMediaToTemporaryFile",
                 "UIDocumentPickerViewController",
                 "UIApplicationOpenSettingsURLString",
+                "recordIosPermissionAuthorizationDecision",
                 "scope.launch { permissionStateStore.markGranted",
                 "scope.launch { permissionStateStore.markPermanentlyDenied",
+            ),
+            violations = violations,
+        )
+        val permissionControllerText = permissionController.readText()
+        val presentPhotoPickerStart = permissionControllerText.indexOf("private fun presentPhotoPicker(")
+        val presentAudioPickerStart = permissionControllerText.indexOf(
+            "private fun presentAudioPicker(",
+            startIndex = presentPhotoPickerStart.coerceAtLeast(0),
+        )
+        if (presentPhotoPickerStart == -1 || presentAudioPickerStart == -1) {
+            violations += "PermissionController.ios.kt must keep separate presentPhotoPicker and presentAudioPicker boundaries."
+        } else {
+            val presentPhotoPickerText = permissionControllerText.substring(
+                presentPhotoPickerStart,
+                presentAudioPickerStart,
+            )
+            listOf(
+                "PHPhotoLibrary.authorizationStatus()",
+                "PHPhotoLibrary.requestAuthorization",
+            )
+                .filter { it in presentPhotoPickerText }
+                .forEach { snippet ->
+                    violations += "presentPhotoPicker must use PHPicker without pre-requesting full PhotoKit library permission: `$snippet`."
+                }
+        }
+        val photoPickerDelegateStart = permissionControllerText.indexOf("private class PhotoPickerDelegate(")
+        val pickerTypeIdentifierStart = permissionControllerText.indexOf(
+            "private fun MediaType.pickerTypeIdentifier()",
+            startIndex = photoPickerDelegateStart.coerceAtLeast(0),
+        )
+        if (photoPickerDelegateStart == -1 || pickerTypeIdentifierStart == -1) {
+            violations += "PermissionController.ios.kt must keep PhotoPickerDelegate before MediaType.pickerTypeIdentifier."
+        } else {
+            val photoPickerDelegateText = permissionControllerText.substring(
+                photoPickerDelegateStart,
+                pickerTypeIdentifierStart,
+            )
+            val requiredCancellationSnippets = listOf(
+                "if (itemProvider == null)",
+                "if (!itemProvider.hasItemConformingToTypeIdentifier(typeIdentifier))",
+                "if (uri.isNullOrBlank())",
+                "onCancelled()",
+            )
+            requiredCancellationSnippets
+                .filterNot { it in photoPickerDelegateText }
+                .forEach { snippet ->
+                    violations += "PhotoPickerDelegate must route empty, incompatible, or blank PHPicker results to cancellation without permission denial: `$snippet`."
+                }
+        }
+        requireFileSnippets(
+            file = permissionControllerContractTest,
+            snippets = listOf(
+                "assertPickerCancellationIsNotPermissionDenial",
+                "Permission.MediaImages",
+                "Permission.MediaVideo",
+                "Permission.MediaAudio",
+                "assertEquals(0, permanentlyDeniedCount)",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = permissionAuthorizationMappingTest,
+            snippets = listOf(
+                "photoAuthorizationResultsAreRecordedInPermissionStateStore",
+                "limitedPhotoManagementUsesLimitedPickerOnlyForPhotoPermissions",
+                "PHAuthorizationStatusAuthorized",
+                "PHAuthorizationStatusLimited",
+                "PHAuthorizationStatusDenied",
+                "IosPhotoLibraryManagementTarget.LIMITED_LIBRARY_PICKER",
+                "recordIosPermissionAuthorizationDecision",
+                "PermissionStatus.PERMANENTLY_DENIED",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = pickedMediaCopyTest,
+            snippets = listOf(
+                "copiedPickedMediaRemainsReadableAfterSourceIsRemoved",
+                "copiedPickedImageUsesAppOwnedTemporaryFileUri",
+                "copyPickedMediaToTemporaryFile",
+                "runninghub-picked-",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = mediaSaveBoundary,
+            snippets = listOf(
+                "PHOTO_PERMISSION_DENIED",
+                "recoverablePermission",
+                "Permission.MediaImages",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = iosMediaSaver,
+            snippets = listOf(
+                "MediaSaveFailureReason.PHOTO_PERMISSION_DENIED",
+                "return MediaSaveResult.Failure(MediaSaveFailureReason.PHOTO_PERMISSION_DENIED)",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = mediaSaveRecoveryTest,
+            snippets = listOf(
+                "photoPermissionDeniedSuggestsMediaImagePermissionRecovery",
+                "MediaSaveFailureReason.PHOTO_PERMISSION_DENIED",
+                "Permission.MediaImages",
+                "recoverablePermission",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = iosMediaSaverTest,
+            snippets = listOf(
+                "deniedPhotoAccessReturnsPermissionDeniedWithoutWritingToPhotos",
+                "deniedPhotoAccessReturnsPermissionDeniedWithoutWritingVideoToPhotos",
+                "MediaSaveFailureReason.PHOTO_PERMISSION_DENIED",
+                "assertFalse(wroteToPhotos)",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = quickCreateScreen,
+            snippets = listOf(
+                "saveResult.recoverablePermission()",
+                "pendingPermission = permission",
+                "onPermanentlyDenied = { controller.openPermissionSettings(activePermission) }",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = taskHistoryScreen,
+            snippets = listOf(
+                "saveResult.recoverablePermission()",
+                "pendingPermission = permission",
+                "PermissionBottomSheet",
+                "onPermanentlyDenied = { controller.openPermissionSettings(activePermission) }",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = appDetailScreen,
+            snippets = listOf(
+                "PermissionBottomSheet",
+                "onPermanentlyDenied = { controller.openPermissionSettings(activePermission) }",
             ),
             violations = violations,
         )
@@ -1650,6 +1864,8 @@ class LongTermGovernancePlugin : Plugin<Project> {
             file = infoPlist,
             snippets = listOf(
                 "NSPhotoLibraryUsageDescription",
+                "NSPhotoLibraryAddUsageDescription",
+                "PHPhotoLibraryPreventAutomaticLimitedAccessAlert",
                 "NSCameraUsageDescription",
                 "NSMicrophoneUsageDescription",
             ),
@@ -1725,6 +1941,15 @@ class LongTermGovernancePlugin : Plugin<Project> {
         val environmentTest = rootDir.resolve(
             "composeApp/src/androidUnitTest/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaEnvironmentTest.kt"
         )
+        val iosEnvironmentTest = rootDir.resolve(
+            "composeApp/src/iosTest/kotlin/com/runninghub/app/ui/feature/login/SmsCaptchaEnvironmentTest.kt"
+        )
+        val loginStateHolder = rootDir.resolve(
+            "feature/auth/presentation/src/commonMain/kotlin/com/runninghub/feature/auth/presentation/login/LoginStateHolder.kt"
+        )
+        val loginStateHolderTest = rootDir.resolve(
+            "feature/auth/presentation/src/commonTest/kotlin/com/runninghub/feature/auth/presentation/login/LoginStateHolderTest.kt"
+        )
 
         val requiredFiles = listOf(
             commonHtml,
@@ -1735,6 +1960,9 @@ class LongTermGovernancePlugin : Plugin<Project> {
             composeResources,
             callbackTest,
             environmentTest,
+            iosEnvironmentTest,
+            loginStateHolder,
+            loginStateHolderTest,
         )
         requiredFiles
             .filterNot { it.isFile }
@@ -1790,6 +2018,8 @@ class LongTermGovernancePlugin : Plugin<Project> {
             snippets = listOf(
                 "settings.javaScriptEnabled = true",
                 "webViewClient = SmsCaptchaWebViewClient(bridge)",
+                "bridge.dispose()",
+                "mainHandler.removeCallbacksAndMessages(null)",
                 "webView.destroy()",
                 "handleSmsCaptchaCallbackUrl",
                 "RunningHubApiEnvironment.WEB_BASE_URL",
@@ -1812,6 +2042,8 @@ class LongTermGovernancePlugin : Plugin<Project> {
             snippets = listOf(
                 "WKWebViewConfiguration",
                 "addScriptMessageHandler",
+                "messageHandler.dispose()",
+                "navigationDelegate.dispose()",
                 "removeScriptMessageHandlerForName(CAPTCHA_BRIDGE_NAME)",
                 "webView.navigationDelegate = null",
                 "WKNavigationActionPolicy.WKNavigationActionPolicyCancel",
@@ -1827,11 +2059,31 @@ class LongTermGovernancePlugin : Plugin<Project> {
             snippets = listOf(
                 "captcha html delegates challenge loading to tac",
                 "captcha success extracts token before native callback",
+                "captcha token is never written to web console",
                 "captcha html reports script load failure and timeout",
+                "captcha html maps network script failure to sanitized retry state",
                 "captcha html clears stale script and timers before retry",
             ),
             violations = violations,
         )
+        val commonHtmlText = commonHtml.readText()
+        if ("console." in commonHtmlText || "JSON.stringify(res)" in commonHtmlText) {
+            violations += "SMS captcha HTML must not write validToken or raw TAC responses to Web console."
+        }
+        val captchaNativeSources = listOf(androidDialog, iosDialog, callbackParser, loginStateHolder)
+        val nativeLoggingMarkers = listOf("Log.", "println(", "Napier.", "Logger.", "debug(")
+        captchaNativeSources.forEach { file ->
+            val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
+            file.readLines().forEachIndexed { index, line ->
+                val trimmed = line.trim()
+                if (trimmed.startsWith("//") || trimmed.startsWith("*")) {
+                    return@forEachIndexed
+                }
+                if (nativeLoggingMarkers.any { it in trimmed }) {
+                    violations += "$relativePath:${index + 1} must not log SMS captcha token callbacks."
+                }
+            }
+        }
         requireFileSnippets(
             file = callbackTest,
             snippets = listOf(
@@ -1848,6 +2100,32 @@ class LongTermGovernancePlugin : Plugin<Project> {
                 "captcha base url follows configured web environment",
                 "RunningHubApiEnvironment.configure",
                 "smsCaptchaBaseUrl()",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = iosEnvironmentTest,
+            snippets = listOf(
+                "captchaBaseUrlFollowsConfiguredWebEnvironment",
+                "RunningHubApiEnvironment.configure",
+                "smsCaptchaBaseUrl()",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = loginStateHolder,
+            snippets = listOf(
+                "if (!_uiState.value.requiresSmsCaptcha)",
+                "fun dismissSmsCaptcha()",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = loginStateHolderTest,
+            snippets = listOf(
+                "dismissed captcha ignores stale token and preserves input",
+                "blank captcha token keeps active dialog open and maps stable error",
+                "sendSmsCodeCalls",
             ),
             violations = violations,
         )
@@ -1915,6 +2193,33 @@ class LongTermGovernancePlugin : Plugin<Project> {
         val coordinator = rootDir.resolve(
             "feature/quickcreate/presentation/src/commonMain/kotlin/com/runninghub/feature/quickcreate/presentation/upload/QuickCreateMediaUploadCoordinator.kt"
         )
+        val quickCreateUploadTest = rootDir.resolve(
+            "feature/quickcreate/presentation/src/commonTest/kotlin/com/runninghub/feature/quickcreate/presentation/upload/QuickCreateMediaUploadCoordinatorTest.kt"
+        )
+        val appDetailStateHolder = rootDir.resolve(
+            "feature/detail/presentation/src/commonMain/kotlin/com/runninghub/feature/detail/presentation/AppDetailStateHolder.kt"
+        )
+        val appDetailStateHolderTest = rootDir.resolve(
+            "feature/detail/presentation/src/commonTest/kotlin/com/runninghub/feature/detail/presentation/AppDetailStateHolderTest.kt"
+        )
+        val appDetailScreenModelTest = rootDir.resolve(
+            "composeApp/src/commonTest/kotlin/com/runninghub/app/ui/feature/detail/AppDetailScreenModelTest.kt"
+        )
+        val appDetailCreationEntry = rootDir.resolve(
+            "feature/detail/presentation/src/commonMain/kotlin/com/runninghub/feature/detail/presentation/AppDetailCreationEntryPresentation.kt"
+        )
+        val appDetailMappers = rootDir.resolve(
+            "composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/detail/AppDetailMappers.kt"
+        )
+        val webAppTaskApi = rootDir.resolve(
+            "feature/task/data/src/commonMain/kotlin/com/runninghub/feature/task/data/remote/api/WebAppTaskApi.kt"
+        )
+        val webAppTaskApiTest = rootDir.resolve(
+            "feature/task/data/src/commonTest/kotlin/com/runninghub/feature/task/data/remote/api/WebAppTaskApiTest.kt"
+        )
+        val composeResources = rootDir.resolve(
+            "composeApp/src/commonMain/composeResources/values/strings.xml"
+        )
         if (!coordinator.isFile) {
             violations += "QuickCreate media upload coordinator must live in feature:quickcreate:presentation upload boundary."
             return
@@ -1935,6 +2240,115 @@ class LongTermGovernancePlugin : Plugin<Project> {
         listOf("MEDIA_UPLOAD_FAILED_MESSAGE", "MEDIA_UPLOAD_TIMEOUT_MESSAGE")
             .filterNot { it in text }
             .forEach { snippet -> violations += "feature quickcreate presentation upload coordinator must use `$snippet` for sanitized upload errors." }
+        if (!text.contains("MEDIA_UPLOAD_FAILED_MESSAGE = QuickCreateRuntimeUiText.MediaUploadFailed.asQuickCreateUiMessage()")) {
+            violations += "feature quickcreate presentation upload coordinator must map failed uploads to MediaUploadFailed, not the local-size blocked message."
+        }
+        listOf(
+            "uploadExtensionFrom(displayName)",
+            "\"mov\" -> \"video/quicktime\"",
+            "\"m4a\" -> \"audio/mp4\"",
+            "remoteUploadFileName(extension)",
+        )
+            .filterNot { it in text }
+            .forEach { snippet -> violations += "feature quickcreate presentation upload coordinator must preserve picker media extension and matching MIME type: `$snippet`." }
+
+        val requiredFiles = listOf(
+            quickCreateUploadTest,
+            appDetailStateHolder,
+            appDetailStateHolderTest,
+            appDetailScreenModelTest,
+            appDetailCreationEntry,
+            appDetailMappers,
+            webAppTaskApi,
+            webAppTaskApiTest,
+            composeResources,
+        )
+        requiredFiles
+            .filterNot { it.isFile }
+            .forEach { file -> violations += "media upload submit guard source is missing: ${file.relativeTo(rootDir).invariantSeparatorsPath}." }
+        if (requiredFiles.any { !it.isFile }) {
+            return
+        }
+        requireFileSnippets(
+            file = quickCreateUploadTest,
+            snippets = listOf(
+                "await pending uploads fails failed media before generation submit",
+                "QuickCreateMediaUploadException",
+                "QuickCreateRuntimeUiText.MediaUploadFailed.asQuickCreateUiMessage()",
+                "video upload preserves picker extension and matching mime type",
+                "audio field upload preserves picker extension and matching mime type",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = appDetailStateHolder,
+            snippets = listOf(
+                "MediaUploadPending",
+                "MediaUploadFailed",
+                "state.uploadingNodes.values.firstOrNull { it.isError }",
+                "state.uploadingNodes.isNotEmpty()",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = appDetailStateHolderTest,
+            snippets = listOf(
+                "runTask blocks while media upload is still pending",
+                "runTask blocks failed media upload without submitting stale input value",
+                "assertEquals(null, taskRepository.lastRunWebappId)",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = appDetailScreenModelTest,
+            snippets = listOf(
+                "audio media uri result uploads file with audio mime type",
+                "video media uri result uploads mov file with quicktime mime type",
+                "assertEquals(\"audio/mp4\", taskRepository.lastUploadFileType)",
+                "assertEquals(\"video/quicktime\", taskRepository.lastUploadFileType)",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = appDetailCreationEntry,
+            snippets = listOf(
+                "enabled = !isRunningTask && uploadingNodes.isEmpty()",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = appDetailMappers,
+            snippets = listOf(
+                "AppDetailErrorText.MediaUploadPending",
+                "AppDetailErrorText.MediaUploadFailed",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = composeResources,
+            snippets = listOf(
+                "app_detail_error_media_upload_pending",
+                "app_detail_error_media_upload_failed",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = webAppTaskApi,
+            snippets = listOf(
+                "append(\"fileType\", fileType)",
+                "append(HttpHeaders.ContentDisposition, \"filename=\\\"${'$'}fileName\\\"\")",
+                "append(HttpHeaders.ContentType, fileType)",
+            ),
+            violations = violations,
+        )
+        requireFileSnippets(
+            file = webAppTaskApiTest,
+            snippets = listOf(
+                "upload file sends multipart body",
+                "MultiPartFormDataContent",
+            ),
+            violations = violations,
+        )
     }
 
     /**
@@ -2672,6 +3086,7 @@ class LongTermGovernancePlugin : Plugin<Project> {
      */
     private fun Project.checkReleaseReadinessChecklist(violations: MutableList<String>) {
         val checklist = rootDir.resolve("docs/governance/release-readiness-checklist.md")
+        val iosCompletionPlan = rootDir.resolve("docs/migration/ios-completion-plan.md")
         if (!checklist.isFile) {
             return
         }
@@ -2679,17 +3094,34 @@ class LongTermGovernancePlugin : Plugin<Project> {
         val requiredItems = listOf(
             "- [ ] `:composeApp:assembleRelease` 已通过",
             "- [ ] Android Release 安装回归已完成",
-            "- [ ] macOS Xcode 构建已通过",
+            "- [x] macOS Xcode 构建已通过",
+            "- [x] Info.plist Usage Description 与实际权限一致",
+            "- [x] Keychain、WKWebView、PHPicker 或文档选择器路径已冒烟",
             "- [ ] 图片、视频和音频上传使用真实 iOS 权限/选择器路径回归通过",
-            "- [ ] 短信图形验证码在 Android WebView 和 iOS WKWebView 上完成 token/关闭/失败重试冒烟",
-            "- [ ] 首次请求照片权限：允许、拒绝、有限照片权限三种路径均记录结果。",
-            "- [ ] 已拒绝照片权限：再次选择图片或视频时不进入成功回调，并能跳转系统设置页。",
-            "- [ ] 图片选择：系统选择器返回的 URI 可被上传链路读取，取消选择不会污染页面状态。",
-            "- [ ] 音频选择：文档选择器导入的文件可读取字节和文件名，取消选择不会污染页面状态。",
-            "- [ ] 成功验证后能回传 `validToken`，且 token 不进入日志、崩溃报告或截图说明。",
-            "- [ ] 连续打开两次验证码时，第二次不会收到第一次的回调。",
-            "- [ ] ATS、Cookie、同源策略和跨域请求行为已在真实环境记录结论。",
-            "- [ ] `PrivacyInfo.xcprivacy` 已随 iOS target 打包，并声明 UserDefaults 与文件元数据访问原因",
+            "- [x] iOS WKWebView 短信图形验证码已完成 token、短信发送、SMS 登录、关闭和失败重试冒烟",
+            "- [x] PHPicker 图片/视频选择：未预先授予整库 PhotoKit 权限时仍能打开选择器并返回 app-owned 临时文件 URI。",
+            "- [x] Limited Photos 管理入口静态契约：PhotoKit Limited 状态下图片/视频权限恢复入口打开系统有限照片管理页，其他权限仍进入 App Settings，且 Info.plist 禁用系统自动 limited alert。",
+            "- [x] Limited Photos 管理页：有限照片权限下可打开系统管理页并完成返回，不污染页面状态；追加选择的明确勾选反馈可在真机发布前专项复核。",
+            "- [x] 显式照片权限请求：允许、拒绝、有限照片权限三种路径均记录结果。",
+            "- [x] 已拒绝照片权限：需要显式整库权限的入口不进入成功回调；设置页恢复入口由自动化契约覆盖，本轮运行证据覆盖真实拒绝弹窗和应用内恢复引导。",
+            "- [x] 相册写入拒绝运行验证：系统照片权限弹窗出现，选择“不允许”后页面展示稳定失败提示和权限恢复引导，日志未暴露远端 URL、敏感 token 或平台异常原文。",
+            "- [x] 图片选择：系统选择器返回的 URI 可被上传链路读取，取消选择不会污染页面状态。",
+            "- [x] 音频选择取消：文档选择器取消后回到参数面板，不新增素材、错误提示或权限说明。",
+            "- [ ] 音频文件导入：文档选择器导入的文件可读取字节和文件名。",
+            "- [x] 上传失败路径：上传失败或上传中不会继续提交生成任务。",
+            "- [x] 图片真实上传回归：QuickCreate iOS 图片素材上传返回 200，并完成图片生成、轮询和历史详情结果查看。",
+            "- [ ] 视频真实上传回归：视频素材远端上传返回 200，并完成视频任务提交或失败归因。",
+            "- [ ] 音频真实上传回归：真实音频文件经 Document Picker 导入后远端上传返回 200。",
+            "- [ ] 真实上传回归：图片、视频、音频各完成一次真实上传。",
+            "- [x] Android WebView 和 iOS WKWebView 的 TAC JS/CSS 同源加载配置已由平台环境契约测试覆盖。",
+            "- [x] 验证码关闭和失败重试：关闭弹窗、连续打开、网络/script 失败和超时均有自动化防线。",
+            "- [x] 验证码 token 静态脱敏：HTML 包装层和平台回调不得把 `validToken` 或原始 TAC 响应写入 Web console/native log。",
+            "- [x] iOS WKWebView 成功验证后能回传 `validToken` 并触发短信发送，且 token 不进入日志、崩溃报告或截图说明。",
+            "- [x] 用户关闭弹窗时能关闭状态层，旧 token 不会在关闭后触发短信重试。",
+            "- [x] 连续打开两次验证码时，旧 Web 容器回调不会交给当前状态层。",
+            "- [x] iOS signed Simulator 已记录 ATS、Cookie、同源策略和跨域请求行为结论：TAC 资源加载、短信发送和 SMS 登录未出现相关错误；Android 真实 WebView 和 TestFlight 仍需专项复核。",
+            "- [x] 网络失败、脚本失败和超时均展示可重试降级状态。",
+            "- [x] `PrivacyInfo.xcprivacy` 已随 iOS target 打包，并声明 UserDefaults 与文件元数据访问原因",
             "- [ ] iOS TestFlight 上传前人工确认账号、证书和隐私表单",
             "- [ ] major 级依赖、Gradle、AGP、Kotlin、Xcode 或运行时 SDK 升级已列出 Android/iOS 人工回归矩阵和负责人。",
             "- [ ] 重大版本升级不得自动合并，必须由负责人确认双端回归结果后再发布。",
@@ -2699,6 +3131,22 @@ class LongTermGovernancePlugin : Plugin<Project> {
         requiredItems
             .filterNot { it in text }
             .forEach { item -> violations += "release-readiness-checklist.md must contain `$item`." }
+
+        if (!iosCompletionPlan.isFile) {
+            violations += "docs/migration/ios-completion-plan.md must keep the iOS completion execution queue."
+            return
+        }
+        requireFileSnippets(
+            file = iosCompletionPlan,
+            snippets = listOf(
+                "## 8. 下一步执行队列",
+                "### 8.1 可继续自动化推进",
+                "### 8.2 需要真实环境或负责人确认",
+                "Simulator Files 注入音频多次尝试后索引/打开行为不稳定",
+                "AI 代理不得自动代签、上传或替负责人确认",
+            ),
+            violations = violations,
+        )
     }
 
     /**

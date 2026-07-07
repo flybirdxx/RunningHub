@@ -330,7 +330,6 @@ data class SeedanceImageToVideoRequestDto(
     @SerialName("generateAudio") val generateAudio: Boolean = true,
     @SerialName("ratio") val ratio: String = "adaptive",
     @SerialName("realPersonMode") val realPersonMode: Boolean = true,
-    @SerialName("conversionSlots") val conversionSlots: List<String>? = null,
     @SerialName("returnLastFrame") val returnLastFrame: Boolean = false,
 )
 

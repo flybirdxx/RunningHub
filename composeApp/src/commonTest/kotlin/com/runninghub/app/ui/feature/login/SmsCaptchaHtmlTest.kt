@@ -62,6 +62,26 @@ class SmsCaptchaHtmlTest {
     }
 
     /**
+     * TAC 成功响应可能包含短生命周期 `validToken`，客户端包装层不得把它写到 Web console。
+     *
+     * 真实环境仍需要人工完成 CAPTCHA 验证来证明 token 能回传；本测试只锁定静态脱敏边界，
+     * 防止后续调试时把 token、原始响应或平台错误输出到日志、截图或崩溃采集链路。
+     */
+    @Test
+    fun `captcha token is never written to web console`() {
+        val html = smsCaptchaHtml(
+            tokenCallbackExpression = "window.bridge.onToken(token)",
+            closeCallbackExpression = "window.bridge.onClose()",
+            copy = testSmsCaptchaCopy(),
+        )
+
+        assertFalse(html.contains("console."))
+        assertFalse(html.contains("JSON.stringify(res)"))
+        assertFalse(html.contains("alert("))
+        assertFalse(html.contains("error.message"))
+    }
+
+    /**
      * 成功和关闭事件应能通过自定义 scheme 回到原生层。
      *
      * WebView / WKWebView 的 JS bridge 在不同平台上兼容性差异较大，
@@ -123,6 +143,26 @@ class SmsCaptchaHtmlTest {
         assertTrue(html.contains("Script failed, retry"))
         assertTrue(html.contains("Script timeout, retry"))
         assertTrue(html.contains("onclick=\"window.__loadSmsCaptchaScript()\""))
+    }
+
+    /**
+     * 网络、ATS、证书或 CDN 异常最终都会让 TAC 脚本触发 `onerror`。
+     *
+     * 该路径必须进入同一个可点击重试状态，不能把底层 URL、证书错误或平台诊断文本暴露给用户。
+     */
+    @Test
+    fun `captcha html maps network script failure to sanitized retry state`() {
+        val html = smsCaptchaHtml(
+            tokenCallbackExpression = "window.bridge.onToken(token)",
+            closeCallbackExpression = "window.bridge.onClose()",
+            copy = testSmsCaptchaCopy(),
+        )
+
+        assertTrue(html.contains("script.onerror = function ()"))
+        assertTrue(html.contains("fail('Script failed, retry');"))
+        assertTrue(html.contains("Script failed, retry"))
+        assertFalse(html.contains("error.message"))
+        assertFalse(html.contains("script.src +"))
     }
 
     /**

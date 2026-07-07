@@ -150,15 +150,15 @@ class QuickCreationV2DefaultsTest {
         assertNull(request.params["resolution"])
         assertNull(request.params["duration"])
         assertNull(request.params["generateAudio"])
-        assertEquals(JsonPrimitive("multimodal"), request.params["creationMode"])
-        assertEquals(JsonPrimitive(1), request.params["creationSubModeId"])
-        assertEquals(JsonPrimitive("MULTIMODAL_REFERENCE"), request.params["creationSubModeKey"])
+        assertNull(request.params["creationMode"])
+        assertNull(request.params["creationSubModeId"])
+        assertNull(request.params["creationSubModeKey"])
         val imageUrls = request.params["imageUrls"] as JsonArray
         assertEquals("https://example.com/ref.png", imageUrls.single().jsonPrimitive.content)
     }
 
     @Test
-    fun `video v2 reference image uri enables multimodal reference params`() {
+    fun `video v2 reference image uri sends only documented media params`() {
         val request = QuickCreationV2Defaults.videoCreateRequest(
             VideoGenerationRequest(
                 prompt = "video prompt",
@@ -172,9 +172,9 @@ class QuickCreationV2DefaultsTest {
             )
         )
 
-        assertEquals(JsonPrimitive("multimodal"), request.params["creationMode"])
-        assertEquals(JsonPrimitive(1), request.params["creationSubModeId"])
-        assertEquals(JsonPrimitive("MULTIMODAL_REFERENCE"), request.params["creationSubModeKey"])
+        assertNull(request.params["creationMode"])
+        assertNull(request.params["creationSubModeId"])
+        assertNull(request.params["creationSubModeKey"])
         val imageUrls = request.params["imageUrls"] as JsonArray
         assertEquals("https://example.com/direct-ref.png", imageUrls.single().jsonPrimitive.content)
         assertNull(request.params["ratio"])
@@ -183,5 +183,46 @@ class QuickCreationV2DefaultsTest {
         assertNull(request.params["duration"])
         assertNull(request.params["generateAudio"])
         assertNull(request.params["realPersonMode"])
+    }
+
+    @Test
+    fun `video v2 request sends json array string params as arrays`() {
+        val request = QuickCreationV2Defaults.videoCreateRequest(
+            VideoGenerationRequest(
+                prompt = "video prompt",
+                model = "seedance2",
+                aspectRatio = "3:4",
+                duration = 8,
+                resolution = "720p",
+                quickCreationBindingId = "video-binding",
+                quickCreationSkuId = "video-sku",
+                quickCreationParams = mapOf(
+                    "referenceSlots" to "[\"all\"]",
+                    "returnLastFrame" to "false",
+                ),
+            )
+        )
+
+        val referenceSlots = request.params["referenceSlots"] as JsonArray
+        assertEquals("all", referenceSlots.single().jsonPrimitive.content)
+        assertEquals(JsonPrimitive(false), request.params["returnLastFrame"])
+    }
+
+    @Test
+    fun `video v2 request sends whole number decimal params as integers`() {
+        val request = QuickCreationV2Defaults.videoCreateRequest(
+            VideoGenerationRequest(
+                prompt = "video prompt",
+                model = "seedance2",
+                aspectRatio = "3:4",
+                duration = 5,
+                resolution = "720p",
+                quickCreationBindingId = "video-binding",
+                quickCreationSkuId = "video-sku",
+                quickCreationParams = mapOf("duration" to "5.0"),
+            )
+        )
+
+        assertEquals(JsonPrimitive(5), request.params["duration"])
     }
 }

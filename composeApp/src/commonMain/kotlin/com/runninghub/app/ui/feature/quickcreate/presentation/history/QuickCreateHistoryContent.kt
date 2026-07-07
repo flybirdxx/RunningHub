@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.runninghub.app.ui.component.SmartAsyncImage
+import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
@@ -96,20 +97,27 @@ internal fun QuickCreateHistoryDetailDialog(
                                 .background(RhTheme.colors.surfaceElevated, RoundedCornerShape(RhTheme.shapes.md)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            SmartAsyncImage(
-                                imageUrl = previewUrl,
-                                contentDescription = null,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop,
-                            )
-                            if (output.mediaType == QuickCreateHistoryOutputMediaType.VIDEO) {
-                                Icon(
-                                    Icons.Default.PlayCircle,
+                            when (output.mediaType) {
+                                QuickCreateHistoryOutputMediaType.IMAGE -> SmartAsyncImage(
+                                    imageUrl = previewUrl,
                                     contentDescription = null,
-                                    modifier = Modifier.size(38.dp),
-                                    // 媒体预览上的播放图标固定用白色，保证覆盖在任意缩略图上的可见度。
-                                    tint = Color.White.copy(alpha = 0.86f),
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop,
                                 )
+                                QuickCreateHistoryOutputMediaType.VIDEO -> {
+                                    VideoThumbnail(
+                                        url = output.source.url,
+                                        posterUrl = output.source.thumbnailUrl?.takeIf { it.isNotBlank() },
+                                        modifier = Modifier.fillMaxSize(),
+                                    )
+                                    Icon(
+                                        Icons.Default.PlayCircle,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(38.dp),
+                                        // 媒体预览上的播放图标固定用白色，保证覆盖在任意缩略图上的可见度。
+                                        tint = Color.White.copy(alpha = 0.86f),
+                                    )
+                                }
                             }
                         }
                     }

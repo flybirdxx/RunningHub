@@ -1,5 +1,7 @@
 package com.runninghub.app.platform
 
+import com.runninghub.core.storage.Permission
+
 /**
  * 媒体保存结果的稳定语义。
  *
@@ -35,13 +37,30 @@ enum class MediaSaveFailureReason {
 
     /** 系统媒体库写入失败。 */
     WRITE_FAILED,
+
+    /** 系统相册写入权限被拒绝，需要引导用户到权限恢复入口。 */
+    PHOTO_PERMISSION_DENIED,
 }
+
+/**
+ * 保存失败后可恢复的权限入口。
+ *
+ * 页面层只根据稳定失败原因决定是否展示授权说明，不直接解析平台错误或系统诊断文本。
+ */
+internal fun MediaSaveResult.recoverablePermission(): Permission? =
+    when (this) {
+        is MediaSaveResult.Failure -> when (reason) {
+            MediaSaveFailureReason.PHOTO_PERMISSION_DENIED -> Permission.MediaImages
+            else -> null
+        }
+        MediaSaveResult.Success -> null
+    }
 
 /**
  * 把远端结果媒体保存到系统相册的平台能力边界。
  *
  * commonMain 只依赖该接口；Android 通过 MediaStore scoped storage 实现，
- * iOS 本批为占位实现（后续接入 Photos 框架）。由 Koin 组合根装配为单例。
+ * iOS 通过 PhotoKit 写入系统相册。由 Koin 组合根装配为单例。
  */
 interface MediaSaver {
     /**
@@ -54,6 +73,17 @@ interface MediaSaver {
      * @return 归一化后的保存结果，见 [MediaSaveResult]。
      */
     suspend fun saveImageToGallery(url: String, displayName: String): MediaSaveResult
+
+    /**
+     * 下载 [url] 指向的结果视频并写入系统相册。
+     *
+     * 实现必须避免把 URL、系统诊断文本或异常消息透传给 UI；失败只返回稳定语义。
+     *
+     * @param url 结果视频的远程地址；实现不得把该地址写入日志。
+     * @param displayName 保存文件的展示名前缀，实现会追加时间戳与扩展名防止重名。
+     * @return 归一化后的保存结果，见 [MediaSaveResult]。
+     */
+    suspend fun saveVideoToGallery(url: String, displayName: String): MediaSaveResult
 }
 
 expect fun createMediaSaver(): MediaSaver

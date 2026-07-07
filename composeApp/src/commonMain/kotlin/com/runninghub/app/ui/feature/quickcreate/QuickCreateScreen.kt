@@ -6,9 +6,6 @@ import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -28,26 +25,25 @@ import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
 import cafe.adriel.voyager.koin.koinScreenModel
 import com.runninghub.app.ui.component.MediaType
+import com.runninghub.app.platform.MediaSaveFailureReason
 import com.runninghub.app.platform.MediaSaveResult
 import com.runninghub.app.platform.MediaSaver
 import com.runninghub.app.platform.PermissionController
 import com.runninghub.app.platform.SystemBackHandler
+import com.runninghub.app.platform.recoverablePermission
 import com.runninghub.app.platform.rememberPermissionController
 import com.runninghub.app.ui.adaptive.LocalRhWindowInfo
 import com.runninghub.app.ui.adaptive.RhAdaptivePreview
 import com.runninghub.app.ui.adaptive.RhPreviewSpec
-import com.runninghub.app.ui.adaptive.RunningHubPreviewSurface
 import com.runninghub.app.ui.adaptive.previewQuickCreateUiState
 import com.runninghub.app.ui.component.PermissionBottomSheet
 import com.runninghub.app.ui.feature.quickcreate.presentation.editor.QuickCreateEditorPanel
 import com.runninghub.app.ui.feature.quickcreate.presentation.editor.params.QuickCreateParamsSheet
 import com.runninghub.app.ui.feature.quickcreate.presentation.history.QuickCreateHistoryDetailDialog
 import com.runninghub.app.ui.feature.quickcreate.presentation.modelselector.QuickCreateModelSheet
-import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateCreateProjectAction
 import com.runninghub.app.ui.feature.quickcreate.presentation.project.QuickCreateProjectDetailDialog
 import com.runninghub.app.ui.designsystem.components.feedback.RhSnackbar
 import com.runninghub.app.ui.designsystem.components.feedback.RhSnackbarSeverity
-import com.runninghub.app.ui.designsystem.components.navigation.RhTopBar
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateUiState
@@ -59,7 +55,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.koin.compose.koinInject
 import org.jetbrains.compose.ui.tooling.preview.Preview
-import com.runninghub.feature.quickcreate.presentation.state.QuickCreateNavigationLabel
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateSheet
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
 import com.runninghub.feature.quickcreate.presentation.result.QuickCreateConversationItemUi
@@ -73,8 +68,6 @@ import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.quick_create_copy_to_composer_success
 import runninghub.composeapp.generated.resources.quick_create_download_failure
 import runninghub.composeapp.generated.resources.quick_create_download_success
-import runninghub.composeapp.generated.resources.quick_create_top_bar_back_content_description
-import runninghub.composeapp.generated.resources.quick_create_top_bar_menu_content_description
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -271,22 +264,25 @@ private fun QuickCreateScreen(
                             // MediaSaver 契约上不抛非取消异常，但 UI 不把崩溃风险寄托在契约上：
                             // 这里兜底 catch 作为最后防线，非取消异常一律收敛为失败横幅；
                             // 取消（页面离开）原样重抛走结构化取消，不弹横幅。
-                            val saveSucceeded = try {
+                            val saveResult = try {
                                 mediaSaver.saveImageToGallery(
                                     url = resultUrl,
                                     displayName = "runninghub_quickcreate",
-                                ) is MediaSaveResult.Success
+                                )
                             } catch (cancellation: CancellationException) {
                                 throw cancellation
                             } catch (t: Throwable) {
                                 // 异常详情不透传 UI，内部 debug 日志由平台实现负责；此处只保留失败语义。
-                                false
+                                MediaSaveResult.Failure(MediaSaveFailureReason.WRITE_FAILED)
                             } finally {
                                 downloadingResultUrls = downloadingResultUrls - resultUrl
                             }
+                            saveResult.recoverablePermission()?.let { permission ->
+                                pendingPermission = permission
+                            }
                             downloadBanner = QuickCreateDownloadBanner(
                                 token = (downloadBanner?.token ?: 0L) + 1L,
-                                success = saveSucceeded,
+                                success = saveResult is MediaSaveResult.Success,
                             )
                         }
                     }
@@ -408,6 +404,7 @@ private fun QuickCreateScreen(
                             mediaType = MediaType.IMAGE,
                             onSuccess = { uriString -> currentScreenModel.pickImageReference(uriString) },
                             onPermissionDenied = {},
+                            onPermissionPermanentlyDenied = { pendingPermission = Permission.MediaImages },
                         )
                     },
                     onLaunchVideoPicker = {
@@ -416,6 +413,7 @@ private fun QuickCreateScreen(
                             mediaType = MediaType.VIDEO,
                             onSuccess = { uriString -> currentScreenModel.pickVideoReference(uriString) },
                             onPermissionDenied = {},
+                            onPermissionPermanentlyDenied = { pendingPermission = Permission.MediaVideo },
                         )
                     },
                     onLaunchAudioPicker = {
@@ -424,6 +422,8 @@ private fun QuickCreateScreen(
                             mediaType = MediaType.AUDIO,
                             onSuccess = { uriString -> currentScreenModel.pickAudioReference(uriString) },
                             onPermissionDenied = { pendingPermission = Permission.MediaAudio },
+                            onPickerCancelled = {},
+                            onPermissionPermanentlyDenied = { pendingPermission = Permission.MediaAudio },
                         )
                     },
                     onRemoveMedia = screenModel::removeMediaReference,
@@ -573,6 +573,7 @@ private fun QuickCreateScreen(
                                         currentScreenModel.pickImageReferenceForField(uriString, fieldParamKey)
                                     },
                                     onPermissionDenied = {},
+                                    onPermissionPermanentlyDenied = { pendingPermission = Permission.MediaImages },
                                 )
                                 QuickCreateMediaType.VIDEO -> controller.pickMedia(
                                     mediaPermission = Permission.MediaVideo,
@@ -581,6 +582,7 @@ private fun QuickCreateScreen(
                                         currentScreenModel.pickVideoReferenceForField(uriString, fieldParamKey)
                                     },
                                     onPermissionDenied = {},
+                                    onPermissionPermanentlyDenied = { pendingPermission = Permission.MediaVideo },
                                 )
                                 QuickCreateMediaType.AUDIO -> controller.pickMedia(
                                     mediaPermission = Permission.MediaAudio,
@@ -589,6 +591,8 @@ private fun QuickCreateScreen(
                                         currentScreenModel.pickAudioReferenceForField(uriString, fieldParamKey)
                                     },
                                     onPermissionDenied = { pendingPermission = Permission.MediaAudio },
+                                    onPickerCancelled = {},
+                                    onPermissionPermanentlyDenied = { pendingPermission = Permission.MediaAudio },
                                 )
                             }
                         },
@@ -620,45 +624,11 @@ private fun QuickCreateScreen(
                     permission = activePermission,
                     onGranted = {},
                     onDenied = {},
-                    onPermanentlyDenied = { controller.openAppSettings() },
+                    onPermanentlyDenied = { controller.openPermissionSettings(activePermission) },
                 )
             },
         )
     }
-}
-
-@Composable
-private fun QuickCreateTopBar(
-    onBack: (() -> Unit)?,
-    onCreateProject: (String) -> Unit,
-) {
-    RhTopBar(
-        title = quickCreateNavigationText(QuickCreateNavigationLabel.CreationMode),
-        navigationIcon = {
-            if (onBack != null) {
-                IconButton(onClick = onBack) {
-                    Icon(
-                        Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(
-                            Res.string.quick_create_top_bar_back_content_description,
-                        ),
-                        tint = RhTheme.colors.textSecondary,
-                    )
-                }
-            } else {
-                IconButton(onClick = {}) {
-                    Icon(
-                        Icons.Default.Menu,
-                        contentDescription = stringResource(
-                            Res.string.quick_create_top_bar_menu_content_description,
-                        ),
-                        tint = RhTheme.colors.textSecondary,
-                    )
-                }
-            }
-        },
-        actions = { QuickCreateCreateProjectAction(onCreateProject = onCreateProject) },
-    )
 }
 
 @Composable
@@ -798,63 +768,4 @@ private fun QuickCreateFontScale13Preview() {
 @Composable
 private fun QuickCreateFontScale15Preview() {
     QuickCreateAdaptivePreview(RhPreviewSpec.FontScale15)
-}
-
-@Composable
-private fun QuickCreateBottomPanelAdaptivePreview(
-    widthDp: Int,
-    heightDp: Int,
-    fontScale: Float = 1f,
-) {
-    RunningHubPreviewSurface(
-        windowWidth = widthDp.dp,
-        windowHeight = heightDp.dp,
-        fontScale = fontScale,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(RhTheme.colors.backgroundPrimary),
-            contentAlignment = Alignment.BottomCenter,
-        ) {
-            QuickCreateEditorPanel(
-                uiState = previewQuickCreateUiState(),
-                onTabSwitch = {},
-                onPromptChange = {},
-                onLaunchImagePicker = {},
-                onLaunchVideoPicker = {},
-                onLaunchAudioPicker = {},
-                onRemoveMedia = {},
-                onOpenModelSheet = {},
-                onOpenParamsSheet = {},
-                onRestoreDraft = {},
-                onDiscardDraft = {},
-                onGenerate = {},
-            )
-        }
-    }
-}
-
-@Preview
-@Composable
-private fun QuickCreateBottomPanelPreview() {
-    QuickCreateBottomPanelAdaptivePreview(widthDp = 360, heightDp = 800)
-}
-
-@Preview
-@Composable
-private fun QuickCreateBottomPanelLandscapePreview() {
-    QuickCreateBottomPanelAdaptivePreview(widthDp = 800, heightDp = 360)
-}
-
-@Preview
-@Composable
-private fun QuickCreateBottomPanelFontScale13Preview() {
-    QuickCreateBottomPanelAdaptivePreview(widthDp = 360, heightDp = 800, fontScale = 1.3f)
-}
-
-@Preview
-@Composable
-private fun QuickCreateBottomPanelFontScale15Preview() {
-    QuickCreateBottomPanelAdaptivePreview(widthDp = 360, heightDp = 800, fontScale = 1.5f)
 }

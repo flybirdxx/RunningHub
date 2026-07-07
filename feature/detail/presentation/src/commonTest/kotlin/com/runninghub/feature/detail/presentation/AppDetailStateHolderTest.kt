@@ -205,6 +205,39 @@ class AppDetailStateHolderTest {
     }
 
     @Test
+    fun `media over local upload limit marks failed before reading bytes`() = runTest {
+        val mediaReader = FakeAppDetailMediaReader(
+            displayName = "oversized.mp4",
+            bytes = byteArrayOf(1, 2, 3),
+            fileSizeBytes = OVERSIZED_MEDIA_BYTES,
+        )
+        val taskRepository = FakeWebAppTaskRepository(
+            uploadFileResult = Result.success(UploadResult(fileName = "remote-oversized.mp4", fileType = "video/mp4")),
+        )
+        val stateHolder = createStateHolder(
+            catalogRepository = FakeWebAppCatalogRepository(),
+            taskRepository = taskRepository,
+            mediaReader = mediaReader,
+        )
+
+        stateHolder.uploadFile(
+            nodeId = "video-node",
+            fieldName = "video",
+            localUri = "content://videos/oversized",
+            mediaType = AppDetailMediaType.VIDEO,
+        )
+        advanceUntilIdle()
+
+        val uploadState = stateHolder.uiState.value.uploadingNodes["video-node"]
+        assertEquals("content://videos/oversized", uploadState?.localUri)
+        assertEquals(0f, uploadState?.progress)
+        assertEquals(true, uploadState?.isError)
+        assertEquals(null, stateHolder.uiState.value.inputValues["video-node:video"])
+        assertEquals(0, mediaReader.readUris.size)
+        assertEquals(null, taskRepository.lastUploadFileType)
+    }
+
+    @Test
     fun `upload failure marks node as failed without writing input value`() = runTest {
         val taskRepository = FakeWebAppTaskRepository(
             uploadFileResult = Result.failure(IllegalStateException("remote raw upload failure")),
@@ -230,6 +263,91 @@ class AppDetailStateHolderTest {
         assertEquals(0f, uploadState?.progress)
         assertEquals(true, uploadState?.isError)
         assertEquals("video/mp4", taskRepository.lastUploadFileType)
+    }
+
+    @Test
+    fun `runTask blocks while media upload is still pending`() = runTest {
+        val taskRepository = FakeWebAppTaskRepository(
+            runTaskResult = Result.success(
+                TaskResult(
+                    netWssUrl = null,
+                    taskId = 9101L,
+                    clientId = null,
+                    status = TaskExecutionStatus.Submitted,
+                    promptTips = null,
+                ),
+            ),
+        )
+        val stateHolder = createStateHolder(
+            catalogRepository = FakeWebAppCatalogRepository(
+                appDetailResult = Result.success(
+                    appDetail(
+                        id = "410",
+                        inputNodes = listOf(inputNode(nodeId = "video-node", fieldName = "video", fieldValue = "old-video.mp4")),
+                    ),
+                ),
+            ),
+            taskRepository = taskRepository,
+        )
+
+        stateHolder.loadDetail("410")
+        advanceUntilIdle()
+        stateHolder.setLocalFileUri("video-node", "content://videos/pending")
+        stateHolder.runTask()
+        advanceUntilIdle()
+
+        assertEquals(null, taskRepository.lastRunWebappId)
+        assertEquals(false, stateHolder.uiState.value.isRunningTask)
+        assertEquals(AppDetailTaskStep.IDLE, stateHolder.uiState.value.taskStep)
+        assertEquals(AppDetailErrorText.MediaUploadPending, stateHolder.uiState.value.taskError)
+        assertEquals(false, stateHolder.uiState.value.creationEntry?.primaryAction?.enabled)
+    }
+
+    @Test
+    fun `runTask blocks failed media upload without submitting stale input value`() = runTest {
+        val taskRepository = FakeWebAppTaskRepository(
+            runTaskResult = Result.success(
+                TaskResult(
+                    netWssUrl = null,
+                    taskId = 9102L,
+                    clientId = null,
+                    status = TaskExecutionStatus.Submitted,
+                    promptTips = null,
+                ),
+            ),
+            uploadFileResult = Result.failure(IllegalStateException("remote raw upload failure")),
+        )
+        val stateHolder = createStateHolder(
+            catalogRepository = FakeWebAppCatalogRepository(
+                appDetailResult = Result.success(
+                    appDetail(
+                        id = "411",
+                        inputNodes = listOf(inputNode(nodeId = "video-node", fieldName = "video", fieldValue = "old-video.mp4")),
+                    ),
+                ),
+            ),
+            taskRepository = taskRepository,
+            mediaReader = FakeAppDetailMediaReader(displayName = "bad.mp4"),
+        )
+
+        stateHolder.loadDetail("411")
+        advanceUntilIdle()
+        stateHolder.uploadFile(
+            nodeId = "video-node",
+            fieldName = "video",
+            localUri = "content://videos/bad",
+            mediaType = AppDetailMediaType.VIDEO,
+        )
+        advanceUntilIdle()
+        stateHolder.runTask()
+        advanceUntilIdle()
+
+        assertEquals(null, taskRepository.lastRunWebappId)
+        assertEquals(false, stateHolder.uiState.value.isRunningTask)
+        assertEquals(AppDetailTaskStep.IDLE, stateHolder.uiState.value.taskStep)
+        assertEquals(AppDetailErrorText.MediaUploadFailed, stateHolder.uiState.value.taskError)
+        assertEquals("old-video.mp4", stateHolder.uiState.value.inputValues["video-node:video"])
+        assertEquals(false, stateHolder.uiState.value.creationEntry?.primaryAction?.enabled)
     }
 
     @Test
@@ -462,6 +580,7 @@ class AppDetailStateHolderTest {
     private class FakeAppDetailMediaReader(
         private val displayName: String? = null,
         private val bytes: ByteArray = byteArrayOf(1),
+        private val fileSizeBytes: Long = bytes.size.toLong(),
     ) : AppDetailMediaReader {
         val readUris: MutableList<String> = mutableListOf()
 
@@ -471,6 +590,8 @@ class AppDetailStateHolderTest {
         }
 
         override fun getDisplayName(uri: String): String? = displayName
+
+        override fun getFileSizeBytes(uri: String): Long = fileSizeBytes
     }
 
     private fun appDetail(
@@ -519,4 +640,8 @@ class AppDetailStateHolderTest {
             fieldType = fieldType,
             description = description,
         )
+
+    private companion object {
+        private const val OVERSIZED_MEDIA_BYTES = 101L * 1024L * 1024L
+    }
 }

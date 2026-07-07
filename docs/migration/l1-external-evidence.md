@@ -36,7 +36,7 @@
   `headSha` 必须等于当前 Git `HEAD`。`overallResult: pass` 时，`host` 必须包含 `Darwin`，`linkCommand` 必须等于
   `./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64`，`xcodebuildCommand` 必须等于
   `xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination generic/platform=iOS Simulator build CODE_SIGNING_ALLOWED=NO`，
-  且 `linkResult`、`xcodebuildResult`、`simulatorSmokeResult` 必须均为 `pass`。
+  `authenticatedSmokeBuildMode` 必须等于 `signed-simulator-or-device`，且 `linkResult`、`xcodebuildResult`、`simulatorSmokeResult` 必须均为 `pass`。
   `overallResult: skipped` 时，三项结果必须均为 `skipped`，并且 `followUpRequired` 不能为 `false`。
 - Android Tab 与退出登录网络观察证据必须是 JSON 对象，并满足 `packageName=com.runninghub.app.debug`、
   非空 `operationNotes`、`durationSeconds >= 120`、`stableWindowSeconds >= 30`、
@@ -44,7 +44,7 @@
   `stableWindowSampleCount` 允许 1 个 adb/logcat 调度抖动样本缺口、`stableWindowStartedDelta=0`、
   `stableWindowMaxInFlight=0`。
 - `collect-github-actions-evidence.ps1` 会分别选择 Android CI 和 iOS CI 当前 Git `HEAD` 对应的 completed/success 运行，并写入两个独立 JSON；写入后会立即断言 `databaseId`、`headSha` 和 `url` 非空，且 Android/iOS `headSha` 相同，避免一个汇总输出、不完整运行对象、旧提交或两个不同提交上的成功运行误判双 CI 通过。脚本的 `-Wait` 只在显式传入时轮询，默认仍快速失败，防止本地门禁被远端排队状态长时间阻塞。
-- `collect-ios-macos-evidence.sh` 只在 macOS 生成最终证据；未显式传入 `--simulator-smoke-pass` 和非空 `--smoke-notes` 时不会写出可通过 `checkL1SealEvidence` 的 iOS 冒烟证据。脚本会记录当前 Git `HEAD`，先执行 Compose framework link，再以 `CODE_SIGNING_ALLOWED=NO` 执行 `xcodebuild` 构建 `RunningHub` scheme，防止复用旧提交上的 macOS link 结果、遗漏 iOS 包装工程或被本机签名团队配置影响。
+- `collect-ios-macos-evidence.sh` 只在 macOS 生成最终证据；未显式传入 `--simulator-smoke-pass` 和非空 `--smoke-notes` 时不会写出可通过 `checkL1SealEvidence` 的 iOS 冒烟证据。脚本会记录当前 Git `HEAD` 并写入 `overallResult: pass`、`skipReason: none`、`followUpRequired: false` 和 `authenticatedSmokeBuildMode: signed-simulator-or-device`，先执行 Compose framework link，再以 `CODE_SIGNING_ALLOWED=NO` 执行 `xcodebuild` 构建 `RunningHub` scheme，防止复用旧提交上的 macOS link 结果、遗漏 iOS 包装工程或被本机签名团队配置影响；真实登录态冒烟必须来自 signed Simulator build、真机或 TestFlight，因为 unsigned build 不能证明 Keychain 恢复。
 - `iOS CI` 支持手动 `workflow_dispatch` 证据模式。手动触发前必须先在对应 macOS Simulator 操作登录、退出和 QuickCreate 冒烟；workflow 会校验 `simulator_smoke_pass=true` 和非空 `smoke_notes`，然后运行同一个采集脚本并上传 `ios-macos-link-and-simulator.md` artifact。
 - `request-ios-macos-evidence.ps1` 只负责编排手动证据流程：它要求调用方显式传入 `-ConfirmSimulatorSmokePass` 和非空 `-SmokeNotes`，再触发 `iOS CI` 的 `workflow_dispatch`。该脚本不能替代真实 Simulator 操作；没有人工确认时不会触发远端证据 workflow。
 - `download-ios-macos-evidence.ps1` 用于把手动 iOS CI 运行的 artifact 落盘到 `docs/migration/evidence/ios-macos-link-and-simulator.md`。它会筛选当前 Git `HEAD` 对应的 successful `workflow_dispatch` iOS CI run，也可用 `-RunId` 绑定指定 run，并在写入后校验 `linkResult: pass`、`xcodebuildResult: pass` 和 `simulatorSmokeResult: pass` 等关键字段。若手动 workflow 正在运行，可显式追加 `-Wait -WaitTimeoutSeconds 1800 -PollSeconds 30` 等待 artifact 所属 run completed/success。
@@ -65,32 +65,13 @@
 
 ## 当前状态
 
-- 当前 Git `HEAD` 为 `11652fa627c9fa1d715190db75383b7018cd7bd7`，且该提交已推送到
-  `origin/feature/kmp-refactoring`。
-- 当前工作区在本次补证前无已暂存或未暂存业务补丁；本轮只刷新证据和状态文档。
-- Android GitHub Actions：`github-actions-android.json` 已绑定当前
-  `HEAD=11652fa627c9fa1d715190db75383b7018cd7bd7`，远端 run `28512594215`
-  为 `completed/success`。
-- iOS GitHub Actions：`github-actions-ios.json` 仍绑定旧
-  `HEAD=85f134d23ac58768e8a40c3172f3fbb34ca90699`，不能用于当前 HEAD 封板；
-  `gh run list` 当前只找到 Android CI 在 `11652fa627c9fa1d715190db75383b7018cd7bd7`
-  上的 successful run，没有同一 HEAD 的 iOS CI successful run。
-- Android 登录态 Tab 网络观察：`docs/migration/evidence/android-tab-network.json`
-  已记录登录态 `Discover -> History -> Create/QuickCreate -> Plaza -> Profile` 操作路径，
-  `durationSeconds=120`、`stableWindowSeconds=30`、`sampleCount=116`、
-  `result=pass_candidate`、`stableWindowStartedDelta=0`、`stableWindowMaxInFlight=0`。
-- Android 退出登录网络观察：`docs/migration/evidence/android-logout-network.json`
-  已记录 Profile 退出登录完成后 Login 根页面空闲路径，
-  `durationSeconds=125`、`stableWindowSeconds=30`、`sampleCount=118`、
-  `result=pass_candidate`、`stableWindowStartedDelta=0`、`stableWindowMaxInFlight=0`。
-- macOS iOS link 与 Simulator 冒烟：`ios-macos-link-and-simulator.md` 已刷新到当前
-  `HEAD=11652fa627c9fa1d715190db75383b7018cd7bd7`，但当前仍为 `overallResult=skipped`。
-  Windows 本地 link 仍按平台能力跳过；后续如需补齐真实通过证据，需要在 macOS runner
-  或 macOS 开发机执行 `collect-ios-macos-evidence.sh`，或手动触发 `iOS CI` 的证据采集模式，
-  并完成 Xcode build、Simulator 登录、退出和 QuickCreate 冒烟说明后生成最终 Markdown 证据。
-- `./gradlew.bat --console=plain checkL1SealEvidence` 本轮复跑按预期失败：补证前失败项为
-  Android GitHub Actions、iOS GitHub Actions 和 macOS/iOS skipped 证据均绑定旧 HEAD。
-  本轮已刷新 Android CI 与 macOS/iOS skipped 证据；剩余封板阻塞是当前 HEAD 缺少
-  iOS CI `completed/success` 证据，且 skipped 仍不能作为 iOS runtime pass 证明。
-- `finalize-l1-external-evidence.ps1 -SelfTest` 已覆盖 skipped 证据必填字段、脏工作区拒绝、
-  未跟踪文件拒绝，以及 `-StageEvidence` 使用的五个外部证据路径清单。
+- 当前 iOS 补全补丁已经进入 Git 索引，`./gradlew --console=plain verifyL1Ios` 已在 2026-07-07 复跑通过；其中 `checkMigrationScripts` 不再因证据相关文件未暂存而失败。
+- macOS iOS link 与 Simulator 冒烟：`docs/migration/evidence/ios-macos-link-and-simulator.md` 需要在补丁提交固定后的 Git `HEAD` 上重新采集。重采后的 `headSha` 必须等于当前待封板提交，且 `overallResult=pass`、`linkResult=pass`、`xcodebuildResult=pass`、`simulatorSmokeResult=pass`、`authenticatedSmokeBuildMode=signed-simulator-or-device`。
+- `CODE_SIGNING_ALLOWED=NO` 只用于证明 Xcode wrapper 可构建；authenticated smoke 必须使用 signed Simulator build 或真机/TestFlight 环境，否则 Keychain 可能不可用，不能证明登录态恢复。
+- `docs/migration/run-ios-simulator-smoke.sh` 已覆盖临时 Simulator 创建、安装启动、截图和启动崩溃关键词扫描；该脚本只能证明 launch smoke，不会把未登录的自动启动误判为 authenticated Simulator 冒烟。
+- `collect-ios-macos-evidence.sh` 的最终通过证据写入格式已与 `checkL1SealEvidence` 对齐：真实传入 `--simulator-smoke-pass` 和非空 `--smoke-notes` 后会写入 `overallResult: pass`、`skipReason: none`、`followUpRequired: false` 和 `authenticatedSmokeBuildMode: signed-simulator-or-device`。
+- `./gradlew --console=plain verifyL1Ios` 已在 2026-07-07 复跑通过，覆盖 `checkArchitectureBoundaries`、`checkL1CiWorkflows`、`checkLongTermGovernance`、`checkMigrationScripts` 和 iOS Debug framework link。Gradle 仍输出既有 AGP/KMP 结构迁移警告，不影响本次 iOS gate 结论。
+- 2026-07-07 通过 XcodeBuildMCP 执行 signed Simulator `build_run_sim`，结果为 `SUCCEEDED`，bundle id 为 `com.runninghub.app.ios`，进程为 `57226`，构建日志为 `/Users/yu/Library/Developer/XcodeBuildMCP/workspaces/RunningHub-b34ac473094f/logs/build_run_sim_2026-07-07T04-37-02-069Z_pid54229_c49ed3fc.log`，runtime log 为 `/Users/yu/Library/Developer/XcodeBuildMCP/workspaces/RunningHub-b34ac473094f/logs/com.runninghub.app.ios_2026-07-07T04-37-25-934Z_helperpid57196_ownerpid54229_6df5d0fa.log`，os log 为 `/Users/yu/Library/Developer/XcodeBuildMCP/workspaces/RunningHub-b34ac473094f/logs/com.runninghub.app.ios_oslog_2026-07-07T04-37-28-742Z_helperpid57245_ownerpid54229_4c19c935.log`。本次只补非上传人工项：启动后保持登录态，在 QuickCreate 结果保存入口重置 `photos-add` 后触发真实照片权限弹窗并选择“不允许”，页面展示稳定保存失败提示和权限恢复引导；随后选择“限制访问…”进入系统 Limited Photos 管理页并完成返回，页面未新增素材或错误；退出登录后使用测试账号完成密码登录并回到账户页，凭据未写入文档；随后在短信登录路径人工完成 TAC 滑块，短信发送成功并完成 SMS 登录回到账户页；runtime/os log 关键字扫描未命中远端 URL、敏感 token、Cookie、测试手机号、验证码、密码或平台异常原文。该记录仍是 working tree 证据，不是最终 L1 封板证据。
+- 2026-07-07 已执行 Release iphoneos archive dry run，命令为 `xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' archive -archivePath /tmp/RunningHub-iOS-Release.xcarchive CODE_SIGNING_ALLOWED=NO`，结果为 `ARCHIVE SUCCEEDED`。检查结果：`/tmp/RunningHub-iOS-Release.xcarchive/Products/Applications/RunningHub.app/RunningHub` 为 arm64 Mach-O，processed `Info.plist` 包含 `CFBundleIdentifier=com.runninghub.app.ios`、`CFBundleShortVersionString=1.0`、`CFBundleVersion=1`、`MinimumOSVersion=16.0`、四类权限说明和 `PHPhotoLibraryPreventAutomaticLimitedAccessAlert=true`；`PrivacyInfo.xcprivacy` 已打入 app，声明 UserDefaults/FileTimestamp 访问原因，未声明 tracking 或 collected data；Xcode store validation dry run 通过。`ComposeApp.framework` 为 static framework，已静态链接进主二进制，archive app 内无独立 `Frameworks/ComposeApp.framework` 属于当前链接形态。该记录不代表真实签名、IPA 导出、TestFlight 上传或 L1 封板；Release build settings 与 archive metadata 中 Team/SigningIdentity 为空，发布前仍需负责人配置和确认。
+- 同日签名环境探测结果：本机 keychain 存在有效 Apple Development/Distribution signing identity，但 `~/Library/MobileDevice/Provisioning Profiles` 下本地 provisioning profile 数量为 0，Xcode Release build settings 中 `DEVELOPMENT_TEAM` 为空。执行签名 archive 探测 `xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' archive -archivePath /tmp/RunningHub-iOS-SignedProbe.xcarchive` 失败，exit 65，关键错误为 `Signing for "RunningHub" requires a development team`。继续用命令行覆盖 Distribution team 和 Development team 并开启 `-allowProvisioningUpdates` 后，均失败为 `No Accounts` 与没有匹配 `com.runninghub.app.ios` 的 iOS App Development provisioning profile；手动覆盖 Apple Distribution identity 还会触发自动 development signing 与 distribution identity 冲突。这证明当前 TestFlight 阻塞点是 Xcode Accounts 登录、Team/provisioning 配置，不是 Release 编译、Info.plist、PrivacyInfo 或 store validation dry run。
+- `checkL1SealEvidence` 当前不应作为完成证明：它只应在提交固定、远端 CI 与登录态 iOS 冒烟证据全部刷新到新 `HEAD` 后用于 L1 封板。

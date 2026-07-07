@@ -104,6 +104,35 @@ class TaskHistoryStateHolderTest {
     }
 
     @Test
+    fun `history video entries without preview do not use video url as image thumbnail`() = runTest {
+        val repository = FakeGenerationHistoryRepository(
+            items = listOf(
+                GenerationHistoryItem(
+                    taskId = "video-task",
+                    source = GenerationHistorySource.QUICK_CREATION,
+                    status = "SUCCESS",
+                    taskType = "Video",
+                    outputs = listOf(
+                        GenerationHistoryOutput(
+                            outputId = "video-output",
+                            url = "https://example.com/result.mp4?token=abc",
+                            type = "file",
+                        )
+                    ),
+                ),
+            )
+        )
+        val stateHolder = TaskHistoryStateHolder(repository, this, enablePolling = false)
+
+        stateHolder.loadHistory()
+        runCurrent()
+
+        val entry = stateHolder.uiState.value.items.single()
+        assertEquals(null, entry.thumbnailUrl)
+        assertEquals(TaskHistoryCardAction.VIEW_RESULT, entry.primaryAction)
+    }
+
+    @Test
     fun `history entries do not expose view detail as card button`() = runTest {
         val repository = FakeGenerationHistoryRepository(
             items = listOf(

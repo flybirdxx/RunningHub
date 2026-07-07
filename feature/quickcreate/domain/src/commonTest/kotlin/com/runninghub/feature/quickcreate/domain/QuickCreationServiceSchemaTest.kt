@@ -43,6 +43,104 @@ class QuickCreationServiceSchemaTest {
     }
 
     @Test
+    fun `default params skip upload field placeholder defaults`() {
+        val model = serviceModel(
+            fields = listOf(
+                uploadField(
+                    paramKey = "imageUrls",
+                    fieldType = "IMAGE",
+                    maxUploadCount = 9,
+                    defaultValue = "9",
+                ),
+                uploadField(
+                    paramKey = "videoUrls",
+                    fieldType = "VIDEO",
+                    maxUploadCount = 3,
+                    defaultValue = "3",
+                ),
+                optionField(paramKey = "ratio", defaultValue = "adaptive"),
+            ),
+        )
+
+        val defaults = QuickCreationServiceSchema.defaultParams(model)
+
+        assertNull(defaults["imageUrls"])
+        assertNull(defaults["videoUrls"])
+        assertEquals("adaptive", defaults["ratio"])
+    }
+
+    @Test
+    fun `seedance text video fields follow official docs and omit asset slot params`() {
+        val model = serviceModel(
+            categoryId = "VIDEO",
+            groupName = "Seedance2.0",
+            name = "seedance2.0/文生视频",
+            fields = listOf(
+                serviceField(paramKey = "duration", defaultValue = "5"),
+                serviceField(paramKey = "webSearch", defaultValue = "false"),
+                serviceField(paramKey = "conversionSlots", defaultValue = "[\"all\"]"),
+                serviceField(paramKey = "realPersonMode", defaultValue = "true"),
+                uploadField(paramKey = "imageUrls", fieldType = "IMAGE", defaultValue = "9"),
+            ),
+        )
+
+        val fields = QuickCreationServiceSchema.resolvedFields(model, serviceParams = emptyMap())
+        val defaults = QuickCreationServiceSchema.defaultParams(model)
+        val activeKeys = QuickCreationServiceSchema.activeParamKeys(
+            model = model,
+            serviceParams = mapOf("conversionSlots" to "[\"all\"]", "duration" to "4"),
+        )
+
+        assertEquals(listOf("duration", "webSearch"), fields.map { it.paramKey })
+        assertEquals(mapOf("duration" to "5", "webSearch" to "false"), defaults)
+        assertEquals(setOf("duration", "webSearch"), activeKeys)
+        assertEquals(
+            mapOf("duration" to "4", "webSearch" to "false"),
+            QuickCreationServiceSchema.sanitizedParams(
+                model = model,
+                params = mapOf("duration" to "4", "conversionSlots" to "[\"all\"]"),
+            ),
+        )
+    }
+
+    @Test
+    fun `seedance multimodal keeps documented media and real person params but omits asset slots`() {
+        val model = serviceModel(
+            categoryId = "VIDEO",
+            groupName = "Seedance2.0",
+            name = "seedance2.0-Mini/多模态视频",
+            fields = listOf(
+                serviceField(paramKey = "duration", defaultValue = "5"),
+                uploadField(paramKey = "imageUrls", fieldType = "IMAGE", defaultValue = "9"),
+                uploadField(paramKey = "videoUrls", fieldType = "VIDEO", defaultValue = "3"),
+                uploadField(paramKey = "audioUrls", fieldType = "AUDIO", defaultValue = "3"),
+                serviceField(paramKey = "realPersonMode", defaultValue = "true"),
+                serviceField(paramKey = "conversionSlots", defaultValue = "[\"all\"]"),
+            ),
+        )
+
+        val fields = QuickCreationServiceSchema.resolvedFields(model, serviceParams = emptyMap())
+        val defaults = QuickCreationServiceSchema.defaultParams(model)
+
+        assertEquals(
+            listOf("duration", "imageUrls", "videoUrls", "audioUrls", "realPersonMode"),
+            fields.map { it.paramKey },
+        )
+        assertEquals(mapOf("duration" to "5", "realPersonMode" to "true"), defaults)
+        assertEquals(
+            setOf("imageUrls", "videoUrls", "audioUrls"),
+            QuickCreationServiceSchema.activeUploadParamKeys(model, serviceParams = emptyMap()),
+        )
+        assertEquals(
+            mapOf("duration" to "5", "realPersonMode" to "true"),
+            QuickCreationServiceSchema.sanitizedParams(
+                model = model,
+                params = mapOf("conversionSlots" to "[\"all\"]"),
+            ),
+        )
+    }
+
+    @Test
     fun `list params prefer field bound uploads over global fallback`() {
         val model = serviceModel(
             fields = listOf(uploadField(paramKey = "imageUrls", maxUploadCount = 2)),
@@ -565,6 +663,116 @@ class QuickCreationServiceSchemaTest {
     }
 
     @Test
+    fun `validate fields accepts json array defaults for multi select options`() {
+        val model = serviceModel(
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "conversionSlots",
+                    paramKey = "conversionSlots",
+                    fieldType = "LIST",
+                    required = false,
+                    defaultValue = "[\"all\"]",
+                    options = listOf(
+                        QuickCreationServiceFieldOption(label = "all", value = "all"),
+                        QuickCreationServiceFieldOption(label = "video1", value = "video1"),
+                    ),
+                    inputExtra = QuickCreationServiceFieldExtra(title = "conversionSlots"),
+                ),
+            ),
+        )
+
+        assertNull(
+            QuickCreationServiceSchema.validateFields(
+                model = model,
+                serviceParams = emptyMap(),
+            ),
+        )
+        assertEquals(
+            QuickCreationServiceValidationIssue.InvalidOption("conversionSlots"),
+            QuickCreationServiceSchema.validateFields(
+                model = model,
+                serviceParams = mapOf("conversionSlots" to "[\"missing\"]"),
+            ),
+        )
+    }
+
+    @Test
+    fun `validate fields accepts whole number decimals for numeric option values`() {
+        val model = serviceModel(
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "duration",
+                    paramKey = "duration",
+                    fieldType = "LIST",
+                    required = true,
+                    defaultValue = "5",
+                    options = listOf(
+                        QuickCreationServiceFieldOption(label = "5", value = "5"),
+                        QuickCreationServiceFieldOption(label = "6", value = "6"),
+                    ),
+                    inputExtra = QuickCreationServiceFieldExtra(title = "duration"),
+                ),
+            ),
+        )
+
+        assertNull(
+            QuickCreationServiceSchema.validateFields(
+                model = model,
+                serviceParams = mapOf("duration" to "5.0"),
+            ),
+        )
+        assertEquals(
+            QuickCreationServiceValidationIssue.InvalidOption("duration"),
+            QuickCreationServiceSchema.validateFields(
+                model = model,
+                serviceParams = mapOf("duration" to "5.5"),
+            ),
+        )
+    }
+
+    @Test
+    fun `validate fields accepts seedance duration values even when catalog options omit documented range`() {
+        val model = serviceModel(
+            categoryId = "VIDEO",
+            groupName = "Seedance2.0",
+            name = "seedance2.0-Mini/多模态视频",
+            fields = listOf(
+                QuickCreationServiceField(
+                    fieldKey = "duration",
+                    paramKey = "duration",
+                    fieldType = "LIST",
+                    required = true,
+                    defaultValue = "5",
+                    options = (6..15).map { seconds ->
+                        QuickCreationServiceFieldOption(label = seconds.toString(), value = seconds.toString())
+                    },
+                    inputExtra = QuickCreationServiceFieldExtra(title = "duration"),
+                ),
+            ),
+        )
+
+        assertNull(
+            QuickCreationServiceSchema.validateFields(
+                model = model,
+                serviceParams = mapOf("duration" to "4"),
+            ),
+        )
+        assertNull(
+            QuickCreationServiceSchema.validateFields(
+                model = model,
+                serviceParams = emptyMap(),
+            ),
+        )
+        assertEquals(
+            QuickCreationServiceValidationIssue.InvalidOption("duration"),
+            QuickCreationServiceSchema.validateFields(
+                model = model,
+                serviceParams = mapOf("duration" to "16"),
+            ),
+        )
+    }
+
+    @Test
     fun `validate uploads applies required and max count rules to top level and active child uploads`() {
         val model = serviceModel(
             fields = listOf(
@@ -638,14 +846,17 @@ class QuickCreationServiceSchemaTest {
     }
 
     private fun serviceModel(
+        categoryId: String = "IMAGE",
+        groupName: String = "图片生成",
+        name: String = "测试模型",
         fields: List<QuickCreationServiceField> = emptyList(),
     ): QuickCreationServiceModel =
         QuickCreationServiceModel(
-            categoryId = "IMAGE",
-            groupName = "图片生成",
+            categoryId = categoryId,
+            groupName = groupName,
             bindingId = "binding-1",
             skuId = "sku-1",
-            name = "测试模型",
+            name = name,
             description = null,
             fields = fields,
         )
@@ -669,19 +880,36 @@ class QuickCreationServiceSchemaTest {
             inputExtra = QuickCreationServiceFieldExtra(inputChildren = children),
         )
 
+    private fun serviceField(
+        paramKey: String,
+        fieldKey: String = paramKey,
+        fieldType: String = "STRING",
+        defaultValue: String,
+    ): QuickCreationServiceField =
+        QuickCreationServiceField(
+            fieldKey = fieldKey,
+            paramKey = paramKey,
+            fieldType = fieldType,
+            required = false,
+            defaultValue = defaultValue,
+            options = emptyList(),
+            inputExtra = QuickCreationServiceFieldExtra(title = paramKey),
+        )
+
     private fun uploadField(
         paramKey: String,
         fieldKey: String = paramKey,
         fieldType: String = "IMAGE_UPLOAD",
         required: Boolean = false,
         maxUploadCount: Int? = 1,
+        defaultValue: String? = null,
     ): QuickCreationServiceField =
         QuickCreationServiceField(
             fieldKey = fieldKey,
             paramKey = paramKey,
             fieldType = fieldType,
             required = required,
-            defaultValue = null,
+            defaultValue = defaultValue,
             options = emptyList(),
             maxUploadCount = maxUploadCount,
         )

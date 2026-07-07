@@ -39,10 +39,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.verticalScroll
 import com.runninghub.app.ui.component.SmartAsyncImage
+import com.runninghub.app.ui.component.VideoThumbnail
 import com.runninghub.app.ui.designsystem.components.badges.RhTaskStatusBadge
 import com.runninghub.app.ui.designsystem.components.billing.BillingInfoCard
 import com.runninghub.app.ui.designsystem.components.result.ResultPreview
 import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionType
+import com.runninghub.app.ui.designsystem.components.result.ResultPreviewMediaType
 import com.runninghub.app.ui.designsystem.theme.RhTheme
 import com.runninghub.app.ui.designsystem.theme.RhTypography
 import runninghub.composeapp.generated.resources.Res
@@ -185,12 +187,10 @@ private fun TaskDetailResultPreview(
         onAction = onResultAction,
         compactActions = true,
         mediaContent = { media ->
-            SmartAsyncImage(
-                imageUrl = media.renderUrl,
-                contentDescription = layout.resultPreview.title,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit,
-            )
+            when (media.mediaType) {
+                ResultPreviewMediaType.Image -> SmartAsyncImage(media.renderUrl, layout.resultPreview.title, Modifier.fillMaxSize(), ContentScale.Fit)
+                ResultPreviewMediaType.Video -> VideoThumbnail(media.url, Modifier.fillMaxSize(), media.previewUrl, autoPlay = false, cropToFill = false)
+            }
         },
     )
     Text(

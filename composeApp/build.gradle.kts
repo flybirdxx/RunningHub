@@ -19,6 +19,7 @@ kotlin {
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
+            binaryOption("bundleId", "com.runninghub.app.compose")
             isStatic = true
         }
     }

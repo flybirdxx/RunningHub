@@ -37,6 +37,7 @@ import org.koin.dsl.module
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 
@@ -167,7 +168,104 @@ class AppDetailScreenModelTest {
         assertEquals(false, screenModel.uiState.value.uploadingNodes.containsKey("10"))
         assertEquals("image/webp", taskRepository.lastUploadFileType)
         assertEquals("input.webp", taskRepository.lastUploadFileName)
+        assertContentEquals(byteArrayOf(1, 2, 3), taskRepository.lastUploadFileBytes)
         assertEquals(listOf("content://images/10"), mediaResolver.readUris)
+    }
+
+    @Test
+    fun `audio media uri result uploads file with audio mime type`() = runTest {
+        val audioBytes = byteArrayOf(7, 8, 9, 10)
+        val mediaResolver = FakeMediaResolver(
+            displayName = "voice.m4a",
+            bytes = audioBytes,
+        )
+        val taskRepository = FakeWebAppTaskRepository(
+            uploadFileResult = Result.success(UploadResult(fileName = "remote-voice.m4a", fileType = "audio/mp4")),
+        )
+        val screenModel = createScreenModel(
+            catalogRepository = FakeWebAppCatalogRepository(),
+            taskRepository = taskRepository,
+            mediaResolver = mediaResolver,
+            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+        )
+
+        screenModel.setPendingMediaPick(nodeId = "11", fieldName = "audio", mediaType = AppDetailMediaType.AUDIO)
+        screenModel.onMediaUriReceived("file:///tmp/voice.m4a")
+        advanceUntilIdle()
+
+        assertEquals(null, screenModel.uiState.value.pendingMediaPick)
+        assertEquals("file:///tmp/voice.m4a", screenModel.uiState.value.localUris["11"])
+        assertEquals("remote-voice.m4a", screenModel.uiState.value.inputValues["11:audio"])
+        assertEquals(false, screenModel.uiState.value.uploadingNodes.containsKey("11"))
+        assertEquals("audio/mp4", taskRepository.lastUploadFileType)
+        assertEquals("voice.m4a", taskRepository.lastUploadFileName)
+        assertContentEquals(audioBytes, taskRepository.lastUploadFileBytes)
+        assertEquals(listOf("file:///tmp/voice.m4a"), mediaResolver.readUris)
+    }
+
+    @Test
+    fun `video media uri result uploads mov file with quicktime mime type`() = runTest {
+        val videoBytes = byteArrayOf(11, 12, 13, 14)
+        val mediaResolver = FakeMediaResolver(
+            displayName = "clip.mov",
+            bytes = videoBytes,
+        )
+        val taskRepository = FakeWebAppTaskRepository(
+            uploadFileResult = Result.success(UploadResult(fileName = "remote-clip.mov", fileType = "video/quicktime")),
+        )
+        val screenModel = createScreenModel(
+            catalogRepository = FakeWebAppCatalogRepository(),
+            taskRepository = taskRepository,
+            mediaResolver = mediaResolver,
+            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+        )
+
+        screenModel.setPendingMediaPick(nodeId = "12", fieldName = "video", mediaType = AppDetailMediaType.VIDEO)
+        screenModel.onMediaUriReceived("file:///tmp/clip.mov")
+        advanceUntilIdle()
+
+        assertEquals(null, screenModel.uiState.value.pendingMediaPick)
+        assertEquals("file:///tmp/clip.mov", screenModel.uiState.value.localUris["12"])
+        assertEquals("remote-clip.mov", screenModel.uiState.value.inputValues["12:video"])
+        assertEquals(false, screenModel.uiState.value.uploadingNodes.containsKey("12"))
+        assertEquals("video/quicktime", taskRepository.lastUploadFileType)
+        assertEquals("clip.mov", taskRepository.lastUploadFileName)
+        assertContentEquals(videoBytes, taskRepository.lastUploadFileBytes)
+        assertEquals(listOf("file:///tmp/clip.mov"), mediaResolver.readUris)
+    }
+
+    @Test
+    fun `media over local upload limit marks failed before reading bytes`() = runTest {
+        val mediaResolver = FakeMediaResolver(
+            displayName = "oversized.mp4",
+            bytes = byteArrayOf(1, 2, 3),
+            fileSizeBytes = OVERSIZED_MEDIA_BYTES,
+        )
+        val taskRepository = FakeWebAppTaskRepository(
+            uploadFileResult = Result.success(UploadResult(fileName = "remote-oversized.mp4", fileType = "video/mp4")),
+        )
+        val screenModel = createScreenModel(
+            catalogRepository = FakeWebAppCatalogRepository(),
+            taskRepository = taskRepository,
+            mediaResolver = mediaResolver,
+            ioDispatcher = UnconfinedTestDispatcher(testScheduler),
+        )
+
+        screenModel.uploadFile(
+            nodeId = "video-node",
+            fieldName = "video",
+            localUri = "content://videos/oversized",
+            mediaType = AppDetailMediaType.VIDEO,
+        )
+        advanceUntilIdle()
+
+        val uploadState = screenModel.uiState.value.uploadingNodes["video-node"]
+        assertEquals("content://videos/oversized", uploadState?.localUri)
+        assertEquals(0f, uploadState?.progress)
+        assertEquals(true, uploadState?.isError)
+        assertEquals(null, screenModel.uiState.value.inputValues["video-node:video"])
+        assertEquals(0, mediaResolver.readUris.size)
+        assertEquals(null, taskRepository.lastUploadFileType)
     }
 
     @Test
@@ -343,6 +441,8 @@ class AppDetailScreenModelTest {
             private set
         var lastUploadFileName: String? = null
             private set
+        var lastUploadFileBytes: ByteArray? = null
+            private set
         private var outputCallIndex: Int = 0
 
         override suspend fun getApiCallDemo(webappId: String): Result<AppDetail> {
@@ -374,6 +474,7 @@ class AppDetailScreenModelTest {
         ): Result<UploadResult> {
             lastUploadFileType = fileType
             lastUploadFileName = fileName
+            lastUploadFileBytes = fileBytes
             return uploadFileResult
         }
     }
@@ -381,6 +482,7 @@ class AppDetailScreenModelTest {
     private class FakeMediaResolver(
         private val displayName: String? = null,
         private val bytes: ByteArray = byteArrayOf(1),
+        private val fileSizeBytes: Long = bytes.size.toLong(),
     ) : MediaResolver {
         val readUris: MutableList<String> = mutableListOf()
 
@@ -391,7 +493,7 @@ class AppDetailScreenModelTest {
 
         override fun getDisplayName(uri: String): String? = displayName
 
-        override fun getFileSizeBytes(uri: String): Long = bytes.size.toLong()
+        override fun getFileSizeBytes(uri: String): Long = fileSizeBytes
     }
 
     private fun appDetail(
@@ -437,4 +539,8 @@ class AppDetailScreenModelTest {
             fieldType = "STRING",
             description = "Description",
         )
+
+    private companion object {
+        private const val OVERSIZED_MEDIA_BYTES = 101L * 1024L * 1024L
+    }
 }

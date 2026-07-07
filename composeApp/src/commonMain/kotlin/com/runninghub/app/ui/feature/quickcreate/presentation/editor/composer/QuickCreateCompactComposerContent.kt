@@ -56,6 +56,7 @@ import com.runninghub.feature.quickcreate.presentation.billing.quickCreateSendBu
 import com.runninghub.feature.quickcreate.presentation.editor.MediaReference
 import com.runninghub.feature.quickcreate.presentation.editor.QuickCreateMediaType
 import com.runninghub.feature.quickcreate.presentation.editor.UploadStatus
+import com.runninghub.feature.quickcreate.presentation.fields.quickCreationServiceFieldUiItems
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateCompactServiceModelLabel
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.QuickCreateServiceModelUi
 import com.runninghub.feature.quickcreate.presentation.modelcatalog.quickCreateCompactServiceModelLabel
@@ -90,7 +91,7 @@ internal val CompactMediaSlotSize = 88.dp
  *
  * 组件只负责提示词、已选素材预览、模型入口、参数入口和生成按钮的可视化；模型选择、
  * 媒体选择、参数编辑和任务提交仍通过回调交给 ScreenModel，避免 Composable 直接触碰业务逻辑。
- * 空输入时右侧主按钮承担图片上传入口；已有素材时，上方只展示已选素材和紧邻的追加入口。
+ * 空输入时右侧主按钮承担当前 tab 的素材上传入口；已有素材时，上方只展示已选素材和紧邻的追加入口。
  * 已选图片优先使用本地 URI 做即时预览，避免远端上传地址暂不可读时出现空缩略图。
  *
  * @param uiState 快捷创作页面状态，用于读取当前 Sheet、计费预览和本地参数摘要。
@@ -98,7 +99,7 @@ internal val CompactMediaSlotSize = 88.dp
  * @param prompt 当前提示词。
  * @param onPromptChange 提示词变更回调。
  * @param charCount 当前提示词字符数。
-     * @param nearLimit `true` 表示接近字数上限，计数文案转为警示色。
+ * @param nearLimit `true` 表示接近字数上限，计数文案转为警示色。
  * @param overLimit `true` 表示超过字数上限，输入栏描边转为错误色。
  * @param mediaReferences 当前全局素材列表，空列表表示没有素材缩略图。
  * @param selectedServiceModel 当前选中的服务端模型摘要；为空时使用本地兼容模型名。
@@ -106,7 +107,8 @@ internal val CompactMediaSlotSize = 88.dp
  * @param isTaskActive `true` 表示任务提交、排队或运行中，生成按钮显示加载态。
  * @param canGenerate `true` 表示当前允许提交任务。
  * @param onTabSwitch 切换图片/视频创作类型的回调。
- * @param onLaunchImagePicker 添加素材回调。
+ * @param onLaunchImagePicker 图片 tab 添加素材回调。
+ * @param onLaunchVideoPicker 视频 tab 添加素材回调。
  * @param onRemoveMedia 移除素材回调。
  * @param onOpenModelSheet 打开模型选择面板。
  * @param onOpenParamsSheet 打开参数面板。
@@ -128,6 +130,7 @@ internal fun QuickCreateCompactComposer(
     canGenerate: Boolean,
     onTabSwitch: (QuickCreateTab) -> Unit,
     onLaunchImagePicker: () -> Unit,
+    onLaunchVideoPicker: () -> Unit,
     onRemoveMedia: (String) -> Unit,
     onOpenModelSheet: () -> Unit,
     onOpenParamsSheet: () -> Unit,
@@ -136,6 +139,10 @@ internal fun QuickCreateCompactComposer(
     val hasPrompt = prompt.isNotBlank()
     val showMediaUploadStrip = mediaReferences.isNotEmpty()
     val focusManager = LocalFocusManager.current
+    val onAddMedia = when (compactMediaAddAction(isImage)) {
+        CompactMediaAddAction.Image -> onLaunchImagePicker
+        CompactMediaAddAction.Video -> onLaunchVideoPicker
+    }
 
     LaunchedEffect(isTaskActive) {
         if (isTaskActive) {
@@ -155,7 +162,7 @@ internal fun QuickCreateCompactComposer(
         if (showMediaUploadStrip) {
             CompactMediaUploadStrip(
                 mediaReferences = mediaReferences,
-                onAdd = onLaunchImagePicker,
+                onAdd = onAddMedia,
                 onRemove = onRemoveMedia,
             )
         }
@@ -200,6 +207,7 @@ internal fun QuickCreateCompactComposer(
                     paramsText = compactParamsSummary(
                         selectedServiceModel = selectedServiceModel,
                         serviceModelsLoading = serviceModelsLoading,
+                        serviceParams = if (isImage) uiState.imageServiceParams else uiState.videoServiceParams,
                     ),
                     modelSelected = uiState.activeSheet == QuickCreateSheet.MODEL_PICKER,
                     paramsSelected = uiState.activeSheet == QuickCreateSheet.PARAMS,
@@ -212,7 +220,7 @@ internal fun QuickCreateCompactComposer(
                     onOpenModelSheet = onOpenModelSheet,
                     onOpenParamsSheet = onOpenParamsSheet,
                     onGenerate = onGenerate,
-                    onLaunchImagePicker = onLaunchImagePicker,
+                    onLaunchMediaPicker = onAddMedia,
                 )
             }
         }
@@ -241,7 +249,7 @@ private fun CompactControlRow(
     onOpenModelSheet: () -> Unit,
     onOpenParamsSheet: () -> Unit,
     onGenerate: () -> Unit,
-    onLaunchImagePicker: () -> Unit,
+    onLaunchMediaPicker: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -276,7 +284,7 @@ private fun CompactControlRow(
             feePreviewError = feePreviewError,
             billingPreview = billingPreview,
             onGenerate = onGenerate,
-            onAddMedia = onLaunchImagePicker,
+            onAddMedia = onLaunchMediaPicker,
         )
     }
 }
@@ -662,6 +670,11 @@ internal enum class CompactPrimaryAction {
     Generate,
 }
 
+internal enum class CompactMediaAddAction {
+    Image,
+    Video,
+}
+
 internal enum class CompactGenerateTextMode {
     GenerateOnly,
     GenerateWithDetail,
@@ -672,6 +685,13 @@ internal fun compactPrimaryAction(hasPrompt: Boolean): CompactPrimaryAction =
         CompactPrimaryAction.Generate
     } else {
         CompactPrimaryAction.AddMedia
+    }
+
+internal fun compactMediaAddAction(isImage: Boolean): CompactMediaAddAction =
+    if (isImage) {
+        CompactMediaAddAction.Image
+    } else {
+        CompactMediaAddAction.Video
     }
 
 internal fun compactGenerateTextMode(
@@ -723,6 +743,7 @@ private fun QuickCreateCompactServiceModelLabel.asCompactModelText(): String =
 private fun compactParamsSummary(
     selectedServiceModel: QuickCreateServiceModelUi?,
     serviceModelsLoading: Boolean,
+    serviceParams: Map<String, String>,
 ): String {
     if (selectedServiceModel == null) {
         return if (serviceModelsLoading) {
@@ -731,7 +752,9 @@ private fun compactParamsSummary(
             stringResource(Res.string.quick_create_compact_model_unavailable)
         }
     }
-    val parameterCount = selectedServiceModel.source.fields.size
+    val parameterCount = selectedServiceModel.source
+        .quickCreationServiceFieldUiItems(params = serviceParams)
+        .size
     return if (parameterCount > 0) {
         stringResource(Res.string.quick_create_service_model_parameter_count_format, parameterCount)
     } else {

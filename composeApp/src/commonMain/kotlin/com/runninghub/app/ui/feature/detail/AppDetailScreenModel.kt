@@ -158,6 +158,8 @@ class AppDetailScreenModel(
         override fun readBytes(uri: String): ByteArray = mediaResolver.readBytes(uri)
 
         override fun getDisplayName(uri: String): String? = mediaResolver.getDisplayName(uri)
+
+        override fun getFileSizeBytes(uri: String): Long = mediaResolver.getFileSizeBytes(uri)
     }
 
     companion object {

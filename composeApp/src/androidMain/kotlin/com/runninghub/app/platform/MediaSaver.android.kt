@@ -18,6 +18,7 @@ import coil3.request.allowHardware
 import coil3.size.Size
 import coil3.toBitmap
 import java.io.ByteArrayOutputStream
+import java.net.URL
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -64,6 +65,15 @@ private class AndroidMediaSaver(private val context: Context) : MediaSaver {
             val payload = fetchImagePayload(url)
                 ?: return@withContext MediaSaveResult.Failure(MediaSaveFailureReason.FETCH_FAILED)
             writeToMediaStore(payload, displayName)
+        }
+    }
+
+    override suspend fun saveVideoToGallery(url: String, displayName: String): MediaSaveResult {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return MediaSaveResult.Failure(MediaSaveFailureReason.UNSUPPORTED_OS_VERSION)
+        }
+        return withContext(Dispatchers.IO) {
+            writeRemoteVideoToMediaStore(url, displayName)
         }
     }
 
@@ -206,6 +216,59 @@ private class AndroidMediaSaver(private val context: Context) : MediaSaver {
         }
     }
 
+    /**
+     * 流式下载远端视频并写入系统相册。
+     *
+     * 视频结果可能明显大于图片，不能先整体读入内存；这里先创建 pending 媒体条目，再把网络输入流
+     * 直接复制到 MediaStore 输出流，失败时清理未发布条目。
+     */
+    private fun writeRemoteVideoToMediaStore(url: String, displayName: String): MediaSaveResult {
+        val resolver = context.contentResolver
+        val (mimeType, extension) = inferVideoMime(url)
+        val fileName = "${displayName}_${System.currentTimeMillis()}.$extension"
+        val pendingValues = ContentValues().apply {
+            put(MediaStore.Video.Media.DISPLAY_NAME, fileName)
+            put(MediaStore.Video.Media.MIME_TYPE, mimeType)
+            put(
+                MediaStore.Video.Media.RELATIVE_PATH,
+                "${Environment.DIRECTORY_MOVIES}/$GALLERY_RELATIVE_DIR",
+            )
+            put(MediaStore.Video.Media.IS_PENDING, 1)
+        }
+        val collection = MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+        val itemUri = try {
+            resolver.insert(collection, pendingValues)
+        } catch (t: Throwable) {
+            Log.d(TAG, "video media store insert failed: ${t::class.simpleName}")
+            null
+        } ?: return MediaSaveResult.Failure(MediaSaveFailureReason.WRITE_FAILED)
+
+        return try {
+            val written = resolver.openOutputStream(itemUri)?.use { output ->
+                URL(url).openStream().use { input ->
+                    input.copyTo(output)
+                }
+                true
+            } ?: false
+            if (!written) {
+                deletePendingItem(resolver, itemUri)
+                return MediaSaveResult.Failure(MediaSaveFailureReason.WRITE_FAILED)
+            }
+            val publishValues = ContentValues().apply {
+                put(MediaStore.Video.Media.IS_PENDING, 0)
+            }
+            resolver.update(itemUri, publishValues, null, null)
+            MediaSaveResult.Success
+        } catch (cancellation: CancellationException) {
+            deletePendingItem(resolver, itemUri)
+            throw cancellation
+        } catch (t: Throwable) {
+            Log.d(TAG, "video media store write failed: ${t::class.simpleName}")
+            deletePendingItem(resolver, itemUri)
+            MediaSaveResult.Failure(MediaSaveFailureReason.FETCH_FAILED)
+        }
+    }
+
     /** 尽力删除未发布的 pending 条目；清理失败只记日志，不影响主结果语义。 */
     private fun deletePendingItem(resolver: android.content.ContentResolver, itemUri: Uri) {
         try {
@@ -261,6 +324,22 @@ private fun sniffImageMime(bytes: ByteArray): Pair<String, String>? = when {
         bytes[10] == 0x42.toByte() &&
         bytes[11] == 0x50.toByte() -> "image/webp" to "webp"
     else -> null
+}
+
+/** 按 URL 后缀推断视频 MIME；未知时使用最常见的 mp4 容器类型。 */
+private fun inferVideoMime(url: String): Pair<String, String> {
+    val extension = url
+        .substringBefore('?')
+        .substringBefore('#')
+        .substringAfterLast('.', missingDelimiterValue = "")
+        .lowercase()
+    return when (extension) {
+        "mov" -> "video/quicktime" to "mov"
+        "webm" -> "video/webm" to "webm"
+        "m4v" -> "video/x-m4v" to "m4v"
+        "mp4" -> "video/mp4" to "mp4"
+        else -> "video/mp4" to "mp4"
+    }
 }
 
 /** 判断字节数组是否以给定魔数序列开头。 */

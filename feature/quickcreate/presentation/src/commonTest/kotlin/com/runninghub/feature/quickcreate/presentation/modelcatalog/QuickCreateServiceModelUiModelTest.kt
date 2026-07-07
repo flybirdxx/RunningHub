@@ -49,6 +49,26 @@ class QuickCreateServiceModelUiModelTest {
     }
 
     @Test
+    fun `service model subtitle counts only documented seedance params`() {
+        val model = serviceModel(
+            categoryId = "VIDEO",
+            groupName = "Seedance2.0",
+            name = "seedance2.0-Mini/多模态视频",
+            apiType = "reference-to-video",
+            fields = listOf(
+                serviceField("duration"),
+                serviceField("realPersonMode"),
+                serviceField("conversionSlots"),
+            ),
+        ).toQuickCreateServiceModelUi()
+
+        assertEquals(
+            QuickCreateServiceModelSubtitle.GroupAndParameterCount("Seedance2.0", 2),
+            model.subtitle,
+        )
+    }
+
+    @Test
     fun `compact label keeps selected model and avoids fallback while catalog is loading`() {
         val model = serviceModel(name = "示例模型").toQuickCreateServiceModelUi()
         val g2Model = serviceModel(name = "全能图片G-2-文生图-官方稳定版").toQuickCreateServiceModelUi()

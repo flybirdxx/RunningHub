@@ -26,6 +26,18 @@ class QuickCreateCompactComposerContractTest {
     }
 
     @Test
+    fun `compact add media follows active creation tab`() {
+        assertEquals(
+            CompactMediaAddAction.Image,
+            compactMediaAddAction(isImage = true),
+        )
+        assertEquals(
+            CompactMediaAddAction.Video,
+            compactMediaAddAction(isImage = false),
+        )
+    }
+
+    @Test
     fun `priced send labels keep generate intent visible`() {
         listOf(
             QuickCreateSendButtonLabel.Confirming,

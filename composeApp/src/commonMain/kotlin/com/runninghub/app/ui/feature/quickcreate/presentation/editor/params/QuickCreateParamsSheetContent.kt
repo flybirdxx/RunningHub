@@ -82,6 +82,8 @@ internal val QuickCreateParamsSectionGap = 10.dp
 internal val QuickCreateParamFieldMinHeight = 72.dp
 internal val QuickCreateParamFieldPadding = 10.dp
 internal val QuickCreateParamFieldGap = 8.dp
+internal val QuickCreateParamsSheetMaxContentHeight = 640.dp
+internal val QuickCreateParamsSheetBottomSlack = 88.dp
 
 /**
  * 展示设计稿版快捷创作参数底部面板。
@@ -176,6 +178,8 @@ internal fun QuickCreateParamsSheet(
             onAdvancedToggle = { advancedExpanded = !advancedExpanded },
             onDismiss = onDismiss,
             modifier = Modifier.fillMaxWidth(),
+            contentMaxHeight = QuickCreateParamsSheetMaxContentHeight,
+            contentBottomPadding = QuickCreateParamsSheetBottomSlack,
             dragHandle = {
                 QuickCreateSheetHandle(
                     onDragStart = onSheetDragStart,

@@ -15,6 +15,7 @@ import com.runninghub.app.ui.feature.plaza.PlazaScreenModel
 import com.runninghub.app.ui.feature.profile.ProfileScreenModel
 import com.runninghub.app.ui.feature.quickcreate.QuickCreateScreenModel
 import com.runninghub.app.ui.feature.search.SearchScreenModel
+import com.runninghub.core.storage.UiStateSnapshotStore
 import com.runninghub.feature.quickcreate.presentation.QuickCreatePresentationStateHolderFactory
 import com.runninghub.feature.quickcreate.presentation.upload.QuickCreateMediaResolver
 import com.runninghub.feature.task.domain.GenerationHistoryRepository
@@ -22,7 +23,10 @@ import com.runninghub.feature.task.presentation.TaskHistoryInvalidationBus
 import com.runninghub.feature.task.presentation.TaskHistoryInvalidationEvents
 import com.runninghub.feature.task.presentation.TaskHistoryInvalidationNotifier
 import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.json.Json
+import org.koin.core.error.NoDefinitionFoundException
 import org.koin.core.module.dsl.factoryOf
+import org.koin.core.scope.Scope
 import org.koin.dsl.module
 
 /**
@@ -39,7 +43,12 @@ val appModule = module {
         MediaResolverQuickCreateMediaResolver(get<MediaResolver>())
     }
     single { TaskHistoryInvalidationBus() }
-    single { WebAppTaskHistoryOverlayStore(get(), get()) }
+    single {
+        WebAppTaskHistoryOverlayStore(
+            snapshotStore = optionalDependency<UiStateSnapshotStore>(),
+            json = optionalDependency<Json>(),
+        )
+    }
     single<TaskHistoryInvalidationEvents> { get<TaskHistoryInvalidationBus>() }
     single<TaskHistoryInvalidationNotifier> { get<TaskHistoryInvalidationBus>() }
     // 通用历史页已依赖 Task Domain 契约；迁移期由 composeApp 聚合当前已接入的 QuickCreate 与 WebApp 历史源。
@@ -127,3 +136,16 @@ private class MediaResolverQuickCreateMediaResolver(
      */
     override fun getFileSizeBytes(uri: String): Long = mediaResolver.getFileSizeBytes(uri)
 }
+
+/**
+ * 解析 appModule 可独立运行测试时允许缺省的平台运行期依赖。
+ *
+ * Android/iOS 正常启动会由平台 runtime module 提供这些绑定；仅当调用方只装配 appModule 时，
+ * 才回退到使用方自身的内存兜底逻辑。已有定义创建失败仍继续抛出，避免掩盖真实运行期配置错误。
+ */
+private inline fun <reified T : Any> Scope.optionalDependency(): T? =
+    try {
+        get<T>()
+    } catch (_: NoDefinitionFoundException) {
+        null
+    }

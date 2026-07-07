@@ -3,6 +3,7 @@
 import com.runninghub.feature.quickcreate.data.remote.dto.QuickCreationCreateRequestDto
 import com.runninghub.feature.quickcreate.domain.ImageGenerationRequest
 import com.runninghub.feature.quickcreate.domain.VideoGenerationRequest
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -19,6 +20,7 @@ internal object QuickCreationV2Defaults {
     private const val IMAGE_CATEGORY_ID = "IMAGE"
     private const val IMAGE_G2_BINDING_ID = "2046586338670891013"
     private const val IMAGE_G2_SKU_ID = "2046514150500524034"
+    private val paramJson = Json { ignoreUnknownKeys = true }
 
     /**
      * 构造图片快捷创作的 v2 创建请求。
@@ -37,7 +39,7 @@ internal object QuickCreationV2Defaults {
 
             request.quickCreationParams.forEach { (key, value) ->
                 if (key.isNotBlank() && value.isNotBlank()) {
-                    put(key, JsonPrimitive(value))
+                    put(key, value.toJsonElementParam())
                 }
             }
             request.quickCreationListParams.forEach { (key, values) ->
@@ -87,11 +89,6 @@ internal object QuickCreationV2Defaults {
                 putIfMissing("audioUrls", JsonArray(listOf(JsonPrimitive(audioUrl))))
             }
 
-            if (hasReferenceMedia()) {
-                put("creationMode", JsonPrimitive("multimodal"))
-                put("creationSubModeId", JsonPrimitive(1))
-                put("creationSubModeKey", JsonPrimitive("MULTIMODAL_REFERENCE"))
-            }
         }
 
         return QuickCreationCreateRequestDto(
@@ -105,7 +102,7 @@ internal object QuickCreationV2Defaults {
     private fun MutableMap<String, JsonElement>.putStringParams(values: Map<String, String>) {
         values.forEach { (key, value) ->
             if (key.isNotBlank() && value.isNotBlank()) {
-                put(key, value.toJsonPrimitive())
+                put(key, value.toJsonElementParam())
             }
         }
     }
@@ -127,17 +124,28 @@ internal object QuickCreationV2Defaults {
         }
     }
 
-    private fun String.toJsonPrimitive(): JsonPrimitive =
-        when {
+    private fun String.toJsonElementParam(): JsonElement {
+        val trimmed = trim()
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+            val parsed = runCatching { paramJson.parseToJsonElement(trimmed) }.getOrNull()
+            if (parsed is JsonArray) return parsed
+        }
+        val wholeNumberInt = trimmed.toWholeNumberIntOrNull()
+        return when {
             equals("true", ignoreCase = true) -> JsonPrimitive(true)
             equals("false", ignoreCase = true) -> JsonPrimitive(false)
             toIntOrNull() != null -> JsonPrimitive(toInt())
+            wholeNumberInt != null -> JsonPrimitive(wholeNumberInt)
             toDoubleOrNull() != null -> JsonPrimitive(toDouble())
             else -> JsonPrimitive(this)
         }
+    }
 
-    private fun Map<String, JsonElement>.hasReferenceMedia(): Boolean =
-        listOf("imageUrls", "videoUrls", "audioUrls").any { key -> containsKey(key) }
+    private fun String.toWholeNumberIntOrNull(): Int? {
+        val doubleValue = toDoubleOrNull() ?: return null
+        val intValue = doubleValue.toInt()
+        return if (doubleValue == intValue.toDouble()) intValue else null
+    }
 
     private fun ImageGenerationRequest.hasQuickCreationIdentity(): Boolean =
         !quickCreationBindingId.isNullOrBlank() && !quickCreationSkuId.isNullOrBlank()

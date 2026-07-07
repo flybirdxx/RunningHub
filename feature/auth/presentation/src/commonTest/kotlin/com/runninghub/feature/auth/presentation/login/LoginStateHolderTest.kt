@@ -127,14 +127,47 @@ class LoginStateHolderTest {
     }
 
     @Test
-    fun `blank captcha token keeps dialog open and maps stable error`() = runTest {
+    fun `dismissed captcha ignores stale token and preserves input`() = runTest {
+        val repository = FakeAuthRepository(
+            sendSmsCodeResult = Result.failure(SmsError.CaptchaRequired()),
+        )
         val stateHolder = LoginStateHolder(
-            authRepository = FakeAuthRepository(),
+            authRepository = repository,
             coroutineScope = this,
         )
 
+        stateHolder.onPhoneChanged("13800138000")
+        stateHolder.onSmsCodeChanged("123456")
+        stateHolder.sendSmsCode()
+        advanceUntilIdle()
+        assertEquals(true, stateHolder.uiState.value.requiresSmsCaptcha)
+        assertEquals(1, repository.sendSmsCodeCalls)
+
+        repository.sendSmsCodeResult = Result.success(Unit)
+        stateHolder.dismissSmsCaptcha()
+        stateHolder.onSmsCaptchaVerified("stale-captcha-token")
+        advanceUntilIdle()
+
+        assertEquals(false, stateHolder.uiState.value.requiresSmsCaptcha)
+        assertEquals("13800138000", stateHolder.uiState.value.phone)
+        assertEquals("123456", stateHolder.uiState.value.smsCode)
+        assertEquals(1, repository.sendSmsCodeCalls)
+        assertEquals(null, repository.lastCaptchaToken)
+    }
+
+    @Test
+    fun `blank captcha token keeps active dialog open and maps stable error`() = runTest {
+        val stateHolder = LoginStateHolder(
+            authRepository = FakeAuthRepository(sendSmsCodeResult = Result.failure(SmsError.CaptchaRequired())),
+            coroutineScope = this,
+        )
+
+        stateHolder.onPhoneChanged("13800138000")
+        stateHolder.sendSmsCode()
+        advanceUntilIdle()
         stateHolder.onSmsCaptchaVerified("")
 
+        assertEquals(true, stateHolder.uiState.value.requiresSmsCaptcha)
         assertEquals(LoginErrorText.CaptchaInvalid, stateHolder.uiState.value.error)
     }
 
@@ -143,6 +176,8 @@ class LoginStateHolderTest {
         private val passwordLoginResult: Result<User> = Result.failure(NotImplementedError()),
         var sendSmsCodeResult: Result<Unit> = Result.success(Unit),
     ) : AuthRepository {
+        var sendSmsCodeCalls: Int = 0
+            private set
         var lastCaptchaToken: String? = null
             private set
 
@@ -150,6 +185,7 @@ class LoginStateHolderTest {
             passwordLoginResult
 
         override suspend fun sendSmsCode(phone: String, captchaToken: String?): Result<Unit> {
+            sendSmsCodeCalls += 1
             lastCaptchaToken = captchaToken
             return sendSmsCodeResult
         }

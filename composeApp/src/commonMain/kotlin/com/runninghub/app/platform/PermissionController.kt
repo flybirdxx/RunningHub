@@ -18,13 +18,17 @@ interface PermissionController {
      * @param mediaPermission 选择媒体前需要确认的领域权限。
      * @param mediaType 需要选择的媒体类型。
      * @param onSuccess 成功选择后返回平台无关 URI 字符串。
-     * @param onPermissionDenied 权限被拒绝或无法继续选择时调用。
+     * @param onPermissionDenied 临时拒绝或无法继续选择时调用。
+     * @param onPickerCancelled 用户主动取消系统选择器时调用；取消不应被展示为权限拒绝。
+     * @param onPermissionPermanentlyDenied 权限已被系统判定为需要进入设置页恢复时调用。
      */
     fun pickMedia(
         mediaPermission: Permission,
         mediaType: MediaType,
         onSuccess: (String) -> Unit,
         onPermissionDenied: () -> Unit,
+        onPickerCancelled: () -> Unit = {},
+        onPermissionPermanentlyDenied: () -> Unit = onPermissionDenied,
     )
 
     /**
@@ -45,6 +49,16 @@ interface PermissionController {
      * Android 与 iOS 的跳转方式不同，因此具体 URL/Intent 细节保留在 actual 实现中。
      */
     fun openAppSettings()
+
+    /**
+     * 打开指定权限的系统恢复入口。
+     *
+     * 大多数权限直接进入应用设置页；iOS Photo Library Limited 状态可打开系统的有限照片管理页，
+     * 让用户追加或调整可访问素材，而不把普通 PHPicker 选择流程重新绑定到整库授权请求。
+     */
+    fun openPermissionSettings(permission: Permission) {
+        openAppSettings()
+    }
 }
 
 /**

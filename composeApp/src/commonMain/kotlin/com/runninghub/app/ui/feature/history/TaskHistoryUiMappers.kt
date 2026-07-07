@@ -58,6 +58,7 @@ import runninghub.composeapp.generated.resources.task_history_detail_no_billing
 import runninghub.composeapp.generated.resources.task_history_detail_request_info
 import runninghub.composeapp.generated.resources.task_history_detail_response_info
 import runninghub.composeapp.generated.resources.task_history_detail_save_not_saved
+import runninghub.composeapp.generated.resources.task_history_detail_save_saved
 import runninghub.composeapp.generated.resources.task_history_detail_save_unavailable
 import runninghub.composeapp.generated.resources.task_history_error_auth_sync
 import runninghub.composeapp.generated.resources.task_history_error_cancel_failed
@@ -200,6 +201,7 @@ private fun com.runninghub.feature.task.presentation.TaskHistoryDetailBillingRow
 
 @Composable
 private fun TaskHistoryDetailSaveState.toTaskDetailSaveStateLabel(): String = when (this) {
+    TaskHistoryDetailSaveState.SAVED -> stringResource(Res.string.task_history_detail_save_saved)
     TaskHistoryDetailSaveState.NOT_SAVED -> stringResource(Res.string.task_history_detail_save_not_saved)
     TaskHistoryDetailSaveState.UNAVAILABLE -> stringResource(Res.string.task_history_detail_save_unavailable)
 }

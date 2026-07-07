@@ -26,18 +26,25 @@ import cafe.adriel.voyager.core.model.rememberScreenModel
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.core.screen.ScreenKey
 import cafe.adriel.voyager.core.screen.uniqueScreenKey
+import com.runninghub.app.platform.MediaSaveFailureReason
 import com.runninghub.app.platform.MediaSaveResult
 import com.runninghub.app.platform.MediaSaver
+import com.runninghub.app.platform.PermissionController
+import com.runninghub.app.platform.recoverablePermission
+import com.runninghub.app.platform.rememberPermissionController
+import com.runninghub.app.ui.component.AutoDismissEffect
+import com.runninghub.app.ui.component.PermissionBottomSheet
 import com.runninghub.app.ui.designsystem.components.feedback.RhSnackbar
 import com.runninghub.app.ui.designsystem.components.feedback.RhSnackbarSeverity
 import com.runninghub.app.ui.designsystem.components.result.ResultPreviewActionType
 import com.runninghub.app.ui.designsystem.theme.RhSpacing
 import com.runninghub.app.ui.designsystem.theme.RhTheme
-import com.runninghub.feature.task.presentation.TaskHistoryDetailMediaType
+import com.runninghub.core.storage.Permission
+import com.runninghub.core.storage.PermissionStateStore
+import com.runninghub.feature.task.presentation.TaskHistoryDetailSaveState
 import com.runninghub.feature.task.presentation.TaskHistoryFilter
 import com.runninghub.feature.task.presentation.TaskHistoryUiState
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.stringResource
 import org.koin.core.component.KoinComponent
@@ -60,9 +67,13 @@ class TaskHistoryVoyagerScreen : Screen, KoinComponent {
         val screenModel = rememberScreenModel { TaskHistoryScreenModel(get(), get()) }
         val uiState by screenModel.uiState.collectAsState()
         val mediaSaver = remember { get<MediaSaver>() }
+        val permissionStateStore = remember { get<PermissionStateStore>() }
+        val controller: PermissionController = rememberPermissionController(permissionStateStore)
         val downloadCoroutineScope = rememberCoroutineScope()
         var downloadingResultUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
         var downloadBanner by remember { mutableStateOf<TaskHistoryDownloadBanner?>(null) }
+        var savedResultUrls by remember { mutableStateOf<Set<String>>(emptySet()) }
+        var pendingPermission by remember { mutableStateOf<Permission?>(null) }
 
         fun showDownloadBanner(success: Boolean) {
             downloadBanner = TaskHistoryDownloadBanner(
@@ -77,26 +88,29 @@ class TaskHistoryVoyagerScreen : Screen, KoinComponent {
                 showDownloadBanner(success = false)
                 return
             }
-            if (output.mediaType != TaskHistoryDetailMediaType.IMAGE) {
-                showDownloadBanner(success = false)
-                return
-            }
             val resultUrl = output.url
             if (resultUrl in downloadingResultUrls) return
 
             downloadingResultUrls = downloadingResultUrls + resultUrl
             downloadCoroutineScope.launch {
-                val saveSucceeded = try {
-                    mediaSaver.saveImageToGallery(
-                        url = resultUrl,
-                        displayName = "runninghub_history",
-                    ) is MediaSaveResult.Success
+                val saveResult = try {
+                    saveTaskHistoryDetailOutputToGallery(
+                        mediaSaver = mediaSaver,
+                        output = output,
+                    )
                 } catch (cancellation: CancellationException) {
                     throw cancellation
                 } catch (t: Throwable) {
-                    false
+                    MediaSaveResult.Failure(MediaSaveFailureReason.WRITE_FAILED)
                 } finally {
                     downloadingResultUrls = downloadingResultUrls - resultUrl
+                }
+                saveResult.recoverablePermission()?.let { permission ->
+                    pendingPermission = permission
+                }
+                val saveSucceeded = saveResult is MediaSaveResult.Success
+                if (saveSucceeded) {
+                    savedResultUrls = savedResultUrls + resultUrl
                 }
                 showDownloadBanner(success = saveSucceeded)
             }
@@ -114,15 +128,17 @@ class TaskHistoryVoyagerScreen : Screen, KoinComponent {
         }
 
         LaunchedEffect(Unit) { screenModel.loadHistory() }
-        LaunchedEffect(downloadBanner?.token) {
-            if (downloadBanner != null) {
-                delay(TASK_HISTORY_DOWNLOAD_BANNER_AUTO_DISMISS_MS)
-                downloadBanner = null
-            }
-        }
+        AutoDismissEffect(
+            key = downloadBanner?.token,
+            visible = downloadBanner != null,
+            durationMillis = TASK_HISTORY_DOWNLOAD_BANNER_AUTO_DISMISS_MS,
+            onDismiss = { downloadBanner = null },
+        )
+
+        val renderedUiState = uiState.withSavedResultUrls(savedResultUrls)
 
         TaskHistoryContent(
-            uiState = uiState,
+            uiState = renderedUiState,
             onFilterSelected = screenModel::setFilter,
             onRetry = screenModel::loadHistory,
             onViewOutput = screenModel::selectOutput,
@@ -134,7 +150,34 @@ class TaskHistoryVoyagerScreen : Screen, KoinComponent {
             onTaskDetailResultAction = { action -> handleTaskDetailResultAction(action) },
             downloadBanner = downloadBanner,
         )
+        val activePermission = pendingPermission
+        if (activePermission != null) {
+            PermissionBottomSheet(
+                permission = activePermission,
+                onDismiss = { pendingPermission = null },
+                onAuthorize = {
+                    pendingPermission = null
+                    controller.checkAndRequest(
+                        permission = activePermission,
+                        onGranted = {},
+                        onDenied = {},
+                        onPermanentlyDenied = { controller.openPermissionSettings(activePermission) },
+                    )
+                },
+            )
+        }
     }
+}
+
+private fun TaskHistoryUiState.withSavedResultUrls(savedResultUrls: Set<String>): TaskHistoryUiState {
+    if (savedResultUrls.isEmpty()) return this
+    val detailUi = selectedTaskDetailUi ?: return this
+    if (detailUi.saveState != TaskHistoryDetailSaveState.NOT_SAVED) return this
+    val resultUrl = detailUi.result?.outputs?.firstOrNull()?.url ?: return this
+    if (resultUrl !in savedResultUrls) return this
+    return copy(
+        selectedTaskDetailUi = detailUi.copy(saveState = TaskHistoryDetailSaveState.SAVED),
+    )
 }
 
 @Composable

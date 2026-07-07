@@ -135,7 +135,7 @@ val AppDetailUiState.creationEntry: AppDetailCreationEntryUiModel?
                     taskError != null -> AppDetailCreationPrimaryAction.RETRY
                     else -> AppDetailCreationPrimaryAction.GENERATE_NOW
                 },
-                enabled = !isRunningTask && uploadingNodes.values.none { !it.isError },
+                enabled = !isRunningTask && uploadingNodes.isEmpty(),
             ),
             firstScreenSections = listOf(
                 AppDetailCreationSection.DESCRIPTION,

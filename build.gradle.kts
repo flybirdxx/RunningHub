@@ -1004,7 +1004,8 @@ tasks.register("checkMigrationScripts") {
         val requiredIosMacosSnippets = listOf(
             "--simulator-smoke-pass",
             "--self-test",
-            "headSha: \$head_sha",
+            "headSha: \$head_sha", "overallResult: pass", "skipReason: none", "followUpRequired: false",
+            "authenticatedSmokeBuildMode: signed-simulator-or-device",
             "git rev-parse HEAD",
             "linkResult: \$link_result",
             "xcodebuildCommand:",
@@ -1027,7 +1028,7 @@ tasks.register("checkMigrationScripts") {
             "xcrun simctl delete",
             "build/xcode/DerivedData/Build/Products/Debug-iphonesimulator/RunningHub.app",
             "com.runninghub.app.ios",
-            "simulatorLaunchResult: pass",
+            "simulatorLaunchResult: pass", "startupCrashScan: pass", "screenshotPath:", "xcrun simctl io", "xcrun simctl spawn",
             "simulatorSmokePath=",
         )
         val requiredIosEvidenceDownloadSnippets = listOf(
@@ -1556,17 +1557,12 @@ tasks.register("checkL1SealEvidence") {
                 return
             }
             val text = file.readText()
-            val capturedAt = markdownField(text, "capturedAt")
-            val evidenceHeadSha = markdownField(text, "headSha")
-            val host = markdownField(text, "host")
-            val overallResult = markdownField(text, "overallResult")
-            val skipReason = markdownField(text, "skipReason")
-            val followUpRequired = markdownField(text, "followUpRequired")
-            val linkCommand = markdownField(text, "linkCommand")
-            val linkResult = markdownField(text, "linkResult")
-            val xcodebuildCommand = markdownField(text, "xcodebuildCommand")
-            val xcodebuildResult = markdownField(text, "xcodebuildResult")
-            val simulatorSmokeResult = markdownField(text, "simulatorSmokeResult")
+            val capturedAt = markdownField(text, "capturedAt"); val evidenceHeadSha = markdownField(text, "headSha")
+            val host = markdownField(text, "host"); val overallResult = markdownField(text, "overallResult")
+            val skipReason = markdownField(text, "skipReason"); val followUpRequired = markdownField(text, "followUpRequired")
+            val linkCommand = markdownField(text, "linkCommand"); val linkResult = markdownField(text, "linkResult")
+            val xcodebuildCommand = markdownField(text, "xcodebuildCommand"); val xcodebuildResult = markdownField(text, "xcodebuildResult")
+            val authenticatedSmokeBuildMode = markdownField(text, "authenticatedSmokeBuildMode"); val simulatorSmokeResult = markdownField(text, "simulatorSmokeResult")
             if (capturedAt.isBlank()) {
                 violations += "${evidence.label} evidence at ${evidence.relativePath} must include non-blank capturedAt."
             }
@@ -1601,6 +1597,9 @@ tasks.register("checkL1SealEvidence") {
                 }
                 if (xcodebuildResult != "pass") {
                     violations += "${evidence.label} evidence at ${evidence.relativePath} must use xcodebuildResult=pass when overallResult=pass."
+                }
+                if (authenticatedSmokeBuildMode != "signed-simulator-or-device") {
+                    violations += "${evidence.label} evidence at ${evidence.relativePath} must use authenticatedSmokeBuildMode=signed-simulator-or-device when overallResult=pass."
                 }
                 if (simulatorSmokeResult != "pass") {
                     violations += "${evidence.label} evidence at ${evidence.relativePath} must use simulatorSmokeResult=pass when overallResult=pass."

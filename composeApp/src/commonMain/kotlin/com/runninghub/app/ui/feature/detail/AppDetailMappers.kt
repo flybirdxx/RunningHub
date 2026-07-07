@@ -11,6 +11,8 @@ import org.jetbrains.compose.resources.stringResource
 import runninghub.composeapp.generated.resources.Res
 import runninghub.composeapp.generated.resources.app_detail_error_load_failed
 import runninghub.composeapp.generated.resources.app_detail_error_task_failed
+import runninghub.composeapp.generated.resources.app_detail_error_media_upload_failed
+import runninghub.composeapp.generated.resources.app_detail_error_media_upload_pending
 import runninghub.composeapp.generated.resources.app_detail_error_task_submit_failed
 import runninghub.composeapp.generated.resources.app_detail_error_task_timeout
 
@@ -40,6 +42,8 @@ internal fun appDetailErrorMessage(error: AppDetailErrorText): String =
         AppDetailErrorText.TaskSubmitFailed -> stringResource(Res.string.app_detail_error_task_submit_failed)
         AppDetailErrorText.TaskFailed -> stringResource(Res.string.app_detail_error_task_failed)
         AppDetailErrorText.TaskTimeout -> stringResource(Res.string.app_detail_error_task_timeout)
+        AppDetailErrorText.MediaUploadPending -> stringResource(Res.string.app_detail_error_media_upload_pending)
+        AppDetailErrorText.MediaUploadFailed -> stringResource(Res.string.app_detail_error_media_upload_failed)
     }
 
 internal fun AppDetailTaskStep.toComponentTaskStep(): TaskStep = when (this) {

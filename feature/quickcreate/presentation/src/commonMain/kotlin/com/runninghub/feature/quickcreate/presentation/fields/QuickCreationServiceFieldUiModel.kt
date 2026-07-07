@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.fields
 
 import com.runninghub.feature.quickcreate.domain.QuickCreationResolvedFieldKind
+import com.runninghub.feature.quickcreate.domain.QuickCreationResolvedFieldOption
 import com.runninghub.feature.quickcreate.domain.QuickCreationResolvedServiceField
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
@@ -218,7 +219,7 @@ private fun QuickCreationResolvedServiceField.toQuickCreationServiceFieldUi(
         controlType = kind.toQuickCreationServiceFieldControlType(),
         required = required,
         options = options.map { option ->
-            val selected = currentValue == option.value
+            val selected = currentValue.matchesServiceOption(option.value)
             QuickCreationServiceFieldOptionUi(
                 label = option.label,
                 value = option.value,
@@ -301,7 +302,7 @@ private fun QuickCreationResolvedServiceField.quickCreationServiceFieldVisualSta
     val hasInvalidOption = kind == QuickCreationResolvedFieldKind.OPTIONS &&
         options.isNotEmpty() &&
         currentValue.isNotBlank() &&
-        options.none { option -> option.value == currentValue }
+        !options.acceptsServiceOptionValue(currentValue)
     return when {
         paramKey.isBlank() -> QuickCreationServiceFieldVisualState.DISABLED
         kind == QuickCreationResolvedFieldKind.OPTIONS && options.isEmpty() ->
@@ -325,3 +326,41 @@ private fun String.isPromptFieldKey(): Boolean =
         this == "text" ||
         this == "input" ||
         this == "positiveprompt"
+
+private fun String.matchesServiceOption(optionValue: String): Boolean =
+    serviceOptionSelectionValues().any { selected -> selected.matchesServiceOptionValue(optionValue) }
+
+private fun List<QuickCreationResolvedFieldOption>.acceptsServiceOptionValue(value: String): Boolean {
+    val allowedValues = map { it.value }
+    val selectedValues = value.serviceOptionSelectionValues()
+    return selectedValues.isNotEmpty() &&
+        selectedValues.all { selected -> allowedValues.any { allowed -> selected.matchesServiceOptionValue(allowed) } }
+}
+
+private fun String.serviceOptionSelectionValues(): List<String> {
+    val trimmed = trim()
+    if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
+        return listOf(trimmed)
+    }
+    val body = trimmed.removePrefix("[").removeSuffix("]").trim()
+    if (body.isBlank()) return emptyList()
+    return body.split(',')
+        .map { item -> item.trim().trim('"') }
+        .filter { it.isNotBlank() }
+}
+
+private fun String.matchesServiceOptionValue(allowedValue: String): Boolean =
+    if (this == allowedValue) {
+        true
+    } else {
+        val numericKey = serviceOptionNumericKeyOrNull()
+        numericKey != null && numericKey == allowedValue.serviceOptionNumericKeyOrNull()
+    }
+
+private fun String.serviceOptionNumericKeyOrNull(): String? {
+    val trimmed = trim()
+    trimmed.toLongOrNull()?.let { return it.toString() }
+    val doubleValue = trimmed.toDoubleOrNull() ?: return null
+    val longValue = doubleValue.toLong()
+    return if (doubleValue == longValue.toDouble()) longValue.toString() else null
+}

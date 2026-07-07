@@ -99,7 +99,7 @@ jobs:
             exit 1
           fi
           if [ -z "${SMOKE_NOTES//[[:space:]]/}" ]; then
-            echo "smoke_notes must describe the Simulator device, OS, and checked flows." >&2
+            echo "smoke_notes must describe the device, OS, signed build mode, and checked flows." >&2
             exit 1
           fi
 

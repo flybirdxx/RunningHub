@@ -141,12 +141,12 @@ class QuickCreateModelCatalogInteractor(
                 selectedVideoServiceModelUi = videoItems.firstOrNull { it.selected },
                 modelPickerModelSnapshot = modelPickerSnapshot,
                 imageServiceParams = if (hasSameServiceSelection(selectedImage, state.selectedImageServiceModel)) {
-                    state.imageServiceParams
+                    QuickCreationServiceSchema.sanitizedParams(selectedImage, state.imageServiceParams)
                 } else {
                     QuickCreationServiceSchema.defaultParams(selectedImage)
                 },
                 videoServiceParams = if (hasSameServiceSelection(selectedVideo, state.selectedVideoServiceModel)) {
-                    state.videoServiceParams
+                    QuickCreationServiceSchema.sanitizedParams(selectedVideo, state.videoServiceParams)
                 } else {
                     QuickCreationServiceSchema.defaultParams(selectedVideo)
                 },

@@ -2,4 +2,6 @@
 # 迁移期既有硬编码 UI 文案基线。新增用户可见文案应优先使用 Compose Resources；
 # 如果此文件中的计数增长，checkLongTermGovernance 会失败。
 # 独立 Presentation 模块中的中文 UI 文案基线；后续应逐步迁移到 Compose Resources 或统一文案端口。
-# 当前无正数基线；新增用户可见中文硬编码会作为未登记新增文件失败。
+# 登记项必须说明为何不是最终展示文案，或注明后续迁移条件；新增用户可见中文硬编码会作为未登记新增文件失败。
+composeApp/src/commonMain/kotlin/com/runninghub/app/ui/feature/detail/AppDetailInputSection.kt|1|RequiredFieldStar uses a punctuation-only required marker, not localizable prose.
+feature/discovery/presentation/src/commonMain/kotlin/com/runninghub/feature/discovery/presentation/DiscoveryAppCardPresentation.kt|3|Capability inference uses Chinese search keywords from remote titles and tags, not user-facing UI copy.

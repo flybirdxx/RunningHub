@@ -459,6 +459,8 @@
     <string name="app_detail_error_task_submit_failed">提交失败，请稍后重试</string>
     <string name="app_detail_error_task_failed">任务失败，请稍后重试</string>
     <string name="app_detail_error_task_timeout">任务超时，请稍后重试</string>
+    <string name="app_detail_error_media_upload_pending">素材正在上传，请稍后再运行</string>
+    <string name="app_detail_error_media_upload_failed">素材上传失败，请重新选择后再运行</string>
     <string name="app_detail_creation_description_title">简介</string>
     <string name="app_detail_creation_cost_title">预计费用</string>
     <string name="app_detail_creation_cost_unknown">运行前确认费用</string>
@@ -525,6 +527,7 @@
     <string name="task_history_detail_technical_details">技术详情</string>
     <string name="task_history_detail_no_billing">未提供计费信息</string>
     <string name="task_history_detail_save_not_saved">未保存到本地</string>
+    <string name="task_history_detail_save_saved">已保存到本地</string>
     <string name="task_history_detail_save_unavailable">无可保存结果</string>
     <string name="task_history_detail_metric_rhb">实际 RHB 消耗</string>
     <string name="task_history_detail_metric_final_amount">实际现金消耗</string>

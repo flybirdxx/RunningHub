@@ -20,6 +20,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 /**
  * WebApp Task API 路径与认证头测试。
@@ -78,6 +79,37 @@ class WebAppTaskApiTest {
             captured.map { it.method to it.path },
         )
         assertEquals("api-key", captured.first().apiKey)
+    }
+
+    @Test
+    fun `upload file sends multipart body`() = runBlocking {
+        var capturedBodyType = ""
+        val client = HttpClient(
+            MockEngine { request ->
+                if (request.url.encodedPath == "/task/openapi/upload") {
+                    capturedBodyType = request.body::class.simpleName.orEmpty()
+                }
+                respond(
+                    content = responseFor(request.url.encodedPath),
+                    status = HttpStatusCode.OK,
+                    headers = headersOf(HttpHeaders.ContentType, ContentType.Application.Json.toString()),
+                )
+            },
+        ) {
+            install(ContentNegotiation) {
+                json(json)
+            }
+        }
+        val api = WebAppTaskApi(client)
+
+        api.uploadFile(
+            apiKey = "api-key",
+            fileType = "video/quicktime",
+            fileBytes = byteArrayOf(1, 2, 3),
+            fileName = "clip.mov",
+        )
+
+        assertEquals("MultiPartFormDataContent", capturedBodyType)
     }
 
     private fun clientWithCapture(

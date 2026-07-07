@@ -90,6 +90,7 @@ class WebAppTaskApi(private val client: HttpClient) {
                 append("fileType", fileType)
                 append("file", fileBytes, Headers.build {
                     append(HttpHeaders.ContentDisposition, "filename=\"$fileName\"")
+                    append(HttpHeaders.ContentType, fileType)
                 })
             },
         ).body()

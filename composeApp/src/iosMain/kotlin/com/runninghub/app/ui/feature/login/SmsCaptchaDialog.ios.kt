@@ -91,6 +91,8 @@ actual fun SmsCaptchaDialog(
     DisposableEffect(webView) {
         onDispose {
             // 弹窗销毁时移除脚本消息处理器，避免 WKWebView 持有过期的 Compose 回调。
+            messageHandler.dispose()
+            navigationDelegate.dispose()
             webView.configuration.userContentController.removeScriptMessageHandlerForName(CAPTCHA_BRIDGE_NAME)
             // 同步断开导航 delegate，避免自定义 scheme 兜底路径继续持有旧回调。
             webView.navigationDelegate = null
@@ -148,6 +150,18 @@ private class SmsCaptchaNavigationDelegate(
     private val onToken: (String?) -> Unit,
     private val onDismiss: () -> Unit,
 ) : NSObject(), WKNavigationDelegateProtocol {
+    private var isActive = true
+
+    /**
+     * 停用当前导航代理。
+     *
+     * WKWebView 关闭期间可能仍有自定义 scheme 导航回调抵达；停用后只拦截验证码 scheme，
+     * 不再触发旧 token 或旧关闭动作，避免连续打开验证码时串到新的登录状态。
+     */
+    fun dispose() {
+        isActive = false
+    }
+
     /**
      * 决定 WKWebView 是否继续当前导航。
      *
@@ -161,6 +175,9 @@ private class SmsCaptchaNavigationDelegate(
     ) {
         val rawUrl = decidePolicyForNavigationAction.request.URL?.absoluteString
         val handled = rawUrl?.let {
+            if (!isActive) {
+                return@let parseSmsCaptchaCallbackUrl(it) != null
+            }
             handleSmsCaptchaCallbackUrl(
                 rawUrl = it,
                 onToken = onToken,
@@ -189,6 +206,18 @@ private class SmsCaptchaMessageHandler(
     private val onToken: (String?) -> Unit,
     private val onDismiss: () -> Unit,
 ) : NSObject(), WKScriptMessageHandlerProtocol {
+    private var isActive = true
+
+    /**
+     * 停用当前脚本消息处理器。
+     *
+     * WebKit 消息会再切回主线程更新 Compose 状态；如果弹窗已经关闭，已排队消息也必须被忽略，
+     * 否则旧 `validToken` 可能在用户取消或重新打开验证码后触发短信重试。
+     */
+    fun dispose() {
+        isActive = false
+    }
+
     /**
      * 接收 TAC HTML 发出的脚本消息。
      *
@@ -201,15 +230,20 @@ private class SmsCaptchaMessageHandler(
         userContentController: WKUserContentController,
         didReceiveScriptMessage: WKScriptMessage,
     ) {
+        if (!isActive) return
         val message = didReceiveScriptMessage.body.toString()
         when {
             message == "close" -> dispatch_async(dispatch_get_main_queue()) {
-                onDismiss()
+                if (isActive) {
+                    onDismiss()
+                }
             }
             message.startsWith("token:") -> {
                 val token = message.removePrefix("token:").takeIf { it.isNotBlank() }
                 dispatch_async(dispatch_get_main_queue()) {
-                    onToken(token)
+                    if (isActive) {
+                        onToken(token)
+                    }
                 }
             }
         }

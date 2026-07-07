@@ -178,10 +178,10 @@ object QuickCreationServiceSchema {
         model: QuickCreationServiceModel?,
         activeParams: Map<String, String> = emptyMap(),
     ): Map<String, String> {
-        val visibleFields = model?.fields.orEmpty()
-            .filter { it.visible }
+        val visibleFields = model.documentedVisibleFields()
         val topLevelDefaults = visibleFields
             .mapNotNull { field ->
+                if (field.isUploadField()) return@mapNotNull null
                 val value = field.defaultValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
                 field.paramKey to value
             }
@@ -190,13 +190,59 @@ object QuickCreationServiceSchema {
         return buildMap {
             putAll(topLevelDefaults)
             visibleFields.forEach { field ->
-                field.activeInputChildren(aliasedDefaults)
+                field.activeInputChildren(aliasedDefaults, model)
                     .mapNotNull { child ->
+                        if (child.isUploadField()) return@mapNotNull null
                         val value = child.defaultValue?.takeIf { it.isNotBlank() } ?: return@mapNotNull null
                         child.paramKey to value
                     }
                     .forEach { (paramKey, value) -> put(paramKey, value) }
             }
+        }
+    }
+
+    /**
+     * 将已有服务参数收敛到当前模型仍声明且仍有效的字段集合。
+     *
+     * 模型目录可能先展示缓存、再用远端刷新快照替换同一个服务模型。刷新后的 options 或默认值
+     * 变化时，旧参数不能继续阻塞生成；但仍被当前 schema 接受的用户选择应保留。
+     */
+    fun sanitizedParams(
+        model: QuickCreationServiceModel?,
+        params: Map<String, String>,
+    ): Map<String, String> {
+        val visibleFields = model.documentedVisibleFields()
+        if (visibleFields.isEmpty()) return emptyMap()
+        val canonicalParams = canonicalParams(model, params)
+        val topLevelDefaults = defaultParams(model)
+        return buildMap {
+            visibleFields.forEach { field ->
+                field.sanitizedValue(
+                    currentValue = canonicalParams[field.paramKey],
+                    defaultValue = topLevelDefaults[field.paramKey],
+                    model = model,
+                )?.let { value -> put(field.paramKey, value) }
+            }
+
+            var changed: Boolean
+            do {
+                changed = false
+                val aliasedParams = paramsWithFieldAliases(model, this)
+                val childDefaults = defaultParams(model, this)
+                visibleFields.forEach { field ->
+                    field.activeInputChildren(aliasedParams, model).forEach { child ->
+                        val value = child.sanitizedValue(
+                            currentValue = canonicalParams[child.paramKey],
+                            defaultValue = childDefaults[child.paramKey],
+                            model = model,
+                        ) ?: return@forEach
+                        val previousValue = put(child.paramKey, value)
+                        if (previousValue != value) {
+                            changed = true
+                        }
+                    }
+                }
+            } while (changed)
         }
     }
 
@@ -212,9 +258,11 @@ object QuickCreationServiceSchema {
         paramKey: String,
     ): Boolean =
         paramKey.isNotBlank() &&
-            model.fields.any { field ->
+            model.documentedVisibleFields().any { field ->
                 field.paramKey == paramKey ||
-                    field.inputExtra?.inputChildren.orEmpty().any { child -> child.paramKey == paramKey }
+                    field.inputExtra?.inputChildren.orEmpty()
+                        .filter { child -> child.isDocumentedForModel(model) }
+                        .any { child -> child.paramKey == paramKey }
             }
 
     /**
@@ -231,10 +279,9 @@ object QuickCreationServiceSchema {
         serviceParams: Map<String, String>,
     ): Set<String> {
         val aliasedParams = paramsWithFieldAliases(model, serviceParams)
-        return model?.fields.orEmpty()
-            .filter { it.visible }
+        return model.documentedVisibleFields()
             .flatMap { field ->
-                listOf(field.paramKey) + field.activeInputChildren(aliasedParams).map { it.paramKey }
+                listOf(field.paramKey) + field.activeInputChildren(aliasedParams, model).map { it.paramKey }
             }
             .toSet()
     }
@@ -251,15 +298,14 @@ object QuickCreationServiceSchema {
         serviceParams: Map<String, String>,
     ): Set<String> {
         val aliasedParams = paramsWithFieldAliases(model, serviceParams)
-        return model?.fields.orEmpty()
-            .filter { it.visible }
+        return model.documentedVisibleFields()
             .flatMap { field ->
                 buildList {
-                    if (field.isRenderable() && field.isUploadField()) {
+                    if (field.isRenderableForModel(model) && field.isUploadField()) {
                         add(field.paramKey)
                     }
                     addAll(
-                        field.activeInputChildren(aliasedParams)
+                        field.activeInputChildren(aliasedParams, model)
                             .filter { it.isUploadField() }
                             .map { it.paramKey },
                     )
@@ -285,8 +331,8 @@ object QuickCreationServiceSchema {
     ): List<QuickCreationResolvedServiceField> {
         val aliasedParams = paramsWithFieldAliases(model, serviceParams)
         return model?.fields.orEmpty()
-            .filter { it.isRenderable() }
-            .map { field -> field.toResolvedField(aliasedParams) }
+            .filter { it.isRenderableForModel(model) }
+            .map { field -> field.toResolvedField(aliasedParams, model) }
     }
 
     /**
@@ -306,17 +352,16 @@ object QuickCreationServiceSchema {
     ): Map<String, QuickCreationServiceUploadFieldAlias> {
         val aliasedParams = paramsWithFieldAliases(model, serviceParams)
         return buildMap {
-            model?.fields.orEmpty()
-                .filter { it.visible }
+            model.documentedVisibleFields()
                 .forEach { field ->
-                    if (field.isRenderable() && field.isUploadField()) {
+                    if (field.isRenderableForModel(model) && field.isUploadField()) {
                         putUploadAlias(
                             fieldKey = field.fieldKey,
                             paramKey = field.paramKey,
                             mediaKind = field.uploadMediaKind(),
                         )
                     }
-                    field.activeInputChildren(aliasedParams)
+                    field.activeInputChildren(aliasedParams, model)
                         .filter { it.isUploadField() }
                         .forEach { child ->
                             putUploadAlias(
@@ -342,14 +387,13 @@ object QuickCreationServiceSchema {
         model: QuickCreationServiceModel?,
     ): Map<String, String> =
         buildMap {
-            model?.fields.orEmpty()
-                .filter { it.visible }
+            model.documentedVisibleFields()
                 .forEach { field ->
-                    if (field.isRenderable() && field.isUploadField()) {
+                    if (field.isRenderableForModel(model) && field.isUploadField()) {
                         putSimpleAlias(field.fieldKey, field.paramKey)
                     }
                     field.inputExtra?.inputChildren.orEmpty()
-                        .filter { it.isRenderable() && it.isUploadField() }
+                        .filter { it.isRenderableForModel(model) && it.isUploadField() }
                         .forEach { child -> putSimpleAlias(child.fieldKey, child.paramKey) }
                 }
         }
@@ -445,8 +489,7 @@ object QuickCreationServiceSchema {
     ): QuickCreationServiceValidationIssue? {
         val defaults = defaultParams(model, serviceParams)
         val aliasedParams = paramsWithFieldAliases(model, serviceParams)
-        return model?.fields.orEmpty()
-            .filter { it.visible }
+        return model.documentedVisibleFields()
             .firstNotNullOfOrNull { field ->
                 if (field.isPromptField()) {
                     return@firstNotNullOfOrNull null
@@ -456,7 +499,7 @@ object QuickCreationServiceSchema {
                     if (field.required && value.isBlank()) {
                         return@firstNotNullOfOrNull QuickCreationServiceValidationIssue.Required(field.title())
                     }
-                    if (value.isNotBlank() && field.options.none { option -> option.value == value }) {
+                    if (value.isNotBlank() && !field.acceptsOptionValue(value, model)) {
                         return@firstNotNullOfOrNull QuickCreationServiceValidationIssue.InvalidOption(field.title())
                     }
                 }
@@ -464,13 +507,13 @@ object QuickCreationServiceSchema {
                     val value = serviceParams[field.paramKey] ?: defaults[field.paramKey].orEmpty()
                     field.textValidationError(value)?.let { return@firstNotNullOfOrNull it }
                 }
-                field.activeInputChildren(aliasedParams)
+                field.activeInputChildren(aliasedParams, model)
                     .firstNotNullOfOrNull { child ->
                         val value = serviceParams[child.paramKey] ?: child.defaultValue.orEmpty()
                         if (child.options.isNotEmpty() && child.required && value.isBlank()) {
                             return@firstNotNullOfOrNull QuickCreationServiceValidationIssue.Required(child.title())
                         }
-                        if (child.options.isNotEmpty() && value.isNotBlank() && child.options.none { option -> option.value == value }) {
+                        if (child.options.isNotEmpty() && value.isNotBlank() && !child.acceptsOptionValue(value, model)) {
                             return@firstNotNullOfOrNull QuickCreationServiceValidationIssue.InvalidOption(child.title())
                         }
                         if (child.supportsTextEntry()) {
@@ -519,8 +562,56 @@ object QuickCreationServiceSchema {
     }
 }
 
+private fun QuickCreationServiceField.sanitizedValue(
+    currentValue: String?,
+    defaultValue: String?,
+    model: QuickCreationServiceModel?,
+): String? =
+    sanitizeServiceParamValue(
+        currentValue = currentValue,
+        defaultValue = defaultValue,
+        options = options,
+        acceptsDocumentedSeedanceDuration = isDurationParam() && model.isSeedance2ServiceModel(),
+    )
+
+private fun QuickCreationServiceFieldInputChild.sanitizedValue(
+    currentValue: String?,
+    defaultValue: String?,
+    model: QuickCreationServiceModel?,
+): String? =
+    sanitizeServiceParamValue(
+        currentValue = currentValue,
+        defaultValue = defaultValue,
+        options = options,
+        acceptsDocumentedSeedanceDuration = isDurationParam() && model.isSeedance2ServiceModel(),
+    )
+
+private fun sanitizeServiceParamValue(
+    currentValue: String?,
+    defaultValue: String?,
+    options: List<QuickCreationServiceFieldOption>,
+    acceptsDocumentedSeedanceDuration: Boolean,
+): String? {
+    val current = currentValue?.takeIf { it.isNotBlank() }
+    val fallback = defaultValue?.takeIf { it.isNotBlank() }
+    if (options.isEmpty()) {
+        return current ?: fallback
+    }
+    return when {
+        current != null && options.acceptsOptionValue(current) -> current
+        current != null && acceptsDocumentedSeedanceDuration && current.isDocumentedSeedanceDurationValue() -> current
+        fallback != null && options.acceptsOptionValue(fallback) -> fallback
+        fallback != null && acceptsDocumentedSeedanceDuration && fallback.isDocumentedSeedanceDurationValue() -> fallback
+        else -> null
+    }
+}
+
+private fun String.isDocumentedSeedanceDurationValue(): Boolean =
+    numericOptionKeyOrNull()?.toIntOrNull()?.let { it in 4..15 } == true
+
 private fun QuickCreationServiceField.toResolvedField(
     params: Map<String, String>,
+    model: QuickCreationServiceModel?,
 ): QuickCreationResolvedServiceField {
     val currentValue = params[paramKey] ?: params[fieldKey] ?: defaultValue.orEmpty()
     val maxLength = inputExtra?.maxLength?.takeIf { it >= 0 }
@@ -535,7 +626,7 @@ private fun QuickCreationServiceField.toResolvedField(
                 label = option.label,
                 value = option.value,
             )
-        },
+        }.normalizedResolvedOptions(paramKey = paramKey, fieldKey = fieldKey, model = model),
         currentValue = currentValue,
         placeholder = inputExtra?.placeholder?.takeIf { it.isNotBlank() } ?: paramKey,
         maxLength = maxLength,
@@ -543,12 +634,13 @@ private fun QuickCreationServiceField.toResolvedField(
         maxUploadCount = inputExtra?.maxInputCount ?: maxUploadCount,
         maxUploadSizeBytes = maxUploadSize,
         uploadMediaKind = uploadMediaKind(),
-        childFields = activeInputChildren(params).map { child -> child.toResolvedField(params) },
+        childFields = activeInputChildren(params, model).map { child -> child.toResolvedField(params, model) },
     )
 }
 
 private fun QuickCreationServiceFieldInputChild.toResolvedField(
     params: Map<String, String>,
+    model: QuickCreationServiceModel?,
 ): QuickCreationResolvedServiceField {
     val currentValue = params[paramKey] ?: params[fieldKey] ?: defaultValue.orEmpty()
     val maxLength = maxLength?.takeIf { it >= 0 }
@@ -563,7 +655,7 @@ private fun QuickCreationServiceFieldInputChild.toResolvedField(
                 label = option.label,
                 value = option.value,
             )
-        },
+        }.normalizedResolvedOptions(paramKey = paramKey, fieldKey = fieldKey, model = model),
         currentValue = currentValue,
         placeholder = placeholder?.takeIf { it.isNotBlank() } ?: paramKey,
         maxLength = maxLength,
@@ -573,6 +665,20 @@ private fun QuickCreationServiceFieldInputChild.toResolvedField(
         uploadMediaKind = uploadMediaKind(),
         childFields = emptyList(),
     )
+}
+
+private fun List<QuickCreationResolvedFieldOption>.normalizedResolvedOptions(
+    paramKey: String,
+    fieldKey: String,
+    model: QuickCreationServiceModel?,
+): List<QuickCreationResolvedFieldOption> {
+    val isDuration = paramKey.equals("duration", ignoreCase = true) || fieldKey.equals("duration", ignoreCase = true)
+    if (!isDuration || !model.isSeedance2ServiceModel()) return this
+    return (4..15).map { seconds ->
+        val value = seconds.toString()
+        firstOrNull { option -> option.value.matchesOptionValue(value) }
+            ?: QuickCreationResolvedFieldOption(label = value, value = value)
+    }
 }
 
 private fun QuickCreationServiceField.resolvedKind(): QuickCreationResolvedFieldKind =
@@ -607,12 +713,11 @@ private fun serviceParamAliases(
     model: QuickCreationServiceModel?,
 ): Map<String, String> =
     buildMap {
-        model?.fields.orEmpty()
-            .filter { it.visible }
+        model.documentedVisibleFields()
             .forEach { field ->
                 putSimpleAlias(field.fieldKey, field.paramKey)
                 field.inputExtra?.inputChildren.orEmpty()
-                    .filter { it.isRenderable() }
+                    .filter { it.isRenderableForModel(model) }
                     .forEach { child -> putSimpleAlias(child.fieldKey, child.paramKey) }
             }
     }
@@ -630,7 +735,7 @@ private fun paramsWithFieldAliases(
     model: QuickCreationServiceModel?,
     params: Map<String, String>,
 ): Map<String, String> {
-    val fields = model?.fields.orEmpty().filter { it.visible }
+    val fields = model.documentedVisibleFields()
     if (fields.isEmpty()) return params
     return buildMap {
         fields.forEach { field ->
@@ -646,7 +751,7 @@ private fun paramsWithFieldAliases(
             changed = false
             val snapshot = toMap()
             fields.forEach { field ->
-                field.activeInputChildren(snapshot).forEach { child ->
+                field.activeInputChildren(snapshot, model).forEach { child ->
                     val beforeSize = size
                     putParamAliases(
                         fieldKey = child.fieldKey,
@@ -680,10 +785,11 @@ private fun MutableMap<String, String>.putParamAliases(
 
 private fun QuickCreationServiceField.activeInputChildren(
     params: Map<String, String>,
+    model: QuickCreationServiceModel?,
 ): List<QuickCreationServiceFieldInputChild> {
     val parentValue = params[paramKey] ?: params[fieldKey] ?: defaultValue.orEmpty()
     return inputExtra?.inputChildren.orEmpty()
-        .filter { it.isRenderable() }
+        .filter { it.isRenderableForModel(model) }
         .filter { child ->
             val condition = child.visibleWhen ?: return@filter true
             val conditionValue = params[condition.fieldKey]
@@ -754,6 +860,27 @@ private fun QuickCreationServiceField.isRenderable(): Boolean =
 private fun QuickCreationServiceFieldInputChild.isRenderable(): Boolean =
     visible && (options.isNotEmpty() || isSelectionField() || supportsTextEntry() || isUploadField())
 
+private fun QuickCreationServiceField.isRenderableForModel(model: QuickCreationServiceModel?): Boolean =
+    isDocumentedForModel(model) && isRenderable()
+
+private fun QuickCreationServiceFieldInputChild.isRenderableForModel(model: QuickCreationServiceModel?): Boolean =
+    isDocumentedForModel(model) && isRenderable()
+
+private fun QuickCreationServiceModel?.documentedVisibleFields(): List<QuickCreationServiceField> =
+    this?.fields.orEmpty().filter { field -> field.visible && field.isDocumentedForModel(this) }
+
+private fun QuickCreationServiceField.isDocumentedForModel(model: QuickCreationServiceModel?): Boolean =
+    !model.isSeedance2ServiceModel() || requestParamKey().isDocumentedSeedance2Param(model)
+
+private fun QuickCreationServiceFieldInputChild.isDocumentedForModel(model: QuickCreationServiceModel?): Boolean =
+    !model.isSeedance2ServiceModel() || requestParamKey().isDocumentedSeedance2Param(model)
+
+private fun QuickCreationServiceField.requestParamKey(): String =
+    paramKey.ifBlank { fieldKey }
+
+private fun QuickCreationServiceFieldInputChild.requestParamKey(): String =
+    paramKey.ifBlank { fieldKey }
+
 private fun QuickCreationServiceField.title(): String =
     inputExtra?.title?.takeIf { it.isNotBlank() } ?: fieldKey
 
@@ -810,6 +937,130 @@ private fun QuickCreationServiceFieldInputChild.uploadValidationError(uploadedCo
     return null
 }
 
+internal fun List<QuickCreationServiceFieldOption>.acceptsOptionValue(value: String): Boolean {
+    val allowedValues = map { it.value }
+    val selectedValues = value.optionSelectionValues()
+    return selectedValues.isNotEmpty() &&
+        selectedValues.all { selected -> allowedValues.any { allowed -> selected.matchesOptionValue(allowed) } }
+}
+
+private fun QuickCreationServiceField.acceptsOptionValue(
+    value: String,
+    model: QuickCreationServiceModel?,
+): Boolean =
+    options.acceptsOptionValue(value) ||
+        (isDurationParam() && model.isSeedance2ServiceModel() && value.isDocumentedSeedanceDurationValue())
+
+private fun QuickCreationServiceFieldInputChild.acceptsOptionValue(
+    value: String,
+    model: QuickCreationServiceModel?,
+): Boolean =
+    options.acceptsOptionValue(value) ||
+        (isDurationParam() && model.isSeedance2ServiceModel() && value.isDocumentedSeedanceDurationValue())
+
+internal fun String.optionSelectionValues(): List<String> {
+    val trimmed = trim()
+    if (!trimmed.startsWith("[") || !trimmed.endsWith("]")) {
+        return listOf(trimmed)
+    }
+    val body = trimmed.removePrefix("[").removeSuffix("]").trim()
+    if (body.isBlank()) return emptyList()
+    return body.split(',')
+        .map { item -> item.trim().trim('"') }
+        .filter { it.isNotBlank() }
+}
+
+private fun String.matchesOptionValue(allowedValue: String): Boolean =
+    if (this == allowedValue) {
+        true
+    } else {
+        val numericKey = numericOptionKeyOrNull()
+        numericKey != null && numericKey == allowedValue.numericOptionKeyOrNull()
+    }
+
+private fun String.numericOptionKeyOrNull(): String? {
+    val trimmed = trim()
+    trimmed.toLongOrNull()?.let { return it.toString() }
+    val doubleValue = trimmed.toDoubleOrNull() ?: return null
+    val longValue = doubleValue.toLong()
+    return if (doubleValue == longValue.toDouble()) longValue.toString() else null
+}
+
+private fun QuickCreationServiceField.isDurationParam(): Boolean =
+    fieldKey.equals("duration", ignoreCase = true) || paramKey.equals("duration", ignoreCase = true)
+
+private fun QuickCreationServiceFieldInputChild.isDurationParam(): Boolean =
+    fieldKey.equals("duration", ignoreCase = true) || paramKey.equals("duration", ignoreCase = true)
+
+private fun QuickCreationServiceModel?.isSeedance2ServiceModel(): Boolean {
+    if (this == null) return false
+    val signature = seedance2SignatureToken()
+    return "seedance20" in signature || "seedance2.0" in signature
+}
+
+private fun QuickCreationServiceModel.seedance2SignatureToken(): String =
+    listOf(categoryId, groupName, name, apiType, apiSource, bindingId, skuId)
+        .joinToString("|")
+        .lowercase()
+        .filterNot { it.isWhitespace() || it == '-' || it == '_' }
+
+private enum class Seedance2ApiFamily {
+    TEXT_TO_VIDEO,
+    IMAGE_TO_VIDEO,
+    MULTIMODAL_VIDEO,
+    UNKNOWN,
+}
+
+private val seedance2CommonDocumentedParams = setOf(
+    "prompt",
+    "resolution",
+    "duration",
+    "generateaudio",
+    "ratio",
+    "returnlastframe",
+    "seed",
+)
+
+private val seedance2TextDocumentedParams =
+    seedance2CommonDocumentedParams + setOf("websearch")
+
+private val seedance2ImageDocumentedParams =
+    seedance2CommonDocumentedParams + setOf("firstframeurl", "lastframeurl", "realpersonmode")
+
+private val seedance2MultimodalDocumentedParams =
+    seedance2CommonDocumentedParams + setOf("imageurls", "videourls", "audiourls", "realpersonmode")
+
+private fun String.isDocumentedSeedance2Param(model: QuickCreationServiceModel?): Boolean {
+    val key = seedance2ParamKey()
+    if (key.isBlank() || key == "conversionslots") return false
+    val family = model.seedance2ApiFamily()
+    return key in when (family) {
+        Seedance2ApiFamily.TEXT_TO_VIDEO -> seedance2TextDocumentedParams
+        Seedance2ApiFamily.IMAGE_TO_VIDEO -> seedance2ImageDocumentedParams
+        Seedance2ApiFamily.MULTIMODAL_VIDEO -> seedance2MultimodalDocumentedParams
+        Seedance2ApiFamily.UNKNOWN -> seedance2CommonDocumentedParams
+    }
+}
+
+private fun String.seedance2ParamKey(): String =
+    trim()
+        .lowercase()
+        .filterNot { it == '_' || it == '-' || it.isWhitespace() }
+
+private fun QuickCreationServiceModel?.seedance2ApiFamily(): Seedance2ApiFamily {
+    if (this == null) return Seedance2ApiFamily.UNKNOWN
+    val signature = seedance2SignatureToken()
+    return when {
+        "multimodal" in signature || "多模态" in signature || "referencetovideo" in signature ->
+            Seedance2ApiFamily.MULTIMODAL_VIDEO
+        "imagetovideo" in signature || "图生视频" in signature ->
+            Seedance2ApiFamily.IMAGE_TO_VIDEO
+        "texttovideo" in signature || "文生视频" in signature ->
+            Seedance2ApiFamily.TEXT_TO_VIDEO
+        else -> Seedance2ApiFamily.UNKNOWN
+    }
+}
+
 private fun QuickCreationServiceField.isPromptField(): Boolean =
     fieldKey.isPromptParamKey() || paramKey.isPromptParamKey()
 
@@ -817,16 +1068,15 @@ private fun String.isPromptParamKey(): Boolean =
     equals("prompt", ignoreCase = true) || equals("promptAi", ignoreCase = true)
 
 private fun QuickCreationServiceModel?.uploadFields(): List<QuickCreationServiceField> =
-    this?.fields.orEmpty().filter { it.isRenderable() && it.isUploadField() }
+    documentedVisibleFields().filter { it.isRenderableForModel(this) && it.isUploadField() }
 
 private fun activeChildUploadFields(
     model: QuickCreationServiceModel?,
     serviceParams: Map<String, String>,
 ): List<QuickCreationServiceFieldInputChild> {
     val aliasedParams = paramsWithFieldAliases(model, serviceParams)
-    return model?.fields.orEmpty()
-        .filter { it.visible }
-        .flatMap { field -> field.activeInputChildren(aliasedParams) }
+    return model.documentedVisibleFields()
+        .flatMap { field -> field.activeInputChildren(aliasedParams, model) }
         .filter { it.isUploadField() }
 }
 

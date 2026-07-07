@@ -49,11 +49,15 @@ write_evidence() {
 
 capturedAt: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
 headSha: $head_sha
+overallResult: pass
+skipReason: none
+followUpRequired: false
 host: $(uname -a)
 linkCommand: ./gradlew --console=plain :composeApp:linkDebugFrameworkIosSimulatorArm64
 linkResult: $link_result
 xcodebuildCommand: xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination generic/platform=iOS Simulator build CODE_SIGNING_ALLOWED=NO
 xcodebuildResult: $xcodebuild_result
+authenticatedSmokeBuildMode: signed-simulator-or-device
 simulatorSmokeResult: $simulator_smoke_result
 
 ## Simulator smoke scope
@@ -84,8 +88,12 @@ if [[ "$SELF_TEST" == "true" ]]; then
   TMP_PATH="${TMPDIR:-/tmp}/rh-ios-macos-evidence-selftest.md"
   write_evidence "$TMP_PATH" "pass" "pass" "self-test" "BUILD SUCCESSFUL" "expected-sha" "pass" "** BUILD SUCCEEDED **"
   grep -q "headSha: expected-sha" "$TMP_PATH"
+  grep -q "overallResult: pass" "$TMP_PATH"
+  grep -q "skipReason: none" "$TMP_PATH"
+  grep -q "followUpRequired: false" "$TMP_PATH"
   grep -q "linkResult: pass" "$TMP_PATH"
   grep -q "xcodebuildResult: pass" "$TMP_PATH"
+  grep -q "authenticatedSmokeBuildMode: signed-simulator-or-device" "$TMP_PATH"
   grep -q "simulatorSmokeResult: pass" "$TMP_PATH"
   grep -q ":composeApp:linkDebugFrameworkIosSimulatorArm64" "$TMP_PATH"
   grep -q "xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub" "$TMP_PATH"
@@ -104,12 +112,12 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
 fi
 
 if [[ "$SIMULATOR_SMOKE_RESULT" != "pass" ]]; then
-  echo "Pass --simulator-smoke-pass only after manually verifying Simulator login, logout/session, and QuickCreate smoke." >&2
+  echo "Pass --simulator-smoke-pass only after verifying login, logout/session, and QuickCreate smoke from a signed Simulator build, device build, or TestFlight build." >&2
   exit 1
 fi
 
 if [[ -z "${SMOKE_NOTES//[[:space:]]/}" ]]; then
-  echo "Pass --smoke-notes with the Simulator device, OS, and checked flows before collecting final evidence." >&2
+  echo "Pass --smoke-notes with the device, OS, signed build mode, and checked flows before collecting final evidence." >&2
   exit 1
 fi
 

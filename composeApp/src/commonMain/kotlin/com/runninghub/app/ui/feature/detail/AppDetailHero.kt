@@ -164,13 +164,6 @@ internal fun AppDetailHero(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            val description = detail.description
-            if (!description.isNullOrBlank()) {
-                DescriptionSection(
-                    description = description,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
         }
     }
 }

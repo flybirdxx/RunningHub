@@ -82,6 +82,7 @@ internal fun QuickCreateEditorPanel(
                 !uiState.feePreviewLoading,
             onTabSwitch = onTabSwitch,
             onLaunchImagePicker = onLaunchImagePicker,
+            onLaunchVideoPicker = onLaunchVideoPicker,
             onRemoveMedia = onRemoveMedia,
             onOpenModelSheet = onOpenModelSheet,
             onOpenParamsSheet = onOpenParamsSheet,

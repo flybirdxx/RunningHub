@@ -142,6 +142,7 @@ internal class IosKeychainCredentialStore : CredentialStore {
         }
         if (status != errSecSuccess) {
             deleteValue(account)
+            throw IllegalStateException("KEYCHAIN_WRITE_FAILED_STATUS_$status")
         }
     }
 

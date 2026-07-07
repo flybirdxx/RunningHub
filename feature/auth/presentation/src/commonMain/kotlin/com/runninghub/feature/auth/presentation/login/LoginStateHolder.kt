@@ -201,6 +201,9 @@ class LoginStateHolder(
      * @param token 图形验证码服务回传的发送短信授权 token；空白值视为验证失败。
      */
     fun onSmsCaptchaVerified(token: String?) {
+        if (!_uiState.value.requiresSmsCaptcha) {
+            return
+        }
         if (token.isNullOrBlank()) {
             _uiState.update { it.copy(error = LoginErrorText.CaptchaInvalid) }
             return

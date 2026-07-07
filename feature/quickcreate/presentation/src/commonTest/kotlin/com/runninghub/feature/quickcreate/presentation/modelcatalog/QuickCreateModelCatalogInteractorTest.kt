@@ -3,6 +3,7 @@ package com.runninghub.feature.quickcreate.presentation.modelcatalog
 import com.runninghub.feature.quickcreate.domain.QuickCreationModelCatalogRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreateModelSelectionRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceField
+import com.runninghub.feature.quickcreate.domain.QuickCreationServiceFieldOption
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceKind
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceModel
 import com.runninghub.feature.quickcreate.presentation.state.QuickCreateTab
@@ -416,6 +417,36 @@ class QuickCreateModelCatalogInteractorTest {
     }
 
     @Test
+    fun `reload sanitizes invalid preserved video service params while keeping valid selections`() = runTest {
+        val repository = FakeModelCatalogRepository().apply {
+            videoModels = listOf(
+                serviceModel(
+                    categoryId = "VIDEO",
+                    groupName = "Seedance2.0",
+                    bindingId = "seedance-binding",
+                    skuId = "seedance-sku",
+                    name = "seedance2.0-Mini/text-to-video",
+                    fields = listOf(
+                        serviceOptionField("duration", "5", "5", "10"),
+                        serviceOptionField("ratio", "16:9", "16:9", "9:16"),
+                    ),
+                )
+            )
+        }
+        val state = MutableStateFlow(QuickCreateUiState(currentTab = QuickCreateTab.VIDEO))
+        val interactor = createInteractor(repository, state, this)
+
+        interactor.loadServiceModels()
+        runCurrent()
+        interactor.updateVideoServiceParam("duration", "16")
+        interactor.updateVideoServiceParam("ratio", "9:16")
+        interactor.loadServiceModels()
+        runCurrent()
+
+        assertEquals(mapOf("duration" to "5", "ratio" to "9:16"), state.value.videoServiceParams)
+    }
+
+    @Test
     fun `reload falls back to first image model defaults when selected identity disappears`() = runTest {
         val repository = FakeModelCatalogRepository()
         val state = MutableStateFlow(QuickCreateUiState())
@@ -589,4 +620,23 @@ private fun serviceField(paramKey: String, defaultValue: String): QuickCreationS
         required = false,
         defaultValue = defaultValue,
         options = emptyList(),
+    )
+
+private fun serviceOptionField(
+    paramKey: String,
+    defaultValue: String,
+    vararg optionValues: String,
+): QuickCreationServiceField =
+    QuickCreationServiceField(
+        fieldKey = paramKey,
+        paramKey = paramKey,
+        fieldType = "LIST",
+        required = false,
+        defaultValue = defaultValue,
+        options = optionValues.map { value ->
+            QuickCreationServiceFieldOption(
+                label = value,
+                value = value,
+            )
+        },
     )

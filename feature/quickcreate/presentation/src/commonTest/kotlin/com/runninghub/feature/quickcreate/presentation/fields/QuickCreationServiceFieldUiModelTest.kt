@@ -248,6 +248,135 @@ class QuickCreationServiceFieldUiModelTest {
         assertEquals(QuickCreationServiceFieldVisualState.ERROR, fields.first { it.paramKey == "negativePrompt" }.visualState)
         assertEquals(QuickCreationServiceFieldSection.ADVANCED, fields.first { it.paramKey == "negativePrompt" }.section)
     }
+
+    @Test
+    fun `field ui treats singleton json array option value as selected`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "VIDEO",
+            groupName = "Generic video",
+            bindingId = "binding-video",
+            skuId = "sku-video",
+            name = "generic/reference-to-video",
+            description = null,
+            fields = listOf(
+                field(
+                    fieldKey = "conversionSlots",
+                    paramKey = "conversionSlots",
+                    fieldType = "LIST",
+                    title = "conversionSlots",
+                    defaultValue = "[\"all\"]",
+                    options = listOf(
+                        QuickCreationServiceFieldOption(label = "all", value = "all"),
+                        QuickCreationServiceFieldOption(label = "video1", value = "video1"),
+                    ),
+                ),
+            ),
+        )
+
+        val field = model.quickCreationServiceFieldUiItems(params = emptyMap()).single()
+
+        assertEquals(QuickCreationServiceFieldVisualState.DEFAULT, field.visualState)
+        assertEquals(listOf(true, false), field.options.map { it.selected })
+    }
+
+    @Test
+    fun `field ui omits seedance asset slot field`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "VIDEO",
+            groupName = "Seedance2.0",
+            bindingId = "binding-video",
+            skuId = "sku-video",
+            name = "seedance2.0-Mini/多模态视频",
+            description = null,
+            fields = listOf(
+                field(
+                    fieldKey = "duration",
+                    paramKey = "duration",
+                    fieldType = "LIST",
+                    title = "duration",
+                    defaultValue = "5",
+                    options = listOf(QuickCreationServiceFieldOption(label = "5", value = "5")),
+                ),
+                field(
+                    fieldKey = "conversionSlots",
+                    paramKey = "conversionSlots",
+                    fieldType = "LIST",
+                    title = "conversionSlots",
+                    defaultValue = "[\"all\"]",
+                    options = listOf(
+                        QuickCreationServiceFieldOption(label = "all", value = "all"),
+                        QuickCreationServiceFieldOption(label = "video1", value = "video1"),
+                    ),
+                ),
+            ),
+        )
+
+        val fields = model.quickCreationServiceFieldUiItems(params = emptyMap())
+
+        assertEquals(listOf("duration"), fields.map { it.paramKey })
+    }
+
+    @Test
+    fun `field ui treats whole number decimal option value as selected`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "VIDEO",
+            groupName = "Seedance2.0",
+            bindingId = "binding-video",
+            skuId = "sku-video",
+            name = "seedance2.0",
+            description = null,
+            fields = listOf(
+                field(
+                    fieldKey = "duration",
+                    paramKey = "duration",
+                    fieldType = "LIST",
+                    title = "duration",
+                    defaultValue = "5",
+                    options = listOf(
+                        QuickCreationServiceFieldOption(label = "5", value = "5"),
+                        QuickCreationServiceFieldOption(label = "6", value = "6"),
+                    ),
+                ),
+            ),
+        )
+
+        val field = model.quickCreationServiceFieldUiItems(params = mapOf("duration" to "5.0")).single()
+
+        assertEquals(QuickCreationServiceFieldVisualState.DEFAULT, field.visualState)
+        assertEquals("5", field.options.single { it.selected }.value)
+    }
+
+    @Test
+    fun `field ui exposes documented seedance duration options when catalog omits them`() {
+        val model = QuickCreationServiceModel(
+            categoryId = "VIDEO",
+            groupName = "Seedance2.0",
+            bindingId = "binding-video",
+            skuId = "sku-video",
+            name = "seedance2.0-Mini/多模态视频",
+            description = null,
+            fields = listOf(
+                field(
+                    fieldKey = "duration",
+                    paramKey = "duration",
+                    fieldType = "LIST",
+                    title = "duration",
+                    defaultValue = "5",
+                    options = (6..15).map { seconds ->
+                        QuickCreationServiceFieldOption(
+                            label = seconds.toString(),
+                            value = seconds.toString(),
+                        )
+                    },
+                ),
+            ),
+        )
+
+        val field = model.quickCreationServiceFieldUiItems(params = emptyMap()).single()
+
+        assertEquals((4..15).map { it.toString() }, field.options.map { it.value })
+        assertEquals("5", field.options.single { it.selected }.value)
+    }
 }
 
 private fun field(

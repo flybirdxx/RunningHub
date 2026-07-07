@@ -9,24 +9,43 @@ import com.runninghub.core.storage.PermissionStateStore
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import platform.AVFoundation.AVAuthorizationStatusAuthorized
+import platform.AVFoundation.AVAuthorizationStatusDenied
+import platform.AVFoundation.AVAuthorizationStatusNotDetermined
+import platform.AVFoundation.AVAuthorizationStatusRestricted
+import platform.AVFoundation.AVCaptureDevice
+import platform.AVFoundation.AVMediaTypeVideo
+import platform.AVFoundation.authorizationStatusForMediaType
+import platform.AVFoundation.requestAccessForMediaType
+import platform.Foundation.NSFileManager
+import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
+import platform.Foundation.NSUUID
 import platform.Photos.PHAuthorizationStatusAuthorized
 import platform.Photos.PHAuthorizationStatusDenied
 import platform.Photos.PHAuthorizationStatusLimited
 import platform.Photos.PHAuthorizationStatusNotDetermined
 import platform.Photos.PHAuthorizationStatusRestricted
 import platform.Photos.PHPhotoLibrary
+import platform.PhotosUI.PHPickerConfiguration
+import platform.PhotosUI.PHPickerFilter
+import platform.PhotosUI.PHPickerResult
+import platform.PhotosUI.PHPickerViewController
+import platform.PhotosUI.PHPickerViewControllerDelegateProtocol
+import platform.PhotosUI.presentLimitedLibraryPickerFromViewController
+import platform.UserNotifications.UNAuthorizationOptionAlert
+import platform.UserNotifications.UNAuthorizationOptionBadge
+import platform.UserNotifications.UNAuthorizationOptionSound
+import platform.UserNotifications.UNAuthorizationStatusAuthorized
+import platform.UserNotifications.UNAuthorizationStatusDenied
+import platform.UserNotifications.UNAuthorizationStatusNotDetermined
+import platform.UserNotifications.UNAuthorizationStatusProvisional
+import platform.UserNotifications.UNUserNotificationCenter
 import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationOpenSettingsURLString
 import platform.UIKit.UIDocumentPickerDelegateProtocol
 import platform.UIKit.UIDocumentPickerMode
 import platform.UIKit.UIDocumentPickerViewController
-import platform.UIKit.UIImagePickerController
-import platform.UIKit.UIImagePickerControllerDelegateProtocol
-import platform.UIKit.UIImagePickerControllerImageURL
-import platform.UIKit.UIImagePickerControllerMediaURL
-import platform.UIKit.UIImagePickerControllerSourceType
-import platform.UIKit.UINavigationControllerDelegateProtocol
 import platform.UIKit.UIViewController
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async
@@ -35,6 +54,78 @@ import platform.darwin.dispatch_get_main_queue
 private const val IOS_IMAGE_UTI = "public.image"
 private const val IOS_MOVIE_UTI = "public.movie"
 private const val IOS_AUDIO_UTI = "public.audio"
+
+internal enum class IosPermissionAuthorizationDecision {
+    GRANTED,
+    DENIED,
+    PERMANENTLY_DENIED,
+}
+
+internal enum class IosPhotoLibraryManagementTarget {
+    LIMITED_LIBRARY_PICKER,
+    APP_SETTINGS,
+}
+
+internal fun iosPhotoAuthorizationDecision(status: Long): IosPermissionAuthorizationDecision = when (status) {
+    PHAuthorizationStatusAuthorized,
+    PHAuthorizationStatusLimited -> IosPermissionAuthorizationDecision.GRANTED
+    PHAuthorizationStatusDenied,
+    PHAuthorizationStatusRestricted -> IosPermissionAuthorizationDecision.PERMANENTLY_DENIED
+    else -> IosPermissionAuthorizationDecision.DENIED
+}
+
+internal fun iosPhotoLibraryManagementTarget(
+    permission: Permission,
+    status: Long,
+): IosPhotoLibraryManagementTarget =
+    if (permission.allowsLimitedPhotoLibraryManagement() && status == PHAuthorizationStatusLimited) {
+        IosPhotoLibraryManagementTarget.LIMITED_LIBRARY_PICKER
+    } else {
+        IosPhotoLibraryManagementTarget.APP_SETTINGS
+    }
+
+private fun Permission.allowsLimitedPhotoLibraryManagement(): Boolean =
+    this == Permission.MediaImages || this == Permission.MediaVideo || this == Permission.StorageRead
+
+internal fun iosCameraAuthorizationDecision(status: Long): IosPermissionAuthorizationDecision = when (status) {
+    AVAuthorizationStatusAuthorized -> IosPermissionAuthorizationDecision.GRANTED
+    AVAuthorizationStatusDenied,
+    AVAuthorizationStatusRestricted -> IosPermissionAuthorizationDecision.PERMANENTLY_DENIED
+    else -> IosPermissionAuthorizationDecision.DENIED
+}
+
+internal fun iosNotificationAuthorizationDecision(status: Long): IosPermissionAuthorizationDecision = when (status) {
+    UNAuthorizationStatusAuthorized,
+    UNAuthorizationStatusProvisional -> IosPermissionAuthorizationDecision.GRANTED
+    UNAuthorizationStatusDenied -> IosPermissionAuthorizationDecision.PERMANENTLY_DENIED
+    else -> IosPermissionAuthorizationDecision.DENIED
+}
+
+internal fun recordIosPermissionAuthorizationDecision(
+    permissionStateStore: PermissionStateStore,
+    scope: CoroutineScope,
+    permission: Permission,
+    decision: IosPermissionAuthorizationDecision,
+    onGranted: () -> Unit,
+    onDenied: () -> Unit,
+    onPermanentlyDenied: () -> Unit,
+) {
+    when (decision) {
+        IosPermissionAuthorizationDecision.GRANTED -> {
+            scope.launch { permissionStateStore.markGranted(permission.key) }
+            onGranted()
+        }
+        IosPermissionAuthorizationDecision.DENIED -> {
+            scope.launch { permissionStateStore.markDenied(permission.key) }
+            onDenied()
+        }
+        IosPermissionAuthorizationDecision.PERMANENTLY_DENIED -> {
+            // iOS 用户在系统弹窗中拒绝后，后续通常需要进入设置页修改，因此映射为永久拒绝。
+            scope.launch { permissionStateStore.markPermanentlyDenied(permission.key) }
+            onPermanentlyDenied()
+        }
+    }
+}
 
 /**
  * iOS 平台权限申请与媒体选择控制器。
@@ -54,7 +145,7 @@ private class IosPermissionController(
     private val scope: CoroutineScope,
 ) : PermissionController {
 
-    private var imagePickerDelegate: ImagePickerDelegate? = null
+    private var photoPickerDelegate: PhotoPickerDelegate? = null
     private var documentPickerDelegate: DocumentPickerDelegate? = null
 
     override fun pickMedia(
@@ -62,19 +153,16 @@ private class IosPermissionController(
         mediaType: MediaType,
         onSuccess: (String) -> Unit,
         onPermissionDenied: () -> Unit,
+        onPickerCancelled: () -> Unit,
+        onPermissionPermanentlyDenied: () -> Unit,
     ) {
         when (mediaType) {
             MediaType.IMAGE,
-            MediaType.VIDEO -> checkPhotoPermission(
-                permission = mediaPermission,
-                onGranted = { presentImagePicker(mediaType, onSuccess, onPermissionDenied) },
-                onDenied = onPermissionDenied,
-                onPermanentlyDenied = onPermissionDenied,
-            )
+            MediaType.VIDEO -> presentPhotoPicker(mediaPermission, mediaType, onSuccess, onPermissionDenied, onPickerCancelled)
             MediaType.AUDIO -> {
                 // iOS 文档选择器会把用户选中的音频导入应用可读范围，不需要读取整个媒体库权限。
                 scope.launch { permissionStateStore.markGranted(mediaPermission.key) }
-                presentAudioPicker(onSuccess, onPermissionDenied)
+                presentAudioPicker(onSuccess, onPermissionDenied, onPickerCancelled)
             }
         }
     }
@@ -99,13 +187,18 @@ private class IosPermissionController(
                 scope.launch { permissionStateStore.markGranted(permission.key) }
                 onGranted()
             }
-            Permission.Camera,
-            Permission.Notifications -> {
-                // 当前 iOS 上传链路未接入相机和通知授权；返回拒绝比固定授权更安全，
-                // 避免页面继续执行实际不可用的平台能力。
-                scope.launch { permissionStateStore.markDenied(permission.key) }
-                onDenied()
-            }
+            Permission.Camera -> checkCameraPermission(
+                permission = permission,
+                onGranted = onGranted,
+                onDenied = onDenied,
+                onPermanentlyDenied = onPermanentlyDenied,
+            )
+            Permission.Notifications -> checkNotificationPermission(
+                permission = permission,
+                onGranted = onGranted,
+                onDenied = onDenied,
+                onPermanentlyDenied = onPermanentlyDenied,
+            )
         }
     }
 
@@ -114,18 +207,28 @@ private class IosPermissionController(
         UIApplication.sharedApplication.openURL(settingsUrl)
     }
 
+    override fun openPermissionSettings(permission: Permission) {
+        when (
+            iosPhotoLibraryManagementTarget(
+                permission = permission,
+                status = PHPhotoLibrary.authorizationStatus(),
+            )
+        ) {
+            IosPhotoLibraryManagementTarget.LIMITED_LIBRARY_PICKER -> {
+                val host = currentTopViewController() ?: return openAppSettings()
+                PHPhotoLibrary.sharedPhotoLibrary().presentLimitedLibraryPickerFromViewController(host)
+            }
+            IosPhotoLibraryManagementTarget.APP_SETTINGS -> openAppSettings()
+        }
+    }
+
     private fun checkPhotoPermission(
         permission: Permission,
         onGranted: () -> Unit,
         onDenied: () -> Unit,
         onPermanentlyDenied: () -> Unit,
     ) {
-        when (PHPhotoLibrary.authorizationStatus()) {
-            PHAuthorizationStatusAuthorized,
-            PHAuthorizationStatusLimited -> {
-                scope.launch { permissionStateStore.markGranted(permission.key) }
-                onGranted()
-            }
+        when (val status = PHPhotoLibrary.authorizationStatus()) {
             PHAuthorizationStatusNotDetermined -> {
                 PHPhotoLibrary.requestAuthorization { status ->
                     dispatch_async(dispatch_get_main_queue()) {
@@ -139,15 +242,13 @@ private class IosPermissionController(
                     }
                 }
             }
-            PHAuthorizationStatusDenied,
-            PHAuthorizationStatusRestricted -> {
-                scope.launch { permissionStateStore.markPermanentlyDenied(permission.key) }
-                onPermanentlyDenied()
-            }
-            else -> {
-                scope.launch { permissionStateStore.markDenied(permission.key) }
-                onDenied()
-            }
+            else -> handleAuthorizationDecision(
+                permission = permission,
+                decision = iosPhotoAuthorizationDecision(status),
+                onGranted = onGranted,
+                onDenied = onDenied,
+                onPermanentlyDenied = onPermanentlyDenied,
+            )
         }
     }
 
@@ -158,61 +259,151 @@ private class IosPermissionController(
         onDenied: () -> Unit,
         onPermanentlyDenied: () -> Unit,
     ) {
-        when (status) {
-            PHAuthorizationStatusAuthorized,
-            PHAuthorizationStatusLimited -> {
-                scope.launch { permissionStateStore.markGranted(permission.key) }
-                onGranted()
+        handleAuthorizationDecision(
+            permission = permission,
+            decision = iosPhotoAuthorizationDecision(status),
+            onGranted = onGranted,
+            onDenied = onDenied,
+            onPermanentlyDenied = onPermanentlyDenied,
+        )
+    }
+
+    private fun checkCameraPermission(
+        permission: Permission,
+        onGranted: () -> Unit,
+        onDenied: () -> Unit,
+        onPermanentlyDenied: () -> Unit,
+    ) {
+        when (val status = AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) {
+            AVAuthorizationStatusNotDetermined -> {
+                AVCaptureDevice.requestAccessForMediaType(AVMediaTypeVideo) { granted: Boolean ->
+                    dispatch_async(dispatch_get_main_queue()) {
+                        if (granted) {
+                            scope.launch { permissionStateStore.markGranted(permission.key) }
+                            onGranted()
+                        } else {
+                            scope.launch { permissionStateStore.markPermanentlyDenied(permission.key) }
+                            onPermanentlyDenied()
+                        }
+                    }
+                }
             }
-            PHAuthorizationStatusDenied,
-            PHAuthorizationStatusRestricted -> {
-                // iOS 用户在系统弹窗中拒绝后，后续通常需要进入设置页修改，因此映射为永久拒绝。
-                scope.launch { permissionStateStore.markPermanentlyDenied(permission.key) }
-                onPermanentlyDenied()
-            }
-            else -> {
-                scope.launch { permissionStateStore.markDenied(permission.key) }
-                onDenied()
-            }
+            else -> handleAuthorizationDecision(
+                permission = permission,
+                decision = iosCameraAuthorizationDecision(status),
+                onGranted = onGranted,
+                onDenied = onDenied,
+                onPermanentlyDenied = onPermanentlyDenied,
+            )
         }
     }
 
-    private fun presentImagePicker(
+    private fun checkNotificationPermission(
+        permission: Permission,
+        onGranted: () -> Unit,
+        onDenied: () -> Unit,
+        onPermanentlyDenied: () -> Unit,
+    ) {
+        UNUserNotificationCenter.currentNotificationCenter()
+            .getNotificationSettingsWithCompletionHandler { settings ->
+                dispatch_async(dispatch_get_main_queue()) {
+                    val authorizationStatus = settings?.authorizationStatus
+                    when (authorizationStatus) {
+                        UNAuthorizationStatusNotDetermined -> requestNotificationPermission(
+                            permission = permission,
+                            onGranted = onGranted,
+                            onPermanentlyDenied = onPermanentlyDenied,
+                        )
+                        else -> handleAuthorizationDecision(
+                            permission = permission,
+                            decision = iosNotificationAuthorizationDecision(authorizationStatus ?: Long.MIN_VALUE),
+                            onGranted = onGranted,
+                            onDenied = onDenied,
+                            onPermanentlyDenied = onPermanentlyDenied,
+                        )
+                    }
+                }
+            }
+    }
+
+    private fun handleAuthorizationDecision(
+        permission: Permission,
+        decision: IosPermissionAuthorizationDecision,
+        onGranted: () -> Unit,
+        onDenied: () -> Unit,
+        onPermanentlyDenied: () -> Unit,
+    ) {
+        recordIosPermissionAuthorizationDecision(
+            permissionStateStore = permissionStateStore,
+            scope = scope,
+            permission = permission,
+            decision = decision,
+            onGranted = onGranted,
+            onDenied = onDenied,
+            onPermanentlyDenied = onPermanentlyDenied,
+        )
+    }
+
+    private fun requestNotificationPermission(
+        permission: Permission,
+        onGranted: () -> Unit,
+        onPermanentlyDenied: () -> Unit,
+    ) {
+        val options = UNAuthorizationOptionAlert or UNAuthorizationOptionSound or UNAuthorizationOptionBadge
+        UNUserNotificationCenter.currentNotificationCenter()
+            .requestAuthorizationWithOptions(options) { granted, _ ->
+                dispatch_async(dispatch_get_main_queue()) {
+                    if (granted) {
+                        scope.launch { permissionStateStore.markGranted(permission.key) }
+                        onGranted()
+                    } else {
+                        scope.launch { permissionStateStore.markPermanentlyDenied(permission.key) }
+                        onPermanentlyDenied()
+                    }
+                }
+            }
+    }
+
+    private fun presentPhotoPicker(
+        mediaPermission: Permission,
         mediaType: MediaType,
         onSuccess: (String) -> Unit,
         onPermissionDenied: () -> Unit,
+        onPickerCancelled: () -> Unit,
     ) {
         val host = currentTopViewController() ?: run {
             onPermissionDenied()
             return
         }
-        val picker = UIImagePickerController().apply {
-            sourceType = UIImagePickerControllerSourceType.UIImagePickerControllerSourceTypePhotoLibrary
-            mediaTypes = listOf(
-                when (mediaType) {
-                    MediaType.IMAGE -> IOS_IMAGE_UTI
-                    MediaType.VIDEO -> IOS_MOVIE_UTI
-                    MediaType.AUDIO -> IOS_AUDIO_UTI
-                }
-            )
+        val configuration = PHPickerConfiguration().apply {
+            selectionLimit = 1
+            filter = when (mediaType) {
+                MediaType.IMAGE -> PHPickerFilter.imagesFilter()
+                MediaType.VIDEO -> PHPickerFilter.videosFilter()
+                MediaType.AUDIO -> null
+            }
         }
-        imagePickerDelegate = ImagePickerDelegate(
+        val picker = PHPickerViewController(configuration)
+        photoPickerDelegate = PhotoPickerDelegate(
+            mediaType = mediaType,
             onPicked = { uri ->
+                scope.launch { permissionStateStore.markGranted(mediaPermission.key) }
                 onSuccess(uri)
-                imagePickerDelegate = null
+                photoPickerDelegate = null
             },
             onCancelled = {
-                onPermissionDenied()
-                imagePickerDelegate = null
+                onPickerCancelled()
+                photoPickerDelegate = null
             },
         )
-        picker.delegate = imagePickerDelegate
+        picker.delegate = photoPickerDelegate
         host.presentViewController(picker, animated = true, completion = null)
     }
 
     private fun presentAudioPicker(
         onSuccess: (String) -> Unit,
         onPermissionDenied: () -> Unit,
+        onPickerCancelled: () -> Unit,
     ) {
         val host = currentTopViewController() ?: run {
             onPermissionDenied()
@@ -228,7 +419,7 @@ private class IosPermissionController(
                 documentPickerDelegate = null
             },
             onCancelled = {
-                onPermissionDenied()
+                onPickerCancelled()
                 documentPickerDelegate = null
             },
         )
@@ -238,36 +429,78 @@ private class IosPermissionController(
 }
 
 /**
- * UIImagePickerController 的最小 delegate。
+ * PHPicker 的最小 delegate。
  *
- * 图片优先返回系统提供的图片文件 URL，视频返回媒体文件 URL；两者都为空时按取消处理。
- * 回调只传递 URI 字符串，不持有 UIKit 对象。
+ * PHPicker 不要求读取整库 PhotoKit 权限，适合 iOS Limited Photos 场景。系统返回的文件
+ * representation 生命周期可能很短，回调前先复制到应用临时目录，再把 URI 字符串交给
+ * commonMain 上传链路。
  */
 @OptIn(ExperimentalForeignApi::class)
-private class ImagePickerDelegate(
+private class PhotoPickerDelegate(
+    private val mediaType: MediaType,
     private val onPicked: (String) -> Unit,
     private val onCancelled: () -> Unit,
-) : NSObject(), UIImagePickerControllerDelegateProtocol, UINavigationControllerDelegateProtocol {
+) : NSObject(), PHPickerViewControllerDelegateProtocol {
 
-    override fun imagePickerController(
-        picker: UIImagePickerController,
-        didFinishPickingMediaWithInfo: Map<Any?, *>,
+    override fun picker(
+        picker: PHPickerViewController,
+        didFinishPicking: List<*>,
     ) {
-        val imageUrl = didFinishPickingMediaWithInfo[UIImagePickerControllerImageURL] as? NSURL
-        val mediaUrl = didFinishPickingMediaWithInfo[UIImagePickerControllerMediaURL] as? NSURL
-        val uri = imageUrl?.absoluteString ?: mediaUrl?.absoluteString
-        picker.dismissViewControllerAnimated(true, completion = null)
-        if (uri.isNullOrBlank()) {
+        val result = didFinishPicking.firstOrNull() as? PHPickerResult
+        val itemProvider = result?.itemProvider
+        if (itemProvider == null) {
+            picker.dismissViewControllerAnimated(true, completion = null)
             onCancelled()
-        } else {
-            onPicked(uri)
+            return
+        }
+        val typeIdentifier = mediaType.pickerTypeIdentifier()
+        if (!itemProvider.hasItemConformingToTypeIdentifier(typeIdentifier)) {
+            picker.dismissViewControllerAnimated(true, completion = null)
+            onCancelled()
+            return
+        }
+        itemProvider.loadFileRepresentationForTypeIdentifier(typeIdentifier) { url, _ ->
+            val stableUrl = url?.let { copyPickedMediaToTemporaryFile(it) ?: it }
+            dispatch_async(dispatch_get_main_queue()) {
+                picker.dismissViewControllerAnimated(true, completion = null)
+                val uri = stableUrl?.absoluteString
+                if (uri.isNullOrBlank()) {
+                    onCancelled()
+                } else {
+                    onPicked(uri)
+                }
+            }
         }
     }
+}
 
-    override fun imagePickerControllerDidCancel(picker: UIImagePickerController) {
-        picker.dismissViewControllerAnimated(true, completion = null)
-        onCancelled()
+private fun MediaType.pickerTypeIdentifier(): String =
+    when (this) {
+        MediaType.IMAGE -> IOS_IMAGE_UTI
+        MediaType.VIDEO -> IOS_MOVIE_UTI
+        MediaType.AUDIO -> IOS_AUDIO_UTI
     }
+
+/**
+ * Copies a picker-provided media URL into an app-owned temporary file before the picker is dismissed.
+ *
+ * PHPicker and legacy picker APIs can provide a temporary file whose lifetime is tied to the picker callback.
+ * QuickCreate uploads asynchronously after the picker closes, so returning the original URL can leave the
+ * upload job with a disappeared file. A best-effort copy keeps the URI stable without exposing the source
+ * path to commonMain.
+ */
+@OptIn(ExperimentalForeignApi::class)
+internal fun copyPickedMediaToTemporaryFile(url: NSURL): NSURL? {
+    val extension = url.pathExtension?.takeIf { it.isNotBlank() } ?: "tmp"
+    val fileName = "runninghub-picked-${NSUUID.UUID().UUIDString}.$extension"
+    val targetPath = NSTemporaryDirectory().trimEnd('/') + "/" + fileName
+    val targetUrl = NSURL.fileURLWithPath(targetPath)
+    val copied = NSFileManager.defaultManager.copyItemAtURL(
+        srcURL = url,
+        toURL = targetUrl,
+        error = null,
+    )
+    return if (copied) targetUrl else null
 }
 
 /**

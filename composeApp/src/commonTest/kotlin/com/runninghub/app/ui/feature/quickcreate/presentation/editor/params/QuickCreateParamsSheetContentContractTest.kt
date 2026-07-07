@@ -15,6 +15,8 @@ class QuickCreateParamsSheetContentContractTest {
         assertTrue(QuickCreateParamFieldMinHeight <= 72.dp)
         assertTrue(QuickCreateParamFieldPadding <= 10.dp)
         assertTrue(QuickCreateParamFieldGap <= 8.dp)
+        assertTrue(QuickCreateParamsSheetMaxContentHeight >= 640.dp)
+        assertTrue(QuickCreateParamsSheetBottomSlack >= 72.dp)
     }
 
     @Test

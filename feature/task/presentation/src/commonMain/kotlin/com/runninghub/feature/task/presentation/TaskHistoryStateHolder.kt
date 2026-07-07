@@ -610,7 +610,7 @@ private fun GenerationHistoryItem.toTaskHistoryEntry(): TaskHistoryEntry {
         costTime = costTime,
         source = source.key,
         outputId = primaryOutput?.outputId,
-        thumbnailUrl = primaryOutput?.thumbnailUrl ?: primaryOutput?.url,
+        thumbnailUrl = primaryOutput?.displayThumbnailUrl,
         costAmount = costAmount,
         costCurrency = costCurrency,
         outputCount = outputs.size,

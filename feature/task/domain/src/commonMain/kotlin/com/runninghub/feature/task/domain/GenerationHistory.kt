@@ -55,7 +55,7 @@ data class GenerationHistoryItem(
  * @property outputId 输出稳定标识，用于查询详情或定位用户点击的输出。
  * @property url 输出文件地址。
  * @property type 输出类型，服务端可能返回 png、mp4、image、video 等文本。
- * @property thumbnailUrl 缩略图地址；为空时调用方可回退到 [url]。
+ * @property thumbnailUrl 缩略图地址；为空时图片输出可回退到 [url]，视频输出应使用 [displayThumbnailUrl] 避免把视频原文件当图片解码。
  * @property width 输出宽度，单位为像素；未知时为空。
  * @property height 输出高度，单位为像素；未知时为空。
  * @property outputName 输出名称。
@@ -79,7 +79,7 @@ data class GenerationHistoryOutput(
      * @return 服务端类型属于常见图片类型时返回 true。
      */
     val isImage: Boolean
-        get() = type.lowercase() in setOf("png", "jpg", "jpeg", "webp", "image")
+        get() = type.normalizedOutputType() in IMAGE_OUTPUT_TYPES || url.hasOutputSuffix(IMAGE_OUTPUT_TYPES)
 
     /**
      * 判断输出是否可按视频展示。
@@ -87,8 +87,36 @@ data class GenerationHistoryOutput(
      * @return 服务端类型属于常见视频类型时返回 true。
      */
     val isVideo: Boolean
-        get() = type.lowercase() in setOf("mp4", "webm", "mov", "video")
+        get() = type.normalizedOutputType() in VIDEO_OUTPUT_TYPES || url.hasOutputSuffix(VIDEO_OUTPUT_TYPES)
+
+    /**
+     * 可交给图片解码器的缩略图地址。
+     *
+     * 视频没有独立封面时返回 null，调用方应显示视频占位或播放器入口，不应回退到 [url]。
+     */
+    val displayThumbnailUrl: String?
+        get() {
+            val thumbnail = thumbnailUrl?.takeIf { it.isNotBlank() }
+            if (thumbnail != null && !(isVideo && thumbnail.sameOutputResource(url))) {
+                return thumbnail
+            }
+            return url.takeIf { isImage && it.isNotBlank() }
+        }
 }
+
+private val IMAGE_OUTPUT_TYPES = setOf("png", "jpg", "jpeg", "webp", "image")
+private val VIDEO_OUTPUT_TYPES = setOf("mp4", "webm", "mov", "m4v", "video")
+
+private fun String.normalizedOutputType(): String =
+    trim().lowercase().removePrefix(".")
+
+private fun String.hasOutputSuffix(suffixes: Set<String>): Boolean {
+    val path = substringBefore('?').substringBefore('#').lowercase()
+    return suffixes.any { suffix -> path.endsWith(".$suffix") }
+}
+
+private fun String.sameOutputResource(other: String): Boolean =
+    substringBefore('?').substringBefore('#') == other.substringBefore('?').substringBefore('#')
 
 /**
  * 统一生成任务详情。

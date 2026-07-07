@@ -114,6 +114,13 @@ data class AppDetailScreen(val appId: String) : Screen {
                             pendingPermission = permission
                         }
                     },
+                    onPickerCancelled = {
+                        currentScreenModel.clearPendingMediaPick()
+                    },
+                    onPermissionPermanentlyDenied = {
+                        currentScreenModel.clearPendingMediaPick()
+                        pendingPermission = permission
+                    },
                 )
             }
         }
@@ -129,7 +136,7 @@ data class AppDetailScreen(val appId: String) : Screen {
                         permission = activePermission,
                         onGranted = {},
                         onDenied = {},
-                        onPermanentlyDenied = { controller.openAppSettings() },
+                        onPermanentlyDenied = { controller.openPermissionSettings(activePermission) },
                     )
                 },
             )
@@ -216,7 +223,7 @@ internal fun DetailContent(
                 .widthIn(max = windowInfo.detailContentMaxWidth),
         ) {
             LazyColumn(
-                contentPadding = PaddingValues(bottom = 168.dp),
+                contentPadding = PaddingValues(bottom = AppDetailContentBottomPadding),
                 state = listState,
                 modifier = Modifier.fillMaxSize()
             ) {
@@ -266,7 +273,7 @@ internal fun DetailContent(
                     }
                 }
 
-                // 参数区跟随详情介绍，用户先确认应用信息，再补齐生成所需输入。
+                // 参数区优先于长简介展示，避免短详情页的单个媒体上传入口被底部区域挤出首屏。
                 if (detail.inputNodes.isNotEmpty()) {
                     item(key = "input_header") {
                         Row(
@@ -327,16 +334,26 @@ internal fun DetailContent(
                         )
                     }
                 }
-            }
 
-            RunTaskBottomBar(
-                isRunning = uiState.isRunningTask,
-                taskStep = uiState.taskStep.toComponentTaskStep(),
-                hasResult = uiState.taskOutputs.isNotEmpty() || taskError != null,
-                onRun = onRunTask,
-                onReset = onResetTask,
-                modifier = Modifier.align(Alignment.BottomCenter)
-            )
+                detail.description?.takeIf { it.isNotBlank() }?.let { description ->
+                    item(key = "description_detail") {
+                        DescriptionSection(
+                            description = description,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        )
+                    }
+                }
+
+                item(key = "run_bar") {
+                    RunTaskBottomBar(
+                        isRunning = uiState.isRunningTask,
+                        taskStep = uiState.taskStep.toComponentTaskStep(),
+                        hasResult = uiState.taskOutputs.isNotEmpty() || taskError != null,
+                        onRun = onRunTask,
+                        onReset = onResetTask,
+                    )
+                }
+            }
 
             // Compose 中模拟 CoordinatorLayout/CollapsingToolbar：内容滚动，Toolbar 固定并随折叠进度显示背景和标题。
             DetailCollapsingTopBar(

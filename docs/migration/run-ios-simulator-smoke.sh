@@ -34,10 +34,15 @@ done
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 if [[ "$SELF_TEST" == "true" ]]; then
-  grep -q "xcrun simctl bootstatus" "$0"
-  grep -q "xcrun simctl install" "$0"
-  grep -q "xcrun simctl launch" "$0"
-  grep -q "simulatorLaunchResult: pass" "$0"
+  IMPLEMENTATION_TEXT="$(awk 'found { print } /^cd "\$ROOT_DIR"$/ { found = 1 }' "$0")"
+  grep -q "xcrun simctl bootstatus" <<< "$IMPLEMENTATION_TEXT"
+  grep -q "xcrun simctl install" <<< "$IMPLEMENTATION_TEXT"
+  grep -q "xcrun simctl launch" <<< "$IMPLEMENTATION_TEXT"
+  grep -q "xcrun simctl io" <<< "$IMPLEMENTATION_TEXT"
+  grep -q "xcrun simctl spawn" <<< "$IMPLEMENTATION_TEXT"
+  grep -q "startupCrashScan: pass" <<< "$IMPLEMENTATION_TEXT"
+  grep -q "screenshotPath:" <<< "$IMPLEMENTATION_TEXT"
+  grep -q "simulatorLaunchResult: pass" <<< "$IMPLEMENTATION_TEXT"
   echo "SelfTest passed."
   exit 0
 fi
@@ -100,20 +105,66 @@ print(sorted(runtimes)[-1][1])
 
 DEVICE_NAME="RunningHub CI Smoke"
 UDID="$(xcrun simctl create "$DEVICE_NAME" "$DEVICE_TYPE" "$RUNTIME_ID")"
+TEMP_FILES=()
 
 cleanup() {
   xcrun simctl shutdown "$UDID" >/dev/null 2>&1 || true
   xcrun simctl delete "$UDID" >/dev/null 2>&1 || true
+  for temp_file in "${TEMP_FILES[@]}"; do
+    rm -f "$temp_file"
+  done
 }
 trap cleanup EXIT
 
 mkdir -p "$(dirname "$OUTPUT_PATH")"
+SCREENSHOT_PATH="$(dirname "$OUTPUT_PATH")/$(basename "$OUTPUT_PATH" .txt)-screenshot.png"
+CRASH_PATTERNS="Uncaught Kotlin exception|Terminating app|SIGABRT|IllegalStateException|CADisableMinimumFrameDurationOnPhone|EXC_"
 
 xcrun simctl boot "$UDID"
 xcrun simctl bootstatus "$UDID" -b
 xcrun simctl install "$UDID" "$APP_PATH"
 LAUNCH_OUTPUT="$(xcrun simctl launch "$UDID" "$BUNDLE_ID")"
 sleep 5
+xcrun simctl io "$UDID" screenshot "$SCREENSHOT_PATH" >/dev/null
+
+OS_LOG_OUTPUT="$(mktemp)"
+CRASH_MATCHES="$(mktemp)"
+TEMP_FILES+=("$OS_LOG_OUTPUT" "$CRASH_MATCHES")
+if ! xcrun simctl spawn "$UDID" log show --style compact --last 2m \
+  --predicate 'process == "RunningHub" OR eventMessage CONTAINS[c] "com.runninghub.app.ios"' \
+  > "$OS_LOG_OUTPUT" 2>/dev/null; then
+  echo "Unable to collect Simulator OS log for startup crash scan." >&2
+  exit 1
+fi
+
+if grep -E "$CRASH_PATTERNS" "$OS_LOG_OUTPUT" > "$CRASH_MATCHES"; then
+  xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+  cat > "$OUTPUT_PATH" <<EOF
+capturedAt: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+appPath: $APP_PATH
+bundleId: $BUNDLE_ID
+deviceType: $DEVICE_TYPE
+runtime: $RUNTIME_ID
+screenshotPath: $SCREENSHOT_PATH
+simulatorLaunchResult: pass
+startupCrashScan: fail
+
+## Launch output
+
+\`\`\`text
+$LAUNCH_OUTPUT
+\`\`\`
+
+## Startup crash matches
+
+\`\`\`text
+$(cat "$CRASH_MATCHES")
+\`\`\`
+EOF
+  echo "Simulator startup crash scan failed. See $OUTPUT_PATH." >&2
+  exit 1
+fi
+
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 
 cat > "$OUTPUT_PATH" <<EOF
@@ -122,7 +173,9 @@ appPath: $APP_PATH
 bundleId: $BUNDLE_ID
 deviceType: $DEVICE_TYPE
 runtime: $RUNTIME_ID
+screenshotPath: $SCREENSHOT_PATH
 simulatorLaunchResult: pass
+startupCrashScan: pass
 
 ## Launch output
 

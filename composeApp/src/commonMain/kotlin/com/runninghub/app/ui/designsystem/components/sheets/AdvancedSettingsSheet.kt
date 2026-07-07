@@ -1,10 +1,13 @@
 package com.runninghub.app.ui.designsystem.components.sheets
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.runninghub.app.ui.designsystem.components.buttons.RhPrimaryButton
 import com.runninghub.app.ui.designsystem.components.parameters.ParameterSelector
@@ -57,6 +61,8 @@ fun AdvancedSettingsSheet(
     onAdvancedToggle: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    contentMaxHeight: Dp = 560.dp,
+    contentBottomPadding: Dp = 0.dp,
     dragHandle: (@Composable () -> Unit)? = null,
     leadingContent: @Composable ColumnScope.() -> Unit = {},
     sectionContent: @Composable ColumnScope.(AdvancedSettingsSectionState) -> Unit = { section ->
@@ -75,48 +81,56 @@ fun AdvancedSettingsSheet(
             closeContentDescription = state.closeContentDescription,
             onDismiss = onDismiss,
         )
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 560.dp)
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(RhSpacing.md),
+                .heightIn(max = contentMaxHeight),
         ) {
-            leadingContent()
-            if (state.empty) {
-                Text(
-                    text = state.emptyText,
-                    color = RhTheme.colors.textSecondary,
-                    style = RhTypography.body,
-                    modifier = Modifier.padding(vertical = RhSpacing.xl),
-                )
-            } else {
-                if (state.commonSection.contentCount > 0) {
-                    AdvancedSettingsSection(
-                        state = state.commonSection,
-                        content = sectionContent,
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(RhSpacing.md),
+            ) {
+                leadingContent()
+                if (state.empty) {
+                    Text(
+                        text = state.emptyText,
+                        color = RhTheme.colors.textSecondary,
+                        style = RhTypography.body,
+                        modifier = Modifier.padding(vertical = RhSpacing.xl),
                     )
-                }
-                if (state.advancedSection.contentCount > 0) {
-                    AdvancedSettingsAdvancedHeader(
-                        title = state.advancedSection.title,
-                        toggleText = state.advancedToggleText,
-                        onToggle = onAdvancedToggle,
-                    )
-                    if (!state.advancedSection.collapsed) {
+                } else {
+                    if (state.commonSection.contentCount > 0) {
                         AdvancedSettingsSection(
-                            state = state.advancedSection,
+                            state = state.commonSection,
                             content = sectionContent,
                         )
                     }
+                    if (state.advancedSection.contentCount > 0) {
+                        AdvancedSettingsAdvancedHeader(
+                            title = state.advancedSection.title,
+                            toggleText = state.advancedToggleText,
+                            onToggle = onAdvancedToggle,
+                        )
+                        if (!state.advancedSection.collapsed) {
+                            AdvancedSettingsSection(
+                                state = state.advancedSection,
+                                content = sectionContent,
+                            )
+                        }
+                    }
                 }
-            }
-            if (state.doneLabel.isNotBlank()) {
-                RhPrimaryButton(
-                    text = state.doneLabel,
-                    onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                if (state.doneLabel.isNotBlank()) {
+                    RhPrimaryButton(
+                        text = state.doneLabel,
+                        onClick = onDismiss,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                if (contentBottomPadding > 0.dp) {
+                    Spacer(modifier = Modifier.height(contentBottomPadding))
+                }
             }
         }
     }

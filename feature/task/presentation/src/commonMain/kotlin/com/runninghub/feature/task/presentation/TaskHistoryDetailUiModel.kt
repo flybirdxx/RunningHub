@@ -39,6 +39,7 @@ enum class TaskHistoryDetailMediaType {
 
 /** 任务详情页本地保存状态。 */
 enum class TaskHistoryDetailSaveState {
+    SAVED,
     NOT_SAVED,
     UNAVAILABLE,
 }
@@ -244,7 +245,7 @@ private fun GenerationHistoryOutput.toTaskHistoryDetailOutputUi(): TaskHistoryDe
     TaskHistoryDetailOutputUi(
         outputId = outputId,
         url = url,
-        previewUrl = thumbnailUrl?.takeIf { it.isNotBlank() },
+        previewUrl = displayThumbnailUrl,
         mediaType = when {
             isImage -> TaskHistoryDetailMediaType.IMAGE
             isVideo -> TaskHistoryDetailMediaType.VIDEO

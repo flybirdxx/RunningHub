@@ -5,6 +5,7 @@ import com.runninghub.core.storage.CredentialStore
 import com.runninghub.feature.auth.data.remote.api.AuthApi
 import com.runninghub.feature.auth.domain.AuthError
 import com.runninghub.feature.auth.domain.SessionManager
+import com.runninghub.feature.auth.domain.SessionState
 import com.runninghub.feature.auth.domain.SmsError
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.mock.MockEngine
@@ -20,6 +21,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 /**
@@ -191,6 +193,41 @@ class AuthRepositoryImplTest {
     }
 
     @Test
+    fun `login fails before authentication when credential persistence fails`() = runBlocking {
+        val credentialStore = FakeCredentialStore(failAuthTokenWrite = true)
+        val sessionManager = SessionManager()
+        val client = mockClient(
+            mapOf(
+                "/uc/pwdLogin" to """
+                    {
+                      "code": 0,
+                      "msg": "success",
+                      "data": {
+                        "access_token": "access-token",
+                        "refresh_token": "refresh-token"
+                      }
+                    }
+                """.trimIndent(),
+            ),
+        )
+        val repository = AuthRepositoryImpl(
+            api = AuthApi(client),
+            credentialStore = credentialStore,
+            sessionManager = sessionManager,
+            tokenRefresher = TokenRefresher(
+                refreshClient = client,
+                credentialStore = credentialStore,
+            ),
+        )
+
+        val result = repository.login("13800138000", "password")
+
+        assertTrue(result.isFailure)
+        assertNull(credentialStore.getAuthToken())
+        assertEquals(SessionState.Restoring, sessionManager.state.value)
+    }
+
+    @Test
     fun `refreshTokenIfNeeded maps refresh failure to stable auth error`() = runBlocking {
         val credentialStore = FakeCredentialStore(authToken = null, refreshToken = null)
         val repository = AuthRepositoryImpl(
@@ -285,6 +322,7 @@ class AuthRepositoryImplTest {
     private class FakeCredentialStore(
         var authToken: String? = null,
         var refreshToken: String? = null,
+        private val failAuthTokenWrite: Boolean = false,
     ) : CredentialStore {
         override suspend fun getApiKey(): String? = null
         override suspend fun setApiKey(key: String) = Unit
@@ -297,6 +335,9 @@ class AuthRepositoryImplTest {
         override suspend fun clearCookie() = Unit
         override suspend fun getAuthToken(): String? = authToken
         override suspend fun setAuthToken(token: String) {
+            if (failAuthTokenWrite) {
+                throw IllegalStateException("credential-write-failed")
+            }
             authToken = token
         }
         override suspend fun clearAuthToken() {

@@ -20,6 +20,8 @@
     <string>1.0</string>
     <key>CFBundleVersion</key>
     <string>1</string>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
     <key>LSRequiresIPhoneOS</key>
     <true/>
     <key>NSCameraUsageDescription</key>
@@ -28,6 +30,10 @@
     <string>RunningHub 需要访问麦克风，以便在支持录制或选择音频的流程中处理声音素材。</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>RunningHub 需要访问您的照片和视频，以便上传创作素材。</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>RunningHub 需要写入照片图库，以便保存生成结果图片。</string>
+    <key>PHPhotoLibraryPreventAutomaticLimitedAccessAlert</key>
+    <true/>
     <key>UIApplicationSceneManifest</key>
     <dict>
         <key>UIApplicationSupportsMultipleScenes</key>
