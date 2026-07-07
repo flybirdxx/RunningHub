@@ -24,7 +24,7 @@
 
 ### 当前 iOS TestFlight 人审材料
 
-截至 2026-07-07，当前补丁已通过 `./gradlew --console=plain verifyL1Ios`，并已有 macOS signed Simulator 证据；TestFlight 仍需要真实签名、上传和 App Store Connect 证据，L1 封板仍需要在提交后的新 `HEAD` 上重新采集外部证据。
+截至 2026-07-07，当前 iOS 补全提交已通过 `./gradlew --console=plain verifyL1Ios`，并已按当前 Git `HEAD` 重采 macOS iOS link/Simulator evidence；TestFlight 仍需要真实签名、上传和 App Store Connect 证据，L1 封板仍需要推送后刷新 Android/iOS GitHub Actions 外部证据。
 
 | 项目 | 当前证据 | 发布前状态 |
 |---|---|---|
@@ -52,7 +52,7 @@
 | TestFlight 人审 | 负责人记录 App Store Connect 账号、证书、Team、provisioning profile、bundle id、版本号、构建号、隐私表单和导出合规确认；当前代码已确认 Release framework link 和不签名 Xcode build 通过，但 `DEVELOPMENT_TEAM`、archive `SigningIdentity` 和 `Team` 为空，签名 archive 探测因缺 Xcode account/profile 失败。 |
 | 上传专项补验 | 仅在真实运行发现用户可感知失败或发布负责人要求专项补证时执行；当前不要把远端 video/audio/AppDetail 上传 200 作为自动化主线反复推进。 |
 
-当前自动化停线：未收到新的真实失败证据或负责人授权前，不再因为“证据更完整”扩展上传、权限弹窗或验证码自动化。发布前只接受三类后续动作：提交后按新 `HEAD` 重采外部证据、人工补齐上表真实交互记录、或基于真实用户可感知失败回到实现修复。
+当前自动化停线：未收到新的真实失败证据或负责人授权前，不再因为“证据更完整”扩展上传、权限弹窗或验证码自动化。发布前只接受三类后续动作：推送后按当前 `HEAD` 重采 Android/iOS GitHub Actions 外部证据、人工补齐上表真实交互记录、或基于真实用户可感知失败回到实现修复。
 
 ### iOS 权限与媒体回归矩阵
 

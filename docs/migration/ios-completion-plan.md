@@ -1,7 +1,7 @@
 # iOS 功能补全剖析与执行计划
 
 更新时间：2026-07-07
-当前基线：本轮 iOS 补全补丁已进入 Git 索引；最终 macOS/iOS evidence 以重采后的 `headSha` 字段为准。
+当前基线：当前 Git `HEAD`；macOS/iOS evidence 已按该 `headSha` 重采，具体提交以 evidence 文件为准。
 当前环境：macOS 26.5.1，Xcode 26.6 (17F113)，iOS Simulator SDK 26.5，已安装 iOS Simulator runtime 26.4 与 26.5
 任务边界：先完成仓库剖析和文档落地，不在本文件完成前直接修改业务代码。
 
@@ -54,7 +54,7 @@ pending added 文件和 30 个 pending modified 文件，因此涉及本轮 iOS 
 - DataStore backed 非敏感缓存，包括余额、QuickCreate 草稿、模型选择和 UI snapshot。
 - `audio/auth/community/discovery/model/task/quickCreate` Data 模块和 `appModule`。
 
-结论：iOS 不是缺少总入口；当前 macOS 下的 link、Xcode build 和 signed Simulator 主流程已经有运行证据，`verifyL1Ios` 已在补丁进入索引后通过。剩余风险集中在提交固定后的最终 L1 外部证据重采集、TestFlight/真机边界和需要人工操作的系统弹窗。
+结论：iOS 不是缺少总入口；当前 macOS 下的 link、Xcode build 和 signed Simulator 主流程已经有运行证据，`verifyL1Ios` 已在当前补全补丁上通过，且 `ios-macos-link-and-simulator.md` 已按当前 `HEAD` 重采。剩余风险集中在远端 CI 外部证据、TestFlight/真机边界和需要人工操作的系统弹窗。
 
 ### 3.3 已存在的平台能力
 
@@ -99,7 +99,7 @@ P0 成功标准：
 
 ### P1：补齐 iOS 运行证据
 
-需要把 `docs/migration/evidence/ios-macos-link-and-simulator.md` 从 skipped 证据替换为当前提交的 pass 证据；最终封板前必须提交固定后按新 `HEAD` 重采。
+需要把 `docs/migration/evidence/ios-macos-link-and-simulator.md` 从 skipped 证据替换为当前提交的 pass 证据；2026-07-07 已按当前 `HEAD` 重采。
 采集入口仍使用：
 
 ```bash
@@ -112,7 +112,7 @@ docs/migration/collect-ios-macos-evidence.sh --simulator-smoke-pass --smoke-note
 
 - `docs/migration/collect-ios-macos-evidence.sh --simulator-smoke-pass --smoke-notes "<...>"` 已在 macOS 上重新采集并写入 `docs/migration/evidence/ios-macos-link-and-simulator.md`。
 - 该 evidence 记录为 `overallResult: pass`、`simulatorSmokeResult: pass`、`authenticatedSmokeBuildMode: signed-simulator-or-device`。
-- 由于该 evidence 采集时仍有未提交实现和文档补丁，它不是最终 L1 封板证据；封板仍需提交后按新 `HEAD` 重新采集外部证据。
+- 2026-07-07 已在当前 `HEAD` 上重新采集 iOS evidence，字段为 `overallResult=pass`、`linkResult=pass`、`xcodebuildResult=pass`、`simulatorSmokeResult=pass`。
 
 ### P2：补齐用户主流程
 
@@ -248,12 +248,12 @@ TestFlight 或生产发布前不能自动完成，必须由负责人确认：
 
 - `MediaSaver.ios.kt` 图片保存已通过 signed Simulator 运行验证；图片/视频下载失败、写权限拒绝和写入失败已有 `IosMediaSaverTest` 自动化契约覆盖，其中写权限拒绝会返回独立 `PHOTO_PERMISSION_DENIED`，再由 `recoverablePermission()` 让 QuickCreate 与 History 复用权限底部弹窗，并在永久拒绝时调用 `openAppSettings()`；历史详情视频输出保存分发已有 `TaskHistoryMediaSaveActionTest` 覆盖。真实系统弹窗拒绝路径和真实远端视频保存仍未做专项运行覆盖。
 - `./gradlew` 可执行位已恢复；这会作为本轮文件模式变更留在工作区。
-- iOS 证据文件已更新为当前工作区的 pass 记录，并包含 signed Simulator 登录、退出、QuickCreate、图片上传 200、视频 picker 入口、音频 Document Picker 入口和图片保存 smoke；由于工作区仍有未提交补丁，它仍不能作为最终 L1 封板证据，封板前需要按新 `HEAD` 重采。
+- iOS 证据文件已更新为当前 `HEAD` 的 pass 记录，并包含 signed Simulator 登录、退出、QuickCreate、图片上传 200、视频 picker 入口、音频 Document Picker 入口和图片保存 smoke；远端 video/audio/AppDetail 上传 200、TestFlight 和真机升级边界仍不在该证据声明范围内。
 - Release checklist 中的 Keychain、WKWebView、PHPicker 和文档选择器路径冒烟项已按上述 signed Simulator evidence 标记为当前工作区已覆盖；这不等同于真实音频文件导入、video/audio 上传 200、Android 真实 WebView、真机或 TestFlight 通过。
 - 2026-07-07 通过 XcodeBuildMCP 执行当前 default profile 的 iOS Simulator build，结果为 `SUCCEEDED`，构建日志为 `/Users/yu/Library/Developer/XcodeBuildMCP/workspaces/RunningHub-b34ac473094f/logs/build_sim_2026-07-07T02-22-38-026Z_pid88023_dd3982a2.log`；本次只证明 Xcode 构建，不替代新的登录或媒体运行 smoke。
 - 2026-07-07 通过 XcodeBuildMCP 执行 signed Simulator `build_run_sim`，结果为 `SUCCEEDED`，进程为 `22624`，构建日志为 `/Users/yu/Library/Developer/XcodeBuildMCP/workspaces/RunningHub-b34ac473094f/logs/build_run_sim_2026-07-07T03-40-44-748Z_pid88023_a201ea79.log`，runtime log 为 `/Users/yu/Library/Developer/XcodeBuildMCP/workspaces/RunningHub-b34ac473094f/logs/com.runninghub.app.ios_2026-07-07T03-41-20-511Z_helperpid22576_ownerpid88023_daadd8a0.log`；截图 `/var/folders/nv/4qwbj0z538jbxgb62zmhcf6w0000gn/T/screenshot_optimized_27ef2dca-4e71-48d1-b3b2-333baf3ee8a6.jpg` 显示应用保持在已登录的发现页，启动崩溃关键词扫描通过。本次只记录启动与登录态保持，不继续扩展远端上传 smoke。
 - `CODE_SIGNING_ALLOWED=NO` 的 Simulator 构建可证明 Xcode wrapper build，不应用来证明 Keychain 登录态；authenticated smoke 需要 signed Simulator build 或真机/TestFlight 环境。
-- `./gradlew --console=plain verifyL1Ios` 已在 2026-07-07 复跑通过；最新一次覆盖 `checkArchitectureBoundaries`、`checkL1CiWorkflows`、`checkLongTermGovernance`、`checkMigrationScripts` 和 iOS Debug framework link。`checkMigrationScripts` 不再因 L1 证据相关文件未暂存而失败。
+- `./gradlew --console=plain verifyL1Ios` 已在 2026-07-07 复跑通过；最新一次覆盖 `checkArchitectureBoundaries`、`checkL1CiWorkflows`、`checkLongTermGovernance`、`checkMigrationScripts` 和 iOS Debug framework link。
 - Camera 和 Notifications 已有 iOS 平台授权实现和编译证据；`IosPermissionAuthorizationMappingTest` 已覆盖 PhotoKit limited/denied/restricted、AVFoundation denied/restricted、UserNotifications provisional/denied 等系统状态到 granted/denied/permanently denied 的映射，并覆盖 PhotoKit 允许、拒绝和 Limited 三种结果写入 `PermissionStateStore` 的记录路径。2026-07-07 新增 PhotoKit Limited 管理入口静态契约：图片、视频和 StorageRead 权限在 Limited 状态下打开系统有限照片管理页，Camera 等其他权限仍进入 App Settings；`Info.plist` 同步设置 `PHPhotoLibraryPreventAutomaticLimitedAccessAlert=true`，避免系统自动 limited alert 绕过应用内恢复入口。2026-07-07 signed Simulator 已真实触发照片权限弹窗并选择“不允许”，页面未崩溃，展示稳定保存失败提示和权限恢复引导，日志扫描未命中远端 URL、敏感 token 或平台异常原文；同日已选择“限制访问…”进入系统 Limited Photos 管理页并完成返回，QuickCreate 页面未新增素材或错误。源码复核显示当前产品 UI 未暴露 Camera/Notifications 调用点，不能为验证新增用户不可见入口；有产品入口后再做允许、拒绝和设置页运行验证。
 - iOS `MediaResolver` 的普通 file URL 字节、文件名和大小读取已由 `IosMediaResolverTest` 覆盖；QuickCreate/AppDetail 已在上传前按文件大小阻断超过服务端字段上限或 100MiB 本地保护上限的文件，并在上传失败或上传中阻断生成任务提交。100MiB 以内媒体读取当前仍一次性加载 `NSData` 到 `ByteArray`，如果产品要求更大视频上传，需要先改领域上传接口为流式传输再做真机内存专项。
 - WKWebView 验证码 TAC 资源加载和滑块渲染已通过真实运行验证；Android `SmsCaptchaEnvironmentTest` 与 iOS `SmsCaptchaEnvironmentTest` 已覆盖平台 base URL 跟随 `RunningHubApiEnvironment.WEB_BASE_URL`，配合 `SmsCaptchaHtmlTest` 锁定 `/tac/js`、`/tac/css` 和 `/uc` 相对路径，防止 debug/staging 验证码和短信接口跨环境；验证码关闭和连续打开的旧回调隔离已有 `LoginStateHolderTest`、Android WebView dispose gate 和 iOS WKWebView handler/delegate dispose gate 覆盖；网络/script 失败、图片解码失败和超时的可重试降级状态已有 `SmsCaptchaHtmlTest` 与治理门禁覆盖；2026-07-07 新增静态脱敏门禁，阻止验证码 HTML、Android WebView 回调、iOS WKWebView 回调或登录状态层把 `validToken`、原始 TAC 响应写入 Web console/native log；同日已在 iPhone 17 Pro signed Simulator 人工完成 TAC 滑块，短信发送成功并完成 SMS 登录，runtime/os log 脱敏扫描未命中 token、Cookie、手机号、验证码、远端 URL 或平台异常原文。Android 真实 WebView 和 TestFlight 边界仍需发布前专项复核。
@@ -273,7 +273,7 @@ TestFlight 或生产发布前不能自动完成，必须由负责人确认：
 
 ### 8.1 可继续自动化推进
 
-1. 固定当前 iOS 平台能力、保存状态反馈、治理门禁和证据文档补丁后，在新 `HEAD` 上重新采集 Android/iOS GitHub Actions 证据和 macOS iOS evidence。
+1. 推送当前 iOS 补全提交后，重新采集 Android/iOS GitHub Actions 证据；macOS iOS evidence 已在当前 `HEAD` 上重采。
 2. 运行 `checkL1SealEvidence` 前，确保工作区只暂存允许的外部证据文件；不要为了通过门禁暂存业务源码、构建脚本或文档补丁。
 3. 上传链路不再作为当前自动化主线继续扩展：QuickCreate 图片上传 200、视频/音频扩展名与 MIME、AppDetail multipart file part `Content-Type`、AppDetail `.m4a/.mov` MIME 传递、上传中/上传失败阻断提交均已有自动化或 signed Simulator 证据。只有真实运行中出现明确用户可感知失败，例如上传实际返回错误、任务因此无法提交、崩溃或敏感信息泄漏时，才回到上传实现修复。
 4. 若要支持超过 100MiB 的真实视频或音频，先把领域上传接口改为流式传输，再做真机或专门环境内存专项 smoke；不要在当前 `NSData` -> `ByteArray` 路径上放宽保护上限。
@@ -301,7 +301,7 @@ TestFlight 或生产发布前不能自动完成，必须由负责人确认：
 
 在未收到新的真实失败证据或负责人授权前，当前 iOS 自动化实现工作到此收口。后续不再因为“证据更完整”而扩展上传、权限弹窗或验证码自动化；只允许继续做以下三类动作：
 
-1. 提交固定后，按新 `HEAD` 重采 Android/iOS GitHub Actions 和 macOS iOS evidence。
+1. 推送后按当前 `HEAD` 重采 Android/iOS GitHub Actions 外部证据。
 2. 人工或专门环境补齐 8.3 模板中的真实交互证据，并把证据路径和结论写回文档。
 3. 如果真实运行出现用户可感知失败、崩溃、敏感信息泄漏、任务无法提交或封板门禁新增非证据类失败，再回到对应实现修复。
 
@@ -327,7 +327,7 @@ chmod +x gradlew
 ./gradlew --console=plain :composeApp:linkReleaseFrameworkIosArm64
 git diff --check
 codegraph status
-./gradlew --console=plain verifyL1Ios # 2026-07-07 通过，checkMigrationScripts 不再因证据相关文件未暂存而失败
+./gradlew --console=plain verifyL1Ios # 2026-07-07 通过，覆盖 checkMigrationScripts 与 iOS Debug framework link
 xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' build CODE_SIGNING_ALLOWED=NO
 xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' build CODE_SIGNING_ALLOWED=NO
 xcodebuild -project iosApp/iosApp.xcodeproj -scheme RunningHub -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' archive -archivePath /tmp/RunningHub-iOS-Release.xcarchive CODE_SIGNING_ALLOWED=NO

@@ -65,8 +65,8 @@
 
 ## 当前状态
 
-- 当前 iOS 补全补丁已经进入 Git 索引，`./gradlew --console=plain verifyL1Ios` 已在 2026-07-07 复跑通过；其中 `checkMigrationScripts` 不再因证据相关文件未暂存而失败。
-- macOS iOS link 与 Simulator 冒烟：`docs/migration/evidence/ios-macos-link-and-simulator.md` 需要在补丁提交固定后的 Git `HEAD` 上重新采集。重采后的 `headSha` 必须等于当前待封板提交，且 `overallResult=pass`、`linkResult=pass`、`xcodebuildResult=pass`、`simulatorSmokeResult=pass`、`authenticatedSmokeBuildMode=signed-simulator-or-device`。
+- 当前 iOS 补全提交已固定，`./gradlew --console=plain verifyL1Ios` 已在 2026-07-07 复跑通过；其中 `checkMigrationScripts` 不再因证据相关文件未暂存而失败。
+- macOS iOS link 与 Simulator 冒烟：`docs/migration/evidence/ios-macos-link-and-simulator.md` 已在当前 Git `HEAD` 上重新采集，字段为 `overallResult=pass`、`linkResult=pass`、`xcodebuildResult=pass`、`simulatorSmokeResult=pass`、`authenticatedSmokeBuildMode=signed-simulator-or-device`。最终封板以该 evidence 文件的 `headSha` 字段和 `git rev-parse HEAD` 一致为准。
 - `CODE_SIGNING_ALLOWED=NO` 只用于证明 Xcode wrapper 可构建；authenticated smoke 必须使用 signed Simulator build 或真机/TestFlight 环境，否则 Keychain 可能不可用，不能证明登录态恢复。
 - `docs/migration/run-ios-simulator-smoke.sh` 已覆盖临时 Simulator 创建、安装启动、截图和启动崩溃关键词扫描；该脚本只能证明 launch smoke，不会把未登录的自动启动误判为 authenticated Simulator 冒烟。
 - `collect-ios-macos-evidence.sh` 的最终通过证据写入格式已与 `checkL1SealEvidence` 对齐：真实传入 `--simulator-smoke-pass` 和非空 `--smoke-notes` 后会写入 `overallResult: pass`、`skipReason: none`、`followUpRequired: false` 和 `authenticatedSmokeBuildMode: signed-simulator-or-device`。
