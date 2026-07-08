@@ -44,6 +44,7 @@ class QuickCreateInspirationStateHolderTest {
         runCurrent()
 
         assertEquals(listOf(1 to 2), repository.requestedTemplatePages)
+        assertEquals(listOf<String?>("hot"), repository.requestedTemplateTagIds)
         assertFalse(state.value.inspirationLoading)
         assertEquals(listOf("热门", "新品"), state.value.inspirationTags.map { it.label })
         assertEquals(listOf(true, false), state.value.inspirationTags.map { it.selected })
@@ -64,6 +65,7 @@ class QuickCreateInspirationStateHolderTest {
         holder.loadInspiration()
         runCurrent()
 
+        assertEquals(listOf<String?>(null), repository.requestedTemplateTagIds)
         assertEquals(emptyList(), state.value.inspirationTags)
         assertEquals(listOf("tpl-1", "tpl-2"), state.value.inspirationTemplates.map { it.id })
         assertEquals(QuickCreatePresentationError.InspirationTagsLoadFailed.asQuickCreateUiMessage(), state.value.error)
@@ -89,6 +91,39 @@ class QuickCreateInspirationStateHolderTest {
     }
 
     @Test
+    fun `select inspiration tag reloads first page with selected tag id`() = runTest {
+        val repository = FakeInspirationRepository()
+        val state = MutableStateFlow(
+            QuickCreateUiState(
+                inspirationTags = listOf(
+                    QuickCreateInspirationTag(id = "hot", name = "热门"),
+                    QuickCreateInspirationTag(id = "new", name = "新品"),
+                ).toQuickCreateInspirationTagUiItems(selectedTagId = "hot"),
+                inspirationTemplates = listOf(inspirationTemplate("tpl-hot"))
+                    .map { it.toQuickCreateInspirationTemplateUi() },
+                inspirationTemplatesPage = 1,
+                inspirationTemplatesHasMore = true,
+            )
+        )
+        val holder = createHolder(repository, state, this)
+
+        holder.selectInspirationTag("new")
+
+        assertEquals(true, state.value.inspirationLoading)
+        assertEquals(true, state.value.inspirationTemplates.isEmpty())
+
+        runCurrent()
+
+        assertEquals(listOf(1 to 2), repository.requestedTemplatePages)
+        assertEquals(listOf<String?>("new"), repository.requestedTemplateTagIds)
+        assertEquals(listOf(false, true), state.value.inspirationTags.map { it.selected })
+        assertEquals(listOf("tpl-1", "tpl-2"), state.value.inspirationTemplates.map { it.id })
+        assertEquals(1, state.value.inspirationTemplatesPage)
+        assertEquals(true, state.value.inspirationTemplatesHasMore)
+        assertFalse(state.value.inspirationLoading)
+    }
+
+    @Test
     fun `load more templates enters loading synchronously and ignores duplicate trigger`() = runTest {
         val repository = FakeInspirationRepository().apply {
             templatePages = mapOf(
@@ -104,6 +139,10 @@ class QuickCreateInspirationStateHolderTest {
         }
         val state = MutableStateFlow(
             QuickCreateUiState(
+                inspirationTags = listOf(
+                    QuickCreateInspirationTag(id = "hot", name = "热门"),
+                    QuickCreateInspirationTag(id = "new", name = "新品"),
+                ).toQuickCreateInspirationTagUiItems(selectedTagId = "new"),
                 inspirationTemplates = listOf(inspirationTemplate("tpl-1"), inspirationTemplate("tpl-2"))
                     .map { it.toQuickCreateInspirationTemplateUi() },
                 inspirationTemplatesPage = 1,
@@ -121,6 +160,7 @@ class QuickCreateInspirationStateHolderTest {
         runCurrent()
 
         assertEquals(listOf(2 to 2), repository.requestedTemplatePages)
+        assertEquals(listOf<String?>("new"), repository.requestedTemplateTagIds)
         assertEquals(listOf("tpl-1", "tpl-2", "tpl-3"), state.value.inspirationTemplates.map { it.id })
         assertEquals(2, state.value.inspirationTemplatesPage)
         assertFalse(state.value.inspirationTemplatesHasMore)
@@ -365,6 +405,7 @@ class QuickCreateInspirationStateHolderTest {
         var templateDetail = inspirationTemplateDetail()
         var templateDetailResult: Result<QuickCreateInspirationTemplateDetail>? = null
         val requestedTemplatePages = mutableListOf<Pair<Int, Int>>()
+        val requestedTemplateTagIds = mutableListOf<String?>()
         val requestedTemplateDetailIds = mutableListOf<String>()
 
         /**
@@ -381,6 +422,7 @@ class QuickCreateInspirationStateHolderTest {
             tagId: String?,
         ): Result<QuickCreateInspirationTemplatePage> {
             requestedTemplatePages += page to size
+            requestedTemplateTagIds += tagId
             return templatePageResults[page]
                 ?: Result.success(templatePages?.get(page) ?: defaultTemplatePage(page = page, size = size))
         }

@@ -29,7 +29,7 @@ enum class MediaSaveFailureReason {
     /** 当前系统版本低于平台实现支持的最低版本（Android 侧要求 API 29+ 的 scoped storage 路径）。 */
     UNSUPPORTED_OS_VERSION,
 
-    /** 当前平台尚未接入保存能力（iOS 占位实现）。 */
+    /** 当前平台没有可用的系统相册写入能力或平台实现主动声明不支持。 */
     UNSUPPORTED_PLATFORM,
 
     /** 结果媒体字节获取失败（网络或缓存均不可用）。 */

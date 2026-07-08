@@ -1,6 +1,7 @@
 package com.runninghub.feature.quickcreate.presentation.inspiration
 
 import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplateDetail
+import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTag
 import com.runninghub.feature.quickcreate.domain.QuickCreationInspirationRepository
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceSchema
 import com.runninghub.feature.quickcreate.domain.QuickCreationServiceUploadFieldAlias
@@ -60,13 +61,15 @@ class QuickCreateInspirationStateHolder(
             uiState.update { it.copy(inspirationLoading = true, error = null) }
 
             val tagsResult = inspirationRepository.getInspirationTags()
+            val selectedTagId = tagsResult.getOrNull()?.firstSelectableTagId()
             val templatesResult = inspirationRepository.getInspirationTemplates(
                 page = 1,
                 size = pageSize,
+                tagId = selectedTagId,
             )
 
             uiState.update { state ->
-                val tags = tagsResult.getOrElse { emptyList() }.toQuickCreateInspirationTagUiItems()
+                val tags = tagsResult.getOrElse { emptyList() }.toQuickCreateInspirationTagUiItems(selectedTagId)
                 val templatePage = templatesResult.getOrNull()
                 val templates = templatePage?.items.orEmpty().map { it.toQuickCreateInspirationTemplateUi() }
                 val error = tagsResult.exceptionOrNull()?.toQuickCreateUiMessage(
@@ -89,6 +92,63 @@ class QuickCreateInspirationStateHolder(
     }
 
     /**
+     * 切换灵感模板标签并重新加载第一页模板。
+     *
+     * 标签 ID 来自服务端标签实体；空值、未知标签和重复选择会被忽略。切换时先同步更新选中态与加载态，
+     * 让 UI 不再显示旧标签下的模板分页状态，再按标签 ID 请求第一页模板。
+     *
+     * @param tagId 需要筛选的灵感标签 ID。
+     */
+    fun selectInspirationTag(tagId: String) {
+        val current = uiState.value
+        val selectedTag = current.inspirationTags.firstOrNull { it.id == tagId } ?: return
+        if (selectedTag.selected || current.inspirationLoading) return
+
+        uiState.update { state ->
+            state.copy(
+                inspirationLoading = true,
+                inspirationTemplates = emptyList(),
+                inspirationTemplatesLoadingMore = false,
+                inspirationTemplatesPage = 0,
+                inspirationTemplatesHasMore = false,
+                inspirationTags = state.inspirationTags.selectTag(tagId),
+                error = null,
+            )
+        }
+
+        scope.launch {
+            val result = inspirationRepository.getInspirationTemplates(
+                page = 1,
+                size = pageSize,
+                tagId = tagId,
+            )
+
+            uiState.update { state ->
+                // 用户在请求期间可能又切换了标签，旧响应不能覆盖新标签的模板列表。
+                if (state.selectedInspirationTagId() != tagId) return@update state
+                result.fold(
+                    onSuccess = { page ->
+                        state.copy(
+                            inspirationLoading = false,
+                            inspirationTemplates = page.items.map { it.toQuickCreateInspirationTemplateUi() },
+                            inspirationTemplatesPage = page.page,
+                            inspirationTemplatesHasMore = page.hasNext,
+                        )
+                    },
+                    onFailure = { error ->
+                        state.copy(
+                            inspirationLoading = false,
+                            error = error.toQuickCreateUiMessage(
+                                QuickCreatePresentationError.InspirationTemplatesLoadFailed,
+                            ),
+                        )
+                    },
+                )
+            }
+        }
+    }
+
+    /**
      * 追加加载下一页灵感模板。
      *
      * 通过 `templateId` 去重，避免用户重复点击加载更多或服务端分页边界变化时出现重复模板卡片。
@@ -104,15 +164,19 @@ class QuickCreateInspirationStateHolder(
         }
 
         val nextPage = current.inspirationTemplatesPage + 1
+        val selectedTagId = current.selectedInspirationTagId()
         // 加载更多可能被按钮连点或同一事件帧重复触发，必须先同步占用加载状态。
         uiState.update { it.copy(inspirationTemplatesLoadingMore = true, error = null) }
         scope.launch {
             val result = inspirationRepository.getInspirationTemplates(
                 page = nextPage,
                 size = pageSize,
+                tagId = selectedTagId,
             )
 
             uiState.update { state ->
+                // 标签切换后旧分页请求可能才返回，此时不应把旧标签数据追加进新列表。
+                if (state.selectedInspirationTagId() != selectedTagId) return@update state
                 result.fold(
                     onSuccess = { nextPageResult ->
                         val loadedTemplates = nextPageResult.items.map { it.toQuickCreateInspirationTemplateUi() }
@@ -371,6 +435,15 @@ class QuickCreateInspirationStateHolder(
             billingPreview = null,
             estimatedCost = 0.0,
         )
+
+    private fun List<QuickCreateInspirationTagUi>.selectTag(tagId: String): List<QuickCreateInspirationTagUi> =
+        map { tag -> tag.copy(selected = tag.id == tagId) }
+
+    private fun QuickCreateUiState.selectedInspirationTagId(): String? =
+        inspirationTags.firstOrNull { it.selected }?.id?.takeIf { it.isNotBlank() }
+
+    private fun List<QuickCreateInspirationTag>.firstSelectableTagId(): String? =
+        firstOrNull { it.id.isNotBlank() }?.id
 
     private fun List<QuickCreationServiceModel>.matchTemplateModel(
         detail: QuickCreateInspirationTemplateDetail,

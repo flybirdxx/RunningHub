@@ -6,12 +6,10 @@ import com.runninghub.feature.quickcreate.domain.QuickCreateInspirationTemplate
 /**
  * 快捷创作灵感标签的 Presentation UI 模型。
  *
- * 标签接口返回的 [QuickCreateInspirationTag] 是 Domain 层筛选实体；当前页面尚未实现真实筛选，
- * 因此默认只把首个标签标记为选中，用于保持既有视觉效果。选中态集中在映射层，避免 Composable
- * 依赖列表下标理解业务规则。
+ * 标签接口返回的 [QuickCreateInspirationTag] 是 Domain 层筛选实体；选中态由 StateHolder 传入，
+ * 映射层只负责把当前筛选 ID 转换为稳定视觉状态，避免 Composable 依赖列表下标理解业务规则。
  *
- * @property source 原始标签实体，保留给后续接入真实标签筛选时复用。
- * Composable 不应从该对象读取展示文案，应使用 [label]。
+ * @property source 原始标签实体，保留给筛选请求复用。Composable 不应从该对象读取展示文案，应使用 [label]。
  * @property id 标签稳定 ID，来自服务端。
  * 空字符串表示服务端返回异常 ID；当前仅用于未来筛选，不参与列表 key。
  * @property label 标签展示文案，来自服务端标签名称。
@@ -121,17 +119,19 @@ data class QuickCreateInspirationTemplateUi(
 /**
  * 将 Domain 灵感标签列表映射为页面标签 UI 模型。
  *
- * 现阶段接口尚未提供“当前筛选标签”，因此保留旧 UI 的首个标签选中策略；
- * 如果后续接入真实筛选状态，应把 selected 的来源改为页面状态而不是下标。
+ * @param selectedTagId 当前用于请求模板分页的标签 ID；为空时回退选中首个标签，保持初次加载的视觉锚点。
  */
-fun List<QuickCreateInspirationTag>.toQuickCreateInspirationTagUiItems():
+fun List<QuickCreateInspirationTag>.toQuickCreateInspirationTagUiItems(
+    selectedTagId: String? = null,
+):
     List<QuickCreateInspirationTagUi> =
     mapIndexed { index, tag ->
+        val selected = selectedTagId?.let { tag.id == it } ?: (index == 0)
         QuickCreateInspirationTagUi(
             source = tag,
             id = tag.id,
             label = tag.name,
-            selected = index == 0,
+            selected = selected,
         )
     }
 
